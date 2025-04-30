@@ -76,7 +76,7 @@ S log_sum_exp(const S& x1, const S& x2) {
 
 
 template <typename S>
-S log_sum_exp(const RefVec<S>& x) {
+S log_sum_exp(const Vec<S>& x) {
   using std::log;
   S m = x.maxCoeff();
   return m + log((x.array() - m).exp().sum());
@@ -84,7 +84,7 @@ S log_sum_exp(const RefVec<S>& x) {
 
 
 template <typename S, class F>
-S potential(const RefVec<S>& theta,
+S potential(const Vec<S>& theta,
             const F& logp_grad_fun) {
   Vec<S> grad;
   S logp;
@@ -94,16 +94,16 @@ S potential(const RefVec<S>& theta,
 
 
 template <typename S>
-S kinetic(const RefVec<S>& rho,
-          const RefVec<S>& inv_mass) {
+S kinetic(const Vec<S>& rho,
+          const Vec<S>& inv_mass) {
   return 0.5 * (inv_mass.array() * rho.array().square()).sum();
 }
 
 
 template <typename S, class F>
-S hamiltonian(const RefVec<S>& theta,
-              const RefVec<S>& rho,
-              const RefVec<S>& inv_mass,
+S hamiltonian(const Vec<S>& theta,
+              const Vec<S>& rho,
+              const Vec<S>& inv_mass,
               const F& logp_grad_fun) {
   return potential(theta, logp_grad_fun) + kinetic(rho, inv_mass);
 }
@@ -111,14 +111,14 @@ S hamiltonian(const RefVec<S>& theta,
 
 template <typename S, typename F>
 void leapfrog(const F& logp_grad_fun,
-              const RefVec<S>& inv_mass,
+              const Vec<S>& inv_mass,
               S step,
-              const RefVec<S>& theta,
-              const RefVec<S>& rho,
-              const RefVec<S>& grad,
-              RefVec<S>& theta_next,
-              RefVec<S>& rho_next,
-              RefVec<S>& grad_next,
+              const Vec<S>& theta,
+              const Vec<S>& rho,
+              const Vec<S>& grad,
+              Vec<S>& theta_next,
+              Vec<S>& rho_next,
+              Vec<S>& grad_next,
               S& logp_next) {
   S half_step = 0.5 * step;
   rho_next = rho + half_step * grad;
@@ -129,11 +129,11 @@ void leapfrog(const F& logp_grad_fun,
 
 
 template <typename S>
-bool uturn(const RefVec<S>& theta_bk,
-           const RefVec<S>& rho_bk,
-           const RefVec<S>& theta_fw,
-           const RefVec<S>& rho_fw,
-           const RefVec<S>& inv_mass) {
+bool uturn(const Vec<S>& theta_bk,
+           const Vec<S>& rho_bk,
+           const Vec<S>& theta_fw,
+           const Vec<S>& rho_fw,
+           const Vec<S>& inv_mass) {
   auto scaled_diff = (inv_mass.array() * (theta_bk - theta_fw).array()).matrix();
   return rho_fw.dot(scaled_diff) < 0 || rho_bk.dot(scaled_diff) < 0;
 }
@@ -143,11 +143,11 @@ template <bool Progressive, typename S, typename RNG>
 Span<S> combine(RNG& rng,
                 Span<S> span1,
                 Span<S> span2,
-                const RefVec<S>& inv_mass,
-                bool& uturn) {
+                const Vec<S>& inv_mass,
+                bool& uturn_flag) {
   if (uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_,
             inv_mass)) {
-    uturn = true;
+    uturn_flag = true;
     return span1;
   }
   using std::exp;
@@ -157,7 +157,7 @@ Span<S> combine(RNG& rng,
   static std::uniform_real_distribution<> unif(0.0, 1.0);
   bool update = unif(rng) < update_prob;
   auto selected = update ? span2.theta_select_ : span1.theta_select_;
-  uturn = false;
+  uturn_flag = false;
   return Span<S>(span1.theta_bk_, span1.rho_bk_, span1.grad_theta_bk_,
                  span2.theta_fw_, span2.rho_fw_, span2.grad_theta_fw_,
                  selected, logp12);
@@ -168,13 +168,14 @@ Span<S> combine(RNG& rng,
 template <typename S, class RNG, class F>
 Span<S> build_span_bk(RNG& rng,
                       const F& logp_grad_fun,
-                      const RefVec<S>& inv_mass,
+                      const Vec<S>& inv_mass,
                       S step,
                       int depth,
                       const Span<S>& last_span,
-                      bool& uturn) {
+                      bool& uturn_flag) {
   const Vec<S>& theta = last_span.theta_bk_;
   const Vec<S>& rho = last_span.rho_bk_;
+  const Vec<S>& grad_theta = last_span.grad_theta_bk_;
   if (depth == 0) {
     Vec<S> theta_next;
     Vec<S> rho_next;
@@ -182,37 +183,38 @@ Span<S> build_span_bk(RNG& rng,
     S logp_theta_next;
     leapfrog(logp_grad_fun, inv_mass, -step, theta, rho, grad_theta,
              theta_next, rho_next, grad_theta_next, logp_theta_next);
-    uturn = false;
+    uturn_flag = false;
     return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
   }
   Span<S> span1 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, last_span, uturn);
-  if (uturn) {
+                                depth - 1, last_span, uturn_flag);
+  if (uturn_flag) {
     return last_span;  // dummy
   }
   Span<S> span2 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, span1, uturn);
-  if (uturn) {
+                                depth - 1, span1, uturn_flag);
+  if (uturn_flag) {
     return last_span; // dummy
   }
   if (uturn(span2.theta_bk_, span2.rho_bk_, span1.theta_fw_, span1.rho_fw_, inv_mass)) {
-    uturn = true;
+    uturn_flag = true;
     return last_span;  // dummy
   }
-  return combine<false>(rng, span2, span1, inv_mass, uturn);
+  return combine<false>(rng, span2, span1, inv_mass, uturn_flag);
 }
 
 
 template <typename S, class RNG, class F>
 Span<S> build_span_fw(RNG& rng,
                       const F& logp_grad_fun,
-                      const RefVec<S>& inv_mass,
+                      const Vec<S>& inv_mass,
                       S step,
                       int depth,
                       const Span<S>& last_span,
-                      bool& uturn) {
+                      bool& uturn_flag) {
   const Vec<S>& theta = last_span.theta_fw_;
   const Vec<S>& rho = last_span.rho_fw_;
+  const Vec<S>& grad_theta = last_span.grad_theta_fw_;
   if (depth == 0) {
     Vec<S> theta_next;
     Vec<S> rho_next;
@@ -220,35 +222,35 @@ Span<S> build_span_fw(RNG& rng,
     S logp_theta_next;
     leapfrog(logp_grad_fun, inv_mass, step, theta, rho, grad_theta,
              theta_next, rho_next, grad_theta_next, logp_theta_next);
-    uturn = false;
+    uturn_flag = false;
     return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
   }
   Span<S> span1 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, last_span, uturn);
-  if (uturn) {
+                                depth - 1, last_span, uturn_flag);
+  if (uturn_flag) {
     return last_span;  // won't be used
   }
   Span<S> span2 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, span1, uturn);
-  if (uturn) {
+                                depth - 1, span1, uturn_flag);
+  if (uturn_flag) {
     return last_span; // won't be used
   }
   if (uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass)) {
-    uturn = true;
+    uturn_flag = true;
     return last_span;  // won't be used
   }
-  return combine<false>(rng, span1, span2, inv_mass, uturn);
+  return combine<false>(rng, span1, span2, inv_mass, uturn_flag);
 }
 
 
 template <typename S, typename RNG, class F>
 void transition(RNG& rng,
                 const F& logp_grad_fun,
-                const RefVec<S>& inv_mass,
+                const Vec<S>& inv_mass,
                 S step,
                 int max_depth,
-                const RefVec<S>& theta,
-                RefVec<S>& theta_next) {
+                const Vec<S>& theta,
+                Vec<S>& theta_next) {
   Vec<S> rho(theta.size());
   static std::normal_distribution std_normal{0.0, 1.0};
   static std::uniform_int_distribution uniform_binary{0, 1};
@@ -281,11 +283,11 @@ void transition(RNG& rng,
 template <typename S, typename RNG, class F>
 void nuts(RNG& rng,
           const F& logp_grad_fun,
-          const RefVec<S>& inv_mass,
+          const Vec<S>& inv_mass,
           S step,
           int max_depth,
-          const RefVec<S>& theta,
-          RefMatrix<S>& sample) {
+          const Vec<S>& theta,
+          Matrix<S>& sample) {
   int num_draws = sample.rows();
   if (num_draws == 0) return;
   sample.row(0) = theta;

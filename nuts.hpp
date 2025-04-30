@@ -1,203 +1,235 @@
+#include <algorithm>
 #include <cmath>
 #include <random>
 #include <utility>
 #include <Eigen/Dense>
 
-// void logp_grad(const vector& theta, vector& grad, double& lp)
+// TODO(carpenter): distributions either (a) thread localize or (b) plumb through like RNG
 
+template <typename S>
+using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
-template <typename Scalar>
-Scalar log_sum_exp(const Scalar& x1, const Scalar& x2) {
-  Scalar m = std::fmax(x1, x2);
-  return m + std::log(exp(x1 - m) + exp(x2 - m));
-}
+template <typename S>
+using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-template <typename Scalar>
-Scalar log_sum_exp(const Eigen::Vector<Scalar>& x) {
-  Scalar m = x.maxCoeff();
-  return m + std::log((x - m).array().exp().vector().sum());
-}
+template <typename S>
+using RefVec = Eigen::Ref<Vec<S>>;
 
-template <typename Scalar>
-class span {
-  const Eigen::Vector<Scalar> theta_bk_;
-  const Eigen::Vector<Scalar> rho_bk_;
-  const Eigen::Vector<Scalar> grad_theta_bk_;
+template <typename S>
+using RefMatrix = Eigen::Ref<Matrix<S>>;
 
-  const Eigen::Vector<Scalar> theta_fw;
-  const Eigen::Vector<Scalar> rho_fw_;
-  const Eigen::Vector<Scalar> grad_theta_fw_;
+template <typename S>
+class Span {
+ public:
+  Vec<S> theta_bk_;
+  Vec<S> rho_bk_;
+  Vec<S> grad_theta_bk_;
+  Vec<S> theta_fw_;
+  Vec<S> rho_fw_;
+  Vec<S> grad_theta_fw_;
+  Vec<S> theta_select_;
+  S logp_;
 
-  const Eigen::Vector<Scalar> theta_select_;
-  Scalar logp_;
-
-  span(const Eigen::Vector<Scalar>& theta_bk,
-       const Eigen::Vector<Scalar>& rho_bk,
-       const Eigen::Vector<Scalar>& grad_theta_bk,
-       const Eigen::Vector<Scalar>& theta_fw,
-       const Eigen::Vector<Scalar>& rho_fw,
-       const Eigen::Vector<Scalar>& grad_theta_fw,
-       const Eigen::Vector<Scalar>& theta_select,
-       Scalar lp_total)
-      : theta_bk_(theta_bk),
-        rho_bk_(rho_bk),
-        grad_theta_bk_(grad_theta_bk),
-        theta_fw_(theta_fw),
-        rho_fw_(rho_fw),
-        grad_theta_fw_(grad_theta_fw),
-        theta_select_(theta_select),
-        logp_(lp_total)
+  // assumes _bk and _fw ae distinct; see other ctor
+  Span(const Vec<S> theta_bk,
+       const Vec<S> rho_bk,
+       const Vec<S> grad_theta_bk,
+       const Vec<S> theta_fw,
+       const Vec<S> rho_fw,
+       const Vec<S> grad_theta_fw,
+       const Vec<S> theta_select,
+       S logp)
+      : theta_bk_(std::move(theta_bk)),
+        rho_bk_(std::move(rho_bk)),
+        grad_theta_bk_(std::move(grad_theta_bk)),
+        theta_fw_(std::move(theta_fw)),
+        rho_fw_(std::move(rho_fw)),
+        grad_theta_fw_(std::move(grad_theta_fw)),
+        theta_select_(std::move(theta_select)),
+        logp_(logp)
   {}
 
-  span(const Eigen::Vector<Scalar>& theta,
-       const Eigen::Vector<Scalar>& rho,
-       const Eigen::Vector<Scalar>& grad_theta,
-       Scalar logp_theta)
-      : span(theta, rho, grad_theta,
-             theta, rho, grad_theta,
-             theta, logp_theta)
+  Span(const Vec<S> theta,
+       const Vec<S> rho,
+       const Vec<S> grad_theta,
+       S logp)
+      : theta_bk_(theta),  // copy duplicates
+        rho_bk_(rho),
+        grad_theta_bk_(grad_theta),
+        theta_fw_(theta),
+        rho_fw_(std::move(rho)),  // move once after copy
+        grad_theta_fw_(std::move(grad_theta)),
+        theta_select_(std::move(theta)),
+        logp_(logp)
   {}
 };
 
 
-template <typename Scalar, class Fun>
-Scalar potential(const Eigen::Vector<Scalar>& theta,
-                 const Fun& logp_grad) {
-  Eigen::Vector<Scalar> grad;
-  Scalar lp;
-  logp_grad(theta, logp, grad);
+template <typename S>
+S log_sum_exp(const S& x1, const S& x2) {
+  using std::fmax;
+  using std::log;
+  using std::exp;
+  S m = fmax(x1, x2);
+  return m + log(exp(x1 - m) + exp(x2 - m));
+}
+
+
+template <typename S>
+S log_sum_exp(const RefVec<S>& x) {
+  using std::log;
+  S m = x.maxCoeff();
+  return m + log((x.array() - m).exp().sum());
+}
+
+
+template <typename S, class F>
+S potential(const RefVec<S>& theta,
+            const F& logp_grad_fun) {
+  Vec<S> grad;
+  S logp;
+  logp_grad_fun(theta, logp, grad);
   return -logp;
 }
 
 
-template <typename Scalar>
-Scalar kinetic(const Eigen::Vector<Scalar>& rho,
-               const Eigen::Vector<Scalar>& inv_mass) {
-  return 0.5 * inv_mass.dot(rho.array().square().vector());
+template <typename S>
+S kinetic(const RefVec<S>& rho,
+          const RefVec<S>& inv_mass) {
+  return 0.5 * (inv_mass.array() * rho.array().square()).sum();
 }
 
 
-template <typename Scalar, class Fun>
-Scalar hamiltonian(const Eigen::Vector<Scalar>& theta,
-                   const Eigen::Vector<Scalar>& rho,
-                   const Eigen::Vector<Scalar>& inv_mass,
-                   const Fun& logp_grad_fun) {
-  return potential(theta, logp) + kinetic(inv_mass, logp_grad_fun);
+template <typename S, class F>
+S hamiltonian(const RefVec<S>& theta,
+              const RefVec<S>& rho,
+              const RefVec<S>& inv_mass,
+              const F& logp_grad_fun) {
+  return potential(theta, logp_grad_fun) + kinetic(rho, inv_mass);
 }
 
 
-template <typename Scalar, typename Fun>
-void leapfrog(Fun& logp_grad_fun,
-              Eigen::Vector<Scalar>& inv_mass,
-              Scalar step,
-              const Eigen::Vector<Scalar>& theta,
-              const Eigen::Vector<Scalar>& rho,
-              const Eigen::Vector<Scalar>& grad_theta,
-              Eigen::Vector<Scalar>& theta_next,
-              Eigen::Vector<Scalar>& rho_next,
-              Eigen::Vector<Scalar>& grad_theta_next
-              Scalar& logp_theta_next) {
-  Scalar half_step = 0.5 * step;
-  auto step_inv_mass = step * inv_mass;
-  rho_next = rho + half_step * grad_theta;
-  theta_next = theta + step_inv_mass * rho;
-  lp_grad_theta_next = lp_grad_fun(theta_next);
-  rho_next += half_step * lp_grad_theta_next.grad;
+template <typename S, typename F>
+void leapfrog(const F& logp_grad_fun,
+              const RefVec<S>& inv_mass,
+              S step,
+              const RefVec<S>& theta,
+              const RefVec<S>& rho,
+              const RefVec<S>& grad,
+              RefVec<S>& theta_next,
+              RefVec<S>& rho_next,
+              RefVec<S>& grad_next,
+              S& logp_next) {
+  S half_step = 0.5 * step;
+  rho_next = rho + half_step * grad;
+  theta_next = theta + step * (inv_mass.array() * rho_next.array()).matrix();
+  logp_grad_fun(theta_next, logp_next, grad_next);
+  rho_next += half_step * grad_next;
 }
 
 
-template <typename Scalar>
-bool uturn(const Eigen::Vector<Scalar>& theta_bk,
-           const Eigen::Vector<Scalar>& rho_bk,
-           const Eigen::Vector<Scalar>& theta_fw,
-           const Eigen::Vector<Scalar>& rho_fw,
-           const Eigen::Vector<Scalar>& inv_mass) {
-  auto scaled_diff = (inv_mass.array() * (theta_bk - theta_fw).array()).vector();
+template <typename S>
+bool uturn(const RefVec<S>& theta_bk,
+           const RefVec<S>& rho_bk,
+           const RefVec<S>& theta_fw,
+           const RefVec<S>& rho_fw,
+           const RefVec<S>& inv_mass) {
+  auto scaled_diff = (inv_mass.array() * (theta_bk - theta_fw).array()).matrix();
   return rho_fw.dot(scaled_diff) < 0 || rho_bk.dot(scaled_diff) < 0;
 }
 
-template <bool Progressive, typename Scalar, typename RNG>
-span combine(RNG& rng, const span& span1, const span& span2,
-             Eigen::Vector<Scalar> inv_mass, bool& uturn) {
-  if (uturn(span1.theta_bk, span1.rho_bk, span2.theta_fw, span2._rho_fw, inv_mass)) {
+
+template <bool Progressive, typename S, typename RNG>
+Span<S> combine(RNG& rng,
+                Span<S> span1,
+                Span<S> span2,
+                const RefVec<S>& inv_mass,
+                bool& uturn) {
+  if (uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_,
+            inv_mass)) {
     uturn = true;
     return span1;
   }
-  Scalar logp12 = log_sum_exp(span1.logp, span2.logp);
-  Scalar log_denominator = Progressive ? span1.logp : logp12;
-  Scalar update_prob = std::exp(span2.logp - log_denominator);
-  std::uniform_real_distribution<> u(0.0, 1.0);
-  bool update = u(rng) < update_prob;
-  auto selected = update ? span2.theta_select : span1:theta_select;
+  using std::exp;
+  S logp12 = log_sum_exp(span1.logp_, span2.logp_);
+  S log_denominator = Progressive ? span1.logp_ : logp12;
+  S update_prob = exp(span2.logp_ - log_denominator);
+  static std::uniform_real_distribution<> unif(0.0, 1.0);
+  bool update = unif(rng) < update_prob;
+  auto selected = update ? span2.theta_select_ : span1.theta_select_;
   uturn = false;
-  return span(span1.theta_bk, span1.rho_bk, span1.grad_theta_bk,
-              span2.theta_fw, span2.rho_fw, span2.grad_theta_fw, logp12);
+  return Span<S>(span1.theta_bk_, span1.rho_bk_, span1.grad_theta_bk_,
+                 span2.theta_fw_, span2.rho_fw_, span2.grad_theta_fw_,
+                 selected, logp12);
 }
 
-template <typename Scalar, class RNG, class Fun>
-span build_span_bk(RNG& rng,
-                   const Fun& logp_grad_fun,
-                   const Eigen::Vector<Scalar>& inv_mass,
-                   Scalar step,
-                   int depth,
-                   const span& last_span,
-                   bool& uturn) {
-  auto theta = last_span.theta_bk_;
-  auto rho = last_span.rho_bk_;
+
+// TODO(carpenter): unify build_span_fw() and build_span_bk() into build_span()
+template <typename S, class RNG, class F>
+Span<S> build_span_bk(RNG& rng,
+                      const F& logp_grad_fun,
+                      const RefVec<S>& inv_mass,
+                      S step,
+                      int depth,
+                      const Span<S>& last_span,
+                      bool& uturn) {
+  const Vec<S>& theta = last_span.theta_bk_;
+  const Vec<S>& rho = last_span.rho_bk_;
   if (depth == 0) {
-    Eigen::Vector<Scalar> theta_next;
-    Eigen::Vector<Scalar> rho_next;
-    Eigen::Vector<Scalar> grad_theta_next;
-    Eigen::Vector<Scalar> logp_theta_next;
+    Vec<S> theta_next;
+    Vec<S> rho_next;
+    Vec<S> grad_theta_next;
+    S logp_theta_next;
     leapfrog(logp_grad_fun, inv_mass, -step, theta, rho, grad_theta,
              theta_next, rho_next, grad_theta_next, logp_theta_next);
     uturn = false;
-    return span(theta_next, rho_next, grad_theta_next, logp_theta_next);
+    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
   }
-  span span1 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                             depth - 1, last_span, uturn);
+  Span<S> span1 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, last_span, uturn);
   if (uturn) {
-    return last_span;  // won't be used
+    return last_span;  // dummy
   }
-  span span2 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                             depth - 1, span1, uturn);
+  Span<S> span2 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, span1, uturn);
   if (uturn) {
-    return last_span; // won't be used
+    return last_span; // dummy
   }
   if (uturn(span2.theta_bk_, span2.rho_bk_, span1.theta_fw_, span1.rho_fw_, inv_mass)) {
     uturn = true;
-    return last_span;  // won't be used
+    return last_span;  // dummy
   }
   return combine<false>(rng, span2, span1, inv_mass, uturn);
 }
 
-template <typename Scalar, class RNG, class Fun>
-span build_span_fw(RNG& rng,
-                   const Fun& logp_grad_fun,
-                   const Eigen::Vector<Scalar>& inv_mass,
-                   Scalar step,
-                   int depth,
-                   const span& last_span,
-                   bool& uturn) {
-  auto theta = last_span.theta_fw_;
-  auto rho = last_span.rho_fw_;
+
+template <typename S, class RNG, class F>
+Span<S> build_span_fw(RNG& rng,
+                      const F& logp_grad_fun,
+                      const RefVec<S>& inv_mass,
+                      S step,
+                      int depth,
+                      const Span<S>& last_span,
+                      bool& uturn) {
+  const Vec<S>& theta = last_span.theta_fw_;
+  const Vec<S>& rho = last_span.rho_fw_;
   if (depth == 0) {
-    Eigen::Vector<Scalar> theta_next;
-    Eigen::Vector<Scalar> rho_next;
-    Eigen::Vector<Scalar> grad_theta_next;
-    Eigen::Vector<Scalar> logp_theta_next;
+    Vec<S> theta_next;
+    Vec<S> rho_next;
+    Vec<S> grad_theta_next;
+    S logp_theta_next;
     leapfrog(logp_grad_fun, inv_mass, step, theta, rho, grad_theta,
              theta_next, rho_next, grad_theta_next, logp_theta_next);
-    uturn = false
-    return span(theta_next, rho_next, grad_theta_next, logp_theta_next);
+    uturn = false;
+    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
   }
-  span span1 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                             depth - 1, last_span, uturn);
+  Span<S> span1 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, last_span, uturn);
   if (uturn) {
     return last_span;  // won't be used
   }
-  span span2 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                             depth - 1, span1, uturn);
+  Span<S> span2 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, span1, uturn);
   if (uturn) {
     return last_span; // won't be used
   }
@@ -209,62 +241,59 @@ span build_span_fw(RNG& rng,
 }
 
 
-
-template <typename Scalar>
+template <typename S, typename RNG, class F>
 void transition(RNG& rng,
-                const Fun& logp_grad_fun,
-                const Eigen::Vector<Scalar>& inv_mass,
-                Scalar step,
+                const F& logp_grad_fun,
+                const RefVec<S>& inv_mass,
+                S step,
                 int max_depth,
-                const Eigen::Vector<Scalar>& theta,
-                Eigen::Vector<Scalar>& theta_next) {
-  Eigen::Vector<Scalar> rho(theta.size());
-  std::normal_distribution std_normal{0.0, 1.0};
-  std::uniform_int_distribution uniform_binary{0, 1};
+                const RefVec<S>& theta,
+                RefVec<S>& theta_next) {
+  Vec<S> rho(theta.size());
+  static std::normal_distribution std_normal{0.0, 1.0};
+  static std::uniform_int_distribution uniform_binary{0, 1};
   for (int i = 0; i < rho.size(); ++i) {
     rho(i) = std_normal(rng);
   }
-  Scalar logp;
-  const Eigen::Vector<Scalar> grad;
-  logp_grad_fun(theta, rho, logp, grad);
-  span span_accum(theta, rho, grad, logp);
+  S logp;
+  Vec<S> grad;
+  logp_grad_fun(theta, logp, grad);
+  Span<S> span_accum(theta, rho, grad, logp);
   for (int depth = 0; depth < max_depth; ++depth) {
     int go_forward = uniform_binary(rng);
     bool uturn;
     if (go_forward) {
-      span span_next = build_span_fw(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn);
+      Span<S> span_next = build_span_fw(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn);
       if (uturn) break;
-      span_accum = combine<true>(rng, span_accum, span_next, true, uturn);
+      span_accum = combine<true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn);
       if (uturn) break;
     } else {
-      span span_next = build_span_bk(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn);
+      Span<S> span_next = build_span_bk(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn);
       if (uturn) break;
-      span_accum = combine<true>(rng, span_next, span_accum, true, uturn);
+      span_accum = combine<true>(rng, std::move(span_next), std::move(span_accum), inv_mass, uturn);
       if (uturn) break;
-
     }
   }
-  theta_next = span_accum.theta_selected_;
+  theta_next = span_accum.theta_select_;
 }
 
-template <typename Scalar>
+
+template <typename S, typename RNG, class F>
 void nuts(RNG& rng,
-          const Fun& logp_grad_fun,
-          const Eigen::Vector<Scalar>& inv_mass,
-          Scalar step,
+          const F& logp_grad_fun,
+          const RefVec<S>& inv_mass,
+          S step,
           int max_depth,
-          const Eigen::Vector<Scalar>& theta,
-          Eigen::Matrix<Scalar, -1, -1>& sample) {
+          const RefVec<S>& theta,
+          RefMatrix<S>& sample) {
   int num_draws = sample.rows();
   if (num_draws == 0) return;
   sample.row(0) = theta;
-  Eigen::Vector<Scalar> theta_last = theta;
-  Eigen::Vector<Scalar> theta_next;
+  Vec<S> theta_last = theta;
+  Vec<S> theta_next;
   for (int n = 1; n < num_draws; ++n) {
-    transition(rng, logp_grad_fun, inv_mass, step, theta_last, theta_next);
+    transition(rng, logp_grad_fun, inv_mass, step, max_depth, theta_last, theta_next);
     sample.row(n) = theta_next;
     theta_last = theta_next;
   }
-}*
-
-// NEED TO MAKE ARGS TO LEAPFROG, TRANSITION, ETC. MORE GENERIC
+}

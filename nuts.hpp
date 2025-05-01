@@ -26,28 +26,9 @@ class Span {
   Vec<S> theta_select_;
   S logp_;
 
-  // assumes _bk and _fw ae distinct; see other ctor
-  Span(const Vec<S> theta_bk,
-       const Vec<S> rho_bk,
-       const Vec<S> grad_theta_bk,
-       const Vec<S> theta_fw,
-       const Vec<S> rho_fw,
-       const Vec<S> grad_theta_fw,
-       const Vec<S> theta_select,
-       S logp)
-      : theta_bk_(std::move(theta_bk)),
-        rho_bk_(std::move(rho_bk)),
-        grad_theta_bk_(std::move(grad_theta_bk)),
-        theta_fw_(std::move(theta_fw)),
-        rho_fw_(std::move(rho_fw)),
-        grad_theta_fw_(std::move(grad_theta_fw)),
-        theta_select_(std::move(theta_select)),
-        logp_(logp)
-  {}
-
-  Span(const Vec<S> theta,
-       const Vec<S> rho,
-       const Vec<S> grad_theta,
+  Span(const Vec<S>& theta,
+       Vec<S>& rho,
+       Vec<S>& grad_theta,
        S logp)
       : theta_bk_(theta),  // copy duplicates
         rho_bk_(rho),
@@ -55,18 +36,37 @@ class Span {
         theta_fw_(theta),
         rho_fw_(std::move(rho)),  // move once after copy
         grad_theta_fw_(std::move(grad_theta)),
-        theta_select_(std::move(theta)),
+        theta_select_(theta),
         logp_(logp)
+  {}
+
+  Span(Vec<S>& theta,
+    Vec<S>& rho,
+    Vec<S>& grad_theta,
+    S logp)
+   : theta_bk_(theta),  // copy duplicates
+     rho_bk_(rho),
+     grad_theta_bk_(grad_theta),
+     theta_fw_(theta),
+     rho_fw_(std::move(rho)),  // move once after copy
+     grad_theta_fw_(std::move(grad_theta)),
+     theta_select_(std::move(theta)),
+     logp_(logp)
   {}
 
   Span(Span<S>&& span1,
        Span<S>&& span2,
        Vec<S>&& theta_select,
        S logp)
-      : theta_bk_(std::move(span1.theta_bk_)), rho_bk_(std::move(span1.rho_bk_)),
-        grad_theta_bk_(std::move(span1.grad_theta_bk_)), theta_fw_(std::move(span2.theta_fw_)),
-        rho_fw_(std::move(span2.rho_fw_)), grad_theta_fw_(std::move(span2.grad_theta_fw_)),
-        theta_select_(std::move(theta_select)), logp_(logp) {}
+      : theta_bk_(std::move(span1.theta_bk_)),
+        rho_bk_(std::move(span1.rho_bk_)),
+        grad_theta_bk_(std::move(span1.grad_theta_bk_)),
+        theta_fw_(std::move(span2.theta_fw_)),
+        rho_fw_(std::move(span2.rho_fw_)),
+        grad_theta_fw_(std::move(span2.grad_theta_fw_)),
+        theta_select_(std::move(theta_select)),
+        logp_(logp)
+  {}
 };
 
 template <typename S>

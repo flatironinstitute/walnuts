@@ -1,20 +1,35 @@
-#include "nuts.hpp"
 #include <iostream>
 #include <random>
 #include <numeric>
 #include <cmath>
+#include <chrono>
+#include "nuts.hpp"
+
+
+double total_time = 0.0;
+int count = 0;
 
 template <typename S>
 void standard_normal_logp_grad(const Eigen::Matrix<S, Eigen::Dynamic, 1>& x,
                                 S& logp,
                                 Eigen::Matrix<S, Eigen::Dynamic, 1>& grad) {
+  auto start = std::chrono::high_resolution_clock::now();
   logp = -0.5 * x.dot(x);
   grad = -x;
+  auto end = std::chrono::high_resolution_clock::now();
+  total_time += std::chrono::duration<double>(end - start).count();
+  ++count;
 }
 
 int main() {
-  constexpr int D = 10;
-  constexpr int N = 100000;
+
+  int D = 10;
+  int N = 10000;
+  double step_size = 0.025;
+  int max_depth = 10;
+  std::cout << "D = " << D << ";  N = " << N
+            << ";  step_size = " << step_size << ";  max_depth = " << max_depth
+            << std::endl;
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> draws(N, D);
 
   std::random_device rd;
@@ -28,9 +43,16 @@ int main() {
 
   Eigen::VectorXd inv_mass = Eigen::VectorXd::Ones(D);
 
-  double step_size = 0.1;
-  int max_depth = 10;
+  auto global_start = std::chrono::high_resolution_clock::now();
   nuts<double>(rng, standard_normal_logp_grad<double>, inv_mass, step_size, max_depth, theta_init, draws);
+  auto global_end = std::chrono::high_resolution_clock::now();
+  auto global_total_time = std::chrono::duration<double>(global_end - global_start).count();
+
+  std::cout << "total time: " << global_total_time << "s" << std::endl;
+  std::cout << "    gradient time: " << total_time << "s" << std::endl;
+  std::cout << "        gradient calls: " << count << std::endl;
+  std::cout << "        gradient time per call: " << total_time / count << "s" << std::endl;
+  std::cout << std::endl;
 
   for (int d = 0; d < D; ++d) {
     double mean = draws.col(d).mean();

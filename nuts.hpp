@@ -161,7 +161,7 @@ Span<S> combine_bk(RNG& rng,
   }
   S update_logprob = span1.logp_ - log_denominator;
   bool update = log(unif(rng)) < update_logprob;
-  auto selected = update ? span1.theta_select_ : span2.theta_select_;
+  auto& selected = update ? span1.theta_select_ : span2.theta_select_;
   uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_,
                      span2.rho_fw_, inv_mass);
   return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
@@ -186,7 +186,7 @@ Span<S> combine_fw(RNG& rng,
 
   S update_logprob = span2.logp_ - log_denominator;
   bool update = log(unif(rng)) < update_logprob;
-  auto selected = update ? span2.theta_select_ : span1.theta_select_;
+  auto& selected = update ? span2.theta_select_ : span1.theta_select_;
   uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass);
   return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
 }

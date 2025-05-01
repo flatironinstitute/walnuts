@@ -12,11 +12,7 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-template <typename S>
-using RefVec = Eigen::Ref<Vec<S>>;
 
-template <typename S>
-using RefMatrix = Eigen::Ref<Matrix<S>>;
 
 template <typename S>
 class Span {
@@ -30,28 +26,9 @@ class Span {
   Vec<S> theta_select_;
   S logp_;
 
-  // assumes _bk and _fw ae distinct; see other ctor
-  Span(const Vec<S> theta_bk,
-       const Vec<S> rho_bk,
-       const Vec<S> grad_theta_bk,
-       const Vec<S> theta_fw,
-       const Vec<S> rho_fw,
-       const Vec<S> grad_theta_fw,
-       const Vec<S> theta_select,
-       S logp)
-      : theta_bk_(std::move(theta_bk)),
-        rho_bk_(std::move(rho_bk)),
-        grad_theta_bk_(std::move(grad_theta_bk)),
-        theta_fw_(std::move(theta_fw)),
-        rho_fw_(std::move(rho_fw)),
-        grad_theta_fw_(std::move(grad_theta_fw)),
-        theta_select_(std::move(theta_select)),
-        logp_(logp)
-  {}
-
-  Span(const Vec<S> theta,
-       const Vec<S> rho,
-       const Vec<S> grad_theta,
+  Span(const Vec<S>& theta,
+       Vec<S>& rho,
+       Vec<S>& grad_theta,
        S logp)
       : theta_bk_(theta),  // copy duplicates
         rho_bk_(rho),
@@ -59,25 +36,38 @@ class Span {
         theta_fw_(theta),
         rho_fw_(std::move(rho)),  // move once after copy
         grad_theta_fw_(std::move(grad_theta)),
-        theta_select_(std::move(theta)),
+        theta_select_(theta),
         logp_(logp)
   {}
 
-  Span(const Span<S> span1,
-       const Span<S> span2,
-       const Vec<S> theta_select,
+  Span(Vec<S>& theta,
+    Vec<S>& rho,
+    Vec<S>& grad_theta,
+    S logp)
+   : theta_bk_(theta),  // copy duplicates
+     rho_bk_(rho),
+     grad_theta_bk_(grad_theta),
+     theta_fw_(theta),
+     rho_fw_(std::move(rho)),  // move once after copy
+     grad_theta_fw_(std::move(grad_theta)),
+     theta_select_(std::move(theta)),
+     logp_(logp)
+  {}
+
+  Span(Span<S>&& span1,
+       Span<S>&& span2,
+       Vec<S>&& theta_select,
        S logp)
-      : theta_bk_(span1.theta_bk_),
-        rho_bk_(span1.rho_bk_),
-        grad_theta_bk_(span1.grad_theta_bk_),
-        theta_fw_(span2.theta_fw_),
-        rho_fw_(span2.rho_fw_),
-        grad_theta_fw_(span2.grad_theta_fw_),
-        theta_select_(theta_select),
+      : theta_bk_(std::move(span1.theta_bk_)),
+        rho_bk_(std::move(span1.rho_bk_)),
+        grad_theta_bk_(std::move(span1.grad_theta_bk_)),
+        theta_fw_(std::move(span2.theta_fw_)),
+        rho_fw_(std::move(span2.rho_fw_)),
+        grad_theta_fw_(std::move(span2.grad_theta_fw_)),
+        theta_select_(std::move(theta_select)),
         logp_(logp)
   {}
 };
-
 
 template <typename S>
 S log_sum_exp(const S& x1, const S& x2) {
@@ -138,10 +128,9 @@ void leapfrog(const F& logp_grad_fun,
   rho_next = rho + half_step * grad;
   theta_next = theta + step * (inv_mass.array() * rho_next.array()).matrix();
   logp_grad_fun(theta_next, logp_next, grad_next);
-  rho_next += half_step * grad_next;
+  rho_next.noalias() += half_step * grad_next;
   logp_next -= kinetic(rho_next, inv_mass);
 }
-
 
 template <typename S>
 bool uturn(const Vec<S>& theta_bk,
@@ -150,46 +139,57 @@ bool uturn(const Vec<S>& theta_bk,
            const Vec<S>& rho_fw,
            const Vec<S>& inv_mass) {
   auto scaled_diff = (inv_mass.array() * (theta_fw - theta_bk).array()).matrix();
-  bool u1 = rho_fw.dot(scaled_diff) < 0;
-  bool u2 = rho_bk.dot(scaled_diff) < 0;
   return rho_fw.dot(scaled_diff) < 0 || rho_bk.dot(scaled_diff) < 0;
 }
 
 
 template <bool Progressive, typename S, typename RNG>
 Span<S> combine_bk(RNG& rng,
-                Span<S> span1,
-                Span<S> span2,
+                Span<S>&& span1,
+                Span<S>&& span2,
                 const Vec<S>& inv_mass,
                 bool& uturn_flag) {
   using std::log;
   static std::uniform_real_distribution<> unif(0.0, 1.0);
   S logp12 = log_sum_exp(span1.logp_, span2.logp_);
-  S log_denominator = Progressive ? span2.logp_ : logp12;
+
+  S log_denominator;
+  if constexpr (Progressive) {
+    log_denominator = span2.logp_;
+  } else {
+    log_denominator = logp12;
+  }
   S update_logprob = span1.logp_ - log_denominator;
   bool update = log(unif(rng)) < update_logprob;
-  auto selected = update ? span1.theta_select_ : span2.theta_select_;
-  uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass);
-  return Span<S>(span1, span2, selected, logp12);
+  auto& selected = update ? span1.theta_select_ : span2.theta_select_;
+  uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_,
+                     span2.rho_fw_, inv_mass);
+  return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
 }
 
 template <bool Progressive, typename S, typename RNG>
 Span<S> combine_fw(RNG& rng,
-                Span<S> span1,
-                Span<S> span2,
+                Span<S>&& span1,
+                Span<S>&& span2,
                 const Vec<S>& inv_mass,
                 bool& uturn_flag) {
   using std::log;
   static std::uniform_real_distribution<> unif(0.0, 1.0);
   S logp12 = log_sum_exp(span1.logp_, span2.logp_);
-  S log_denominator = Progressive ? span1.logp_ : logp12;
+
+  S log_denominator;
+  if constexpr (Progressive) {
+    log_denominator = span1.logp_;
+  } else {
+    log_denominator = logp12;
+  }
+
   S update_logprob = span2.logp_ - log_denominator;
   bool update = log(unif(rng)) < update_logprob;
-  auto selected = update ? span2.theta_select_ : span1.theta_select_;
+  auto& selected = update ? span2.theta_select_ : span1.theta_select_;
   uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass);
-  return Span<S>(span1, span2, selected, logp12);
+  return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
 }
-
 
 // TODO(carpenter): unify build_span_fw() and build_span_bk() into build_span()
 template <typename S, class RNG, class F>
@@ -227,9 +227,8 @@ Span<S> build_span_bk(RNG& rng,
     uturn_flag = true;
     return last_span;  // dummy
   }
-  return combine_bk<false>(rng, span2, span1, inv_mass, uturn_flag);
+  return combine_bk<false>(rng, std::move(span2), std::move(span1), inv_mass, uturn_flag);
 }
-
 
 template <typename S, class RNG, class F>
 Span<S> build_span_fw(RNG& rng,
@@ -266,9 +265,8 @@ Span<S> build_span_fw(RNG& rng,
     uturn_flag = true;
     return last_span;  // won't be used
   }
-  return combine_fw<false>(rng, span1, span2, inv_mass, uturn_flag);
+  return combine_fw<false>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
-
 
 template <typename S, typename RNG, class F>
 void transition(RNG& rng,
@@ -289,8 +287,8 @@ void transition(RNG& rng,
   logp_grad_fun(theta, logp, grad);
   logp -= kinetic(rho, inv_mass);
   Span<S> span_accum(theta, rho, grad, logp);
-  int depth = 0;
-  for ( ; depth < max_depth; ++depth) {
+
+  for (int depth = 0; depth < max_depth; ++depth) {
     bool go_forward = uniform_binary(rng);
     bool uturn_flag;
     if (go_forward) {
@@ -307,7 +305,6 @@ void transition(RNG& rng,
   }
   theta_next = span_accum.theta_select_;
 }
-
 
 template <typename S, typename RNG, class F>
 void nuts(RNG& rng,

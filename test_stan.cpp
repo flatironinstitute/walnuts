@@ -1,11 +1,12 @@
 #include <iostream>
 #include <random>
-#include <numeric>
 #include <cmath>
 #include <chrono>
-#include "nuts.hpp"
 
-#include "bridgestan.h"
+#include <Eigen/Dense>
+#include <bridgestan.h>
+
+#include "nuts.hpp"
 
 double total_time = 0.0;
 int count = 0;

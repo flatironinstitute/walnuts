@@ -144,13 +144,13 @@ Span<S> combine(Random<S>& rng,
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   if constexpr (Forward) {
-      uturn_flag = uturn(span_old.theta_bk_, span_old.rho_bk_, span_new.theta_fw_,
-                         span_new.rho_fw_, inv_mass);
-      return Span<S>(std::move(span_old), std::move(span_new), std::move(selected), logp_total);
+    uturn_flag = uturn(span_old.theta_bk_, span_old.rho_bk_, span_new.theta_fw_,
+                       span_new.rho_fw_, inv_mass);
+    return Span<S>(std::move(span_old), std::move(span_new), std::move(selected), logp_total);
   } else {
-      uturn_flag = uturn(span_new.theta_bk_, span_new.rho_bk_, span_old.theta_fw_,
+    uturn_flag = uturn(span_new.theta_bk_, span_new.rho_bk_, span_old.theta_fw_,
                          span_old.rho_fw_, inv_mass);
-      return Span<S>(std::move(span_new), std::move(span_old), std::move(selected), logp_total);
+    return Span<S>(std::move(span_new), std::move(span_old), std::move(selected), logp_total);
   }
 }
 
@@ -200,10 +200,10 @@ Span<S> build_span_fw(Random<S>& rng,
                       int depth,
                       const Span<S>& last_span,
                       bool& uturn_flag) {
-  const Vec<S>& theta = last_span.theta_fw_;
-  const Vec<S>& rho = last_span.rho_fw_;
-  const Vec<S>& grad_theta = last_span.grad_theta_fw_;
   if (depth == 0) {
+    const Vec<S>& theta = last_span.theta_fw_;
+    const Vec<S>& rho = last_span.rho_fw_;
+    const Vec<S>& grad_theta = last_span.grad_theta_fw_;
     Vec<S> theta_next;
     Vec<S> rho_next;
     Vec<S> grad_theta_next;

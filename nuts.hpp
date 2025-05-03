@@ -233,7 +233,7 @@ void transition(Random<S>& rng,
                 S step,
                 int max_depth,
                 Vec<S>&& theta,
-                Column& theta_next) {
+                Column theta_next) {
   Vec<S> rho = rng.standard_normal(theta.size());
   S logp;
   Vec<S> grad(theta.size());
@@ -271,8 +271,7 @@ void nuts(int seed,
   if (num_draws == 0) return;
   sample.col(0) = theta;
   for (int n = 1; n < num_draws; ++n) {
-    auto theta_next = sample.col(n);
     transition(rng, logp_grad_fun, inv_mass, step, max_depth,
-               Vec<S>(sample.col(n - 1)), theta_next);
+               Vec<S>(sample.col(n - 1)), sample.col(n));
   }
 }

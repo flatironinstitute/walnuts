@@ -11,7 +11,6 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-
 template <typename S>
 class Random {
  public:
@@ -29,7 +28,6 @@ class Random {
     return normal_(rng_);
   }
  private:
-  std::random_device rd_;
   std::mt19937 rng_;
   std::uniform_real_distribution<S> unif_;
   std::uniform_int_distribution<int> binary_;
@@ -49,17 +47,17 @@ class Span {
   S logp_;
 
   Span(Vec<S>& theta,
-    Vec<S>& rho,
-    Vec<S>& grad_theta,
-    S logp)
-   : theta_bk_(theta),  // copy duplicates
-     rho_bk_(rho),
-     grad_theta_bk_(grad_theta),
-     theta_fw_(theta),
-     rho_fw_(std::move(rho)),  // move once after copy
-     grad_theta_fw_(std::move(grad_theta)),
-     theta_select_(std::move(theta)),
-     logp_(logp)
+       Vec<S>& rho,
+       Vec<S>& grad_theta,
+       S logp)
+      : theta_bk_(theta),  // copy duplicates
+        rho_bk_(rho),
+        grad_theta_bk_(grad_theta),
+        theta_fw_(theta),
+        rho_fw_(std::move(rho)),  // move once after copy
+        grad_theta_fw_(std::move(grad_theta)),
+        theta_select_(std::move(theta)),
+        logp_(logp)
   {}
 
   Span(Span<S>&& span1,
@@ -86,7 +84,6 @@ S log_sum_exp(const S& x1, const S& x2) {
   return m + log(exp(x1 - m) + exp(x2 - m));
 }
 
-
 template <typename S>
 S log_sum_exp(const Vec<S>& x) {
   using std::log;
@@ -96,7 +93,7 @@ S log_sum_exp(const Vec<S>& x) {
 
 template <typename S>
 S logp_momentum(const Vec<S>& rho,
-          const Vec<S>& inv_mass) {
+                const Vec<S>& inv_mass) {
   return -0.5 * (inv_mass.array() * rho.array().square()).sum();
 }
 
@@ -140,8 +137,8 @@ Span<S> combine_bk(Random<S>& rng,
 
   S log_denominator;
   if constexpr (Progressive) {
-    log_denominator = span2.logp_;
-  } else {
+      log_denominator = span2.logp_;
+    } else {
     log_denominator = logp12;
   }
   S update_logprob = span1.logp_ - log_denominator;
@@ -163,8 +160,8 @@ Span<S> combine_fw(Random<S>& rng,
 
   S log_denominator;
   if constexpr (Progressive) {
-    log_denominator = span1.logp_;
-  } else {
+      log_denominator = span1.logp_;
+    } else {
     log_denominator = logp12;
   }
 
@@ -175,7 +172,6 @@ Span<S> combine_fw(Random<S>& rng,
   return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
 }
 
-// TODO(carpenter): unify build_span_fw() and build_span_bk() into build_span()
 template <typename S, class F>
 Span<S> build_span_bk(Random<S>& rng,
                       const F& logp_grad_fun,

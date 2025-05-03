@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <random>
 #include <utility>
 #include <Eigen/Dense>
@@ -46,20 +47,6 @@ class Span {
   Vec<S> grad_theta_fw_;
   Vec<S> theta_select_;
   S logp_;
-
-  Span(const Vec<S>& theta,
-       Vec<S>& rho,
-       Vec<S>& grad_theta,
-       S logp)
-      : theta_bk_(theta),  // copy duplicates
-        rho_bk_(rho),
-        grad_theta_bk_(grad_theta),
-        theta_fw_(theta),
-        rho_fw_(std::move(rho)),  // move once after copy
-        grad_theta_fw_(std::move(grad_theta)),
-        theta_select_(theta),
-        logp_(logp)
-  {}
 
   Span(Vec<S>& theta,
     Vec<S>& rho,

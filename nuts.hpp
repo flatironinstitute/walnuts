@@ -14,7 +14,7 @@ using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 template <typename S>
 class Random {
  public:
-  Random(int seed): rng_(seed), unif_(0.0, 1.0), binary_(0, 1), normal_(0.0, 1.0) { }
+  Random(int seed): rng_(seed), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) { }
 
   S uniform_real_01() {
     return unif_(rng_);
@@ -24,13 +24,13 @@ class Random {
     return binary_(rng_);
   }
 
-  S standard_normal() {
-    return normal_(rng_);
+  Vec<S> standard_normal(int n) {
+    return Vec<S>::NullaryExpr(n, [&](int) { return normal_(rng_); });
   }
  private:
   std::mt19937 rng_;
   std::uniform_real_distribution<S> unif_;
-  std::uniform_int_distribution<int> binary_;
+  std::bernoulli_distribution binary_;
   std::normal_distribution<S> normal_;
 };
 
@@ -117,13 +117,11 @@ void leapfrog(const F& logp_grad_fun,
 }
 
 template <typename S>
-bool uturn(const Vec<S>& theta_bk,
-           const Vec<S>& rho_bk,
-           const Vec<S>& theta_fw,
-           const Vec<S>& rho_fw,
+bool uturn(const Span<S>& span_bk,
+           const Span<S>& span_fw,
            const Vec<S>& inv_mass) {
-  auto scaled_diff = (inv_mass.array() * (theta_fw - theta_bk).array()).matrix();
-  return rho_fw.dot(scaled_diff) < 0 || rho_bk.dot(scaled_diff) < 0;
+  auto scaled_diff = (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array()).matrix();
+  return span_fw.rho_fw_.dot(scaled_diff) < 0 || span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
 template <bool Progressive, bool Forward, typename S>
@@ -144,12 +142,10 @@ Span<S> combine(Random<S>& rng,
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   if constexpr (Forward) {
-    uturn_flag = uturn(span_old.theta_bk_, span_old.rho_bk_, span_new.theta_fw_,
-                       span_new.rho_fw_, inv_mass);
+    uturn_flag = uturn(span_old, span_new, inv_mass);
     return Span<S>(std::move(span_old), std::move(span_new), std::move(selected), logp_total);
   } else {
-    uturn_flag = uturn(span_new.theta_bk_, span_new.rho_bk_, span_old.theta_fw_,
-                         span_old.rho_fw_, inv_mass);
+    uturn_flag = uturn(span_new, span_old, inv_mass);
     return Span<S>(std::move(span_new), std::move(span_old), std::move(selected), logp_total);
   }
 }
@@ -185,7 +181,7 @@ Span<S> build_span_bk(Random<S>& rng,
   if (uturn_flag) {
     return last_span; // dummy
   }
-  if (uturn(span2.theta_bk_, span2.rho_bk_, span1.theta_fw_, span1.rho_fw_, inv_mass)) {
+  if (uturn(span2, span1, inv_mass)) {
     uturn_flag = true;
     return last_span;  // dummy
   }
@@ -223,27 +219,24 @@ Span<S> build_span_fw(Random<S>& rng,
   if (uturn_flag) {
     return last_span; // won't be used
   }
-  if (uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass)) {
+  if (uturn(span1, span2, inv_mass)) {
     uturn_flag = true;
     return last_span;  // won't be used
   }
   return combine<false, true>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
-template <typename S, class F>
+template <typename S, class F, typename Column>
 void transition(Random<S>& rng,
                 const F& logp_grad_fun,
                 const Vec<S>& inv_mass,
                 S step,
                 int max_depth,
                 Vec<S>&& theta,
-                Vec<S>& theta_next) {
-  Vec<S> rho(theta.size());
-  for (int i = 0; i < rho.size(); ++i) {
-    rho(i) = rng.standard_normal();
-  }
+                Column& theta_next) {
+  Vec<S> rho = rng.standard_normal(theta.size());
   S logp;
-  Vec<S> grad;
+  Vec<S> grad(theta.size());
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(theta, rho, grad, logp);
@@ -278,8 +271,8 @@ void nuts(int seed,
   if (num_draws == 0) return;
   sample.col(0) = theta;
   for (int n = 1; n < num_draws; ++n) {
-    Vec<S> theta_next;
-    transition(rng, logp_grad_fun, inv_mass, step, max_depth, Vec<S>(sample.col(n - 1)), theta_next);
-    sample.col(n) = theta_next;
+    auto theta_next = sample.col(n);
+    transition(rng, logp_grad_fun, inv_mass, step, max_depth,
+               Vec<S>(sample.col(n - 1)), theta_next);
   }
 }

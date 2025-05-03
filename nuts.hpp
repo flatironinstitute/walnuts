@@ -126,50 +126,32 @@ bool uturn(const Vec<S>& theta_bk,
   return rho_fw.dot(scaled_diff) < 0 || rho_bk.dot(scaled_diff) < 0;
 }
 
-template <bool Progressive, typename S>
-Span<S> combine_bk(Random<S>& rng,
-                   Span<S>&& span1,
-                   Span<S>&& span2,
-                   const Vec<S>& inv_mass,
-                   bool& uturn_flag) {
+template <bool Progressive, bool Forward, typename S>
+Span<S> combine(Random<S>& rng,
+                Span<S>&& span_old,
+                Span<S>&& span_new,
+                const Vec<S>& inv_mass,
+                bool& uturn_flag) {
   using std::log;
-  S logp12 = log_sum_exp(span1.logp_, span2.logp_);
-
+  S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
   if constexpr (Progressive) {
-      log_denominator = span2.logp_;
-    } else {
-    log_denominator = logp12;
+    log_denominator = span_new.logp_;
+  } else {
+    log_denominator = logp_total;
   }
-  S update_logprob = span1.logp_ - log_denominator;
+  S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
-  auto& selected = update ? span1.theta_select_ : span2.theta_select_;
-  uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_,
-                     span2.rho_fw_, inv_mass);
-  return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
-}
-
-template <bool Progressive, typename S>
-Span<S> combine_fw(Random<S>& rng,
-                   Span<S>&& span1,
-                   Span<S>&& span2,
-                   const Vec<S>& inv_mass,
-                   bool& uturn_flag) {
-  using std::log;
-  S logp12 = log_sum_exp(span1.logp_, span2.logp_);
-
-  S log_denominator;
-  if constexpr (Progressive) {
-      log_denominator = span1.logp_;
-    } else {
-    log_denominator = logp12;
+  auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
+  if constexpr (Forward) {
+      uturn_flag = uturn(span_old.theta_bk_, span_old.rho_bk_, span_new.theta_fw_,
+                         span_new.rho_fw_, inv_mass);
+      return Span<S>(std::move(span_old), std::move(span_new), std::move(selected), logp_total);
+  } else {
+      uturn_flag = uturn(span_new.theta_bk_, span_new.rho_bk_, span_old.theta_fw_,
+                         span_old.rho_fw_, inv_mass);
+      return Span<S>(std::move(span_new), std::move(span_old), std::move(selected), logp_total);
   }
-
-  S update_logprob = span2.logp_ - log_denominator;
-  bool update = log(rng.uniform_real_01()) < update_logprob;
-  auto& selected = update ? span2.theta_select_ : span1.theta_select_;
-  uturn_flag = uturn(span1.theta_bk_, span1.rho_bk_, span2.theta_fw_, span2.rho_fw_, inv_mass);
-  return Span<S>(std::move(span1), std::move(span2), std::move(selected), logp12);
 }
 
 template <typename S, class F>
@@ -207,7 +189,7 @@ Span<S> build_span_bk(Random<S>& rng,
     uturn_flag = true;
     return last_span;  // dummy
   }
-  return combine_bk<false>(rng, std::move(span2), std::move(span1), inv_mass, uturn_flag);
+  return combine<false, false>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
 template <typename S, class F>
@@ -245,7 +227,7 @@ Span<S> build_span_fw(Random<S>& rng,
     uturn_flag = true;
     return last_span;  // won't be used
   }
-  return combine_fw<false>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
+  return combine<false, true>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
 template <typename S, class F>
@@ -271,12 +253,12 @@ void transition(Random<S>& rng,
     if (go_forward) {
       Span<S> span_next = build_span_fw(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
       if (uturn_flag) break;
-      span_accum = combine_fw<true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
+      span_accum = combine<true, true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
       if (uturn_flag) break;
     } else {
       Span<S> span_next = build_span_bk(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
       if (uturn_flag) break;
-      span_accum = combine_bk<true>(rng, std::move(span_next), std::move(span_accum), inv_mass, uturn_flag);
+      span_accum = combine<true, false>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
       if (uturn_flag) break;
     }
   }

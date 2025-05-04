@@ -12,10 +12,10 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-template <typename S>
+template <typename S, class Generator>
 class Random {
  public:
-  Random(int seed): rng_(seed), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) { }
+  Random(Generator& rng): rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) { }
 
   S uniform_real_01() {
     return unif_(rng_);
@@ -29,7 +29,7 @@ class Random {
     return Vec<S>::NullaryExpr(n, [&](int) { return normal_(rng_); });
   }
  private:
-  std::mt19937 rng_;
+  Generator& rng_;
   std::uniform_real_distribution<S> unif_;
   std::bernoulli_distribution binary_;
   std::normal_distribution<S> normal_;
@@ -125,8 +125,8 @@ bool uturn(const Span<S>& span_bk,
   return span_fw.rho_fw_.dot(scaled_diff) < 0 || span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-template <bool Progressive, bool Forward, typename S>
-Span<S> combine(Random<S>& rng,
+template <bool Progressive, bool Forward, typename S, class Generator>
+Span<S> combine(Random<S, Generator>& rng,
                 Span<S>&& span_old,
                 Span<S>&& span_new,
                 const Vec<S>& inv_mass,
@@ -151,8 +151,8 @@ Span<S> combine(Random<S>& rng,
   }
 }
 
-template <typename S, class F>
-Span<S> build_span_bk(Random<S>& rng,
+template <typename S, class F, class Generator>
+Span<S> build_span_bk(Random<S, Generator>& rng,
                       const F& logp_grad_fun,
                       const Vec<S>& inv_mass,
                       S step,
@@ -189,8 +189,8 @@ Span<S> build_span_bk(Random<S>& rng,
   return combine<false, false>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
-template <typename S, class F>
-Span<S> build_span_fw(Random<S>& rng,
+template <typename S, class F, class Generator>
+Span<S> build_span_fw(Random<S, Generator>& rng,
                       const F& logp_grad_fun,
                       const Vec<S>& inv_mass,
                       S step,
@@ -227,8 +227,8 @@ Span<S> build_span_fw(Random<S>& rng,
   return combine<false, true>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
-template <typename S, class F, typename V>
-void transition(Random<S>& rng,
+template <typename S, class F, typename V, class Generator>
+void transition(Random<S, Generator>& rng,
                 const F& logp_grad_fun,
                 const Vec<S>& inv_mass,
                 S step,
@@ -259,15 +259,15 @@ void transition(Random<S>& rng,
   theta_next = span_accum.theta_select_;
 }
 
-template <typename S, class F>
-void nuts(int seed,
+template <typename S, class F, class Generator>
+void nuts(Generator& generator,
           const F& logp_grad_fun,
           const Vec<S>& inv_mass,
           S step,
           int max_depth,
           const Vec<S>& theta,
           Matrix<S>& sample) {
-  Random<S> rng{seed};
+  Random<S, Generator> rng{generator};
   int num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;

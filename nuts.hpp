@@ -158,10 +158,10 @@ Span<S> build_span_bk(Random<S>& rng,
                       int depth,
                       const Span<S>& last_span,
                       bool& uturn_flag) {
-  const Vec<S>& theta = last_span.theta_bk_;
-  const Vec<S>& rho = last_span.rho_bk_;
-  const Vec<S>& grad_theta = last_span.grad_theta_bk_;
   if (depth == 0) {
+    const Vec<S>& theta = last_span.theta_bk_;
+    const Vec<S>& rho = last_span.rho_bk_;
+    const Vec<S>& grad_theta = last_span.grad_theta_bk_;
     Vec<S> theta_next;
     Vec<S> rho_next;
     Vec<S> grad_theta_next;
@@ -226,14 +226,14 @@ Span<S> build_span_fw(Random<S>& rng,
   return combine<false, true>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
 
-template <typename S, class F, typename Column>
+template <typename S, class F, typename V>
 void transition(Random<S>& rng,
                 const F& logp_grad_fun,
                 const Vec<S>& inv_mass,
                 S step,
                 int max_depth,
                 Vec<S>&& theta,
-                Column theta_next) {
+                V theta_next) {
   Vec<S> rho = rng.standard_normal(theta.size());
   S logp;
   Vec<S> grad(theta.size());

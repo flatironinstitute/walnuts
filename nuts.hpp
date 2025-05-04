@@ -151,24 +151,28 @@ Span<S> combine(Random<S, Generator>& rng,
   }
 }
 
-template <typename S, class F>
+template <bool Forward, typename S, class F>
 Span<S> build_leaf(const F& logp_grad_fun,
-                   const Vec<S>& theta,
-                   const Vec<S>& rho,
-                   const Vec<S>& grad_theta,
+                   const Span<S>& span,
                    const Vec<S>& inv_mass,
-                   S directed_step,
+                   S step,
                    bool& uturn_flag) {
     Vec<S> theta_next;
     Vec<S> rho_next;
     Vec<S> grad_theta_next;
     S logp_theta_next;
-    leapfrog(logp_grad_fun, inv_mass, directed_step, theta, rho, grad_theta,
-             theta_next, rho_next, grad_theta_next, logp_theta_next);
+    if constexpr (Forward) {
+      leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_, span.grad_theta_fw_,
+               theta_next, rho_next, grad_theta_next,
+               logp_theta_next);
+    } else {
+      leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_, span.grad_theta_bk_,
+               theta_next, rho_next, grad_theta_next,
+               logp_theta_next);
+    }
     uturn_flag = false;
     return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
 }
-
 
 template <bool Forward, typename S, class F, class Generator>
 Span<S> build_span(Random<S, Generator>& rng,
@@ -179,13 +183,7 @@ Span<S> build_span(Random<S, Generator>& rng,
                    const Span<S>& last_span,
                    bool& uturn_flag) {
   if (depth == 0) {
-    if constexpr (Forward) {
-      return build_leaf(logp_grad_fun, last_span.theta_fw_, last_span.rho_fw_,
-                        last_span.grad_theta_fw_, inv_mass, step, uturn_flag);
-    } else {
-      return build_leaf(logp_grad_fun, last_span.theta_bk_, last_span.rho_bk_,
-                        last_span.grad_theta_bk_, inv_mass, -step, uturn_flag);
-    }
+    return build_leaf<Forward>(logp_grad_fun, last_span, inv_mass, step, uturn_flag);
   }
   Span<S> span1 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
                                       depth - 1, last_span, uturn_flag);
@@ -210,7 +208,6 @@ Span<S> build_span(Random<S, Generator>& rng,
   }
   return combine<false, Forward>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
-
 
 template <typename S, class F, typename V, class Generator>
 void transition(Random<S, Generator>& rng,

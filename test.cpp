@@ -46,7 +46,7 @@ int main() {
   VectorS inv_mass = VectorS::Ones(D);
 
   auto global_start = std::chrono::high_resolution_clock::now();
-  nuts<S>(seed, standard_normal_logp_grad<S>, inv_mass, step_size, max_depth, theta_init, draws);
+  nuts::nuts<S>(seed, standard_normal_logp_grad<S>, inv_mass, step_size, max_depth, theta_init, draws);
   auto global_end = std::chrono::high_resolution_clock::now();
   auto global_total_time = std::chrono::duration<double>(global_end - global_start).count();
 

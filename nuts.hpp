@@ -1,9 +1,10 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <random>
 #include <utility>
 #include <Eigen/Dense>
+
+namespace nuts {
 
 template <typename S>
 using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
@@ -275,3 +276,5 @@ void nuts(int seed,
                Vec<S>(sample.col(n - 1)), sample.col(n));
   }
 }
+
+} // namespace nuts

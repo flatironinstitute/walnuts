@@ -169,63 +169,48 @@ Span<S> build_leaf(const F& logp_grad_fun,
     return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
 }
 
-template <typename S, class F, class Generator>
-Span<S> build_span_bk(Random<S, Generator>& rng,
-                      const F& logp_grad_fun,
-                      const Vec<S>& inv_mass,
-                      S step,
-                      int depth,
-                      const Span<S>& last_span,
-                      bool& uturn_flag) {
-  if (depth == 0) {
-    return build_leaf(logp_grad_fun, last_span.theta_bk_, last_span.rho_bk_,
-                      last_span.grad_theta_bk_, inv_mass, -step, uturn_flag);
-  }
-  Span<S> span1 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, last_span, uturn_flag);
-  if (uturn_flag) {
-    return last_span;  // dummy
-  }
-  Span<S> span2 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, span1, uturn_flag);
-  if (uturn_flag) {
-    return last_span; // dummy
-  }
-  if (uturn(span2, span1, inv_mass)) {
-    uturn_flag = true;
-    return last_span;  // dummy
-  }
-  return combine<false, false>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
-}
 
-template <typename S, class F, class Generator>
-Span<S> build_span_fw(Random<S, Generator>& rng,
-                      const F& logp_grad_fun,
-                      const Vec<S>& inv_mass,
-                      S step,
-                      int depth,
-                      const Span<S>& last_span,
-                      bool& uturn_flag) {
+template <bool Forward, typename S, class F, class Generator>
+Span<S> build_span(Random<S, Generator>& rng,
+                   const F& logp_grad_fun,
+                   const Vec<S>& inv_mass,
+                   S step,
+                   int depth,
+                   const Span<S>& last_span,
+                   bool& uturn_flag) {
   if (depth == 0) {
-    return build_leaf(logp_grad_fun, last_span.theta_fw_, last_span.rho_fw_,
-                      last_span.grad_theta_fw_, inv_mass, step, uturn_flag);
+    if constexpr (Forward) {
+      return build_leaf(logp_grad_fun, last_span.theta_fw_, last_span.rho_fw_,
+                        last_span.grad_theta_fw_, inv_mass, step, uturn_flag);
+    } else {
+      return build_leaf(logp_grad_fun, last_span.theta_bk_, last_span.rho_bk_,
+                        last_span.grad_theta_bk_, inv_mass, -step, uturn_flag);
+    }
   }
-  Span<S> span1 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, last_span, uturn_flag);
+  Span<S> span1 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
+                                      depth - 1, last_span, uturn_flag);
   if (uturn_flag) {
     return last_span;  // won't be used
   }
-  Span<S> span2 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, span1, uturn_flag);
+  Span<S> span2 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
+                                      depth - 1, span1, uturn_flag);
   if (uturn_flag) {
     return last_span; // won't be used
   }
-  if (uturn(span1, span2, inv_mass)) {
-    uturn_flag = true;
-    return last_span;  // won't be used
+  if constexpr (Forward) {
+    if (uturn(span1, span2, inv_mass)) {
+      uturn_flag = true;
+      return last_span;  // won't be used
+    }
+  } else {
+    if (uturn(span2, span1, inv_mass)) {
+      uturn_flag = true;
+      return last_span;  // won't be used
+    }
   }
-  return combine<false, true>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
+  return combine<false, Forward>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
 }
+
 
 template <typename S, class F, typename V, class Generator>
 void transition(Random<S, Generator>& rng,
@@ -245,12 +230,12 @@ void transition(Random<S, Generator>& rng,
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
-      Span<S> span_next = build_span_fw(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
+      Span<S> span_next = build_span<true>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
       if (uturn_flag) break;
       span_accum = combine<true, true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
       if (uturn_flag) break;
     } else {
-      Span<S> span_next = build_span_bk(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
+      Span<S> span_next = build_span<false>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
       if (uturn_flag) break;
       span_accum = combine<true, false>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
       if (uturn_flag) break;

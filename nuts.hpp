@@ -151,6 +151,24 @@ Span<S> combine(Random<S, Generator>& rng,
   }
 }
 
+template <typename S, class F>
+Span<S> build_leaf(const F& logp_grad_fun,
+                   const Vec<S>& theta,
+                   const Vec<S>& rho,
+                   const Vec<S>& grad_theta,
+                   const Vec<S>& inv_mass,
+                   S directed_step,
+                   bool& uturn_flag) {
+    Vec<S> theta_next;
+    Vec<S> rho_next;
+    Vec<S> grad_theta_next;
+    S logp_theta_next;
+    leapfrog(logp_grad_fun, inv_mass, directed_step, theta, rho, grad_theta,
+             theta_next, rho_next, grad_theta_next, logp_theta_next);
+    uturn_flag = false;
+    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
+}
+
 template <typename S, class F, class Generator>
 Span<S> build_span_bk(Random<S, Generator>& rng,
                       const F& logp_grad_fun,
@@ -160,17 +178,8 @@ Span<S> build_span_bk(Random<S, Generator>& rng,
                       const Span<S>& last_span,
                       bool& uturn_flag) {
   if (depth == 0) {
-    const Vec<S>& theta = last_span.theta_bk_;
-    const Vec<S>& rho = last_span.rho_bk_;
-    const Vec<S>& grad_theta = last_span.grad_theta_bk_;
-    Vec<S> theta_next;
-    Vec<S> rho_next;
-    Vec<S> grad_theta_next;
-    S logp_theta_next;
-    leapfrog(logp_grad_fun, inv_mass, -step, theta, rho, grad_theta,
-             theta_next, rho_next, grad_theta_next, logp_theta_next);
-    uturn_flag = false;
-    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
+    return build_leaf(logp_grad_fun, last_span.theta_bk_, last_span.rho_bk_,
+                      last_span.grad_theta_bk_, inv_mass, -step, uturn_flag);
   }
   Span<S> span1 = build_span_bk(rng, logp_grad_fun, inv_mass, step,
                                 depth - 1, last_span, uturn_flag);
@@ -198,17 +207,8 @@ Span<S> build_span_fw(Random<S, Generator>& rng,
                       const Span<S>& last_span,
                       bool& uturn_flag) {
   if (depth == 0) {
-    const Vec<S>& theta = last_span.theta_fw_;
-    const Vec<S>& rho = last_span.rho_fw_;
-    const Vec<S>& grad_theta = last_span.grad_theta_fw_;
-    Vec<S> theta_next;
-    Vec<S> rho_next;
-    Vec<S> grad_theta_next;
-    S logp_theta_next;
-    leapfrog(logp_grad_fun, inv_mass, step, theta, rho, grad_theta,
-             theta_next, rho_next, grad_theta_next, logp_theta_next);
-    uturn_flag = false;
-    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
+    return build_leaf(logp_grad_fun, last_span.theta_fw_, last_span.rho_fw_,
+                      last_span.grad_theta_fw_, inv_mass, step, uturn_flag);
   }
   Span<S> span1 = build_span_fw(rng, logp_grad_fun, inv_mass, step,
                                 depth - 1, last_span, uturn_flag);

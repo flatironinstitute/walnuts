@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <random>
 #include <Eigen/Dense>
 
 namespace nuts {
@@ -48,9 +49,9 @@ class Span {
   Vec<S> theta_select_;
   S logp_;
 
-  Span(Vec<S>& theta,
-       Vec<S>& rho,
-       Vec<S>& grad_theta,
+  Span(Vec<S>&& theta,
+       Vec<S>&& rho,
+       Vec<S>&& grad_theta,
        S logp)
       : theta_bk_(theta),  // copy duplicates
         rho_bk_(rho),
@@ -208,7 +209,7 @@ Span<S> build_leaf(const F& logp_grad_fun,
                logp_theta_next);
     }
     uturn_flag = false;
-    return Span<S>(theta_next, rho_next, grad_theta_next, logp_theta_next);
+    return Span<S>(std::move(theta_next), std::move(rho_next), std::move(grad_theta_next), logp_theta_next);
 }
 
 template <bool Forward, typename S, class F, class Generator>
@@ -259,7 +260,7 @@ void transition(Random<S, Generator>& rng,
   Vec<S> grad(theta.size());
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
-  Span<S> span_accum(theta, rho, grad, logp);
+  Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;

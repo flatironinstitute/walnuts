@@ -142,8 +142,7 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-  int init_seed = 333456;
-  int seed = 763545;
+  int seed = 333456;
   int N = 10000;
   double step_size = 0.025;
   int max_depth = 10;
@@ -163,7 +162,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  DynamicStanModel model(lib, data, init_seed);
+  DynamicStanModel model(lib, data, seed);
 
   int D = model.size();
 
@@ -171,35 +170,34 @@ int main(int argc, char *argv[]) {
             << ";  max_depth = " << max_depth << std::endl;
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> draws(D, N);
 
-  std::mt19937 rng(init_seed);
-  std::normal_distribution<> std_normal(0.0, 1.0);
+  Eigen::VectorXd inv_mass = Eigen::VectorXd::Ones(D);
+  std::mt19937 generator(seed);
+  std::normal_distribution<double> std_normal(0.0, 1.0);
   Eigen::VectorXd theta_init(D);
   for (int i = 0; i < D; ++i) {
-    theta_init(i) = std_normal(rng);
+    theta_init(i) = std_normal(generator);
   }
-
-  Eigen::VectorXd inv_mass = Eigen::VectorXd::Ones(D);
 
   auto global_start = std::chrono::high_resolution_clock::now();
-  nuts(
-      seed, [&model](auto &&...args) { model.logp_grad(args...); }, inv_mass,
-      step_size, max_depth, theta_init, draws);
+  nuts::nuts(
+      generator, [&model](auto &&...args) { model.logp_grad(args...); },
+      inv_mass, step_size, max_depth, theta_init, draws);
   auto global_end = std::chrono::high_resolution_clock::now();
-  auto global_total_time = std::chrono::duration<double>(global_end - global_start).count();
+  auto global_total_time =
+      std::chrono::duration<double>(global_end - global_start).count();
 
-  std::cout << "total time: " << global_total_time << "s" << std::endl;
-  std::cout << "    gradient time: " << total_time << "s" << std::endl;
-  std::cout << "        gradient calls: " << count << std::endl;
-  std::cout << "        gradient time per call: " << total_time / count << "s" << std::endl;
-  std::cout << std::endl;
+    std::cout << "    total time: " << global_total_time << "s" << std::endl;
+    std::cout << "logp_grad time: " << total_time << "s" << std::endl;
+    std::cout << "logp_grad fraction: " << total_time / global_total_time << std::endl;
+    std::cout << "        logp_grad calls: " << count << std::endl;
+    std::cout << "        time per call: " << total_time / count << "s" << std::endl;
+    std::cout << std::endl;
 
-  for (int d = 0; d < std::min(D, 10); ++d) {
-    double mean = draws.row(d).mean();
-    double var = (draws.row(d).array() - mean).square().sum() / (N - 1);
-    double stddev = std::sqrt(var);
-    std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev << "\n";
+    for (int d = 0; d < std::min(D, 10); ++d) {
+      auto mean = draws.row(d).mean();
+      auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
+      auto stddev = std::sqrt(var);
+      std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev << "\n";
+    }
+    return 0;
   }
-
-
-  return 0;
-}

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <utility>
 #include <Eigen/Dense>
 
@@ -11,6 +10,8 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
+
+using Integer = std::int32_t;
 
 template <typename S, class Generator>
 class Random {
@@ -25,8 +26,8 @@ class Random {
     return binary_(rng_);
   }
 
-  Vec<S> standard_normal(int n) {
-    return Vec<S>::NullaryExpr(n, [&](int) { return normal_(rng_); });
+  Vec<S> standard_normal(Integer n) {
+    return Vec<S>::NullaryExpr(n, [&](Integer) { return normal_(rng_); });
   }
  private:
   Generator& rng_;
@@ -117,6 +118,42 @@ void leapfrog(const F& logp_grad_fun,
   logp_next += logp_momentum(rho_next, inv_mass);
 }
 
+template <typename S, class F>
+Integer stable_num_steps(const F& logp_grad_fun,
+                         const Vec<S>& inv_mass,
+                         S macro_step,
+                         S max_energy_error,
+                         const Vec<S>& theta,
+                         const Vec<S>& rho,
+                         const Vec<S>& grad,
+                         Vec<S>& theta_next,
+                         Vec<S>& rho_next,
+                         Vec<S>& grad_next,
+                         S& logp_next) {
+  using std::fmax;
+  using std::fmin;
+  theta_next = theta;
+  rho_next = rho;
+  S step = macro_step;
+  for (Integer n = 0, L = 1; n < 10; ++n, L *= 2, step /= 2) {
+    S logp_min = logp_next + logp_momentum(rho);
+    S logp_max = logp_min;
+    for (Integer ell = 0; ell < L; ++ell) {
+      leapfrog(logp_grad_fun, inv_mass, step, theta_next, rho_next,
+               grad_next, theta_next, rho_next, grad_next, logp_next);
+      S logp = logp_next + logp_momentum(rho_next);
+      logp_min = fmin(logp_min, logp);
+      logp_max = fmax(logp_max, logp);
+    }
+    if (logp_max - logp_min <= max_energy_error) {
+      return L;
+    }
+  }
+  return -1;
+}
+
+
+
 template <typename S>
 bool uturn(const Span<S>& span_bk,
            const Span<S>& span_fw,
@@ -179,7 +216,7 @@ Span<S> build_span(Random<S, Generator>& rng,
                    const F& logp_grad_fun,
                    const Vec<S>& inv_mass,
                    S step,
-                   int depth,
+                   Integer depth,
                    const Span<S>& last_span,
                    bool& uturn_flag) {
   if (depth == 0) {
@@ -214,7 +251,7 @@ void transition(Random<S, Generator>& rng,
                 const F& logp_grad_fun,
                 const Vec<S>& inv_mass,
                 S step,
-                int max_depth,
+                Integer max_depth,
                 Vec<S>&& theta,
                 V theta_next) {
   Vec<S> rho = rng.standard_normal(theta.size());
@@ -223,7 +260,7 @@ void transition(Random<S, Generator>& rng,
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(theta, rho, grad, logp);
-  for (int depth = 0; depth < max_depth; ++depth) {
+  for (Integer depth = 0; depth < max_depth; ++depth) {
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
@@ -246,14 +283,14 @@ void nuts(Generator& generator,
           const F& logp_grad_fun,
           const Vec<S>& inv_mass,
           S step,
-          int max_depth,
+          Integer max_depth,
           const Vec<S>& theta,
           Matrix<S>& sample) {
   Random<S, Generator> rng{generator};
-  int num_draws = sample.cols();
+  Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
-  for (int n = 1; n < num_draws; ++n) {
+  for (Integer n = 1; n < num_draws; ++n) {
     transition(rng, logp_grad_fun, inv_mass, step, max_depth,
                Vec<S>(sample.col(n - 1)), sample.col(n));
   }

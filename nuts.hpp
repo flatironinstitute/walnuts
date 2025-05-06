@@ -4,10 +4,15 @@
 #include <random>
 #include <Eigen/Dense>
 
+#include "Eigen/src/Core/Matrix.h"
+#include "arena_matrix.hpp"
+#include "memory.hpp"
+
 namespace nuts {
 
 template <typename S>
-using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
+using Vec = arena_matrix<Eigen::Matrix<S, Eigen::Dynamic, 1>>;
+static thread_local arena_allocator<double, nuts::arena_alloc> default_arena_alloc;
 
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
@@ -28,7 +33,7 @@ class Random {
   }
 
   Vec<S> standard_normal(Integer n) {
-    return Vec<S>::NullaryExpr(n, [&](Integer) { return normal_(rng_); });
+    return Vec<S>(default_arena_alloc, Vec<S>::Base::NullaryExpr(n, [&](Integer) { return normal_(rng_); }));
   }
  private:
   Generator& rng_;
@@ -36,6 +41,7 @@ class Random {
   std::bernoulli_distribution binary_;
   std::normal_distribution<S> normal_;
 };
+
 
 template <typename S>
 class Span {
@@ -53,10 +59,10 @@ class Span {
        Vec<S>&& rho,
        Vec<S>&& grad_theta,
        S logp)
-      : theta_bk_(theta),  // copy duplicates
-        rho_bk_(rho),
-        grad_theta_bk_(grad_theta),
-        theta_fw_(theta),
+      : theta_bk_(default_arena_alloc, theta),  // copy duplicates
+        rho_bk_(default_arena_alloc, rho),
+        grad_theta_bk_(default_arena_alloc, grad_theta),
+        theta_fw_(default_arena_alloc, theta),
         rho_fw_(std::move(rho)),  // move once after copy
         grad_theta_fw_(std::move(grad_theta)),
         theta_select_(std::move(theta)),
@@ -219,9 +225,9 @@ Span<S> build_leaf(const F& logp_grad_fun,
                    const Vec<S>& inv_mass,
                    S step,
                    bool& uturn_flag) {
-    Vec<S> theta_next;
-    Vec<S> rho_next;
-    Vec<S> grad_theta_next;
+    Vec<S> theta_next(default_arena_alloc);
+    Vec<S> rho_next(default_arena_alloc);
+    Vec<S> grad_theta_next(default_arena_alloc);
     S logp_theta_next;
     if constexpr (Forward) {
       leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_, span.grad_theta_fw_,
@@ -281,7 +287,7 @@ void transition(Random<S, Generator>& rng,
                 V theta_next) {
   Vec<S> rho = rng.standard_normal(theta.size());
   S logp;
-  Vec<S> grad(theta.size());
+  Vec<S> grad(default_arena_alloc,theta.size());
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
@@ -306,18 +312,23 @@ void transition(Random<S, Generator>& rng,
 template <typename S, class F, class Generator>
 void nuts(Generator& generator,
           const F& logp_grad_fun,
-          const Vec<S>& inv_mass,
+          const Eigen::VectorX<S>& inv_mass,
           S step,
           Integer max_depth,
-          const Vec<S>& theta,
+          const Eigen::VectorX<S>& theta,
           Matrix<S>& sample) {
   Random<S, Generator> rng{generator};
   Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
+  auto inv_arena = Vec<S>(default_arena_alloc, inv_mass);
+
   for (Integer n = 1; n < num_draws; ++n) {
-    transition(rng, logp_grad_fun, inv_mass, step, max_depth,
-               Vec<S>(sample.col(n - 1)), sample.col(n));
+    scoped_allocator scoped_arena_alloc(default_arena_alloc);
+
+    transition(rng, logp_grad_fun, inv_arena, step, max_depth,
+               Vec<S>(default_arena_alloc,sample.col(n - 1)), sample.col(n));
+
   }
 }
 

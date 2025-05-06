@@ -13,9 +13,9 @@ double total_time = 0.0;
 int count = 0;
 
 template <typename T>
-void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1>& x,
+void standard_normal_logp_grad(const nuts::Vec<T>& x,
                                 S& logp,
-                                Eigen::Matrix<T, Eigen::Dynamic, 1>& grad) {
+                                nuts::Vec<T>& grad) {
   auto start = std::chrono::high_resolution_clock::now();
   logp = -0.5 * x.dot(x);
   grad = -x;

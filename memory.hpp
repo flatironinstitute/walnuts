@@ -419,37 +419,7 @@ struct arena_allocator {
   void recover_nested() { alloc_->recover_nested(); }
 };
 
-struct dummy_allocator {
-  std::vector<void*> ptrs_;
-  template <typename T>
-  inline T* allocate(std::size_t n) {
-    void* ptr = std::malloc(n * sizeof(T));
-    ptrs_.push_back(ptr);
-    return reinterpret_cast<T*>(ptr);
-  }
-  constexpr inline void recover_memory() noexcept {}
-  template <typename T>
-  constexpr inline void deallocate(T* p, std::size_t n) noexcept {}
-  constexpr bool operator==(const dummy_allocator&) const noexcept {
-    return true;
-  }
-  constexpr bool operator!=(const dummy_allocator&) const noexcept {
-    return false;
-  }
-  ~dummy_allocator() {
-    for (auto ptr : ptrs_) {
-      std::free(ptr);
-    }
-  }
-  void start_nested() {}
-  void recover_nested() {}
 
-};
-
-template <typename Expr>
-NUTS_ALWAYS_INLINE auto eval(dummy_allocator& alloc, Expr&& expr) {
-  return eval(std::forward<Expr>(expr));
-}
 
 }  // namespace nuts
 #endif

@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <type_traits>
 
-#include "macros.hpp"
 #include "memory.hpp"
 
 // TODO
@@ -179,67 +178,6 @@ class arena_matrix : public Eigen::Map<MatrixType> {
     return *this;
   }
 };
-
-template <typename T, typename Expr>
-inline auto to_arena(arena_allocator<T, arena_alloc>& arena,
-                     const Expr& expr) noexcept {
-  return arena_matrix<typename std::decay_t<Expr>::PlainObject>(arena, expr);
-}
-
-template <typename T, typename Expr>
-NUTS_ALWAYS_INLINE auto eval(arena_allocator<T, arena_alloc>& arena,
-                                const Expr& expr) noexcept {
-  return arena_matrix<typename std::decay_t<Expr>::PlainObject>(arena, expr);
-}
-
-template <typename Expr>
-inline auto to_arena(dummy_allocator& arena, const Expr& expr) noexcept {
-  return eval(expr);
-}
-
-template <typename Expr, typename T>
-inline auto empty_arena_matrix(arena_allocator<T, arena_alloc>& alloc,
-                               Expr&& expr) {
-  using plain_type_t = typename std::decay_t<Expr>::PlainObject;
-  return arena_matrix<plain_type_t>(alloc, expr.rows(), expr.cols());
-}
-
-template <typename Expr>
-inline auto empty_arena_matrix(dummy_allocator& arena, Expr&& expr) {
-  using plain_type_t = typename std::decay_t<Expr>::PlainObject;
-  return plain_type_t(expr.rows(), expr.cols());
-}
-
-template <typename Expr, typename T>
-inline auto empty_arena_matrix(arena_allocator<T, arena_alloc>& alloc,
-                               Eigen::Index rows, Eigen::Index cols) {
-  using plain_type_t = typename std::decay_t<Expr>::PlainObject;
-  return arena_matrix<plain_type_t>(alloc, rows, cols);
-}
-
-template <typename Expr>
-inline auto empty_arena_matrix(dummy_allocator& arena, Eigen::Index rows,
-                               Eigen::Index cols) {
-  using plain_type_t = typename std::decay_t<Expr>::PlainObject;
-  return plain_type_t(rows, cols);
-}
-
-template <typename T>
-inline void print(const char* name, const arena_matrix<T>& x) {
-#ifdef NUTS_DEBUG
-  std::cout << name << "(" << x.rows() << ", " << x.cols() << ")" << std::endl;
-  if (std::decay_t<T>::RowsAtCompileTime == 1
-      || std::decay_t<T>::ColsAtCompileTime == 1) {
-    Eigen::IOFormat numpyFormat(Eigen::FullPrecision, Eigen::DontAlignCols,
-                                ", ", ", ", "", "", "np.array([", "])");
-    std::cout << x.transpose().eval().format(numpyFormat) << std::endl;
-  } else {
-    Eigen::IOFormat numpyFormat(Eigen::FullPrecision, Eigen::DontAlignCols,
-                                ", ", ", ", "[", "]", "np.array([", "])");
-    std::cout << x.format(numpyFormat) << std::endl;
-  }
-#endif
-}
 
 }  // namespace nuts
 

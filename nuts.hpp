@@ -1,8 +1,8 @@
+#include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
-#include <utility>
 #include <random>
-#include <Eigen/Dense>
+#include <utility>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "arena_matrix.hpp"
@@ -12,24 +12,26 @@ namespace nuts {
 
 template <typename S>
 using Vec = arena_matrix<Eigen::Matrix<S, Eigen::Dynamic, 1>>;
-static thread_local arena_allocator<double, nuts::arena_alloc> default_arena_alloc;
+
+template <typename S> using Alloc = arena_allocator<S, nuts::arena_alloc>;
 
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
 using Integer = std::int32_t;
 
-template <typename S, class Generator>
-class Random {
- public:
-  Random(Generator& rng): rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) { }
+template <typename S, class Generator> class Random {
+public:
+  Random(Generator &rng)
+      : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
-  S uniform_real_01() {
-    return unif_(rng_);
-  }
+  S uniform_real_01() { return unif_(rng_); }
 
-  bool uniform_binary() {
-    return binary_(rng_);
+  bool uniform_binary() { return binary_(rng_); }
+
+  Vec<S> standard_normal(Integer n, Alloc<S> &alloc) {
+    return Vec<S>(alloc, Vec<S>::Base::NullaryExpr(
+                             n, [&](Integer) { return normal_(rng_); }));
   }
 
   Vec<S> standard_normal(Integer n) {
@@ -58,11 +60,12 @@ class Span {
   Span(Vec<S>&& theta,
        Vec<S>&& rho,
        Vec<S>&& grad_theta,
-       S logp)
-      : theta_bk_(default_arena_alloc, theta),  // copy duplicates
-        rho_bk_(default_arena_alloc, rho),
-        grad_theta_bk_(default_arena_alloc, grad_theta),
-        theta_fw_(default_arena_alloc, theta),
+       S logp,
+       Alloc<S>& alloc)
+      : theta_bk_(alloc, theta),  // copy duplicates
+        rho_bk_(alloc, rho),
+        grad_theta_bk_(alloc, grad_theta),
+        theta_fw_(alloc, theta),
         rho_fw_(std::move(rho)),  // move once after copy
         grad_theta_fw_(std::move(grad_theta)),
         theta_select_(std::move(theta)),
@@ -220,90 +223,95 @@ Span<S> combine(Random<S, Generator>& rng,
 }
 
 template <bool Forward, typename S, class F>
-Span<S> build_leaf(const F& logp_grad_fun,
-                   const Span<S>& span,
-                   const Vec<S>& inv_mass,
-                   S step,
-                   bool& uturn_flag) {
-    Vec<S> theta_next(default_arena_alloc);
-    Vec<S> rho_next(default_arena_alloc);
-    Vec<S> grad_theta_next(default_arena_alloc);
-    S logp_theta_next;
-    if constexpr (Forward) {
-      leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_, span.grad_theta_fw_,
-               theta_next, rho_next, grad_theta_next,
-               logp_theta_next);
-    } else {
-      leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_, span.grad_theta_bk_,
-               theta_next, rho_next, grad_theta_next,
-               logp_theta_next);
-    }
-    uturn_flag = false;
-    return Span<S>(std::move(theta_next), std::move(rho_next), std::move(grad_theta_next), logp_theta_next);
+Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
+                   const Vec<S> &inv_mass, S step, bool &uturn_flag,
+                   Alloc<S> &alloc) {
+  Vec<S> theta_next(alloc, span.theta_fw_.size());
+  Vec<S> rho_next(alloc, span.rho_fw_.size());
+  Vec<S> grad_theta_next(alloc, span.grad_theta_fw_.size());
+  S logp_theta_next;
+  if constexpr (Forward) {
+    leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
+             span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
+             logp_theta_next);
+  } else {
+    leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
+             span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
+             logp_theta_next);
+  }
+  uturn_flag = false;
+  return Span<S>(std::move(theta_next), std::move(rho_next),
+                 std::move(grad_theta_next), logp_theta_next, alloc);
 }
 
 template <bool Forward, typename S, class F, class Generator>
-Span<S> build_span(Random<S, Generator>& rng,
-                   const F& logp_grad_fun,
-                   const Vec<S>& inv_mass,
-                   S step,
-                   Integer depth,
-                   const Span<S>& last_span,
-                   bool& uturn_flag) {
+Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
+                   const Vec<S> &inv_mass, S step, Integer depth,
+                   const Span<S> &last_span, bool &uturn_flag,
+                   Alloc<S> &alloc) {
   if (depth == 0) {
-    return build_leaf<Forward>(logp_grad_fun, last_span, inv_mass, step, uturn_flag);
+    return build_leaf<Forward>(logp_grad_fun, last_span, inv_mass, step,
+                               uturn_flag, alloc);
   }
   Span<S> span1 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, last_span, uturn_flag);
+                                      depth - 1, last_span, uturn_flag, alloc);
   if (uturn_flag) {
-    return last_span;  // won't be used
+    return last_span; // won't be used
   }
   Span<S> span2 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, span1, uturn_flag);
+                                      depth - 1, span1, uturn_flag, alloc);
   if (uturn_flag) {
     return last_span; // won't be used
   }
   if constexpr (Forward) {
     if (uturn(span1, span2, inv_mass)) {
       uturn_flag = true;
-      return last_span;  // won't be used
+      return last_span; // won't be used
     }
   } else {
     if (uturn(span2, span1, inv_mass)) {
       uturn_flag = true;
-      return last_span;  // won't be used
+      return last_span; // won't be used
     }
   }
-  return combine<false, Forward>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
+  return combine<false, Forward>(rng, std::move(span1), std::move(span2),
+                                 inv_mass, uturn_flag);
 }
 
 template <typename S, class F, typename V, class Generator>
-void transition(Random<S, Generator>& rng,
-                const F& logp_grad_fun,
-                const Vec<S>& inv_mass,
-                S step,
-                Integer max_depth,
-                Vec<S>&& theta,
-                V theta_next) {
-  Vec<S> rho = rng.standard_normal(theta.size());
+void transition(Random<S, Generator> &rng, const F &logp_grad_fun,
+                const Vec<S> &inv_mass, S step, Integer max_depth,
+                Vec<S> &&theta, V theta_next, Alloc<S> &alloc) {
+
+  Vec<S> rho = rng.standard_normal(theta.size(), alloc);
   S logp;
-  Vec<S> grad(default_arena_alloc,theta.size());
+  Vec<S> grad(alloc, theta.size());
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
-  Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
+  Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp, alloc);
   for (Integer depth = 0; depth < max_depth; ++depth) {
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
-      Span<S> span_next = build_span<true>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
-      if (uturn_flag) break;
-      span_accum = combine<true, true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
-      if (uturn_flag) break;
+      Span<S> span_next = build_span<true>(rng, logp_grad_fun, inv_mass, step,
+                                           depth, span_accum, uturn_flag, alloc);
+      if (uturn_flag)
+        break;
+      span_accum =
+          combine<true, true>(rng, std::move(span_accum), std::move(span_next),
+                              inv_mass, uturn_flag);
+      if (uturn_flag)
+        break;
     } else {
-      Span<S> span_next = build_span<false>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
-      if (uturn_flag) break;
-      span_accum = combine<true, false>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
-      if (uturn_flag) break;
+      Span<S> span_next = build_span<false>(rng, logp_grad_fun, inv_mass, step,
+                                            depth, span_accum, uturn_flag, alloc);
+      if (uturn_flag)
+        break;
+      span_accum =
+          combine<true, false>(rng, std::move(span_accum), std::move(span_next),
+                               inv_mass, uturn_flag);
+      if (uturn_flag)
+        break;
     }
   }
   theta_next = span_accum.theta_select_;
@@ -321,14 +329,16 @@ void nuts(Generator& generator,
   Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
-  auto inv_arena = Vec<S>(default_arena_alloc, inv_mass);
+
+  Alloc<S> alloc(new nuts::arena_alloc(max_depth * sizeof(S) * theta.size() * 128), true);
+
+  auto inv_arena = Vec<S>(alloc, inv_mass);
 
   for (Integer n = 1; n < num_draws; ++n) {
-    scoped_allocator scoped_arena_alloc(default_arena_alloc);
+    scoped_allocator scoped_arena_alloc(alloc);
 
     transition(rng, logp_grad_fun, inv_arena, step, max_depth,
-               Vec<S>(default_arena_alloc,sample.col(n - 1)), sample.col(n));
-
+               Vec<S>(alloc, sample.col(n - 1)), sample.col(n), alloc);
   }
 }
 

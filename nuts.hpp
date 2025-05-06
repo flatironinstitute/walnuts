@@ -120,6 +120,40 @@ void leapfrog(const F& logp_grad_fun,
 }
 
 template <typename S, class F>
+bool stable(const F& logp_grad_fun,
+            const Vec<S>& inv_mass,
+            S step,
+            Integer L,
+            S max_energy_error,
+            const Vec<S>& theta,
+            const Vec<S>& rho,
+            const Vec<S>& grad,
+            S logp,
+            Vec<S>& theta_next,
+            Vec<S>& rho_next,
+            Vec<S>& grad_next,
+            S& logp_next) {
+  using std::fmax;
+  using std::fmin;
+  S logp_min = logp;
+  S logp_max = logp;
+  theta_next = theta;
+  rho_next = rho;
+  grad_next = grad;
+  for (Integer ell = 0; ell < L; ++ell) {
+    S logp_next;
+    leapfrog(logp_grad_fun, inv_mass, step, theta_next, rho_next,
+             grad_next, theta_next, rho_next, grad_next, logp_next);
+    logp_min = fmin(logp_min, logp_next);
+    logp_max = fmax(logp_max, logp_next);
+    if (logp_max - logp_min > max_energy_error)
+      return false;
+  }
+  return true;
+}
+
+
+template <typename S, class F>
 Integer stable_num_steps(const F& logp_grad_fun,
                          const Vec<S>& inv_mass,
                          S macro_step,
@@ -127,33 +161,23 @@ Integer stable_num_steps(const F& logp_grad_fun,
                          const Vec<S>& theta,
                          const Vec<S>& rho,
                          const Vec<S>& grad,
+                         S logp,
                          Vec<S>& theta_next,
                          Vec<S>& rho_next,
                          Vec<S>& grad_next,
                          S& logp_next) {
-  using std::fmax;
-  using std::fmin;
-  theta_next = theta;
-  rho_next = rho;
   S step = macro_step;
-  for (Integer n = 0, L = 1; n < 10; ++n, L *= 2, step /= 2) {
-    S logp_min = logp_next + logp_momentum(rho);
-    S logp_max = logp_min;
-    for (Integer ell = 0; ell < L; ++ell) {
-      leapfrog(logp_grad_fun, inv_mass, step, theta_next, rho_next,
-               grad_next, theta_next, rho_next, grad_next, logp_next);
-      S logp = logp_next + logp_momentum(rho_next);
-      logp_min = fmin(logp_min, logp);
-      logp_max = fmax(logp_max, logp);
-    }
-    if (logp_max - logp_min <= max_energy_error) {
+  Integer L = 1;
+  for (Integer n = 0; n < 10; ++n) {
+    if (stable(logp_grad_fun, theta, rho, grad, logp, step, L, max_energy_error,
+               theta_next, rho_next, grad_next, logp_next)) {
       return L;
     }
+    step /= 2;
+    L *= 2;
   }
   return -1;
 }
-
-
 
 template <typename S>
 bool uturn(const Span<S>& span_bk,

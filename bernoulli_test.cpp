@@ -11,24 +11,22 @@ using MatrixS = Eigen::Matrix<S, -1, -1>;
 
 double total_time = 0.0;
 int count = 0;
-constexpr std::array y_obs{1,1,0,0,0,0,0,0,0,0};
+constexpr std::array y_obs{1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 template <typename T>
 void bernoulli_logp_grad(const nuts::Vec<T>& x,
                          double& logp,
                          nuts::Vec<T>& grad) {
   auto start = std::chrono::high_resolution_clock::now();
   const int D = x.size();
+  Eigen::Map<const Eigen::Array<double, -1, 1>> y(y_obs.data(), y_obs.size());
   logp = 0.0;
   grad.setZero();
   for (int i = 0; i < D; ++i) {
     double xi = x(i);
     double pi = 1.0 / (1.0 + std::exp(-xi));       // inv_logit
     // likelihood
-    for (int j = 0; j < y_obs.size(); ++j) {
-      int y = y_obs[j];
-      logp += y *  std::log(pi)
-            + (1-y)*std::log(1.0 - pi);
-    }
+      logp += (y *  std::log(pi)
+            + (1-y)*std::log(1.0 - pi)).sum();
     // Jacobian of inv_logit: log |d p / d x| = log(pi) + log(1-pi)
     logp += std::log(pi) + std::log(1.0 - pi);
 
@@ -36,10 +34,7 @@ void bernoulli_logp_grad(const nuts::Vec<T>& x,
     //   ∂ℓ/∂p = ∑[ y/p  − (1−y)/(1−p) ]
     //   ∂p/∂x = p(1−p)
     double dlogp_dp = 0;
-    for (int j = 0; j < y_obs.size(); ++j) {
-      int y = y_obs[j];
-      dlogp_dp +=  y/pi  -  (1-y)/(1.0 - pi);
-    }
+    dlogp_dp +=  (y/pi  -  (1-y)/(1.0 - pi)).sum();
     // plus Jacobian derivative term = (1-2p)
     double dlogjac_dx = 1.0 - 2.0*pi;
     grad(i) = dlogp_dp * (pi*(1.0 - pi))   // chain‐rule
@@ -53,7 +48,7 @@ void bernoulli_logp_grad(const nuts::Vec<T>& x,
 int main() {
   int init_seed = 333456;
   int seed = 763545;
-  int D = 10;
+  int D = 100;
   int N = 10000;
   S step_size = 0.025;
   int max_depth = 10;

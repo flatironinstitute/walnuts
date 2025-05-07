@@ -354,7 +354,7 @@ void nuts(Generator& generator,
   if (num_draws == 0) return;
   sample.col(0) = theta;
 
-  auto buffer = std::pmr::monotonic_buffer_resource(max_depth * sizeof(S) * theta.size() * 12);
+  auto buffer = std::pmr::monotonic_buffer_resource(max_depth * sizeof(S) * theta.size() * 1000);
   auto pool = std::pmr::unsynchronized_pool_resource(&buffer);
   auto alloc = std::pmr::polymorphic_allocator<S>(&pool);
   Random<S, Generator> rng{generator};

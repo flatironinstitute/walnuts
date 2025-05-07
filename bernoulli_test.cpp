@@ -48,7 +48,7 @@ void bernoulli_logp_grad(const nuts::Vec<T>& x,
 int main() {
   int init_seed = 333456;
   int seed = 763545;
-  int D = 100;
+  int D = 10;
   int N = 10000;
   S step_size = 0.025;
   int max_depth = 10;

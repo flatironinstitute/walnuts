@@ -89,7 +89,6 @@ class pmr_arena_matrix : public Eigen::Map<MatrixType> {
     // placement new changes what data map points to - there is no allocation
     new (this)
         Base(const_cast<Scalar*>(other.data()), other.rows(), other.cols());
-    this->allocator_ = std::move(other.allocator_);
 
     return *this;
   }
@@ -101,6 +100,7 @@ class pmr_arena_matrix : public Eigen::Map<MatrixType> {
    */
   template <typename Expr>
   pmr_arena_matrix& operator=(const Expr& other) {
+
     Base::operator=(other);
     return *this;
   }

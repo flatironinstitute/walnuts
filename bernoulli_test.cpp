@@ -21,15 +21,15 @@ void bernoulli_logp_grad(const nuts::Vec<T>& x,
   Eigen::Map<const Eigen::Array<double, -1, 1>> y(y_obs.data(), y_obs.size());
   logp = 0.0;
   grad.setZero();
+  nuts::Vec<T> pi(x.buffer_.allocator_, (1.0 / (1.0 + (-x).array().exp())).matrix());       // inv_logit
+    // likelihood
+  logp += (y.rowwise().replicate(D).rowwise() *  pi.array().transpose()).sum()
+        + ((1-y).rowwise().replicate(D).rowwise()* (1.0 - pi.array()).transpose()).sum();
+    // Jacobian of inv_logit: log |d p / d x| = log(pi) + log(1-pi)
+  logp += ((pi).array().log() + (1.0 - pi.array()).log()).sum();
   for (int i = 0; i < D; ++i) {
     double xi = x(i);
     double pi = 1.0 / (1.0 + std::exp(-xi));       // inv_logit
-    // likelihood
-      logp += (y *  std::log(pi)
-            + (1-y)*std::log(1.0 - pi)).sum();
-    // Jacobian of inv_logit: log |d p / d x| = log(pi) + log(1-pi)
-    logp += std::log(pi) + std::log(1.0 - pi);
-
     // gradient w.r.t. x_i:
     //   ∂ℓ/∂p = ∑[ y/p  − (1−y)/(1−p) ]
     //   ∂p/∂x = p(1−p)
@@ -48,7 +48,7 @@ void bernoulli_logp_grad(const nuts::Vec<T>& x,
 int main() {
   int init_seed = 333456;
   int seed = 763545;
-  int D = 10;
+  int D = 100;
   int N = 10000;
   S step_size = 0.025;
   int max_depth = 10;
@@ -72,6 +72,7 @@ int main() {
   auto global_total_time = std::chrono::duration<double>(global_end - global_start).count();
 
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
+  std::cout << "nuts time:      " << global_total_time - total_time << "s" << std::endl;
   std::cout << "logp_grad time: " << total_time << "s" << std::endl;
   std::cout << "logp_grad fraction: " << total_time / global_total_time << std::endl;
   std::cout << "        logp_grad calls: " << count << std::endl;

@@ -97,19 +97,7 @@ class Span {
   // Explicitly default the copy assignment operator
   Span& operator=(const Span& other) = default;
 
-  Span& operator=(Span&& other) noexcept {
-    if (this != &other) {
-      theta_bk_ = std::move(other.theta_bk_);
-      rho_bk_ = std::move(other.rho_bk_);
-      grad_theta_bk_ = std::move(other.grad_theta_bk_);
-      theta_fw_ = std::move(other.theta_fw_);
-      rho_fw_ = std::move(other.rho_fw_);
-      grad_theta_fw_ = std::move(other.grad_theta_fw_);
-      theta_select_ = std::move(other.theta_select_);
-      logp_ = other.logp_;
-    }
-    return *this;
-  }
+  Span& operator=(Span&& other) = default;
 };
 
 template <typename S>
@@ -130,13 +118,13 @@ S log_sum_exp(const Vec<S>& x) {
 
 template <typename S>
 S logp_momentum(const Vec<S>& rho,
-                const Vec<S>& inv_mass) {
+                const Eigen::VectorX<S>& inv_mass) {
   return -0.5 * (inv_mass.array() * rho.array().square()).sum();
 }
 
 template <typename S, typename F>
 void leapfrog(const F& logp_grad_fun,
-              const Vec<S>& inv_mass,
+              const Eigen::VectorX<S>& inv_mass,
               S step,
               const Vec<S>& theta,
               const Vec<S>& rho,
@@ -155,7 +143,7 @@ void leapfrog(const F& logp_grad_fun,
 
 template <typename S, class F>
 bool stable(const F& logp_grad_fun,
-            const Vec<S>& inv_mass,
+            const Eigen::VectorX<S>& inv_mass,
             S step,
             Integer L,
             S max_energy_error,
@@ -189,7 +177,7 @@ bool stable(const F& logp_grad_fun,
 
 template <typename S, class F>
 Integer stable_num_steps(const F& logp_grad_fun,
-                         const Vec<S>& inv_mass,
+                         const Eigen::VectorX<S>& inv_mass,
                          S macro_step,
                          S max_energy_error,
                          const Vec<S>& theta,
@@ -216,7 +204,7 @@ Integer stable_num_steps(const F& logp_grad_fun,
 template <typename S>
 bool uturn(const Span<S>& span_bk,
            const Span<S>& span_fw,
-           const Vec<S>& inv_mass) {
+           const Eigen::VectorX<S>& inv_mass) {
   auto scaled_diff = (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array()).matrix();
   return span_fw.rho_fw_.dot(scaled_diff) < 0 || span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
@@ -225,7 +213,7 @@ template <bool Progressive, bool Forward, typename S, class Generator>
 Span<S> combine(Random<S, Generator>& rng,
                 Span<S>&& span_old,
                 Span<S>&& span_new,
-                const Vec<S>& inv_mass,
+                const Eigen::VectorX<S>& inv_mass,
                 bool& uturn_flag) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
@@ -249,7 +237,7 @@ Span<S> combine(Random<S, Generator>& rng,
 
 template <bool Forward, typename S, class F>
 Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
-                   const Vec<S> &inv_mass, S step, bool &uturn_flag,
+                   const Eigen::VectorX<S>& inv_mass, S step, bool &uturn_flag,
                    Alloc<S> &alloc) {
   Vec<S> theta_next(alloc, span.theta_fw_.size());
   Vec<S> rho_next(alloc, span.rho_fw_.size());
@@ -271,7 +259,7 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
 
 template <bool Forward, typename S, class F, class Generator>
 Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
-                   const Vec<S> &inv_mass, S step, Integer depth,
+                   const Eigen::VectorX<S>& inv_mass, S step, const Integer depth,
                    const Span<S> &last_span, bool &uturn_flag,
                    Alloc<S> &alloc) {
   if (depth == 0) {
@@ -305,7 +293,7 @@ Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
 
 template <typename S, class F, typename V, class Generator>
 void transition(Random<S, Generator> &rng, const F &logp_grad_fun,
-                const Vec<S> &inv_mass, S step, Integer max_depth,
+                const Eigen::VectorX<S>& inv_mass, S step, const Integer max_depth,
                 Vec<S> &&theta, V theta_next, Alloc<S> &alloc) {
 
   Vec<S> rho = rng.standard_normal(theta.size(), alloc);
@@ -353,16 +341,15 @@ void nuts(Generator& generator,
   Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
-
-  auto buffer = std::pmr::monotonic_buffer_resource(max_depth * sizeof(S) * theta.size() * 1000);
-  auto pool = std::pmr::unsynchronized_pool_resource(&buffer);
+  std::pmr::pool_options opts;
+  opts.largest_required_pool_block = sizeof(S) * theta.size();
+  opts.max_blocks_per_chunk     = 10;  // or whatever
+  auto pool = std::pmr::unsynchronized_pool_resource();
   auto alloc = std::pmr::polymorphic_allocator<S>(&pool);
   Random<S, Generator> rng{generator};
 
-  auto inv_arena = Vec<S>(alloc, inv_mass);
-
   for (Integer n = 1; n < num_draws; ++n) {
-    transition(rng, logp_grad_fun, inv_arena, step, max_depth,
+    transition(rng, logp_grad_fun, inv_mass, step, max_depth,
                Vec<S>(alloc, sample.col(n - 1)), sample.col(n), alloc);
   }
 }

@@ -44,23 +44,38 @@ namespace nuts {
  * @tparam MatrixType Eigen matrix type this works as (e.g., MatrixXd, VectorXd).
  */
 template <typename MatrixType>
-class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
+class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned16> {
  public:
   using Scalar = typename std::decay_t<MatrixType>::Scalar;
-  using Base = Eigen::Map<std::decay_t<MatrixType>>;
+  using Base = Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned16>;
   using allocator_t = std::pmr::polymorphic_allocator<Scalar>;
   using NestedExpression = typename Eigen::internal::remove_all<Base>::type;
   static constexpr int RowsAtCompileTime = MatrixType::RowsAtCompileTime;
   static constexpr int ColsAtCompileTime = MatrixType::ColsAtCompileTime;
-  allocator_t allocator_;
-  struct deleter {
+  struct buffy {
    allocator_t allocator_;
+   alignas(16) Scalar* buffer_;
    Eigen::Index size_;
-   void operator()(Scalar* ptr) {
-     if (ptr) allocator_.deallocate(ptr, size_);
-   }
+   buffy(allocator_t allocator, std::size_t size) :
+     allocator_(allocator),
+     buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * size, 16))),
+     size_(size) {}
+  buffy(const buffy& other) :
+    allocator_(other.allocator_),
+    buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * other.size_, 16))),
+    size_(other.size_) {}
+  buffy(buffy&& other) :
+   allocator_(std::move(other.allocator_)),
+    buffer_(other.buffer_),
+    size_(other.size_) {
+      other.buffer_ = nullptr;
+      other.size_ = 0;
+    }
+   ~buffy() {
+      if (buffer_) allocator_.deallocate_bytes(buffer_, sizeof(Scalar) * size_, 16);
+    }
   };
-  std::unique_ptr<Scalar[], deleter> buffer_;
+  buffy buffer_;
   /**
    * Constructs a pmr_arena_matrix with the given allocator and dimensions.
    * @param allocator The polymorphic allocator to use for memory allocation.
@@ -69,9 +84,8 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
    */
   NUTS_INLINE pmr_arena_matrix(allocator_t allocator, Eigen::Index rows, Eigen::Index cols)
       : Base(nullptr, rows, cols),
-      allocator_(allocator),
-      buffer_(allocator_.allocate(rows * cols), deleter{allocator, rows * cols}) {
-       new (this) Base(buffer_.get(), rows, cols);
+      buffer_(allocator, rows * cols) {
+       new (this) Base(buffer_.buffer_, rows, cols);
       }
 
   /**
@@ -82,9 +96,8 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
    */
   NUTS_INLINE pmr_arena_matrix(allocator_t allocator, Eigen::Index size)
       : Base(nullptr, size),
-      allocator_(allocator),
-      buffer_(allocator_.allocate(size), deleter{allocator, size}) {
-       new (this) Base(buffer_.get(), size);
+            buffer_(allocator, size) {
+       new (this) Base(buffer_.buffer_, size);
       }
 
   /**
@@ -96,10 +109,9 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
   NUTS_INLINE pmr_arena_matrix(allocator_t allocator, const Expr& other)
       : Base::Map(
             nullptr, other.rows(), other.cols()),
-        allocator_(allocator),
-        buffer_(allocator_.allocate(other.size()), deleter{allocator_, other.size()}) {
+        buffer_(allocator, other.size()) {
     new (this) Base(
-            buffer_.get(),
+            buffer_.buffer_,
             (RowsAtCompileTime == 1 && Expr::ColsAtCompileTime == 1)
                     || (ColsAtCompileTime == 1 && Expr::RowsAtCompileTime == 1)
                 ? other.cols()
@@ -114,10 +126,9 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
   template <typename Expr, require_eigen<Expr>* = nullptr>
   NUTS_INLINE explicit pmr_arena_matrix(const pmr_arena_matrix<Expr>& other)
       : Base::Map(nullptr, other.rows(), other.cols()),
-        allocator_(other.allocator_),
-        buffer_(allocator_.allocate(other.size()), deleter{allocator_, other.size()}) {
+        buffer_(other.buffer_) {
         new (this) Base(
-            buffer_.get(),
+            buffer_.buffer_,
             (RowsAtCompileTime == 1 && Expr::ColsAtCompileTime == 1)
                     || (ColsAtCompileTime == 1 && Expr::RowsAtCompileTime == 1)
                 ? other.cols()
@@ -130,27 +141,20 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
   }
   template <typename Expr, require_eigen<Expr>* = nullptr>
   NUTS_INLINE explicit pmr_arena_matrix(pmr_arena_matrix<Expr>&& other) noexcept
-      : Base::Map(nullptr, other.rows(), other.cols()),
-        allocator_(std::move(other.allocator_)),
-        buffer_(std::move(other.buffer_)) {
-    new (this) Base(
-            buffer_.get(),
-            (RowsAtCompileTime == 1 && Expr::ColsAtCompileTime == 1)
+      : Base::Map(other.buffer_.buffer_, (RowsAtCompileTime == 1 && Expr::ColsAtCompileTime == 1)
                     || (ColsAtCompileTime == 1 && Expr::RowsAtCompileTime == 1)
                 ? other.cols()
                 : other.rows(),
             (RowsAtCompileTime == 1 && Expr::ColsAtCompileTime == 1)
                     || (ColsAtCompileTime == 1 && Expr::RowsAtCompileTime == 1)
                 ? other.rows()
-                : other.cols());
-
-  }
+                : other.cols()),
+        buffer_(std::move(other.buffer_)) {}
   NUTS_INLINE explicit pmr_arena_matrix(const pmr_arena_matrix<MatrixType>& other)
       : Base::Map(nullptr, other.rows(), other.cols()),
-        allocator_(other.allocator_),
-        buffer_(allocator_.allocate(other.size()), deleter{allocator_, other.size()}) {
+        buffer_(other.buffer_) {
         new (this) Base(
-            buffer_.get(),
+            buffer_.buffer_,
             (RowsAtCompileTime == 1 && MatrixType::ColsAtCompileTime == 1)
                     || (ColsAtCompileTime == 1 && MatrixType::RowsAtCompileTime == 1)
                 ? other.cols()
@@ -162,25 +166,13 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>> {
     Base::operator=(other);
   }
   NUTS_INLINE explicit pmr_arena_matrix(pmr_arena_matrix<MatrixType>&& other) noexcept
-      : Base::Map(nullptr, other.rows(), other.cols()),
-        allocator_(std::move(other.allocator_)),
-        buffer_(std::move(other.buffer_)) {
-    new (this) Base(
-            buffer_.get(),
-            (RowsAtCompileTime == 1 && MatrixType::ColsAtCompileTime == 1)
-                    || (ColsAtCompileTime == 1 && MatrixType::RowsAtCompileTime == 1)
-                ? other.cols()
-                : other.rows(),
-            (RowsAtCompileTime == 1 && MatrixType::ColsAtCompileTime == 1)
-                    || (ColsAtCompileTime == 1 && MatrixType::RowsAtCompileTime == 1)
-                ? other.rows()
-                : other.cols());
-
-  }
+      : Base::Map(other.buffer_.buffer_, other.rows(), other.cols()),
+        buffer_(std::move(other.buffer_)) {}
 
   using Base::operator=;
   NUTS_INLINE pmr_arena_matrix& operator=(const pmr_arena_matrix<MatrixType>& other) {
-    Base::operator=(other);
+    std::memcpy(buffer_.buffer_, other.buffer_.buffer_,
+              sizeof(Scalar) * other.size());
     return *this;
   }
   NUTS_INLINE pmr_arena_matrix& operator=(pmr_arena_matrix<MatrixType>&& other) {
@@ -207,8 +199,8 @@ namespace Eigen {
 namespace internal {
 
 template <typename T>
-struct traits<nuts::pmr_arena_matrix<T>> : traits<Eigen::Map<T>> {
-  using base = traits<Eigen::Map<T>>;
+struct traits<nuts::pmr_arena_matrix<T>> : traits<Eigen::Map<T, Eigen::Aligned16>> {
+  using base = traits<Eigen::Map<T, Eigen::Aligned16>>;
   using XprKind = typename Eigen::internal::traits<std::decay_t<T>>::XprKind;
   using Scalar = typename std::decay_t<T>::Scalar;
   enum {

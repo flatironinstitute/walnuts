@@ -1,19 +1,19 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
+#include <memory_resource>
 #include <random>
 #include <utility>
 
 #include "Eigen/src/Core/Matrix.h"
-#include "arena_matrix.hpp"
-#include "memory.hpp"
+#include "pmr_arena_matrix.hpp"
 
 namespace nuts {
 
 template <typename S>
-using Vec = arena_matrix<Eigen::Matrix<S, Eigen::Dynamic, 1>>;
+using Vec = pmr_arena_matrix<Eigen::Matrix<S, Eigen::Dynamic, 1>>;
 
-template <typename S> using Alloc = arena_allocator<S, nuts::arena_alloc>;
+template <typename S> using Alloc = std::pmr::polymorphic_allocator<S>;
 
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
@@ -22,7 +22,7 @@ using Integer = std::int32_t;
 
 template <typename S, class Generator> class Random {
 public:
-  Random(Generator &rng, Alloc<S> &alloc)
+  Random(Generator &rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   S uniform_real_01() { return unif_(rng_); }
@@ -82,6 +82,34 @@ class Span {
         theta_select_(std::move(theta_select)),
         logp_(logp)
   {}
+
+  // Copy constructor
+  Span(const Span& other)
+      : theta_bk_(other.theta_bk_),
+        rho_bk_(other.rho_bk_),
+        grad_theta_bk_(other.grad_theta_bk_),
+        theta_fw_(other.theta_fw_),
+        rho_fw_(other.rho_fw_),
+        grad_theta_fw_(other.grad_theta_fw_),
+        theta_select_(other.theta_select_),
+        logp_(other.logp_) {}
+
+  // Explicitly default the copy assignment operator
+  Span& operator=(const Span& other) = default;
+
+  Span& operator=(Span&& other) noexcept {
+    if (this != &other) {
+      theta_bk_ = std::move(other.theta_bk_);
+      rho_bk_ = std::move(other.rho_bk_);
+      grad_theta_bk_ = std::move(other.grad_theta_bk_);
+      theta_fw_ = std::move(other.theta_fw_);
+      rho_fw_ = std::move(other.rho_fw_);
+      grad_theta_fw_ = std::move(other.grad_theta_fw_);
+      theta_select_ = std::move(other.theta_select_);
+      logp_ = other.logp_;
+    }
+    return *this;
+  }
 };
 
 template <typename S>
@@ -326,14 +354,14 @@ void nuts(Generator& generator,
   if (num_draws == 0) return;
   sample.col(0) = theta;
 
-  Alloc<S> alloc(new nuts::arena_alloc(max_depth * sizeof(S) * theta.size() * 128), true);
-  Random<S, Generator> rng{generator, alloc};
+  auto buffer = std::pmr::monotonic_buffer_resource(max_depth * sizeof(S) * theta.size() * 12);
+  auto pool = std::pmr::unsynchronized_pool_resource(&buffer);
+  auto alloc = std::pmr::polymorphic_allocator<S>(&pool);
+  Random<S, Generator> rng{generator};
 
   auto inv_arena = Vec<S>(alloc, inv_mass);
 
   for (Integer n = 1; n < num_draws; ++n) {
-    scoped_allocator scoped_arena_alloc(alloc);
-
     transition(rng, logp_grad_fun, inv_arena, step, max_depth,
                Vec<S>(alloc, sample.col(n - 1)), sample.col(n), alloc);
   }

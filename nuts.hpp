@@ -22,7 +22,7 @@ using Integer = std::int32_t;
 
 template <typename S, class Generator> class Random {
 public:
-  Random(Generator &rng)
+  Random(Generator &rng, Alloc<S> &alloc)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   S uniform_real_01() { return unif_(rng_); }
@@ -34,9 +34,6 @@ public:
                              n, [&](Integer) { return normal_(rng_); }));
   }
 
-  Vec<S> standard_normal(Integer n) {
-    return Vec<S>(default_arena_alloc, Vec<S>::Base::NullaryExpr(n, [&](Integer) { return normal_(rng_); }));
-  }
  private:
   Generator& rng_;
   std::uniform_real_distribution<S> unif_;
@@ -325,12 +322,12 @@ void nuts(Generator& generator,
           Integer max_depth,
           const Eigen::VectorX<S>& theta,
           Matrix<S>& sample) {
-  Random<S, Generator> rng{generator};
   Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
 
   Alloc<S> alloc(new nuts::arena_alloc(max_depth * sizeof(S) * theta.size() * 128), true);
+  Random<S, Generator> rng{generator, alloc};
 
   auto inv_arena = Vec<S>(alloc, inv_mass);
 

@@ -27,36 +27,40 @@ char* dlerror() {
 #include <dlfcn.h>
 #endif
 
+
+template<typename T>
+auto dlsym_cast(void* handle, T&&, const char* name) {
+  auto sym = dlsym(handle, name);
+  if (!sym) {
+    throw std::runtime_error(std::string("Error loading symbol '") + name + "': " + dlerror());
+  }
+  return reinterpret_cast<T>(sym);
+}
+
 double total_time = 0.0;
 int count = 0;
 
 class DynamicStanModel {
 public:
   DynamicStanModel(const char *model_path, const char *data, int seed) {
-    handle_ = dlopen(model_path, RTLD_NOW);
-    if (!handle_) {
+    library = dlopen(model_path, RTLD_NOW);
+    if (!library) {
       throw std::runtime_error("Error loading model: " +
                                std::string(dlerror()));
     }
 
-    model_construct = reinterpret_cast<decltype(&bs_model_construct)>(
-        dlsym(handle_, "bs_model_construct"));
-    free_error_msg = reinterpret_cast<decltype(&bs_free_error_msg)>(
-        dlsym(handle_, "bs_free_error_msg"));
-    model_destruct = reinterpret_cast<decltype(&bs_model_destruct)>(
-        dlsym(handle_, "bs_model_destruct"));
-    param_unc_num = reinterpret_cast<decltype(&bs_param_unc_num)>(
-        dlsym(handle_, "bs_param_unc_num"));
-    log_density_gradient = reinterpret_cast<decltype(&bs_log_density_gradient)>(
-        dlsym(handle_, "bs_log_density_gradient"));
+    model_construct =
+        dlsym_cast(library, &bs_model_construct, "bs_model_construct");
+    free_error_msg =
+        dlsym_cast(library, &bs_free_error_msg, "bs_free_error_msg");
+    model_destruct =
+        dlsym_cast(library, &bs_model_destruct, "bs_model_destruct");
+    param_unc_num =
+        dlsym_cast(library, &bs_param_unc_num, "bs_param_unc_num");
+    log_density_gradient =
+        dlsym_cast(library, &bs_log_density_gradient, "bs_log_density_gradient");
 
-    if (!model_construct || !free_error_msg || !model_destruct ||
-        !param_unc_num || !log_density_gradient) {
-      throw std::runtime_error("Error loading symbols: " +
-                               std::string(dlerror()));
-    }
-
-    char *err;
+    char *err = nullptr;
     model_ptr = model_construct(data, seed, &err);
     if (!model_ptr) {
       if (err) {
@@ -68,21 +72,31 @@ public:
     }
   }
 
-  DynamicStanModel(const DynamicStanModel &) = delete; // non-copyable
-  DynamicStanModel &
-  operator=(const DynamicStanModel &) = delete; // non-copyable
+  // non-copyable
+  DynamicStanModel(const DynamicStanModel &) = delete;
+  DynamicStanModel &operator=(const DynamicStanModel &) = delete;
 
   DynamicStanModel(DynamicStanModel &&other)
-      : handle_(other.handle_), model_ptr(other.model_ptr),
+      : library(other.library), model_ptr(other.model_ptr),
         model_construct(other.model_construct),
         free_error_msg(other.free_error_msg),
         model_destruct(other.model_destruct),
         param_unc_num(other.param_unc_num),
-        log_density_gradient(other.log_density_gradient) {}
+        log_density_gradient(other.log_density_gradient) {
+    other.library = nullptr;
+    other.model_ptr = nullptr;
+  }
 
   DynamicStanModel &operator=(DynamicStanModel &&other) {
     if (this != &other) {
-      handle_ = other.handle_;
+      if (library) {
+        if (model_ptr) {
+          model_destruct(model_ptr);
+        }
+        dlclose(library);
+      }
+
+      library = other.library;
       model_ptr = other.model_ptr;
       model_construct = other.model_construct;
       free_error_msg = other.free_error_msg;
@@ -90,30 +104,28 @@ public:
       param_unc_num = other.param_unc_num;
       log_density_gradient = other.log_density_gradient;
 
-      other.handle_ = nullptr;
+      other.library = nullptr;
       other.model_ptr = nullptr;
     }
     return *this;
   }
 
   ~DynamicStanModel() {
-    if (handle_) {
+    if (library) {
       if (model_ptr) {
         model_destruct(model_ptr);
       }
-      dlclose(handle_);
+      dlclose(library);
     }
   }
 
   int size() const { return param_unc_num(model_ptr); }
 
-  void logp_grad(const Eigen::Matrix<double, Eigen::Dynamic, 1> &x,
-                 double &logp,
-                 Eigen::Matrix<double, Eigen::Dynamic, 1> &grad) const {
-
+  template <typename M>
+  void logp_grad(const M &x, double &logp, M &grad) const {
     grad.resizeLike(x);
 
-    char *err;
+    char *err = nullptr;
     auto start = std::chrono::high_resolution_clock::now();
     int ret = log_density_gradient(model_ptr, true, true, x.data(), &logp,
                                    grad.data(), &err);
@@ -132,7 +144,7 @@ public:
   }
 
 private:
-  void *handle_;
+  void *library;
   bs_model *model_ptr;
   decltype(&bs_model_construct) model_construct;
   decltype(&bs_free_error_msg) free_error_msg;
@@ -150,16 +162,16 @@ int main(int argc, char *argv[]) {
   char *lib;
   char *data;
 
-  // require at least the library name
-  if (argc > 2) {
-    lib = argv[1];
-    data = argv[2];
-  } else if (argc > 1) {
+  if (argc <= 1) {
+    // require at least the library name
+    std::cerr << "Usage: " << argv[0] << " <model_path> [data]" << std::endl;
+    return 1;
+  } else if (argc == 2) {
     lib = argv[1];
     data = NULL;
   } else {
-    std::cerr << "Usage: " << argv[0] << " <model_path> [data]" << std::endl;
-    return 1;
+    lib = argv[1];
+    data = argv[2];
   }
 
   DynamicStanModel model(lib, data, seed);
@@ -186,18 +198,19 @@ int main(int argc, char *argv[]) {
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
 
-    std::cout << "    total time: " << global_total_time << "s" << std::endl;
-    std::cout << "logp_grad time: " << total_time << "s" << std::endl;
-    std::cout << "logp_grad fraction: " << total_time / global_total_time << std::endl;
-    std::cout << "        logp_grad calls: " << count << std::endl;
-    std::cout << "        time per call: " << total_time / count << "s" << std::endl;
-    std::cout << std::endl;
+  std::cout << "    total time: " << global_total_time << "s" << std::endl;
+  std::cout << "logp_grad time: " << total_time << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << total_time / global_total_time << std::endl;
+  std::cout << "        logp_grad calls: " << count << std::endl;
+  std::cout << "        time per call: " << total_time / count << "s" << std::endl;
+  std::cout << std::endl;
 
-    for (int d = 0; d < std::min(D, 10); ++d) {
-      auto mean = draws.row(d).mean();
-      auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
-      auto stddev = std::sqrt(var);
-      std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev << "\n";
-    }
-    return 0;
+  for (int d = 0; d < std::min(D, 10); ++d) {
+    auto mean = draws.row(d).mean();
+    auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
+    auto stddev = std::sqrt(var);
+    std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
+              << std::endl;
   }
+  return 0;
+}

@@ -59,10 +59,10 @@ class Span {
        Vec<S>&& grad_theta,
        S logp,
        Alloc<S>& alloc)
-      : theta_bk_(alloc, theta),  // copy duplicates
-        rho_bk_(alloc, rho),
-        grad_theta_bk_(alloc, grad_theta),
-        theta_fw_(alloc, theta),
+      : theta_bk_(theta),  // copy duplicates
+        rho_bk_(rho),
+        grad_theta_bk_(grad_theta),
+        theta_fw_(theta),
         rho_fw_(std::move(rho)),  // move once after copy
         grad_theta_fw_(std::move(grad_theta)),
         theta_select_(std::move(theta)),

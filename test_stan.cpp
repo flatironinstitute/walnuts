@@ -60,13 +60,13 @@ double total_time = 0.0;
 int count = 0;
 
 template<typename T>
-void nop_deleter(T*){}
+void no_op_deleter(T*){}
 
 class DynamicStanModel {
 public:
   DynamicStanModel(const char *model_path, const char *data, int seed)
       : library_(dlopen_safe(model_path)),
-        model_ptr_(nullptr, nop_deleter<bs_model>) {
+        model_ptr_(nullptr, no_op_deleter<bs_model>) {
 
     auto model_construct =
         dlsym_cast(library_, &bs_model_construct, "bs_model_construct");

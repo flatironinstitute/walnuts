@@ -351,7 +351,6 @@ void nuts(Generator& generator,
                Vec<S>(alloc, sample.col(n - 1)), sample.col(n), alloc);
 
   }
-  std::cout << "Total Allocs: " << nuts::new_alloc << std::endl;
 }
 
 } // namespace nuts

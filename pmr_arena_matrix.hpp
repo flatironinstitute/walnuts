@@ -39,7 +39,6 @@ using require_eigen = std::enable_if_t<is_eigen_v<std::decay_t<T>>>;
 #define NUTS_INLINE __attribute__((always_inline)) inline
 #endif
 namespace nuts {
-static std::size_t new_alloc = 0;
 class pool_memory_resource final : public std::pmr::memory_resource {
 public:
     /// block_size: size of each allocation (must be constant across calls)
@@ -77,7 +76,6 @@ protected:
         }
 
         // no free blocks: grab a fresh one
-        new_alloc++;
         void* p = upstream_->allocate(block_size_, alignment_);
         all_blocks_.push_back(p);
         return p;

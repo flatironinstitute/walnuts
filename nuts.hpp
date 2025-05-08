@@ -341,17 +341,17 @@ void nuts(Generator& generator,
   Integer num_draws = sample.cols();
   if (num_draws == 0) return;
   sample.col(0) = theta;
-  std::pmr::pool_options opts;
-  opts.largest_required_pool_block = sizeof(S) * theta.size();
-  opts.max_blocks_per_chunk     = 10;  // or whatever
-  auto pool = std::pmr::unsynchronized_pool_resource();
+  auto buffer = std::pmr::monotonic_buffer_resource(sizeof(S) * theta.size() * std::pow(2, 18));
+  auto pool = nuts::pool_memory_resource(theta.size() * sizeof(S), 128, &buffer);
   auto alloc = std::pmr::polymorphic_allocator<S>(&pool);
   Random<S, Generator> rng{generator};
 
   for (Integer n = 1; n < num_draws; ++n) {
     transition(rng, logp_grad_fun, inv_mass, step, max_depth,
                Vec<S>(alloc, sample.col(n - 1)), sample.col(n), alloc);
+
   }
+  std::cout << "Total Allocs: " << nuts::new_alloc << std::endl;
 }
 
 } // namespace nuts

@@ -2,9 +2,12 @@
 #define PMR_ARENA_MATRIX_HPP
 
 #include <Eigen/Dense>
+#include <algorithm>
+#include <cassert>
 #include <memory>
 #include <memory_resource>
 #include <type_traits>
+#include <vector>
 
 // TODO -- move traits or remove
 template <template <typename> class Base, typename Derived>
@@ -36,6 +39,67 @@ using require_eigen = std::enable_if_t<is_eigen_v<std::decay_t<T>>>;
 #define NUTS_INLINE __attribute__((always_inline)) inline
 #endif
 namespace nuts {
+static std::size_t new_alloc = 0;
+class pool_memory_resource final : public std::pmr::memory_resource {
+public:
+    /// block_size: size of each allocation (must be constant across calls)
+    /// alignment: alignment of each block
+    /// upstream: resource to grab fresh memory from
+    pool_memory_resource(std::size_t block_size,
+                         std::size_t alignment,
+                         std::pmr::memory_resource* upstream = std::pmr::get_default_resource())
+      : block_size_(block_size)
+      , alignment_(alignment)
+      , upstream_(upstream)
+    {
+        free_list_.reserve(std::pow(2, 18));
+        all_blocks_.reserve(std::pow(2, 18));
+        assert((alignment_ & (alignment_ - 1)) == 0 && "alignment must be a power of two");
+    }
+
+    ~pool_memory_resource() {
+        // return all blocks we ever allocated back to the upstream
+        for (void* p : all_blocks_) {
+            upstream_->deallocate(p, block_size_, alignment_);
+        }
+    }
+
+protected:
+    NUTS_INLINE void* do_allocate(std::size_t bytes, std::size_t alignment) override {
+        // we only support requests <= block_size_ and alignment <= alignment_
+        assert(bytes <= block_size_);
+        assert(alignment <= alignment_);
+
+        if (!free_list_.empty()) {
+            void* p = free_list_.back();
+            free_list_.pop_back();
+            return p;
+        }
+
+        // no free blocks: grab a fresh one
+        new_alloc++;
+        void* p = upstream_->allocate(block_size_, alignment_);
+        all_blocks_.push_back(p);
+        return p;
+    }
+
+    NUTS_INLINE void do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override {
+        assert(bytes <= block_size_);
+        assert(alignment <= alignment_);
+        // simply put it back into the free list
+        free_list_.push_back(p);
+    }
+
+    NUTS_INLINE bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override {
+        return this == &other;
+    }
+public:
+    std::size_t                        block_size_;
+    std::size_t                        alignment_;
+    std::pmr::memory_resource*        upstream_;
+    std::vector<void*>                 free_list_;
+    std::vector<void*>                 all_blocks_;
+};
 
 /**
  * A wrapper around Eigen::Map that uses a std::pmr::polymorphic_allocator
@@ -44,35 +108,37 @@ namespace nuts {
  * @tparam MatrixType Eigen matrix type this works as (e.g., MatrixXd, VectorXd).
  */
 template <typename MatrixType>
-class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned16> {
+class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned128> {
  public:
   using Scalar = typename std::decay_t<MatrixType>::Scalar;
-  using Base = Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned16>;
+  using Base = Eigen::Map<std::decay_t<MatrixType>, Eigen::Aligned128>;
   using allocator_t = std::pmr::polymorphic_allocator<Scalar>;
   using NestedExpression = typename Eigen::internal::remove_all<Base>::type;
   static constexpr int RowsAtCompileTime = MatrixType::RowsAtCompileTime;
   static constexpr int ColsAtCompileTime = MatrixType::ColsAtCompileTime;
   struct buffy {
    allocator_t allocator_;
-   alignas(16) Scalar* buffer_;
+   alignas(128) Scalar* buffer_;
    Eigen::Index size_;
-   buffy(allocator_t allocator, std::size_t size) :
+   NUTS_INLINE buffy(allocator_t allocator, std::size_t size) :
      allocator_(allocator),
-     buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * size, 16))),
+     buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * size, 128))),
      size_(size) {}
-  buffy(const buffy& other) :
+  NUTS_INLINE buffy(const buffy& other) :
     allocator_(other.allocator_),
-    buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * other.size_, 16))),
-    size_(other.size_) {}
-  buffy(buffy&& other) :
+    buffer_(reinterpret_cast<Scalar*>(allocator_.allocate_bytes(sizeof(Scalar) * other.size_, 128))),
+    size_(other.size_) {
+      std::memcpy(buffer_, other.buffer_, sizeof(Scalar) * size_);
+    }
+  NUTS_INLINE buffy(buffy&& other) :
    allocator_(std::move(other.allocator_)),
     buffer_(other.buffer_),
     size_(other.size_) {
       other.buffer_ = nullptr;
       other.size_ = 0;
     }
-   ~buffy() {
-      if (buffer_) allocator_.deallocate_bytes(buffer_, sizeof(Scalar) * size_, 16);
+   NUTS_INLINE ~buffy() {
+      if (buffer_) allocator_.deallocate_bytes(buffer_, sizeof(Scalar) * size_, 128);
     }
   };
   buffy buffer_;
@@ -137,7 +203,6 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>, Eigen::Alig
                     || (ColsAtCompileTime == 1 && Expr::RowsAtCompileTime == 1)
                 ? other.rows()
                 : other.cols());
-    Base::operator=(other);
   }
   template <typename Expr, require_eigen<Expr>* = nullptr>
   NUTS_INLINE explicit pmr_arena_matrix(pmr_arena_matrix<Expr>&& other) noexcept
@@ -163,7 +228,6 @@ class pmr_arena_matrix : public Eigen::Map<std::decay_t<MatrixType>, Eigen::Alig
                     || (ColsAtCompileTime == 1 && MatrixType::RowsAtCompileTime == 1)
                 ? other.rows()
                 : other.cols());
-    Base::operator=(other);
   }
   NUTS_INLINE explicit pmr_arena_matrix(pmr_arena_matrix<MatrixType>&& other) noexcept
       : Base::Map(other.buffer_.buffer_, other.rows(), other.cols()),
@@ -199,8 +263,8 @@ namespace Eigen {
 namespace internal {
 
 template <typename T>
-struct traits<nuts::pmr_arena_matrix<T>> : traits<Eigen::Map<T, Eigen::Aligned16>> {
-  using base = traits<Eigen::Map<T, Eigen::Aligned16>>;
+struct traits<nuts::pmr_arena_matrix<T>> : traits<Eigen::Map<T, Eigen::Aligned128>> {
+  using base = traits<Eigen::Map<T, Eigen::Aligned128>>;
   using XprKind = typename Eigen::internal::traits<std::decay_t<T>>::XprKind;
   using Scalar = typename std::decay_t<T>::Scalar;
   enum {

@@ -65,35 +65,35 @@ void nop_deleter(T*){}
 class DynamicStanModel {
 public:
   DynamicStanModel(const char *model_path, const char *data, int seed)
-      : library(dlopen_safe(model_path)),
-        model_ptr(nullptr, nop_deleter<bs_model>) {
+      : library_(dlopen_safe(model_path)),
+        model_ptr_(nullptr, nop_deleter<bs_model>) {
 
     auto model_construct =
-        dlsym_cast(library, &bs_model_construct, "bs_model_construct");
+        dlsym_cast(library_, &bs_model_construct, "bs_model_construct");
     auto model_destruct =
-        dlsym_cast(library, &bs_model_destruct, "bs_model_destruct");
-    free_error_msg =
-        dlsym_cast(library, &bs_free_error_msg, "bs_free_error_msg");
-    param_unc_num =
-        dlsym_cast(library, &bs_param_unc_num, "bs_param_unc_num");
-    log_density_gradient =
-        dlsym_cast(library, &bs_log_density_gradient, "bs_log_density_gradient");
+        dlsym_cast(library_, &bs_model_destruct, "bs_model_destruct");
+    free_error_msg_ =
+        dlsym_cast(library_, &bs_free_error_msg, "bs_free_error_msg");
+    param_unc_num_ =
+        dlsym_cast(library_, &bs_param_unc_num, "bs_param_unc_num");
+    log_density_gradient_ =
+        dlsym_cast(library_, &bs_log_density_gradient, "bs_log_density_gradient");
 
     char *err = nullptr;
-    model_ptr = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
+    model_ptr_ = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
         model_construct(data, seed, &err), model_destruct);
 
-    if (!model_ptr) {
+    if (!model_ptr_) {
       if (err) {
         std::string error_string(err);
-        free_error_msg(err);
+        free_error_msg_(err);
         throw std::runtime_error(error_string);
       }
       throw std::runtime_error("Failed to construct model");
     }
   }
 
-  int size() const { return param_unc_num(model_ptr.get()); }
+  int size() const { return param_unc_num_(model_ptr_.get()); }
 
   template <typename M>
   void logp_grad(const M &x, double &logp, M &grad) const {
@@ -101,7 +101,7 @@ public:
 
     char *err = nullptr;
     auto start = std::chrono::high_resolution_clock::now();
-    int ret = log_density_gradient(model_ptr.get(), true, true, x.data(), &logp,
+    int ret = log_density_gradient_(model_ptr_.get(), true, true, x.data(), &logp,
                                    grad.data(), &err);
     auto end = std::chrono::high_resolution_clock::now();
     total_time += std::chrono::duration<double>(end - start).count();
@@ -110,7 +110,7 @@ public:
     if (ret != 0) {
       if (err) {
         std::string error_string(err);
-        free_error_msg(err);
+        free_error_msg_(err);
         throw std::runtime_error(error_string);
       }
       throw std::runtime_error("Failed to compute log density and gradient");
@@ -118,11 +118,11 @@ public:
   }
 
 private:
-  std::unique_ptr<void, dlclose_deleter> library;
-  std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr;
-  decltype(&bs_free_error_msg) free_error_msg;
-  decltype(&bs_param_unc_num) param_unc_num;
-  decltype(&bs_log_density_gradient) log_density_gradient;
+  std::unique_ptr<void, dlclose_deleter> library_;
+  std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr_;
+  decltype(&bs_free_error_msg) free_error_msg_;
+  decltype(&bs_param_unc_num) param_unc_num_;
+  decltype(&bs_log_density_gradient) log_density_gradient_;
 };
 
 int main(int argc, char *argv[]) {

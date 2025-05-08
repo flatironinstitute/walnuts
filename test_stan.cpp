@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <random>
 #include <cmath>
 #include <chrono>
@@ -15,6 +16,7 @@
 #include <errhandlingapi.h>
 #define dlopen(lib, flags) LoadLibraryA(lib)
 #define dlsym(handle, sym) (void*)GetProcAddress(handle, sym)
+#define dlclose(handle) FreeLibrary(handle)
 
 char* dlerror() {
   DWORD err = GetLastError();
@@ -27,12 +29,29 @@ char* dlerror() {
 #include <dlfcn.h>
 #endif
 
+struct dlclose_deleter {
+  void operator()(void* handle) const {
+    if (handle) {
+      dlclose(handle);
+    }
+  }
+};
 
-template<typename T>
-auto dlsym_cast(void* handle, T&&, const char* name) {
-  auto sym = dlsym(handle, name);
+auto dlopen_safe(const char *path) {
+  auto handle = dlopen(path, RTLD_NOW);
+  if (!handle) {
+    throw std::runtime_error(std::string("Error loading library '") + path +
+                             "': " + dlerror());
+  }
+  return std::unique_ptr<void, dlclose_deleter>(handle);
+}
+
+template <typename U, typename T>
+auto dlsym_cast(U &library, T &&, const char *name) {
+  auto sym = dlsym(library.get(), name);
   if (!sym) {
-    throw std::runtime_error(std::string("Error loading symbol '") + name + "': " + dlerror());
+    throw std::runtime_error(std::string("Error loading symbol '") + name +
+                             "': " + dlerror());
   }
   return reinterpret_cast<T>(sym);
 }
@@ -40,28 +59,30 @@ auto dlsym_cast(void* handle, T&&, const char* name) {
 double total_time = 0.0;
 int count = 0;
 
+template<typename T>
+void nop_deleter(T*){}
+
 class DynamicStanModel {
 public:
-  DynamicStanModel(const char *model_path, const char *data, int seed) {
-    library = dlopen(model_path, RTLD_NOW);
-    if (!library) {
-      throw std::runtime_error("Error loading model: " +
-                               std::string(dlerror()));
-    }
+  DynamicStanModel(const char *model_path, const char *data, int seed)
+      : library(dlopen_safe(model_path)),
+        model_ptr(nullptr, nop_deleter<bs_model>) {
 
-    model_construct =
+    auto model_construct =
         dlsym_cast(library, &bs_model_construct, "bs_model_construct");
+    auto model_destruct =
+        dlsym_cast(library, &bs_model_destruct, "bs_model_destruct");
     free_error_msg =
         dlsym_cast(library, &bs_free_error_msg, "bs_free_error_msg");
-    model_destruct =
-        dlsym_cast(library, &bs_model_destruct, "bs_model_destruct");
     param_unc_num =
         dlsym_cast(library, &bs_param_unc_num, "bs_param_unc_num");
     log_density_gradient =
         dlsym_cast(library, &bs_log_density_gradient, "bs_log_density_gradient");
 
     char *err = nullptr;
-    model_ptr = model_construct(data, seed, &err);
+    model_ptr = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
+        model_construct(data, seed, &err), model_destruct);
+
     if (!model_ptr) {
       if (err) {
         std::string error_string(err);
@@ -72,54 +93,7 @@ public:
     }
   }
 
-  // non-copyable
-  DynamicStanModel(const DynamicStanModel &) = delete;
-  DynamicStanModel &operator=(const DynamicStanModel &) = delete;
-
-  DynamicStanModel(DynamicStanModel &&other)
-      : library(other.library), model_ptr(other.model_ptr),
-        model_construct(other.model_construct),
-        free_error_msg(other.free_error_msg),
-        model_destruct(other.model_destruct),
-        param_unc_num(other.param_unc_num),
-        log_density_gradient(other.log_density_gradient) {
-    other.library = nullptr;
-    other.model_ptr = nullptr;
-  }
-
-  DynamicStanModel &operator=(DynamicStanModel &&other) {
-    if (this != &other) {
-      if (library) {
-        if (model_ptr) {
-          model_destruct(model_ptr);
-        }
-        dlclose(library);
-      }
-
-      library = other.library;
-      model_ptr = other.model_ptr;
-      model_construct = other.model_construct;
-      free_error_msg = other.free_error_msg;
-      model_destruct = other.model_destruct;
-      param_unc_num = other.param_unc_num;
-      log_density_gradient = other.log_density_gradient;
-
-      other.library = nullptr;
-      other.model_ptr = nullptr;
-    }
-    return *this;
-  }
-
-  ~DynamicStanModel() {
-    if (library) {
-      if (model_ptr) {
-        model_destruct(model_ptr);
-      }
-      dlclose(library);
-    }
-  }
-
-  int size() const { return param_unc_num(model_ptr); }
+  int size() const { return param_unc_num(model_ptr.get()); }
 
   template <typename M>
   void logp_grad(const M &x, double &logp, M &grad) const {
@@ -127,7 +101,7 @@ public:
 
     char *err = nullptr;
     auto start = std::chrono::high_resolution_clock::now();
-    int ret = log_density_gradient(model_ptr, true, true, x.data(), &logp,
+    int ret = log_density_gradient(model_ptr.get(), true, true, x.data(), &logp,
                                    grad.data(), &err);
     auto end = std::chrono::high_resolution_clock::now();
     total_time += std::chrono::duration<double>(end - start).count();
@@ -144,11 +118,9 @@ public:
   }
 
 private:
-  void *library;
-  bs_model *model_ptr;
-  decltype(&bs_model_construct) model_construct;
+  std::unique_ptr<void, dlclose_deleter> library;
+  std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr;
   decltype(&bs_free_error_msg) free_error_msg;
-  decltype(&bs_model_destruct) model_destruct;
   decltype(&bs_param_unc_num) param_unc_num;
   decltype(&bs_log_density_gradient) log_density_gradient;
 };

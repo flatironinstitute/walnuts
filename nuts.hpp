@@ -28,7 +28,7 @@ class Random {
     return binary_(rng_);
   }
 
-  inline Vec<S> standard_normal(Integer n) noexcept {
+  inline Vec<S> standard_normal(Integer n) {
     return Vec<S>::NullaryExpr(n, [&](Integer) { return normal_(rng_); });
   }
 
@@ -212,13 +212,13 @@ Span<S> build_span(Random<S, Generator>& rng,
 }
 
 template <typename S, class F, class Generator>
-void transition(Random<S, Generator>& rng,
-                const F& logp_grad_fun,
-                const Vec<S>& inv_mass,
-                S step,
-                Integer max_depth,
-                Vec<S>&& theta,
-                Vec<S>& theta_next) {
+Vec<S> transition(Random<S, Generator>& rng,
+		  const F& logp_grad_fun,
+		  const Vec<S>& inv_mass,
+		  S step,
+		  Integer max_depth,
+		  Vec<S>&& theta,
+		  Vec<S>& theta_out) {
   Vec<S> rho = rng.standard_normal(theta.size());
   Vec<S> grad(theta.size());
   S logp;
@@ -236,11 +236,12 @@ void transition(Random<S, Generator>& rng,
     } else {
       Span<S> span_next = build_span<false>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
       if (uturn_flag) break;
-      span_accum = combine<true, false>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
+      span_accum = combine<true, false>(rng, std::move(span_accum),
+					std::move(span_next), inv_mass, uturn_flag);
       if (uturn_flag) break;
     }
   }
-  theta_next = std::move(span_accum.theta_select_);
+  return std::move(span_accum.theta_select_);
 }
 
 template <typename S, class F, class Generator, class H>
@@ -256,8 +257,7 @@ void nuts(Generator& generator,
   Vec<S> theta = theta_init;  // copy once
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
-    transition(rng, logp_grad_fun, inv_mass, step, max_depth,
-               std::move(theta), theta);
+    theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth, std::move(theta));
     handler(n, theta);
   }
 }

@@ -16,4 +16,9 @@ $ ./test
 
 To compile with GCC, just use `g++` instead of `clang++` in the compilation command above.
 
-.
+#### Formatting
+
+```
+$ cd walnuts_cpp
+$ clang-format clang-format -i -style=LLVM nuts.hpp test.cpp
+```

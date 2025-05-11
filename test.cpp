@@ -27,8 +27,8 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1>& x,
 int main() {
   int init_seed = 333456;
   int seed = 763545;
-  int D = 10;
-  int N = 10000;
+  int D = 200;
+  int N = 5000;
   S step_size = 0.025;
   int max_depth = 10;
   VectorS inv_mass = VectorS::Ones(D);
@@ -44,7 +44,6 @@ int main() {
     theta_init(i) = std_normal(generator);
   }
 
-
   auto global_start = std::chrono::high_resolution_clock::now();
   nuts::nuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size, max_depth, theta_init, draws);
   auto global_end = std::chrono::high_resolution_clock::now();
@@ -57,11 +56,14 @@ int main() {
   std::cout << "        time per call: " << total_time / count << "s" << std::endl;
   std::cout << std::endl;
 
-  for (int d = 0; d < D; ++d) {
+  for (int d = 0; d < std::min(D, 10); ++d) {
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
     std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev << "\n";
+  }
+  if (D > 10) {
+    std::cout << "... elided " << (D - 10) << " dimensions ..." << std::endl;
   }
   return 0;
 }

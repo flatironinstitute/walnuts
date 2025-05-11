@@ -15,6 +15,10 @@ using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
 using Integer = std::int32_t;
 
+enum class Update { Barker, Metropolis };
+
+enum class Direction { Backward, Forward };
+
 template <typename S, class Generator>
 class Random {
  public:
@@ -127,7 +131,7 @@ bool uturn(const Span<S>& span_bk,
   return span_fw.rho_fw_.dot(scaled_diff) < 0 || span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-template <bool Progressive, bool Forward, typename S, class Generator>
+template <Update U, Direction D, typename S, class Generator>
 Span<S> combine(Random<S, Generator>& rng,
                 Span<S>&& span_old,
                 Span<S>&& span_new,
@@ -136,24 +140,24 @@ Span<S> combine(Random<S, Generator>& rng,
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
-  if constexpr (Progressive) {
+  if constexpr (U == Update::Metropolis) {
     log_denominator = span_new.logp_;
-  } else {
+  } else {  // Update::Barker
     log_denominator = logp_total;
   }
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
-  if constexpr (Forward) {
+  if constexpr (D == Direction::Forward) {
     uturn_flag = uturn(span_old, span_new, inv_mass);
     return Span<S>(std::move(span_old), std::move(span_new), std::move(selected), logp_total);
-  } else {
+  } else {  // Direction::Backward
     uturn_flag = uturn(span_new, span_old, inv_mass);
     return Span<S>(std::move(span_new), std::move(span_old), std::move(selected), logp_total);
   }
 }
 
-template <bool Forward, typename S, class F>
+template <Direction D, typename S, class F>
 Span<S> build_leaf(const F& logp_grad_fun,
                    const Span<S>& span,
                    const Vec<S>& inv_mass,
@@ -163,20 +167,21 @@ Span<S> build_leaf(const F& logp_grad_fun,
     Vec<S> rho_next;
     Vec<S> grad_theta_next;
     S logp_theta_next;
-    if constexpr (Forward) {
-      leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_, span.grad_theta_fw_,
-               theta_next, rho_next, grad_theta_next,
+    if constexpr (D == Direction::Forward) {
+      leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
+               span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
                logp_theta_next);
-    } else {
-      leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_, span.grad_theta_bk_,
-               theta_next, rho_next, grad_theta_next,
+    } else {  // Direction::Backward
+      leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
+               span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
                logp_theta_next);
     }
     uturn_flag = false;
-    return Span<S>(std::move(theta_next), std::move(rho_next), std::move(grad_theta_next), logp_theta_next);
+    return Span<S>(std::move(theta_next), std::move(rho_next),
+                   std::move(grad_theta_next), logp_theta_next);
 }
 
-template <bool Forward, typename S, class F, class Generator>
+template <Direction D, typename S, class F, class Generator>
 Span<S> build_span(Random<S, Generator>& rng,
                    const F& logp_grad_fun,
                    const Vec<S>& inv_mass,
@@ -185,30 +190,31 @@ Span<S> build_span(Random<S, Generator>& rng,
                    const Span<S>& last_span,
                    bool& uturn_flag) {
   if (depth == 0) {
-    return build_leaf<Forward>(logp_grad_fun, last_span, inv_mass, step, uturn_flag);
+    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, uturn_flag);
   }
-  Span<S> span1 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, last_span, uturn_flag);
+  Span<S> span1 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, last_span, uturn_flag);
   if (uturn_flag) {
     return last_span;  // won't be used
   }
-  Span<S> span2 = build_span<Forward>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, span1, uturn_flag);
+  Span<S> span2 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+                                depth - 1, span1, uturn_flag);
   if (uturn_flag) {
     return last_span; // won't be used
   }
-  if constexpr (Forward) {
+  if constexpr (D == Direction::Forward) {
     if (uturn(span1, span2, inv_mass)) {
       uturn_flag = true;
       return last_span;  // won't be used
     }
-  } else {
+  } else {  // Direction::Backward
     if (uturn(span2, span1, inv_mass)) {
       uturn_flag = true;
       return last_span;  // won't be used
     }
   }
-  return combine<false, Forward>(rng, std::move(span1), std::move(span2), inv_mass, uturn_flag);
+  return combine<Update::Barker, D>(rng, std::move(span1), std::move(span2),
+                                    inv_mass, uturn_flag);
 }
 
 template <typename S, class F, class Generator>
@@ -228,15 +234,23 @@ Vec<S> transition(Random<S, Generator>& rng,
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
-      Span<S> span_next = build_span<true>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
+      Span<S> span_next
+          = build_span<Direction::Forward>(rng, logp_grad_fun, inv_mass,
+                                           step, depth, span_accum,
+                                           uturn_flag);
       if (uturn_flag) break;
-      span_accum = combine<true, true>(rng, std::move(span_accum), std::move(span_next), inv_mass, uturn_flag);
+      span_accum = combine<Update::Metropolis, Direction::Forward>(
+          rng, std::move(span_accum), std::move(span_next),
+          inv_mass, uturn_flag);
       if (uturn_flag) break;
     } else {
-      Span<S> span_next = build_span<false>(rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
+      Span<S> span_next = build_span<Direction::Backward>(rng, logp_grad_fun, inv_mass,
+                                               step, depth, span_accum,
+                                               uturn_flag);
       if (uturn_flag) break;
-      span_accum = combine<true, false>(rng, std::move(span_accum),
-					std::move(span_next), inv_mass, uturn_flag);
+      span_accum = combine<Update::Metropolis, Direction::Backward>(rng, std::move(span_accum),
+                                                 std::move(span_next),
+                                                 inv_mass, uturn_flag);
       if (uturn_flag) break;
     }
   }
@@ -256,7 +270,8 @@ void nuts(Generator& generator,
   Vec<S> theta = theta_init;  // copy once
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
-    theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth, std::move(theta));
+    theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth,
+                       std::move(theta));
     handler(n, theta);
   }
 }

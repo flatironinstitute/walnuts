@@ -217,8 +217,7 @@ Vec<S> transition(Random<S, Generator>& rng,
 		  const Vec<S>& inv_mass,
 		  S step,
 		  Integer max_depth,
-		  Vec<S>&& theta,
-		  Vec<S>& theta_out) {
+		  Vec<S>&& theta) {
   Vec<S> rho = rng.standard_normal(theta.size());
   Vec<S> grad(theta.size());
   S logp;

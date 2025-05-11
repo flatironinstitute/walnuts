@@ -135,7 +135,7 @@ Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
 
 template <Direction D, typename S, class F>
 Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
-                   const Vec<S> &inv_mass, S step, bool &uturn_flag) {
+                   const Vec<S> &inv_mass, S step) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
@@ -149,7 +149,6 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
              span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
   }
-  uturn_flag = false;
   return Span<S>(std::move(theta_next), std::move(rho_next),
                  std::move(grad_theta_next), logp_theta_next);
 }
@@ -158,8 +157,9 @@ template <Direction D, typename S, class F, class Generator>
 Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
                    const Vec<S> &inv_mass, S step, Integer depth,
                    const Span<S> &last_span, bool &uturn_flag) {
+  uturn_flag = false;
   if (depth == 0) {
-    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, uturn_flag);
+    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step);
   }
   Span<S> span1 = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1,
                                 last_span, uturn_flag);

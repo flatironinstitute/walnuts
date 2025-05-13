@@ -48,8 +48,8 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
     double var  = D * p_fail * (1.0 - p_fail);
     double sd   = std::sqrt(var);
     int m = static_cast<int>(std::ceil(mean + mcse_deviation * sd));
-    // never return less than 1
-    max_fails = std::max(m, 1);
+    // never return less than 1 (and add one for a little wiggle room)
+    max_fails = std::max(m + 1, 1);
     std::cout << "max_fails default = " << max_fails << "\n";
   }
   int num_mean_fails = 0;

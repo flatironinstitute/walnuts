@@ -23,24 +23,28 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
 ##########################
 ## Global Dependencies  ##
 ##########################
-include(FetchContent)
+find_package(Git REQUIRED)
 
-FetchContent_Declare(
-  Eigen
-  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  GIT_TAG        3.4.0
+# where to put Eigen
+set(EIGEN_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/eigen")
+set(EIGEN_TAG 3.4.0)
+# only clone on first configure
+if(NOT EXISTS "${EIGEN_SRC_DIR}/Eigen")
+  message(STATUS "Cloning Eigen ${EIGEN_TAG}…")
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} clone --branch ${EIGEN_TAG} --depth 1 -- https://gitlab.com/libeigen/eigen.git ${EIGEN_SRC_DIR}
+    RESULT_VARIABLE _git_result
+  )
+  if(NOT _git_result EQUAL 0)
+    message(FATAL_ERROR "Git clone of Eigen failed")
+  endif()
+endif()
+
+# now expose it as a pure‐header interface target
+add_library(Eigen3::Eigen INTERFACE IMPORTED)
+target_include_directories(Eigen3::Eigen INTERFACE
+  "${EIGEN_SRC_DIR}"
 )
-FetchContent_Populate(Eigen)   # ⇒ eigen_SOURCE_DIR / eigen_BINARY_DIR
-# 1) Create an INTERFACE library for the headers
-add_library(eigen_headers INTERFACE)
-target_include_directories(eigen_headers
-  INTERFACE
-    ${eigen_SOURCE_DIR}      # root of Eigen repo: contains Eigen/ and unsupported/
-)
-# 2) Alias it so downstream CMakeLists can do find-like targets
-add_library(Eigen3::Eigen ALIAS eigen_headers)
-
-
 #############################
 ## Making Walnuts Library  ##
 #############################

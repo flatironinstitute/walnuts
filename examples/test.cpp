@@ -29,30 +29,38 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
  *  Monte Carlo standard error bounds.
  *
  * @param draws A D×N matrix whose d-th row is the N samples for dimension d.
- *
  * @param tolerance A small positive value to used as basis for an adjusted relative threshold.
- *
  * @param mcse_deviation magnitude of Monte Carlo standard errors (SE) to allow before failing
- *
  * @param max_fails Max number of failures before the overall test returns a failure
- *
  * @returns 0 if the number of failing dimensions is < max_fails, otherwise 1.
  */
 int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
                double tolerance = 1e-8,
                double mcse_deviation = 3.0,
-               int max_fails = 10) {
+               int max_fails = -1) {
   int num_mean_fails = 0;
   int num_var_fails = 0;
   const int D = draws.rows();
   const int N = draws.cols();
+  if (max_fails < 0) {
+    double p_fail = std::erfc(mcse_deviation / std::sqrt(2.0));
 
+    // mean and variance of Binomial(D, p_fail)
+    double mean = D * p_fail;
+    double var  = D * p_fail * (1.0 - p_fail);
+    double sd   = std::sqrt(var);
+    int m = static_cast<int>(std::ceil(mean + mcse_deviation * sd));
+    // never return less than 1
+    max_fails = std::max(m + 1, 1);
+    std::cout << "max_fails default = " << max_fails << "\n";
+  }
   for (int d = 0; d < D; ++d) {
     S mean = draws.row(d).mean();
     S var  = (draws.row(d).array() - mean).square().sum() / (N - 1);
 
     S se_mean    = std::sqrt(var / N);
-    S se_mean_dev= se_mean * mcse_deviation;
+    S se_mean_dev = se_mean * mcse_deviation;
+    // Do an inexact threshold like in Stan Math
     auto mean_threshold
       = std::max(tolerance * 0.5 * (std::fabs(mean) + std::fabs(se_mean_dev)), 1e-14);
 
@@ -107,7 +115,6 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
 
 int main() {
   int init_seed = 333456;
-  int seed = 763545;
   int D = 200;
   int N = 5000;
   S step_size = 0.025;

@@ -38,22 +38,24 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
                double tolerance = 1e-8,
                double mcse_deviation = 3.0,
                int max_fails = -1) {
-  int num_mean_fails = 0;
-  int num_var_fails = 0;
   const int D = draws.rows();
   const int N = draws.cols();
   if (max_fails < 0) {
+    // Heuristic for max fails if not set by user
     double p_fail = std::erfc(mcse_deviation / std::sqrt(2.0));
-
     // mean and variance of Binomial(D, p_fail)
     double mean = D * p_fail;
     double var  = D * p_fail * (1.0 - p_fail);
     double sd   = std::sqrt(var);
     int m = static_cast<int>(std::ceil(mean + mcse_deviation * sd));
     // never return less than 1
-    max_fails = std::max(m + 1, 1);
+    max_fails = std::max(m, 1);
     std::cout << "max_fails default = " << max_fails << "\n";
   }
+  int num_mean_fails = 0;
+  int num_var_fails = 0;
+  int unique_fails = 0;
+  bool has_failure = false;
   for (int d = 0; d < D; ++d) {
     S mean = draws.row(d).mean();
     S var  = (draws.row(d).array() - mean).square().sum() / (N - 1);
@@ -66,6 +68,7 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
 
     S abs_mean = std::fabs(mean);
     if (abs_mean > se_mean_dev + mean_threshold) {
+      has_failure = true;
       S diff_from_total_tol = abs_mean - (se_mean_dev + mean_threshold);
 
       std::cerr
@@ -87,6 +90,7 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
 
     S abs_var_diff = std::fabs(var - 1.0);
     if (abs_var_diff > se_var_dev + var_threshold) {
+      has_failure = true;
       S diff_from_total_tol = abs_var_diff - (se_var_dev + var_threshold);
 
       std::cerr
@@ -100,11 +104,15 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
         << "  Exceeded total bound by       = " << diff_from_total_tol << "\n";
       num_var_fails++;
     }
+    if (has_failure) {
+      unique_fails++;
+    }
+    has_failure = false;
   }
   std::cout << "Mean failures: " << num_mean_fails << "\n";
   std::cout << "Var failures:  " << num_var_fails << "\n";
   int num_fails = num_mean_fails + num_var_fails;
-  if (num_fails >= max_fails) {
+  if (num_fails > max_fails) {
     std::cerr << "\n*** ABORT: " << num_fails
               << " dimensions outside Monte Carlo error bounds. ***\n";
     return 1;

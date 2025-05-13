@@ -25,35 +25,82 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
 }
 
 /**
- *  Monte Carlo SE checks for mean=0 and var=1 in each dim
- * @param draws draws matrix
- * @param mcse_deviation each mean and var must be within standard_error * mcse_deviation
- * @param max_fails maximum number of dimensions to fail before failing
+ * Check that each row of `draws` has mean ~ 0 and variance ~ 1 within
+ *  Monte Carlo standard error bounds.
+ *
+ * @param draws A D×N matrix whose d-th row is the N samples for dimension d.
+ *
+ * @param tolerance A small positive value to used as basis for an adjusted relative threshold.
+ *
+ * @param mcse_deviation magnitude of Monte Carlo standard errors (SE) to allow before failing
+ *
+ * @param max_fails Max number of failures before the overall test returns a failure
+ *
+ * @returns 0 if the number of failing dimensions is < max_fails, otherwise 1.
  */
-int check_mcse(const Eigen::Matrix<S, -1, -1>& draws, double mcse_deviation = 3.0, int max_fails = 10) {
-  int num_fails = 0;
+int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
+               double tolerance = 1e-8,
+               double mcse_deviation = 3.0,
+               int max_fails = 10) {
+  int num_mean_fails = 0;
+  int num_var_fails = 0;
   const int D = draws.rows();
   const int N = draws.cols();
+
   for (int d = 0; d < D; ++d) {
     S mean = draws.row(d).mean();
     S var  = (draws.row(d).array() - mean).square().sum() / (N - 1);
 
-    S se_mean = std::sqrt(var / N);
-    S se_var  = std::sqrt(2.0 * std::pow(var, 2) / (N - 1));
+    S se_mean    = std::sqrt(var / N);
+    S se_mean_dev= se_mean * mcse_deviation;
+    auto mean_threshold
+      = std::max(tolerance * 0.5 * (std::fabs(mean) + std::fabs(se_mean_dev)), 1e-14);
 
-    if (std::abs(mean) > se_mean * mcse_deviation) {
-      std::cerr << "ERROR [dim " << d << "]: mean = " << mean
-                << " differom from 0 by more than " << mcse_deviation << "* MCSE = " << se_mean << "\n";
-      num_fails++;
+    S abs_mean = std::fabs(mean);
+    if (abs_mean > se_mean_dev + mean_threshold) {
+      S diff_from_mcse      = abs_mean - se_mean_dev;
+      S diff_from_total_tol = abs_mean - (se_mean_dev + mean_threshold);
+
+      std::cerr
+        << "\n[MCSE FAILURE] Dimension " << d << " (mean test)\n"
+        << "  Sample mean                  = " << mean << "\n"
+        << "  abs(mean)                    = " << abs_mean << "\n"
+        << "  MCSE                         = " << se_mean << "\n"
+        << "  adjusted relative threshold  = " << mean_threshold << "\n"
+        << "  mcse_deviation               = " << mcse_deviation << "\n"
+        << "  MCSE * deviation + threshold = " << se_mean_dev + mean_threshold << "\n"
+        << "  Exceeded total bound by      = " << diff_from_total_tol << "\n";
+      num_mean_fails++;
     }
-    if (std::abs(var - 1.0) > se_var * mcse_deviation) {
-      std::cerr << "ERROR [dim " << d << "]: var  = " << var
-                << " differs from 1 by more than " << mcse_deviation << "* MCSE = " << se_var << "\n";
-      num_fails++;
+
+    S se_var     = std::sqrt(2.0 * var*var / (N - 1));
+    S se_var_dev = se_var * mcse_deviation;
+    auto var_threshold
+      = std::max(tolerance * 0.5 * (std::fabs(var - 1.0) + std::fabs(se_var_dev)), 1e-14);
+
+    S abs_var_diff = std::fabs(var - 1.0);
+    if (abs_var_diff > se_var_dev + var_threshold) {
+      S diff_from_mcse      = abs_var_diff - se_var_dev;
+      S diff_from_total_tol = abs_var_diff - (se_var_dev + var_threshold);
+
+      std::cerr
+        << "\n[MCSE FAILURE] Dimension " << d << " (var test)\n"
+        << "  Sample var                    = " << var << "\n"
+        << "  abs(var - 1)                  = " << abs_var_diff << "\n"
+        << "  MCSE                          = " << se_var << "\n"
+        << "  adjusted relative threshold   = " << var_threshold << "\n"
+        << "  mcse_deviation                = " << mcse_deviation << "\n"
+        << "  MCSE * deviation + threshold  = " << se_var_dev + var_threshold << "\n"
+        << "  Exceeded total bound by       = " << diff_from_total_tol << "\n";
+      num_var_fails++;
     }
   }
-  if (num_fails > max_fails) {
-    std::cerr << num_fails << " dimensions outside Monte Carlo error bounds.\n";
+  std::cout << "Mean failures: " << num_mean_fails << "\n";
+  std::cout << "Var failures:  " << num_var_fails << "\n";
+  int num_fails = num_mean_fails + num_var_fails;
+  if (num_fails >= max_fails) {
+    std::cerr << "\n*** ABORT: " << num_fails
+              << " dimensions outside Monte Carlo error bounds. ***\n";
     return 1;
   } else {
     return 0;

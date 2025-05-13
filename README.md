@@ -44,7 +44,6 @@ make -j3 test_nuts
 
 ```bash
 walnuts_cpp
-├── cmake # Files for packaging the library
 ├── examples # Test Examples
 ├── extras # Folder for optional dev tools
 ├── include # Headers for the library

@@ -24,6 +24,42 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
   ++count;
 }
 
+/**
+ *  Monte Carlo SE checks for mean=0 and var=1 in each dim
+ * @param draws draws matrix
+ * @param mcse_deviation each mean and var must be within standard_error * mcse_deviation
+ * @param max_fails maximum number of dimensions to fail before failing
+ */
+int check_mcse(const Eigen::Matrix<S, -1, -1>& draws, double mcse_deviation = 3.0, int max_fails = 10) {
+  int num_fails = 0;
+  const int D = draws.rows();
+  const int N = draws.cols();
+  for (int d = 0; d < D; ++d) {
+    S mean = draws.row(d).mean();
+    S var  = (draws.row(d).array() - mean).square().sum() / (N - 1);
+
+    S se_mean = std::sqrt(var / N);
+    S se_var  = std::sqrt(2.0 * std::pow(var, 2) / (N - 1));
+
+    if (std::abs(mean) > se_mean * mcse_deviation) {
+      std::cerr << "ERROR [dim " << d << "]: mean = " << mean
+                << " differom from 0 by more than " << mcse_deviation << "* MCSE = " << se_mean << "\n";
+      num_fails++;
+    }
+    if (std::abs(var - 1.0) > se_var * mcse_deviation) {
+      std::cerr << "ERROR [dim " << d << "]: var  = " << var
+                << " differs from 1 by more than " << mcse_deviation << "* MCSE = " << se_var << "\n";
+      num_fails++;
+    }
+  }
+  if (num_fails > max_fails) {
+    std::cerr << num_fails << " dimensions outside Monte Carlo error bounds.\n";
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 int main() {
   int init_seed = 333456;
   int seed = 763545;
@@ -69,5 +105,5 @@ int main() {
   if (D > 10) {
     std::cout << "... elided " << (D - 10) << " dimensions ..." << std::endl;
   }
-  return 0;
+  return check_mcse(draws);
 }

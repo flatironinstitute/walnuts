@@ -58,7 +58,6 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
 
     S abs_mean = std::fabs(mean);
     if (abs_mean > se_mean_dev + mean_threshold) {
-      S diff_from_mcse      = abs_mean - se_mean_dev;
       S diff_from_total_tol = abs_mean - (se_mean_dev + mean_threshold);
 
       std::cerr
@@ -80,7 +79,6 @@ int check_mcse(const Eigen::Matrix<S, -1, -1>& draws,
 
     S abs_var_diff = std::fabs(var - 1.0);
     if (abs_var_diff > se_var_dev + var_threshold) {
-      S diff_from_mcse      = abs_var_diff - se_var_dev;
       S diff_from_total_tol = abs_var_diff - (se_var_dev + var_threshold);
 
       std::cerr

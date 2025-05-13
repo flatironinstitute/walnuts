@@ -1,13 +1,12 @@
+#include <walnuts/nuts.hpp>
+#include <Eigen/Dense>
+#include <bridgestan.h>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <cmath>
 #include <chrono>
 
-#include <Eigen/Dense>
-#include <bridgestan.h>
-
-#include "nuts.hpp"
 
 // consider using something like https://github.com/martin-olivier/dylib/
 #ifdef _WIN32

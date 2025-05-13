@@ -1,4 +1,4 @@
-#include "nuts.hpp"
+#include <walnuts/nuts.hpp>
 #include <chrono>
 #include <cmath>
 #include <iostream>

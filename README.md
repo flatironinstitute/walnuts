@@ -26,12 +26,15 @@ Alternatively you can use the cmake setup.
 #  This means that creating the project from source
 #  does require an internet connection.
 cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
+
 # After this call all of our build dependencies
 # and make targets now exist in build
 ls ./build
 cd build
+
 # List possible targets
 make help
+
 # Build and run the test_nuts example in ./example/
 # Note: cmake will pull Eigen 3.4 down from gitlab
 #  It will only do this the first time you run
@@ -62,6 +65,7 @@ To view the optional flags for cmake with this project call `cmake -S . -B "buil
 # Same as other command but -LH lists all cached cmake variables
 # along with their help comment
 cmake -S . -B "build" -LH | grep "WALNUTS" -B1
+
 # Output
 $ // Build the example targets for the library
 $ WALNUTS_BUILD_EXAMPLES:BOOL=ON
@@ -82,6 +86,7 @@ For an existing build you want to completely refresh use `--fresh` when building
 # Run a build but use --fresh to force
 # a hard reset of all cached variables
 cmake -S . -B "build" --fresh
+
 # All the cmake targets now exist in build
 cd build
 ```
@@ -105,6 +110,7 @@ We can also use this to build from the top level directory
 # This will take longer as we include depedencies
 # google test and google benchmark
 cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
+
 # Now the build directory is setup and we we can build and run the benchmarks
 cmake --build build --parallel 3 --target test_nuts
 ```

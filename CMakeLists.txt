@@ -8,8 +8,6 @@ project(walnuts
 include(FetchContent)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
-cmake_policy(SET CMP0135 NEW)
-cmake_policy(SET CMP0077 NEW)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
   set(CMAKE_VERBOSE_MAKEFILE YES)
 endif()

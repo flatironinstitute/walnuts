@@ -44,28 +44,31 @@ public:
   Vec<S> theta_bk_;
   Vec<S> rho_bk_;
   Vec<S> grad_theta_bk_;
+  S logp_bk_;
   Vec<S> theta_fw_;
   Vec<S> rho_fw_;
   Vec<S> grad_theta_fw_;
+  S logp_fw_;
   Vec<S> theta_select_;
   S logp_;
 
   Span(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta,
        S logp)
-      : theta_bk_(theta), // copy duplicates
-        rho_bk_(rho), grad_theta_bk_(grad_theta), theta_fw_(theta),
-        rho_fw_(std::move(rho)), // move once after copy
-        grad_theta_fw_(std::move(grad_theta)), theta_select_(std::move(theta)),
-        logp_(logp) {}
+    : theta_bk_(theta), rho_bk_(rho), grad_theta_bk_(grad_theta),
+      logp_bk_(logp), theta_fw_(theta), rho_fw_(std::move(rho)),
+      grad_theta_fw_(std::move(grad_theta)), logp_fw_(logp),
+      theta_select_(std::move(theta)), logp_(logp) {}
 
   Span(Span<S> &&span1, Span<S> &&span2, Vec<S> &&theta_select, S logp)
-      : theta_bk_(std::move(span1.theta_bk_)),
-        rho_bk_(std::move(span1.rho_bk_)),
-        grad_theta_bk_(std::move(span1.grad_theta_bk_)),
-        theta_fw_(std::move(span2.theta_fw_)),
-        rho_fw_(std::move(span2.rho_fw_)),
-        grad_theta_fw_(std::move(span2.grad_theta_fw_)),
-        theta_select_(std::move(theta_select)), logp_(logp) {}
+    : theta_bk_(std::move(span1.theta_bk_)),
+      rho_bk_(std::move(span1.rho_bk_)),
+      grad_theta_bk_(std::move(span1.grad_theta_bk_)),
+      logp_bk_(span1.logp_bk_),
+      theta_fw_(std::move(span2.theta_fw_)),
+      rho_fw_(std::move(span2.rho_fw_)),
+      grad_theta_fw_(std::move(span2.grad_theta_fw_)),
+      logp_fw_(span2.logp_fw_), theta_select_(std::move(theta_select)),
+      logp_(logp) {}
 };
 
 template <typename S> S log_sum_exp(const S &x1, const S &x2) {
@@ -89,10 +92,10 @@ template <typename S, typename F>
 bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 		Integer num_steps, S max_error, const Vec<S> &theta,
 		const Vec<S> &rho, const Vec<S> &grad, S logp_next) {
-  if (num_steps < 2) {
+  if (num_steps <= 4) {
     return true;
   }
-  // ***HEURISTIC***:  just make sure num_steps /= 2 is not stable
+  // TODO(carpenter): verify or update heuristic check of only half number of steps
   S half_step = step;
   num_steps /= 2;
   step *= 2;
@@ -120,19 +123,15 @@ bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 template <typename S, typename F>
 void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
                 const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
-                Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
+		S logp, Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
                 S &logp_next, S max_error, bool& irreversible) {
   using std::fmax, std::fmin;
-  Vec<S> grad_first;
-  S logp_first;
-  logp_grad_fun(theta, logp_first, grad_first);
-  logp_first += logp_momentum(rho, inv_mass);
   for (int num_steps = 1, halvings = 0; halvings < 10; ++halvings, num_steps *= 2, step *= 0.5) {
     theta_next = theta;
     rho_next = rho;
-    grad_next = grad_first;
-    S logp_min = logp_first;
-    S logp_max = logp_first;
+    grad_next = grad;
+    S logp_min = logp;
+    S logp_max = logp;
     S half_step = 0.5 * step;
     for (Integer n = 0; n < num_steps; ++n) {
       rho_next.noalias() = rho_next + half_step * grad_next;
@@ -147,7 +146,7 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       }
     }
     if (logp_max - logp_min <= max_error) {
-      // if (true) return;
+      if (true) return;
       irreversible = !reversible(logp_grad_fun, inv_mass, step, num_steps,
 				 max_error, theta_next, rho_next, grad_next,
 				 logp_next);
@@ -202,11 +201,11 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
   S logp_theta_next;
   if constexpr (D == Direction::Forward) {
     macro_step(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
-               span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
-               logp_theta_next, max_error, reversible);
+               span.grad_theta_fw_, span.logp_fw_, theta_next, rho_next,
+	       grad_theta_next, logp_theta_next, max_error, reversible);
   } else { // Direction::Backward
     macro_step(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
-               span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
+               span.grad_theta_bk_, span.logp_bk_, theta_next, rho_next, grad_theta_next,
                logp_theta_next, max_error, reversible);
   }
   return Span<S>(std::move(theta_next), std::move(rho_next),

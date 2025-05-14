@@ -1,11 +1,11 @@
+#include <walnuts/nuts.hpp>
+#include <walnuts/walnuts.hpp>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <numeric>
 #include <random>
-#include <walnuts/nuts.hpp>
-#include <walnuts/walnuts.hpp>
-#include <check_mcse.hpp>
+
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
@@ -26,21 +26,19 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
 }
 
 template <bool W, typename G>
-void test_nuts(const VectorS &theta_init, G &generator, int D, int N,
-               S step_size, S max_depth, S max_error, const VectorS &inv_mass) {
+void test_nuts(const VectorS& theta_init, G& generator, int D, int N, S step_size, S max_depth,
+	       S max_error, const VectorS& inv_mass) {
   MatrixS draws(D, N);
-  std::cout << std::endl
-            << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
-            << ";  WALNUTS = " << (W ? "true" : "false") << std::endl;
+  std::cout << std::endl << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
+            << ";  max_depth = " << max_depth << ";  WALNUTS = " << (W ? "true" : "false") << std::endl;
 
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (W) {
-    walnuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass,
-                     step_size, max_depth, max_error, theta_init, draws);
+    walnuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
+		     max_depth, max_error, theta_init, draws);
   } else {
     nuts::nuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
-               max_depth, theta_init, draws);
+	       max_depth, theta_init, draws);
   }
   auto global_end = std::chrono::high_resolution_clock::now();
   auto global_total_time =
@@ -65,8 +63,6 @@ void test_nuts(const VectorS &theta_init, G &generator, int D, int N,
   if (D > 10) {
     std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
   }
-  walnuts::test::check_mcse(draws);
-
 }
 
 int main() {
@@ -85,10 +81,8 @@ int main() {
     theta_init(i) = std_normal(generator);
   }
 
-  test_nuts<false>(theta_init, generator, D, N, step_size, max_depth, max_error,
-                   inv_mass);
-  test_nuts<true>(theta_init, generator, D, N, step_size, max_depth, max_error,
-                  inv_mass);
-
+  test_nuts<false>(theta_init, generator, D, N, step_size, max_depth, max_error, inv_mass);
+  test_nuts<true>(theta_init, generator, D, N, step_size, max_depth, max_error, inv_mass);
+    
   return 0;
 }

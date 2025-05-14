@@ -65,6 +65,7 @@ if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
   target_link_libraries(test_nuts PRIVATE Eigen3::Eigen walnuts::walnuts)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
+  target_include_directories(test_nuts PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 endif()
 
 

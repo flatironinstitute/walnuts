@@ -5,7 +5,7 @@
 #include <random>
 #include <walnuts/nuts.hpp>
 #include <walnuts/walnuts.hpp>
-
+#include <check_mcse.hpp>
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
@@ -24,50 +24,6 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
   total_time += std::chrono::duration<double>(end - start).count();
   ++count;
 }
-
-/**
- * Compute the joint LRT statistic and an approximate p-value
- * (via the Wilson–Hilferty normal approximation) for
- * testing that each row of `draws` comes from N(0,1).
- *
- * @param draws  D×N matrix of samples (one row per dimension).
- * @return       pair(statistic, p_value_approx).
- */
-std::pair<double,double> joint_lrt_test(
-  const Eigen::MatrixXd &draws)
-{
-const int D = draws.rows();
-const int N = draws.cols();
-
-// 1) compute the LRT statistic
-double lrt_stat = 0.0;
-for (int d = 0; d < D; ++d) {
-  // sample mean
-  double mean = draws.row(d).mean();
-  // sum of squared deviations
-  double sumsq = (draws.row(d).array() - mean).square().sum();
-  // MLE variance uses 1/N
-  double sigma2 = sumsq / N;
-
-  // per‐dimension contribution:
-  //   N*mean^2 + N*(sigma2 - log(sigma2) - 1)
-  lrt_stat += N * mean*mean
-            + N * (sigma2 - std::log(sigma2) - 1.0);
-}
-
-// 2) approximate p‐value for χ²_{2D} via Wilson–Hilferty:
-//    Z ≈ [ (lrt_stat/df)^{1/3} - (1 - 2/(9df)) ] / sqrt(2/(9df))
-//    p ≈ 1 - Φ(Z)
-int df = 2*D;
-double y = lrt_stat / df;
-double z = (std::pow(y, 1.0/3.0)
-            - (1.0 - 2.0/(9.0*df)))
-         / std::sqrt(2.0/(9.0*df));
-double p_approx = 0.5 * std::erfc(z / std::sqrt(2.0));
-
-return {lrt_stat, p_approx};
-}
-
 
 template <bool W, typename G>
 void test_nuts(const VectorS &theta_init, G &generator, int D, int N,
@@ -109,8 +65,8 @@ void test_nuts(const VectorS &theta_init, G &generator, int D, int N,
   if (D > 10) {
     std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
   }
-  auto lrt_val = joint_lrt_test(draws);
-  std::cout << "LRT stat = " << stat << ", approx p‐value = " << pval << "\n";
+  walnuts::test::check_mcse(draws);
+
 }
 
 int main() {

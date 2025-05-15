@@ -129,6 +129,7 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   const Vec<S>& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
   const Vec<S>& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
 	S logp = is_forward ? span.logp_fw_ : span.logp_bk_;
+  step = is_forward ? step : -step;
   using std::fmax, std::fmin;
   for (int num_steps = 1, halvings = 0; halvings < 10; ++halvings, num_steps *= 2, step *= 0.5) {
     theta_next = theta;
@@ -147,7 +148,7 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       logp_max = fmax(logp_max, logp_next);
     }
     if (logp_max - logp_min <= max_error) {
-      //if (true) return;
+      if (true) return;
       irreversible = !reversible(logp_grad_fun, inv_mass, step, num_steps,
 				 max_error, theta_next, rho_next, grad_next,
 				 logp_next);
@@ -158,7 +159,7 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 }
 
 template <Direction D, typename S>
-bool uturn(const Span<S> &span_1, const Span<S> &span_2,
+inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
            const Vec<S> &inv_mass) {
   auto&& span_bk = (D == Direction::Forward) ? span_1 : span_2;
   auto&& span_fw = (D == Direction::Forward) ? span_2 : span_1;
@@ -196,16 +197,8 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  macro_step<D>(logp_grad_fun,
-     inv_mass,
-     step,
-     span,
-     theta_next,
-     rho_next,
-	   grad_theta_next,
-     logp_theta_next,
-     max_error,
-     reversible);
+  macro_step<D>(logp_grad_fun, inv_mass, step, span, theta_next, rho_next,
+        grad_theta_next, logp_theta_next, max_error, reversible);
   return Span<S>(std::move(theta_next), std::move(rho_next),
                  std::move(grad_theta_next), logp_theta_next);
 }
@@ -251,7 +244,7 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
-    bool go_forward = rng.uniform_binary();
+    const bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
       Span<S> span_next = build_span<Direction::Forward>(

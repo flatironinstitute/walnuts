@@ -65,7 +65,9 @@ void test_nuts(const VectorS &theta_init, G &generator, int D, int N,
   if (D > 10) {
     std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
   }
-  walnuts::test::check_mcse(draws);
+  Eigen::Matrix<S, -1, 1> true_means = VectorS::Zero(D);
+  Eigen::Matrix<S, -1, 1> true_m2s = VectorS::Ones(D);
+  walnuts::test::check_mcse(draws, true_means, true_m2s);
 
 }
 

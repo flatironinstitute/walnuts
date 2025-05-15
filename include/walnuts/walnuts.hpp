@@ -87,37 +87,52 @@ template <typename S>
 S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
   return -0.5 * rho.dot(inv_mass.cwiseProduct(rho));
 }
+    
+template <typename S, typename F>
+bool within_tolerance(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+		      Integer num_steps, S max_error, Vec<S> &theta_next,
+		      Vec<S> &rho_next, Vec<S> &grad_next, S logp_next) {
+  S half_step = 0.5 * step;
+  S logp_min = logp_next;
+  S logp_max = logp_next;
+  for (int n = 0; n < num_steps; ++n) {
+    rho_next.noalias() = rho_next + half_step * grad_next;
+    theta_next.noalias() += step * (inv_mass.array() * rho_next.array()).matrix();
+    logp_grad_fun(theta_next, logp_next, grad_next);
+    rho_next.noalias() += half_step * grad_next;
+    logp_next += logp_momentum(rho_next, inv_mass);
+    logp_min = fmin(logp_min, logp_next);
+    logp_max = fmax(logp_max, logp_next);
+    // TODO: legal to make this return outside of loop
+    if (logp_max - logp_min > max_error) {
+      return false;
+    }
+  }
+  return true;
+}
 
 template <typename S, typename F>
 bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 		Integer num_steps, S max_error, const Vec<S> &theta,
 		const Vec<S> &rho, const Vec<S> &grad, S logp_next) {
-  if (num_steps <= 4) {
-    return true;
+  if (num_steps == 1) {
+    return true;  // redundant, but avoids constructors
   }
-  // TODO(carpenter): verify or update heuristic check of only half number of steps
-  S half_step = step;
-  num_steps /= 2;
-  step *= 2;
-  Vec<S> grad_next(grad);
-  Vec<S> theta_next(theta);
-  Vec<S> rho_next(-rho);
-  S logp_min = logp_next;
-  S logp_max = logp_next;
-  for (int n = 0; n < num_steps; ++n) {
-      rho_next.noalias() = rho_next + half_step * grad_next;
-      theta_next.noalias() += step * (inv_mass.array() * rho_next.array()).matrix();
-      logp_grad_fun(theta_next, logp_next, grad_next);
-      rho_next.noalias() += half_step * grad_next;
-      logp_next += logp_momentum(rho_next, inv_mass);
-      logp_min = fmin(logp_min, logp_next);
-      logp_max = fmax(logp_max, logp_next);
-      if (logp_max - logp_min > max_error) {
-	return true;
-      }
+  Vec<S> theta_next(grad.size());
+  Vec<S> rho_next(rho.size());
+  Vec<S> grad_next(grad.size());
+  while (num_steps >= 2) {
+    theta_next = theta;
+    rho_next = -rho;
+    grad_next = grad;
+    num_steps /= 2;
+    step *= 2;
+    if (within_tolerance(logp_grad_fun, inv_mass, step, num_steps, max_error,
+			 theta_next, rho_next, grad_next, logp_next)) {
+      return false;
+    }
   }
-  std::cout << "non-reversible" << std::endl;
-  return false;
+  return true;
 }
 
 template <Direction D, typename S, typename F>
@@ -148,7 +163,6 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       logp_max = fmax(logp_max, logp_next);
     }
     if (logp_max - logp_min <= max_error) {
-      if (true) return;
       irreversible = !reversible(logp_grad_fun, inv_mass, step, num_steps,
 				 max_error, theta_next, rho_next, grad_next,
 				 logp_next);

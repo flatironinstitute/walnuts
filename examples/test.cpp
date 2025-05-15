@@ -81,7 +81,7 @@ int main() {
   int N = 5000;
   S step_size = 0.25;
   int max_depth = 10;
-  S max_error = 0.2;
+  S max_error = 0.2;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
 
   std::mt19937 generator(seed);

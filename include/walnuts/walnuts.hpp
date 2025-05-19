@@ -5,7 +5,6 @@
 #include <optional>
 #include <random>
 #include <tuple>
-#include <type_traits>
 #include <utility>
 
 namespace walnuts {
@@ -20,8 +19,6 @@ using Integer = std::int32_t;
 enum class Update { Barker, Metropolis };
 
 enum class Direction { Backward, Forward };
-
-enum class CombineResult { Keep, ThrowAway };
 
 template <typename S, class Generator> class Random {
 public:
@@ -194,20 +191,9 @@ inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
          span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-template <Update U, Direction D, CombineResult R, typename S, class Generator>
-std::conditional_t<R == CombineResult::ThrowAway, std::optional<Span<S>>,
-                   std::pair<Span<S>, bool>>
-combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
-        const Vec<S> &inv_mass) {
-
-  bool did_uturn = uturn<D>(span_old, span_new, inv_mass);
-
-  if constexpr (R == CombineResult::ThrowAway) {
-    if (did_uturn) {
-      return std::nullopt;
-    }
-  }
-
+template <Update U, Direction D, typename S, class Generator>
+Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
+                Span<S> &&span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -221,15 +207,8 @@ combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
 
   auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
-
-  Span<S> next(std::move(span_bk), std::move(span_fw), std::move(selected),
-               logp_total);
-
-  if constexpr (R == CombineResult::ThrowAway) {
-    return std::make_optional<Span<S>>(std::move(next));
-  } else {
-    return std::make_pair(std::move(next), did_uturn);
-  }
+  return Span<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
+                 logp_total);
 }
 
 template <Direction D, typename S, class F>
@@ -270,8 +249,8 @@ std::optional<Span<S>> build_span(Random<S, Generator> &rng,
     return std::nullopt;
   }
 
-  return combine<Update::Barker, D, CombineResult::ThrowAway>(
-      rng, *std::move(span1), *std::move(span2), inv_mass);
+  return std::make_optional(combine<Update::Barker, D>(
+      rng, *std::move(span1), *std::move(span2)));
 }
 
 template <typename S, class F, class Generator>
@@ -288,26 +267,32 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
     const bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
-      auto span_next = build_span<Direction::Forward>(
-          rng, logp_grad_fun, inv_mass, step, depth, max_error, span_accum);
+      constexpr Direction D = Direction::Forward;
+
+      auto span_next = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth,
+                                     max_error, span_accum);
       if (!span_next)
         break;
 
-      std::tie(span_accum, uturn_flag) =
-          combine<Update::Metropolis, Direction::Forward, CombineResult::Keep>(
-              rng, std::move(span_accum), *std::move(span_next), inv_mass);
+      uturn_flag = uturn<D>(span_accum, *span_next, inv_mass);
+
+      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+                                                  *std::move(span_next));
 
       if (uturn_flag)
         break;
     } else {
-      auto span_next = build_span<Direction::Backward>(
-          rng, logp_grad_fun, inv_mass, step, depth, max_error, span_accum);
+      constexpr Direction D = Direction::Backward;
+
+      auto span_next = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth,
+                                     max_error, span_accum);
       if (!span_next)
         break;
 
-      std::tie(span_accum, uturn_flag) =
-          combine<Update::Metropolis, Direction::Backward, CombineResult::Keep>(
-              rng, std::move(span_accum), *std::move(span_next), inv_mass);
+      uturn_flag = uturn<D>(span_accum, *span_next, inv_mass);
+
+      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+                                                  *std::move(span_next));
 
       if (uturn_flag)
         break;

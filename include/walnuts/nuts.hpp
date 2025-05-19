@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <random>
+#include <type_traits>
 #include <utility>
 
 namespace nuts {
@@ -17,6 +19,8 @@ using Integer = std::int32_t;
 enum class Update { Barker, Metropolis };
 
 enum class Direction { Backward, Forward };
+
+enum class CombineResult { Keep, ThrowAway };
 
 template <typename S, class Generator> class Random {
 public:
@@ -108,9 +112,11 @@ bool uturn(const Span<S> &span_bk, const Span<S> &span_fw,
          span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-template <Update U, Direction D, typename S, class Generator>
-Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
-                Span<S> &&span_new, const Vec<S> &inv_mass, bool &uturn_flag) {
+template <Update U, Direction D, CombineResult R, typename S, class Generator>
+std::conditional_t<R == CombineResult::ThrowAway, std::optional<Span<S>>,
+                   std::pair<Span<S>, bool>>
+combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
+        const Vec<S> &inv_mass) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -122,14 +128,34 @@ Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
+
+  bool did_uturn;
   if constexpr (D == Direction::Forward) {
-    uturn_flag = uturn(span_old, span_new, inv_mass);
-    return Span<S>(std::move(span_old), std::move(span_new),
-                   std::move(selected), logp_total);
+    did_uturn = uturn(span_old, span_new, inv_mass);
   } else { // Direction::Backward
-    uturn_flag = uturn(span_new, span_old, inv_mass);
-    return Span<S>(std::move(span_new), std::move(span_old),
-                   std::move(selected), logp_total);
+    did_uturn = uturn(span_new, span_old, inv_mass);
+  }
+
+  if constexpr (R == CombineResult::ThrowAway) {
+    if (did_uturn) {
+      return std::nullopt;
+    }
+  }
+
+  Span<S> next = [&]() {
+    if constexpr (D == Direction::Forward) {
+      return Span<S>(std::move(span_old), std::move(span_new),
+                     std::move(selected), logp_total);
+    } else { // Direction::Backward
+      return Span<S>(std::move(span_new), std::move(span_old),
+                     std::move(selected), logp_total);
+    }
+  }();
+
+  if constexpr (R == CombineResult::ThrowAway) {
+    return std::make_optional<Span<S>>(std::move(next));
+  } else {
+    return std::make_pair(std::move(next), did_uturn);
   }
 }
 
@@ -154,36 +180,36 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
 }
 
 template <Direction D, typename S, class F, class Generator>
-Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
-                   const Vec<S> &inv_mass, S step, Integer depth,
-                   const Span<S> &last_span, bool &uturn_flag) {
-  uturn_flag = false;
+std::optional<Span<S>> build_span(Random<S, Generator> &rng,
+                                  const F &logp_grad_fun,
+                                  const Vec<S> &inv_mass, S step, Integer depth,
+                                  const Span<S> &last_span) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step);
   }
-  Span<S> span1 = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1,
-                                last_span, uturn_flag);
-  if (uturn_flag) {
-    return last_span; // won't be used
+  auto span1 =
+      build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1, last_span);
+  if (!span1) {
+    return std::nullopt;
   }
-  Span<S> span2 = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1,
-                                span1, uturn_flag);
-  if (uturn_flag) {
-    return last_span; // won't be used
+
+  auto span2 =
+      build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1, *span1);
+  if (!span2) {
+    return std::nullopt;
   }
+
   if constexpr (D == Direction::Forward) {
-    if (uturn(span1, span2, inv_mass)) {
-      uturn_flag = true;
-      return last_span; // won't be used
+    if (uturn(*span1, *span2, inv_mass)) {
+      return std::nullopt;
     }
   } else { // Direction::Backward
-    if (uturn(span2, span1, inv_mass)) {
-      uturn_flag = true;
-      return last_span; // won't be used
+    if (uturn(*span2, *span1, inv_mass)) {
+      return std::nullopt;
     }
   }
-  return combine<Update::Barker, D>(rng, std::move(span1), std::move(span2),
-                                    inv_mass, uturn_flag);
+  return combine<Update::Barker, D, CombineResult::ThrowAway>(
+      rng, *std::move(span1), *std::move(span2), inv_mass);
 }
 
 template <typename S, class F, class Generator>
@@ -200,23 +226,27 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
     bool go_forward = rng.uniform_binary();
     bool uturn_flag;
     if (go_forward) {
-      Span<S> span_next = build_span<Direction::Forward>(
-          rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
-      if (uturn_flag)
+      auto span_next = build_span<Direction::Forward>(
+          rng, logp_grad_fun, inv_mass, step, depth, span_accum);
+      if (!span_next)
         break;
-      span_accum = combine<Update::Metropolis, Direction::Forward>(
-          rng, std::move(span_accum), std::move(span_next), inv_mass,
-          uturn_flag);
+
+      std::tie(span_accum, uturn_flag) =
+          combine<Update::Metropolis, Direction::Forward, CombineResult::Keep>(
+              rng, std::move(span_accum), *std::move(span_next), inv_mass);
+
       if (uturn_flag)
         break;
     } else {
-      Span<S> span_next = build_span<Direction::Backward>(
-          rng, logp_grad_fun, inv_mass, step, depth, span_accum, uturn_flag);
-      if (uturn_flag)
+      auto span_next = build_span<Direction::Backward>(
+          rng, logp_grad_fun, inv_mass, step, depth, span_accum);
+      if (!span_next)
         break;
-      span_accum = combine<Update::Metropolis, Direction::Backward>(
-          rng, std::move(span_accum), std::move(span_next), inv_mass,
-          uturn_flag);
+
+      std::tie(span_accum, uturn_flag) =
+          combine<Update::Metropolis, Direction::Backward, CombineResult::Keep>(
+              rng, std::move(span_accum), *std::move(span_next), inv_mass);
+
       if (uturn_flag)
         break;
     }

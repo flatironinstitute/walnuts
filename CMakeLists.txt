@@ -5,7 +5,7 @@ project(walnuts
   LANGUAGES CXX
 )
 
-include(FetchContent)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -45,6 +45,29 @@ add_library(Eigen3::Eigen INTERFACE IMPORTED)
 target_include_directories(Eigen3::Eigen INTERFACE
   "${EIGEN_SRC_DIR}"
 )
+
+# where to put Eigen
+set(EIGENRAND_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/eigenrand")
+set(EIGENRAND_TAG v0.5.1)
+# only clone on first configure
+if(NOT EXISTS "${EIGENRAND_SRC_DIR}/EigenRand")
+  message(STATUS "Cloning EigenRand ${EIGENRAND_TAG}…")
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} clone --branch ${EIGENRAND_TAG} --depth 1 -- https://github.com/bab2min/EigenRand.git ${EIGENRAND_SRC_DIR}
+    RESULT_VARIABLE _git_result
+  )
+  if(NOT _git_result EQUAL 0)
+    message(FATAL_ERROR "Git clone of EigenRand failed")
+  endif()
+endif()
+
+# now expose it as a pure‐header interface target
+add_library(EigenRand::EigenRand INTERFACE IMPORTED)
+target_include_directories(EigenRand::EigenRand INTERFACE
+  "${EIGENRAND_SRC_DIR}"
+)
+
+
 #############################
 ## Making Walnuts Library  ##
 #############################
@@ -63,7 +86,7 @@ add_library(walnuts::walnuts ALIAS walnuts)
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
-  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen walnuts::walnuts)
+  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen EigenRand::EigenRand walnuts::walnuts)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 

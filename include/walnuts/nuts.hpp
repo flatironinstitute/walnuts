@@ -102,9 +102,11 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   logp_next += logp_momentum(rho_next, inv_mass);
 }
 
-template <typename S>
-bool uturn(const Span<S> &span_bk, const Span<S> &span_fw,
-           const Vec<S> &inv_mass) {
+template <Direction D, typename S>
+inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
+                  const Vec<S> &inv_mass) {
+  auto &&span_bk = (D == Direction::Forward) ? span_1 : span_2;
+  auto &&span_fw = (D == Direction::Forward) ? span_2 : span_1;
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array())
           .matrix();
@@ -129,12 +131,7 @@ combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
 
-  bool did_uturn;
-  if constexpr (D == Direction::Forward) {
-    did_uturn = uturn(span_old, span_new, inv_mass);
-  } else { // Direction::Backward
-    did_uturn = uturn(span_new, span_old, inv_mass);
-  }
+  bool did_uturn = uturn<D>(span_old, span_new, inv_mass);
 
   if constexpr (R == CombineResult::ThrowAway) {
     if (did_uturn) {
@@ -199,15 +196,10 @@ std::optional<Span<S>> build_span(Random<S, Generator> &rng,
     return std::nullopt;
   }
 
-  if constexpr (D == Direction::Forward) {
-    if (uturn(*span1, *span2, inv_mass)) {
-      return std::nullopt;
-    }
-  } else { // Direction::Backward
-    if (uturn(*span2, *span1, inv_mass)) {
-      return std::nullopt;
-    }
+  if (uturn<D>(*span1, *span2, inv_mass)) {
+    return std::nullopt;
   }
+
   return combine<Update::Barker, D, CombineResult::ThrowAway>(
       rng, *std::move(span1), *std::move(span2), inv_mass);
 }

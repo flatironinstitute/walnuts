@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <random>
+#include <type_traits>
 #include <utility>
 
 namespace walnuts {

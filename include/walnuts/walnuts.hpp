@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <random>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -174,10 +175,18 @@ bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 }
 
 template <Direction D, typename S>
+inline auto order_forward_backward(S &&s1, S &&s2) {
+  if constexpr (D == Direction::Forward) {
+    return std::forward_as_tuple(std::forward<S>(s1), std::forward<S>(s2));
+  } else { // Direction::Backward
+    return std::forward_as_tuple(std::forward<S>(s2), std::forward<S>(s1));
+  }
+}
+
+template <Direction D, typename S>
 inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
-           const Vec<S> &inv_mass) {
-  auto&& span_bk = (D == Direction::Forward) ? span_1 : span_2;
-  auto&& span_fw = (D == Direction::Forward) ? span_2 : span_1;
+                  const Vec<S> &inv_mass) {
+  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_1, span_2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array())
           .matrix();
@@ -190,6 +199,15 @@ std::conditional_t<R == CombineResult::ThrowAway, std::optional<Span<S>>,
                    std::pair<Span<S>, bool>>
 combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
         const Vec<S> &inv_mass) {
+
+  bool did_uturn = uturn<D>(span_old, span_new, inv_mass);
+
+  if constexpr (R == CombineResult::ThrowAway) {
+    if (did_uturn) {
+      return std::nullopt;
+    }
+  }
+
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -202,23 +220,10 @@ combine(Random<S, Generator> &rng, Span<S> &&span_old, Span<S> &&span_new,
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
 
-  bool did_uturn = uturn<D>(span_old, span_new, inv_mass);
+  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
 
-  if constexpr (R == CombineResult::ThrowAway) {
-    if (did_uturn) {
-      return std::nullopt;
-    }
-  }
-
-  Span<S> next = [&]() {
-    if constexpr (D == Direction::Forward) {
-      return Span<S>(std::move(span_old), std::move(span_new),
-                     std::move(selected), logp_total);
-    } else { // Direction::Backward
-      return Span<S>(std::move(span_new), std::move(span_old),
-                     std::move(selected), logp_total);
-    }
-  }();
+  Span<S> next(std::move(span_bk), std::move(span_fw), std::move(selected),
+               logp_total);
 
   if constexpr (R == CombineResult::ThrowAway) {
     return std::make_optional<Span<S>>(std::move(next));

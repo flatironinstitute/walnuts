@@ -67,6 +67,26 @@ if (WALNUTS_BUILD_EXAMPLES)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 
+option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
+set(WALNUTS_BRIDGESTAN_TAG "1d4ff6a10d572ee22ed26b0274059bb4fe885187" CACHE STRING "Version of BridgeStan to use")
+if(WALNUTS_BUILD_STAN)
+    FetchContent_Declare(
+            bridgestan
+            GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
+            GIT_TAG ${WALNUTS_BRIDGESTAN_TAG}
+    )
+    FetchContent_MakeAvailable(bridgestan)
+
+    add_library(BridgeStan::BridgeStan INTERFACE IMPORTED)
+    target_include_directories(BridgeStan::BridgeStan INTERFACE
+      "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
+    )
+
+  add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
+  target_link_libraries(test_stan PRIVATE Eigen3::Eigen walnuts::walnuts BridgeStan::BridgeStan)
+  target_compile_options(test_stan PRIVATE -O3 -Wall)
+endif()
+
 
 ##########################
 ##       Extras         ##

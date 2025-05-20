@@ -1,10 +1,9 @@
-#include <walnuts/nuts.hpp>
-#include <walnuts/walnuts.hpp>
 #include <chrono>
 #include <cmath>
 #include <iostream>
-#include <numeric>
 #include <random>
+#include <walnuts/nuts.hpp>
+#include <walnuts/walnuts.hpp>
 
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
@@ -12,14 +11,13 @@ using MatrixS = Eigen::Matrix<S, -1, -1>;
 
 enum class Sampler { Nuts, Walnuts };
 
-
 double total_time = 0.0;
 int count = 0;
 
 template <typename T>
-void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
-                               S &logp,
-                               Eigen::Matrix<T, Eigen::Dynamic, 1> &grad) {
+void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1>& x,
+                               S& logp,
+                               Eigen::Matrix<T, Eigen::Dynamic, 1>& grad) {
   auto start = std::chrono::high_resolution_clock::now();
   logp = -0.5 * x.dot(x);
   grad = -x;
@@ -29,26 +27,24 @@ void standard_normal_logp_grad(const Eigen::Matrix<T, Eigen::Dynamic, 1> &x,
 }
 
 template <Sampler U, typename G>
-void test_nuts(const VectorS& theta_init, G& generator, int D, int N, S step_size, S max_depth,
-	       S max_error, const VectorS& inv_mass) {
+void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
+               S step_size, S max_depth, S max_error, const VectorS& inv_mass) {
   total_time = 0.0;
   count = 0;
   MatrixS draws(D, N);
   std::cout << std::endl
-	    << "D = " << D
-	    << ";  N = " << N
-	    << ";  step_size = " << step_size
+            << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
             << ";  max_depth = " << max_depth
-	    << ";  WALNUTS = " << (U == Sampler::Walnuts ? "true" : "false")
-	    << std::endl;
+            << ";  WALNUTS = " << (U == Sampler::Walnuts ? "true" : "false")
+            << std::endl;
 
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (U == Sampler::Walnuts) {
-    walnuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
-		     max_depth, max_error, theta_init, draws);
+    walnuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass,
+                     step_size, max_depth, max_error, theta_init, draws);
   } else if constexpr (U == Sampler::Nuts) {
     nuts::nuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
-	       max_depth, theta_init, draws);
+               max_depth, theta_init, draws);
   }
   auto global_end = std::chrono::high_resolution_clock::now();
   auto global_total_time =
@@ -91,8 +87,10 @@ int main() {
     theta_init(i) = std_normal(generator);
   }
 
-  test_nuts<Sampler::Nuts>(theta_init, generator, D, N, step_size, max_depth, max_error, inv_mass);
-  test_nuts<Sampler::Walnuts>(theta_init, generator, D, N, step_size, max_depth, max_error, inv_mass);
-    
+  test_nuts<Sampler::Nuts>(theta_init, generator, D, N, step_size, max_depth,
+                           max_error, inv_mass);
+  test_nuts<Sampler::Walnuts>(theta_init, generator, D, N, step_size, max_depth,
+                              max_error, inv_mass);
+
   return 0;
 }

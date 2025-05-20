@@ -1,5 +1,6 @@
-#include <Eigen/Dense>
 #include <bridgestan.h>
+
+#include <Eigen/Dense>
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -58,24 +59,33 @@ auto dlsym_cast(U &library, T &&, const char *name) {
 double total_time = 0.0;
 int count = 0;
 
-template <typename T> void no_op_deleter(T *) {}
+template <typename T>
+void no_op_deleter(T *) {}
 
 class DynamicStanModel {
-public:
+ public:
   DynamicStanModel(const char *model_path, const char *data, int seed)
       : library_(dlopen_safe(model_path)),
-        model_ptr_(nullptr, no_op_deleter<bs_model>) {
-
+        model_ptr_(nullptr, no_op_deleter<bs_model>),
+        rng_ptr_(nullptr, no_op_deleter<bs_rng>) {
     auto model_construct =
         dlsym_cast(library_, &bs_model_construct, "bs_model_construct");
     auto model_destruct =
         dlsym_cast(library_, &bs_model_destruct, "bs_model_destruct");
+    auto rng_construct =
+        dlsym_cast(library_, &bs_rng_construct, "bs_rng_construct");
+    auto rng_destruct =
+        dlsym_cast(library_, &bs_rng_destruct, "bs_rng_destruct");
+
     free_error_msg_ =
         dlsym_cast(library_, &bs_free_error_msg, "bs_free_error_msg");
     param_unc_num_ =
         dlsym_cast(library_, &bs_param_unc_num, "bs_param_unc_num");
+    param_num_ = dlsym_cast(library_, &bs_param_num, "bs_param_num");
     log_density_gradient_ = dlsym_cast(library_, &bs_log_density_gradient,
                                        "bs_log_density_gradient");
+    param_constrain_ =
+        dlsym_cast(library_, &bs_param_constrain, "bs_param_constrain");
 
     char *err = nullptr;
     model_ptr_ = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
@@ -89,9 +99,27 @@ public:
       }
       throw std::runtime_error("Failed to construct model");
     }
+
+    // temporary: we probably don't want to store the RNG in the model
+    // due to thread safety concerns
+    rng_ptr_ = std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)>(
+        rng_construct(seed, &err), rng_destruct);
+    if (!rng_ptr_) {
+      if (err) {
+        std::string error_string(err);
+        free_error_msg_(err);
+        throw std::runtime_error(error_string);
+      }
+      throw std::runtime_error("Failed to construct RNG");
+    }
   }
 
-  int size() const { return param_unc_num_(model_ptr_.get()); }
+  int unconstrained_dimensions() const {
+    return param_unc_num_(model_ptr_.get());
+  }
+  int constrained_dimensions() const {
+    return param_num_(model_ptr_.get(), true, true);
+  }
 
   template <typename M>
   void logp_grad(const M &x, double &logp, M &grad) const {
@@ -115,12 +143,31 @@ public:
     }
   }
 
-private:
+  template <typename In, typename Out>
+  void constrain_draw(In &&in, Out &&out) const {
+    char *err = nullptr;
+    int ret = param_constrain_(model_ptr_.get(), true, true, in.data(),
+                               out.data(), rng_ptr_.get(), &err);
+
+    if (ret != 0) {
+      if (err) {
+        std::string error_string(err);
+        free_error_msg_(err);
+        throw std::runtime_error(error_string);
+      }
+      throw std::runtime_error("Failed to constrain draw");
+    }
+  }
+
+ private:
   std::unique_ptr<void, dlclose_deleter> library_;
   std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr_;
+  std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)> rng_ptr_;
   decltype(&bs_free_error_msg) free_error_msg_;
   decltype(&bs_param_unc_num) param_unc_num_;
+  decltype(&bs_param_num) param_num_;
   decltype(&bs_log_density_gradient) log_density_gradient_;
+  decltype(&bs_param_constrain) param_constrain_;
 };
 
 using S = double;
@@ -131,26 +178,32 @@ enum class Sampler { Nuts, Walnuts };
 
 template <Sampler U, typename G>
 void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
-               G &generator, int D, int N, S step_size, S max_depth,
-               S max_error, const VectorS &inv_mass) {
+               G &generator, int N, S step_size, S max_depth, S max_error,
+               const VectorS &inv_mass) {
   total_time = 0.0;
   count = 0;
-  MatrixS draws(D, N);
   std::cout << std::endl
-            << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
+            << "D = " << model.unconstrained_dimensions() << ";  N = " << N
+            << ";  step_size = " << step_size << ";  max_depth = " << max_depth
             << ";  WALNUTS = " << (U == Sampler::Walnuts ? "true" : "false")
             << std::endl;
 
+  auto logp = [&model](auto &&...args) { model.logp_grad(args...); };
+
+  int M = model.constrained_dimensions();
+
+  MatrixS draws(M, N);
+  auto writer = [&model, &draws](int n, const VectorS &theta) {
+    model.constrain_draw(theta, draws.col(n));
+  };
+
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (U == Sampler::Walnuts) {
-    walnuts::walnuts(
-        generator, [&model](auto &&...args) { model.logp_grad(args...); },
-        inv_mass, step_size, max_depth, max_error, theta_init, draws);
+    walnuts::walnuts(generator, logp, inv_mass, step_size, max_depth, max_error,
+                     theta_init, N, writer);
   } else if constexpr (U == Sampler::Nuts) {
-    nuts::nuts(
-        generator, [&model](auto &&...args) { model.logp_grad(args...); },
-        inv_mass, step_size, max_depth, theta_init, draws);
+    nuts::nuts(generator, logp, inv_mass, step_size, max_depth, theta_init, N,
+               writer);
   }
   auto global_end = std::chrono::high_resolution_clock::now();
   auto global_total_time =
@@ -165,15 +218,15 @@ void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
             << std::endl;
   std::cout << std::endl;
 
-  for (int d = 0; d < std::min(D, 5); ++d) {
+  for (int d = 0; d < std::min(M, 5); ++d) {
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
     std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
               << "\n";
   }
-  if (D > 5) {
-    std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
+  if (M > 5) {
+    std::cout << "... elided " << (M - 5) << " dimensions ..." << std::endl;
   }
 }
 
@@ -182,7 +235,7 @@ int main(int argc, char *argv[]) {
   int N = 5000;
   double step_size = 0.025;
   int max_depth = 10;
-  double max_error = 0.2; // 80% Metropolis, 45% Barker
+  double max_error = 0.2;  // 80% Metropolis, 45% Barker
 
   char *lib;
   char *data;
@@ -201,7 +254,7 @@ int main(int argc, char *argv[]) {
 
   DynamicStanModel model(lib, data, seed);
 
-  int D = model.size();
+  int D = model.unconstrained_dimensions();
 
   Eigen::VectorXd inv_mass = Eigen::VectorXd::Ones(D);
   std::mt19937 generator(seed);
@@ -211,9 +264,9 @@ int main(int argc, char *argv[]) {
     theta_init(i) = std_normal(generator);
   }
 
-  test_nuts<Sampler::Nuts>(model, theta_init, generator, D, N, step_size,
+  test_nuts<Sampler::Nuts>(model, theta_init, generator, N, step_size,
                            max_depth, max_error, inv_mass);
-  test_nuts<Sampler::Walnuts>(model, theta_init, generator, D, N, step_size,
+  test_nuts<Sampler::Walnuts>(model, theta_init, generator, N, step_size,
                               max_depth, max_error, inv_mass);
 
   return 0;

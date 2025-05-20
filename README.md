@@ -126,7 +126,13 @@ For all other build types you can add `VERBOSE=1` to your make call to see a tra
 ## Formatting
 
 ```bash
-cd walnuts_cpp
-clang-format -i -style=LLVM nuts.hpp test.cpp
+pushd walnuts_cpp/include/walnuts
+clang-format -i -style=Google *.hpp
+popd
+
+cd walnuts_cpp/examples/
+clang-format -i -style=Google *.hppcp 
 ```
+
+We chose Google largely style because it's compact.
 

@@ -9,7 +9,8 @@
 
 namespace nuts {
 
-template <typename S> using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
+template <typename S>
+using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
@@ -20,8 +21,9 @@ enum class Update { Barker, Metropolis };
 
 enum class Direction { Backward, Forward };
 
-template <typename S, class Generator> class Random {
-public:
+template <typename S, class Generator>
+class Random {
+ public:
   explicit Random(Generator &rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
@@ -33,30 +35,24 @@ public:
     return Vec<S>::NullaryExpr(n, [&](Integer) { return normal_(rng_); });
   }
 
-private:
+ private:
   Generator &rng_;
   std::uniform_real_distribution<S> unif_;
   std::bernoulli_distribution binary_;
   std::normal_distribution<S> normal_;
 };
 
-template <typename S> class Span {
-public:
-  Vec<S> theta_bk_;
-  Vec<S> rho_bk_;
-  Vec<S> grad_theta_bk_;
-  Vec<S> theta_fw_;
-  Vec<S> rho_fw_;
-  Vec<S> grad_theta_fw_;
-  Vec<S> theta_select_;
-  S logp_;
-
-  Span(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta,
-       S logp)
-      : theta_bk_(theta), // copy duplicates
-        rho_bk_(rho), grad_theta_bk_(grad_theta), theta_fw_(theta),
-        rho_fw_(std::move(rho)), // move once after copy
-        grad_theta_fw_(std::move(grad_theta)), theta_select_(std::move(theta)),
+template <typename S>
+class Span {
+ public:
+  Span(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
+      : theta_bk_(theta),
+        rho_bk_(rho),
+        grad_theta_bk_(grad_theta),
+        theta_fw_(theta),
+        rho_fw_(std::move(rho)),
+        grad_theta_fw_(std::move(grad_theta)),
+        theta_select_(std::move(theta)),
         logp_(logp) {}
 
   Span(Span<S> &&span1, Span<S> &&span2, Vec<S> &&theta_select, S logp)
@@ -66,16 +62,28 @@ public:
         theta_fw_(std::move(span2.theta_fw_)),
         rho_fw_(std::move(span2.rho_fw_)),
         grad_theta_fw_(std::move(span2.grad_theta_fw_)),
-        theta_select_(std::move(theta_select)), logp_(logp) {}
+        theta_select_(std::move(theta_select)),
+        logp_(logp) {}
+
+  Vec<S> theta_bk_;
+  Vec<S> rho_bk_;
+  Vec<S> grad_theta_bk_;
+  Vec<S> theta_fw_;
+  Vec<S> rho_fw_;
+  Vec<S> grad_theta_fw_;
+  Vec<S> theta_select_;
+  S logp_;
 };
 
-template <typename S> S log_sum_exp(const S &x1, const S &x2) {
+template <typename S>
+S log_sum_exp(const S &x1, const S &x2) {
   using std::fmax, std::log, std::exp;
   S m = fmax(x1, x2);
   return m + log(exp(x1 - m) + exp(x2 - m));
 }
 
-template <typename S> S log_sum_exp(const Vec<S> &x) {
+template <typename S>
+S log_sum_exp(const Vec<S> &x) {
   using std::log;
   S m = x.maxCoeff();
   return m + log((x.array() - m).exp().sum());
@@ -102,11 +110,10 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 
 template <Direction D, typename S>
 inline auto order_forward_backward(S &&s1, S &&s2) {
-  if constexpr (D == Direction::Forward) {
+  if constexpr (D == Direction::Forward)
     return std::forward_as_tuple(std::forward<S>(s1), std::forward<S>(s2));
-  } else { // Direction::Backward
+  else
     return std::forward_as_tuple(std::forward<S>(s2), std::forward<S>(s1));
-  }
 }
 
 template <Direction D, typename S>
@@ -126,11 +133,10 @@ Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
-  if constexpr (U == Update::Metropolis) {
+  if constexpr (U == Update::Metropolis)
     log_denominator = span_new.logp_;
-  } else { // Update::Barker
+  else  // Update::Barker
     log_denominator = logp_total;
-  }
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
@@ -151,7 +157,7 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
     leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
              span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
-  } else { // Direction::Backward
+  } else {  // Direction::Backward
     leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
              span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
@@ -165,25 +171,17 @@ std::optional<Span<S>> build_span(Random<S, Generator> &rng,
                                   const F &logp_grad_fun,
                                   const Vec<S> &inv_mass, S step, Integer depth,
                                   const Span<S> &last_span) {
-  if (depth == 0) {
+  if (depth == 0)
     return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step);
-  }
   auto maybe_subspan1 =
       build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1, last_span);
-  if (!maybe_subspan1) {
-    return std::nullopt;
-  }
-
+  if (!maybe_subspan1) return std::nullopt;
   auto maybe_subspan2 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
                                       depth - 1, *maybe_subspan1);
-  if (!maybe_subspan2) {
-    return std::nullopt;
-  }
-
+  if (!maybe_subspan2) return std::nullopt;
   if (uturn<D>(*maybe_subspan1, *maybe_subspan2, inv_mass)) {
     return std::nullopt;
   }
-
   return combine<Update::Barker, D>(rng, std::move(*maybe_subspan1),
                                     std::move(*maybe_subspan2));
 }
@@ -202,34 +200,22 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
     bool go_forward = rng.uniform_binary();
     if (go_forward) {
       constexpr Direction D = Direction::Forward;
-
       auto maybe_next_span =
           build_span<D>(rng, logp_grad_fun, inv_mass, step, depth, span_accum);
-      if (!maybe_next_span)
-        break;
-
+      if (!maybe_next_span) break;
       bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
-
       span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
                                                   std::move(*maybe_next_span));
-
-      if (combined_uturn)
-        break;
+      if (combined_uturn) break;
     } else {
       constexpr Direction D = Direction::Backward;
-
       auto maybe_next_span =
           build_span<D>(rng, logp_grad_fun, inv_mass, step, depth, span_accum);
-      if (!maybe_next_span)
-        break;
-
+      if (!maybe_next_span) break;
       bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
-
       span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
                                                   std::move(*maybe_next_span));
-
-      if (combined_uturn)
-        break;
+      if (combined_uturn) break;
     }
   }
   return std::move(span_accum.theta_select_);
@@ -240,7 +226,7 @@ void nuts(Generator &generator, const F &logp_grad_fun, const Vec<S> &inv_mass,
           S step, Integer max_depth, const Vec<S> &theta_init,
           Integer num_draws, H &handler) {
   Random<S, Generator> rng{generator};
-  Vec<S> theta = theta_init; // copy once
+  Vec<S> theta = theta_init;  // copy once
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
     theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth,
@@ -258,4 +244,4 @@ void nuts(Generator &generator, const F &logp_grad_fun, const Vec<S> &inv_mass,
        sample.cols(), handler);
 }
 
-} // namespace nuts
+}  // namespace nuts

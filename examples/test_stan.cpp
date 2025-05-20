@@ -86,6 +86,7 @@ class DynamicStanModel {
                                        "bs_log_density_gradient");
     param_constrain_ =
         dlsym_cast(library_, &bs_param_constrain, "bs_param_constrain");
+    param_names_ = dlsym_cast(library_, &bs_param_names, "bs_param_names");
 
     char *err = nullptr;
     model_ptr_ = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
@@ -159,6 +160,23 @@ class DynamicStanModel {
     }
   }
 
+  std::vector<std::string> param_names() const {
+    std::vector<std::string> names;
+    names.reserve(constrained_dimensions());
+
+    const char *csv_names = param_names_(model_ptr_.get(), true, true);
+    const char *p;
+    for (p = csv_names; *p != '\0'; ++p) {
+      if (*p == ',') {
+        names.emplace_back(csv_names, p - csv_names);
+        csv_names = p + 1;
+      }
+    }
+    names.emplace_back(csv_names, p - csv_names);
+
+    return names;
+  }
+
  private:
   std::unique_ptr<void, dlclose_deleter> library_;
   std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr_;
@@ -168,6 +186,7 @@ class DynamicStanModel {
   decltype(&bs_param_num) param_num_;
   decltype(&bs_log_density_gradient) log_density_gradient_;
   decltype(&bs_param_constrain) param_constrain_;
+  decltype(&bs_param_names) param_names_;
 };
 
 using S = double;
@@ -218,11 +237,12 @@ void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
             << std::endl;
   std::cout << std::endl;
 
+  auto names = model.param_names();
   for (int d = 0; d < std::min(M, 5); ++d) {
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
+    std::cout << names[d] << ": mean = " << mean << ", stddev = " << stddev
               << "\n";
   }
   if (M > 5) {

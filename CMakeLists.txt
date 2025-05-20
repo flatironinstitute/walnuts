@@ -58,6 +58,23 @@ target_include_directories(walnuts INTERFACE
 # 2) Create the “namespace” alias
 add_library(walnuts::walnuts ALIAS walnuts)
 
+option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
+set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Used version of mimalloc")
+if(WALNUTS_USE_MIMALLOC)
+    option(MI_BUILD_TESTS OFF)
+    option(MI_BUILD_SHARED OFF)
+    option(MI_PADDING OFF)
+    option(MI_DEBUG_FULL OFF)
+    FetchContent_Declare(
+            mimalloc
+            GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+            GIT_TAG ${WALNUTS_MIMALLOC_TAG}
+    )
+    FetchContent_MakeAvailable(mimalloc)
+    target_link_libraries(walnuts INTERFACE mimalloc-static)
+endif()
+
+
 ##########################
 ##       Example        ##
 ##########################
@@ -74,3 +91,5 @@ endif()
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
 endif()
+
+

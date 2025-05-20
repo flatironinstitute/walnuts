@@ -2,8 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <iostream>
+#include <optional>
 #include <random>
+#include <tuple>
 #include <utility>
 
 namespace walnuts {
@@ -87,7 +88,7 @@ template <typename S>
 S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
   return -0.5 * rho.dot(inv_mass.cwiseProduct(rho));
 }
-    
+
 template <typename S, typename F>
 bool within_tolerance(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 		      Integer num_steps, S max_error, Vec<S> &theta_next,
@@ -136,9 +137,9 @@ bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 }
 
 template <Direction D, typename S, typename F>
-void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
-                const Span<S>& span, Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
-                S &logp_next, S max_error, bool& irreversible) {
+bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+                const Span<S> &span, Vec<S> &theta_next, Vec<S> &rho_next,
+                Vec<S> &grad_next, S &logp_next, S max_error) {
   constexpr bool is_forward = (D == Direction::Forward);
   const Vec<S>& theta =  is_forward ? span.theta_fw_ : span.theta_bk_;
   const Vec<S>& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
@@ -163,20 +164,26 @@ void macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       logp_max = fmax(logp_max, logp_next);
     }
     if (logp_max - logp_min <= max_error) {
-      irreversible = !reversible(logp_grad_fun, inv_mass, step, num_steps,
-				 max_error, theta_next, rho_next, grad_next,
-				 logp_next);
-      return;
+      return !reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
+                         theta_next, rho_next, grad_next, logp_next);
     }
   }
-  irreversible = true;
+  return true;
+}
+
+template <Direction D, typename S>
+inline auto order_forward_backward(S &&s1, S &&s2) {
+  if constexpr (D == Direction::Forward) {
+    return std::forward_as_tuple(std::forward<S>(s1), std::forward<S>(s2));
+  } else { // Direction::Backward
+    return std::forward_as_tuple(std::forward<S>(s2), std::forward<S>(s1));
+  }
 }
 
 template <Direction D, typename S>
 inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
-           const Vec<S> &inv_mass) {
-  auto&& span_bk = (D == Direction::Forward) ? span_1 : span_2;
-  auto&& span_fw = (D == Direction::Forward) ? span_2 : span_1;
+                  const Vec<S> &inv_mass) {
+  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_1, span_2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array())
           .matrix();
@@ -186,65 +193,64 @@ inline bool uturn(const Span<S> &span_1, const Span<S> &span_2,
 
 template <Update U, Direction D, typename S, class Generator>
 Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
-                Span<S> &&span_new, const Vec<S> &inv_mass, bool &uturn_flag) {
+                Span<S> &&span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
-  S log_denominator = (U == Update::Metropolis) ? span_new.logp_ : logp_total;
+  S log_denominator;
+  if constexpr (U == Update::Metropolis) {
+    log_denominator = span_new.logp_;
+  } else { // Update::Barker
+    log_denominator = logp_total;
+  }
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
-  uturn_flag = uturn<D>(span_old, span_new, inv_mass);
-  if constexpr (D == Direction::Forward) {
-    return Span<S>(std::move(span_old), std::move(span_new),
-                   std::move(selected), logp_total);
-  } else { // Direction::Backward
-    return Span<S>(std::move(span_new), std::move(span_old),
-                   std::move(selected), logp_total);
-  }
+
+  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
+  return Span<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
+                 logp_total);
 }
 
 template <Direction D, typename S, class F>
-Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
-                   const Vec<S> &inv_mass, S step, S max_error,
-                   bool& reversible) {
+std::optional<Span<S>> build_leaf(const F &logp_grad_fun, const Span<S> &span,
+                                  const Vec<S> &inv_mass, S step, S max_error) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  macro_step<D>(logp_grad_fun, inv_mass, step, span, theta_next, rho_next,
-        grad_theta_next, logp_theta_next, max_error, reversible);
+  if (macro_step<D>(logp_grad_fun, inv_mass, step, span, theta_next, rho_next,
+                    grad_theta_next, logp_theta_next, max_error))
+    return std::nullopt;
   return Span<S>(std::move(theta_next), std::move(rho_next),
                  std::move(grad_theta_next), logp_theta_next);
 }
 
 template <Direction D, typename S, class F, class Generator>
-Span<S> build_span(Random<S, Generator> &rng, const F &logp_grad_fun,
-                   const Vec<S> &inv_mass, S step, Integer depth,
-                   S max_error, const Span<S> &last_span, bool &uturn_flag) {
-  uturn_flag = false;
+std::optional<Span<S>> build_span(Random<S, Generator> &rng,
+                                  const F &logp_grad_fun,
+                                  const Vec<S> &inv_mass, S step, Integer depth,
+                                  S max_error, const Span<S> &last_span) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step,
-                         max_error, uturn_flag);
+    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, max_error);
   }
-  if (uturn_flag) {
-    return last_span;  // won't be used
+  auto maybe_subspan1 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+                                      depth - 1, max_error, last_span);
+  if (!maybe_subspan1) {
+    return std::nullopt;
   }
-  Span<S> span1 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, max_error, last_span, uturn_flag);
-  if (uturn_flag) {
-    return last_span; // won't be used
+
+  auto maybe_subspan2 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+                                      depth - 1, max_error, *maybe_subspan1);
+  if (!maybe_subspan2) {
+    return std::nullopt;
   }
-  Span<S> span2 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
-                                depth - 1, max_error, span1, uturn_flag);
-  if (uturn_flag) {
-    return last_span; // won't be used
+
+  if (uturn<D>(*maybe_subspan1, *maybe_subspan2, inv_mass)) {
+    return std::nullopt;
   }
-  uturn_flag = uturn<D>(span1, span2, inv_mass);
-  if (uturn_flag) {
-    return last_span; // won't be used
-  }
-  return combine<Update::Barker, D>(rng, std::move(span1), std::move(span2),
-                                    inv_mass, uturn_flag);
+
+  return std::make_optional(combine<Update::Barker, D>(
+      rng, std::move(*maybe_subspan1), std::move(*maybe_subspan2)));
 }
 
 template <typename S, class F, class Generator>
@@ -259,26 +265,35 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
   Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
     const bool go_forward = rng.uniform_binary();
-    bool uturn_flag;
     if (go_forward) {
-      Span<S> span_next = build_span<Direction::Forward>(
-          rng, logp_grad_fun, inv_mass, step, depth, max_error, span_accum, uturn_flag);
-      if (uturn_flag)
+      constexpr Direction D = Direction::Forward;
+
+      auto maybe_next_span = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+                                           depth, max_error, span_accum);
+      if (!maybe_next_span)
         break;
-      span_accum = combine<Update::Metropolis, Direction::Forward>(
-          rng, std::move(span_accum), std::move(span_next), inv_mass,
-          uturn_flag);
-      if (uturn_flag)
+
+      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
+
+      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+                                                  std::move(*maybe_next_span));
+
+      if (combined_uturn)
         break;
     } else {
-      Span<S> span_next = build_span<Direction::Backward>(
-          rng, logp_grad_fun, inv_mass, step, depth, max_error, span_accum, uturn_flag);
-      if (uturn_flag)
+      constexpr Direction D = Direction::Backward;
+
+      auto span_next = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth,
+                                     max_error, span_accum);
+      if (!span_next)
         break;
-      span_accum = combine<Update::Metropolis, Direction::Backward>(
-          rng, std::move(span_accum), std::move(span_next), inv_mass,
-          uturn_flag);
-      if (uturn_flag)
+
+      bool combined_uturn = uturn<D>(span_accum, *span_next, inv_mass);
+
+      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+                                                  std::move(*span_next));
+
+      if (combined_uturn)
         break;
     }
   }
@@ -308,4 +323,4 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
 	  theta_init, sample.cols(), handler);
 }
 
-} // namespace nuts
+} // namespace walnuts

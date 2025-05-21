@@ -153,15 +153,14 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  if constexpr (D == Direction::Forward) {
+  if constexpr (D == Direction::Forward)
     leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
              span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
-  } else {  // Direction::Backward
+  else // Direction::Backward
     leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
              span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
-  }
   return Span<S>(std::move(theta_next), std::move(rho_next),
                  std::move(grad_theta_next), logp_theta_next);
 }
@@ -169,7 +168,9 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
 template <Direction D, typename S, class F, class Generator>
 std::optional<Span<S>> build_span(Random<S, Generator> &rng,
                                   const F &logp_grad_fun,
-                                  const Vec<S> &inv_mass, S step, Integer depth,
+                                  const Vec<S> &inv_mass,
+                                  S step,
+                                  Integer depth,
                                   const Span<S> &last_span) {
   if (depth == 0)
     return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step);
@@ -188,9 +189,9 @@ std::optional<Span<S>> build_span(Random<S, Generator> &rng,
 
 template <typename S, class F, class Generator>
 Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
-                  const Vec<S> &inv_mass, S step, Integer max_depth,
-                  Vec<S> &&theta) {
-  Vec<S> rho = rng.standard_normal(theta.size());
+                  const Vec<S> &inv_mass, const Vec<S>& chol_mass,
+                  S step, Integer max_depth, Vec<S> &&theta) {
+  Vec<S> rho = rng.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad_fun(theta, logp, grad);
@@ -226,11 +227,12 @@ void nuts(Generator &generator, const F &logp_grad_fun, const Vec<S> &inv_mass,
           S step, Integer max_depth, const Vec<S> &theta_init,
           Integer num_draws, H &handler) {
   Random<S, Generator> rng{generator};
-  Vec<S> theta = theta_init;  // copy once
+  Vec<S> chol_mass = inv_mass.array().sqrt().inverse().matrix();
+  Vec<S> theta = theta_init;
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
-    theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth,
-                       std::move(theta));
+    theta = transition(rng, logp_grad_fun, inv_mass, chol_mass,
+                       step, max_depth, std::move(theta));
     handler(n, theta);
   }
 }

@@ -116,7 +116,7 @@ bool within_tolerance(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     logp_next += logp_momentum(rho_next, inv_mass);
     logp_min = fmin(logp_min, logp_next);
     logp_max = fmax(logp_max, logp_next);
-    // following tests each iteration; can also move out of loop
+    // TODO: eval alternative with this test outside of loop
     if (logp_max - logp_min > max_error) {
       return false;
     }
@@ -128,7 +128,7 @@ template <typename S, typename F>
 bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
                 Integer num_steps, S max_error, const Vec<S> &theta,
                 const Vec<S> &rho, const Vec<S> &grad, S logp_next) {
-  if (num_steps == 1) return true;  // redundant, but avoids constructors
+  if (num_steps == 1) return true;
   Vec<S> theta_next(grad.size());
   Vec<S> rho_next(rho.size());
   Vec<S> grad_next(grad.size());
@@ -253,9 +253,9 @@ std::optional<Span<S>> build_span(Random<S, Generator> &rng,
 
 template <typename S, class F, class Generator>
 Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
-                  const Vec<S> &inv_mass, S step, Integer max_depth,
-                  Vec<S> &&theta, S max_error) {
-  Vec<S> rho = rng.standard_normal(theta.size());
+                  const Vec<S> &inv_mass, const Vec<S>& chol_mass,
+                  S step, Integer max_depth, Vec<S> &&theta, S max_error) {
+  Vec<S> rho = rng.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad_fun(theta, logp, grad);
@@ -291,11 +291,12 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
              const Vec<S> &inv_mass, S step, Integer max_depth, S max_error,
              const Vec<S> &theta_init, Integer num_draws, H &handler) {
   Random<S, Generator> rng{generator};
-  Vec<S> theta = theta_init;  // copy once
+  Vec<S> chol_mass = inv_mass.array().sqrt().inverse().matrix();
+  Vec<S> theta = theta_init;
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
-    theta = transition(rng, logp_grad_fun, inv_mass, step, max_depth,
-                       std::move(theta), max_error);
+    theta = transition(rng, logp_grad_fun, inv_mass, chol_mass, step,
+                       max_depth, std::move(theta), max_error);
     handler(n, theta);
   }
 }

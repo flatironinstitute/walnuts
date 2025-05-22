@@ -15,6 +15,7 @@ endif()
 ## Cmake Options        ##
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
+option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -72,4 +73,9 @@ endif()
 ##########################
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
+endif()
+
+
+if (WALNUTS_BUILD_TESTS) 
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()

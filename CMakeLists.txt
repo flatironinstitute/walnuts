@@ -67,7 +67,6 @@ if (WALNUTS_BUILD_EXAMPLES)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 
-
 ##########################
 ##       Extras         ##
 ##########################

@@ -5,7 +5,6 @@ project(walnuts
   LANGUAGES CXX
 )
 
-include(FetchContent)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -15,6 +14,8 @@ endif()
 ## Cmake Options        ##
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
+option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
+
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -23,6 +24,7 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
 ##########################
 ## Global Dependencies  ##
 ##########################
+include(FetchContent)
 find_package(Git REQUIRED)
 
 # where to put Eigen
@@ -45,20 +47,7 @@ add_library(Eigen3::Eigen INTERFACE IMPORTED)
 target_include_directories(Eigen3::Eigen INTERFACE
   "${EIGEN_SRC_DIR}"
 )
-#############################
-## Making Walnuts Library  ##
-#############################
 
-# 1) Define your header-only interface target
-add_library(walnuts INTERFACE)
-target_include_directories(walnuts INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
-  $<INSTALL_INTERFACE:include>                            # for installs
-)
-# 2) Create the “namespace” alias
-add_library(walnuts::walnuts ALIAS walnuts)
-
-option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Used version of mimalloc")
 if(WALNUTS_USE_MIMALLOC)
     option(MI_BUILD_TESTS OFF)
@@ -71,16 +60,34 @@ if(WALNUTS_USE_MIMALLOC)
             GIT_TAG ${WALNUTS_MIMALLOC_TAG}
     )
     FetchContent_MakeAvailable(mimalloc)
+endif()
+
+#############################
+## Making Walnuts Library  ##
+#############################
+
+# 1) Define your header-only interface target
+add_library(walnuts INTERFACE)
+target_include_directories(walnuts INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
+  $<INSTALL_INTERFACE:include>                            # for installs
+)
+
+target_link_libraries(walnuts INTERFACE Eigen3::Eigen)
+
+if (WALNUTS_USE_MIMALLOC)
     target_link_libraries(walnuts INTERFACE mimalloc-static)
 endif()
 
+# 2) Create the “namespace” alias
+add_library(walnuts::walnuts ALIAS walnuts)
 
 ##########################
 ##       Example        ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
-  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen walnuts::walnuts)
+  target_link_libraries(test_nuts PRIVATE walnuts::walnuts)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 

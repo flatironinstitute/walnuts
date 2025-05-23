@@ -40,8 +40,8 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (U == Sampler::Walnuts) {
-    nuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass,
-                     step_size, max_depth, max_error, theta_init, draws);
+    nuts::walnuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
+                  max_depth, max_error, theta_init, draws);
   } else if constexpr (U == Sampler::Nuts) {
     nuts::nuts(generator, standard_normal_logp_grad<S>, inv_mass, step_size,
                max_depth, theta_init, draws);

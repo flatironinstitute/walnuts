@@ -1,9 +1,8 @@
 #ifndef NUTS_UTIL_HPP
 #define NUTS_UTIL_HPP
 
-#include <random>
-
 #include <Eigen/Dense>
+#include <random>
 
 namespace nuts {
 
@@ -40,7 +39,6 @@ class Random {
   std::normal_distribution<S> normal_;
 };
 
-
 template <typename S>
 S log_sum_exp(const S &x1, const S &x2) {
   using std::fmax, std::log, std::exp;
@@ -62,25 +60,24 @@ S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
 
 template <Direction D, typename S>
 inline auto order_forward_backward(S &&s1, S &&s2) {
-  if constexpr (D == Direction::Forward)
+  if constexpr (D == Direction::Forward) {
     return std::forward_as_tuple(std::forward<S>(s1), std::forward<S>(s2));
-  else  // Direction::Backward
+  } else {  // Direction::Backward
     return std::forward_as_tuple(std::forward<S>(s2), std::forward<S>(s1));
+  }
 }
-
 
 // U is either Span or WSpan; order_forward_backward generic
 template <Direction D, typename S, class U>
-inline bool uturn(const U &span_1, const U &span_2,
-                  const Vec<S> &inv_mass) {
+inline bool uturn(const U &span_1, const U &span_2, const Vec<S> &inv_mass) {
   auto &&[span_bk, span_fw] = order_forward_backward<D>(span_1, span_2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_fw.theta_bk_).array())
           .matrix();
-  return span_fw.rho_fw_.dot(scaled_diff) < 0
-         || span_bk.rho_bk_.dot(scaled_diff) < 0;
+  return span_fw.rho_fw_.dot(scaled_diff) < 0 ||
+         span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-}
+}  // namespace nuts
 
 #endif

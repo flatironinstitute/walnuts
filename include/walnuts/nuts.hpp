@@ -134,7 +134,7 @@ Span<S> combine(Random<S, Generator> &rng, Span<S> &&span_old,
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
   if constexpr (U == Update::Metropolis)
-    log_denominator = span_new.logp_;
+    log_denominator = span_old.logp_;
   else  // Update::Barker
     log_denominator = logp_total;
   S update_logprob = span_new.logp_ - log_denominator;

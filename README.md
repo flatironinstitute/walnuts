@@ -117,6 +117,7 @@ We can also use this to build from the top level directory
 ```bash
 # /usr/bin/bash
 # From walnuts_cpp
+
 # This will take longer as we include depedencies
 # google test and google benchmark
 cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
@@ -135,14 +136,23 @@ For all other build types you can add `VERBOSE=1` to your make call to see a tra
 
 ## Formatting
 
-```bash
-pushd walnuts_cpp/include/walnuts
-clang-format -i -style=Google *.hpp
-popd
+After running the build process (see above), all of the `.hpp` files
+in the `include` directory and all of the `.cpp` files in the
+`examples` directory will be formatted.
 
-cd walnuts_cpp/examples/
-clang-format -i -style=Google *.hppcp 
+```bash
+# /usr/bin/bash
+# from walnuts_cpp
+
+# make the project, change to build directory, format
+cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
+cd build
+make format
 ```
 
-We chose Google largely style because it's compact.
+The formatting style is defined in the file
+`walnuts_cpp/.clang_format`.  It specifies
 
+* Google format for compactness
+* braces and newlines around conditional and loop bodies
+* include ordering sorted within block, but blocks maintained

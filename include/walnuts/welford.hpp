@@ -85,7 +85,9 @@ class DiscountedOnlineMoments {
    * @return The variance estimate.
    */
   Vec variance() const {
-    if (weight_ > 0) return s_ / weight_;
+    if (weight_ > 0) {
+      return s_ / weight_;
+    }
     return Vec::Zero(mu_.size());
   }
 

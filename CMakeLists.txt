@@ -89,6 +89,7 @@ endif()
 file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )
 
 find_program(CLANG_FORMAT_BIN clang-format)

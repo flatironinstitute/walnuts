@@ -4,8 +4,8 @@
 #include <random>
 #include <vector>
 
-#include <Eigen/Dense>
 #include <gtest/gtest.h>
+#include <Eigen/Dense>
 
 #include <walnuts/welford.hpp>
 
@@ -94,7 +94,8 @@ TEST(Welford, test_no_discounting) {
 
   Eigen::VectorXd sum_sq_diffs = Eigen::VectorXd::Zero(D);
   for (auto y : ys) {
-    sum_sq_diffs += ((y - mean_expected).array() * (y - mean_expected).array()).matrix();
+    sum_sq_diffs +=
+        ((y - mean_expected).array() * (y - mean_expected).array()).matrix();
   }
   Eigen::VectorXd variance_expected = sum_sq_diffs / N;
 

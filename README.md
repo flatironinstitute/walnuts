@@ -12,7 +12,7 @@ clang++ -std=c++17 -O3 -I lib/eigen-3.4.0 -I ./include ./examples/test.cpp -o te
 ./test
 ```
 
-Alternatively you can use the cmake setup.
+Alternatively `cmake` may be used to build the examples and tests.
 
 ```bash
 # /usr/bin/bash
@@ -45,12 +45,32 @@ make -j3 test_nuts
 
 ## Structure
 
+The project directory structure is as follows.  The `...` indicate
+elided subdirectories.  The `build` directories are generated
+automatically and the `lib` directory contains external includes, only
+the top-level names of which are listed.
+
+
 ```bash
-walnuts_cpp
-├── examples # Test Examples
-├── extras # Folder for optional dev tools
-├── include # Headers for the library
+.
+├── build...
+├── examples
+│   ├── test_stan.cpp
+│   └── test.cpp
+├── extras
+│   └── readme.md
+├── include
 │   └── walnuts
+│       ├── nuts.hpp
+│       ├── util.hpp
+│       └── walnuts.hpp
+├── lib
+│   ├── eigen-3.4.0...
+├── tests
+│   ├── CMakeLists.txt
+│   └── mock_test.cpp
+├── CMakeLists.txt
+└── README.md
 ```
 
 ## Running Tests

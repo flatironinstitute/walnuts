@@ -175,6 +175,6 @@ make format
 The formatting style is defined in the file
 `walnuts_cpp/.clang_format`.  It specifies
 
-* Google format for compactness
-* braces and newlines around conditional and loop bodies
-* include ordering sorted within block, but blocks maintained
+* Google format for compactness,
+* braces and newlines around conditional and loop bodies, and
+* include ordering sorted within block, but blocks maintained.

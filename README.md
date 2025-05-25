@@ -71,6 +71,7 @@ the top-level names of which are listed.
 ├── tests
 │   ├── CMakeLists.txt
 │   └── mock_test.cpp
+│   └── welford_test.cpp
 ├── CMakeLists.txt
 └── README.md
 ```
@@ -156,11 +157,13 @@ This is nice for refreshing variables with `cmake .. --fresh`
 Setting `-DCMAKE_BUILD_TYPE=DEBUG` will make the make file generation verbose.
 For all other build types you can add `VERBOSE=1` to your make call to see a trace of the actions CMake performs.
 
-## Formatting
+## Automatic formatting
 
-After running the build process (see above), all of the `.hpp` files
-in the `include` directory and all of the `.cpp` files in the
-`examples` directory will be formatted.
+The following commands will use `clang-format` to automaticlaly format
+
+* `.hpp` files in `include`,
+* `.cpp` files in `examples`, and
+* `.cpp` files in `tests`.
 
 ```bash
 # /usr/bin/bash
@@ -175,6 +178,6 @@ make format
 The formatting style is defined in the file
 `walnuts_cpp/.clang_format`.  It specifies
 
-* Google format for compactness,
+* baseline Google format for compactness,
 * braces and newlines around conditional and loop bodies, and
 * include ordering sorted within block, but blocks maintained.

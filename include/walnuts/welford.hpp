@@ -3,38 +3,40 @@
 
 #include <Eigen/Dense>
 
-namespace walnuts {
+namespace nuts {
 
 /**
- * The `DiscountedOnlineMoments` has an `update()` method that
- * receives vectors and updates its constant internal memory in order
- * to provide estimates of means and variances at any point.  The past
- * is optionally discounted to upweight more recent observations.
+ * The `DiscountedOnlineMoments` accumulator for means and variances.
+ * The `update()` method receives vector value updates and maintains a
+ * running estimate of discounted means and variances.  The discount
+ * factor is between 0 and 1, with larger values doing less
+ * discounting, with 1 doing no discounting and 0 doing full
+ * discounting.
+
+ * This class requires a constant memory of size proportional to the
+ * dimensionality of the update vectors (i.e., O(dim)).  Each of its
+ * methods runs in time proportional to the size of the update vectors
+ * (i.e., O(dim)).  Arithmetic is stable following the original Welford
+ * accumulator, to which it reduces when `alpha = 1`.
  *
- * In addition to the discount factor `alpha`, the algorithm maintains
- * a scalar `weight` and two vectors, `mu` and `s`, which store the
- * sufficient statistics required to estimate mean and variance.
- * The initialization is all zeros,
- *
+ * After initialization and updating with `N` vectors `y[0], ..., y[N
+ - 1]`, the weight for vector `y[n]` is
+
  * ```
- * weight = 0;  mu = 0;  s = 0
- * ```
- *
- * Updates for a new observation y are given by
- *
- * ```
- * diff = y - mu_;
- * weight_ = alpha * weight + 1
- * mu_ = mu + delta / weight
- * s = alpha * s + delta * (y - mu)
+ * weight[n] = alpha^(N - n - 1).
  * ```
  *
- * At any given point in time, the current estimates of mean and
- * variance are given by
+ * The discounted mean is calculated in the usual way for weighted
+ * averages,
  *
  * ```
- * mean = mu
- * variance = s / weight
+ * mean = sum(y .* weight) / sum(weight).
+ * ```
+ *
+ * The discounted mean is then used to calculate discounted variance,
+ *
+ * ```
+ * var = sum(weight .* (y - mean) .* (y - mean)) / sum(weight).
  * ```
  *
  * @tparam S The type of scalars.
@@ -49,10 +51,10 @@ class DiscountedOnlineMoments {
 
   /**
    * Construct an online estimator of moments of the given dimensionality that
-   * discounts the past by a factor of `alpha in (0, 1]` before each
+   * discounts the past by a factor of `alpha` before each
    * observation.  Setting `alpha` to 1 does no discounting.
    *
-   * @param alpha The discount factor.
+   * @param alpha The discount factor (between 0 and 1, inclusive).
    * @param dim Number of dimensions in observation vectors.
    */
   DiscountedOnlineMoments(S alpha, int dim)
@@ -94,6 +96,6 @@ class DiscountedOnlineMoments {
   Vec s_;
 };
 
-}  // namespace walnuts
+}  // namespace nuts
 
 #endif  // WALNUTS_WELFORD_HPP

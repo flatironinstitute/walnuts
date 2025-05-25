@@ -81,7 +81,7 @@ Running the following from `walnuts_cpp` will run all tests in the `tests` direc
 
 ```bash
 cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
-cmake --build build --parallel 3 --target mock_test
+cmake --build build --parallel 3 --target mock_test welford_test
 ctest --test-dir ./build/tests
 ```
 

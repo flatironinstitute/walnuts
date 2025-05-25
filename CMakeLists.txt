@@ -75,6 +75,9 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
 endif()
 
+##########################
+##       Tests         ##
+##########################
 if (WALNUTS_BUILD_TESTS)
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()

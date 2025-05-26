@@ -75,7 +75,10 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
 endif()
 
-if (WALNUTS_BUILD_TESTS) 
+##########################
+##       Tests         ##
+##########################
+if (WALNUTS_BUILD_TESTS)
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()
 
@@ -86,6 +89,7 @@ endif()
 file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )
 
 find_program(CLANG_FORMAT_BIN clang-format)

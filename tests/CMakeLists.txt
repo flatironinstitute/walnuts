@@ -14,3 +14,10 @@ target_link_libraries(mock_test
   Eigen3::Eigen
   nuts::nuts)
 add_test(NAME mock_test COMMAND mock_test)
+
+add_executable(welford_test welford_test.cpp)
+target_link_libraries(welford_test
+  gtest_main
+  Eigen3::Eigen
+  nuts::nuts)
+add_test(NAME welford_test COMMAND welford_test)

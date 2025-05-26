@@ -12,11 +12,13 @@ clang++ -std=c++17 -O3 -I lib/eigen-3.4.0 -I ./include ./examples/test.cpp -o te
 ./test
 ```
 
-Alternatively you can use the cmake setup.
+Alternatively `cmake` may be used to build the examples and tests.
 
 ```bash
 # /usr/bin/bash
-# Assumes you start in walnuts_cpp directory
+
+# Start in walnuts_cpp directory
+cd walnuts_cpp
 
 # Run cmake with
 # The source directory as our current directory (-S .)
@@ -45,12 +47,33 @@ make -j3 test_nuts
 
 ## Structure
 
+The project directory structure is as follows.  The `...` indicate
+elided subdirectories.  The `build` directories are generated
+automatically and the `lib` directory contains external includes, only
+the top-level names of which are listed.
+
+
 ```bash
-walnuts_cpp
-├── examples # Test Examples
-├── extras # Folder for optional dev tools
-├── include # Headers for the library
+.
+├── build...
+├── examples
+│   ├── test_stan.cpp
+│   └── test.cpp
+├── extras
+│   └── readme.md
+├── include
 │   └── walnuts
+│       ├── nuts.hpp
+│       ├── util.hpp
+│       └── walnuts.hpp
+├── lib
+│   ├── eigen-3.4.0...
+├── tests
+│   ├── CMakeLists.txt
+│   └── mock_test.cpp
+│   └── welford_test.cpp
+├── CMakeLists.txt
+└── README.md
 ```
 
 ## Running Tests
@@ -59,7 +82,7 @@ Running the following from `walnuts_cpp` will run all tests in the `tests` direc
 
 ```bash
 cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
-cmake --build build --parallel 3 --target mock_test
+cmake --build build --parallel 3 --target mock_test welford_test
 ctest --test-dir ./build/tests
 ```
 
@@ -134,11 +157,13 @@ This is nice for refreshing variables with `cmake .. --fresh`
 Setting `-DCMAKE_BUILD_TYPE=DEBUG` will make the make file generation verbose.
 For all other build types you can add `VERBOSE=1` to your make call to see a trace of the actions CMake performs.
 
-## Formatting
+## Automatic formatting
 
-After running the build process (see above), all of the `.hpp` files
-in the `include` directory and all of the `.cpp` files in the
-`examples` directory will be formatted.
+The following commands will use `clang-format` to automaticlaly format
+
+* `.hpp` files in `include`,
+* `.cpp` files in `examples`, and
+* `.cpp` files in `tests`.
 
 ```bash
 # /usr/bin/bash
@@ -153,6 +178,6 @@ make format
 The formatting style is defined in the file
 `walnuts_cpp/.clang_format`.  It specifies
 
-* Google format for compactness
-* braces and newlines around conditional and loop bodies
-* include ordering sorted within block, but blocks maintained
+* baseline Google format for compactness,
+* braces and newlines around conditional and loop bodies, and
+* include ordering sorted within block, but blocks maintained.

@@ -25,11 +25,20 @@ public:
    * Construct a dual averaging estimator with the specified initial
    * value, target value, and tuning parameters.
    *
+   * Larger values of `t0` delay fast adaptation and damp early
+   * instability.  Smaller values of `gamma` lead to slower, but more
+   * stable adaptation.  Higher values of `kappa` slow the freezing of
+   * updates and provide more smoothing.
+   *
+   * The algorithm converges at a logarithmic rate.  It should be
+   * reasonably accurate at achieving a target acceptance rate, but
+   * the step size estimates themselves tend to be higher variance.
+   *
    * @param epsilon_init Initial value (> 0).
-   * @param delta Target value (> 0).
+   * @param delta Target acceptance rate (> 0).
    * @param t0 Iteration offset (> 0, default 10).
-   * @param gamma Divisor for updates (> 0, default 0.05).
-   * @param kappa Power of stepsize for update decay (> 0, default 0.75).
+   * @param gamma Learning rate (> 0, default 0.05).
+   * @param kappa Decay for averaging (> 0, default 0.75).
    */
   DualAverage(S epsilon_init, S delta, S t0 = 10, S gamma = 0.05,
               S kappa = 0.75):
@@ -65,7 +74,7 @@ public:
    * @return Estimate of epsilon.
    */
   S epsilon() const noexcept {
-    return std::exp(log_epsilon_);
+    return std::exp(log_epsilon_bar_);
   }
 
 private:

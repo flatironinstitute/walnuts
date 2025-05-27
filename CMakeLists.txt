@@ -5,7 +5,7 @@ project(walnuts
   LANGUAGES CXX
 )
 
-include(FetchContent)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -15,6 +15,7 @@ endif()
 ## Cmake Options        ##
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
+option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
@@ -46,6 +47,27 @@ add_library(Eigen3::Eigen INTERFACE IMPORTED)
 target_include_directories(Eigen3::Eigen INTERFACE
   "${EIGEN_SRC_DIR}"
 )
+
+include(FetchContent)
+set(WALNUTS_BRIDGESTAN_TAG "1d4ff6a10d572ee22ed26b0274059bb4fe885187" CACHE STRING "Version of BridgeStan to use")
+if(WALNUTS_BUILD_STAN)
+    FetchContent_Declare(
+            bridgestan
+            GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
+            GIT_TAG ${WALNUTS_BRIDGESTAN_TAG}
+    )
+    FetchContent_MakeAvailable(bridgestan)
+
+    add_library(BridgeStan::BridgeStan INTERFACE IMPORTED)
+    target_include_directories(BridgeStan::BridgeStan INTERFACE
+      "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
+    )
+
+  add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
+  target_link_libraries(test_stan PRIVATE Eigen3::Eigen walnuts::walnuts BridgeStan::BridgeStan)
+  target_compile_options(test_stan PRIVATE -O3 -Wall)
+endif()
+
 #############################
 ## Making Walnuts Library  ##
 #############################

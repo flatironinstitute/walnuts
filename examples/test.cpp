@@ -66,7 +66,7 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
     std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
               << "\n";
   }
-  if (D > 10) {
+  if (D > 5) {
     std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
   }
 }

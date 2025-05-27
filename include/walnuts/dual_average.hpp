@@ -20,7 +20,7 @@ namespace nuts {
  */
 template <typename S>
 class DualAverage {
- public:
+public:
   /**
    * Construct a dual averaging estimator with the specified initial
    * value, target value, and tuning parameters.
@@ -41,14 +41,14 @@ class DualAverage {
       delta_(delta),
       t0_(t0),
       gamma_(gamma),
-      kappa_(kappa) { }
+      neg_kappa_(-kappa) { }
 
   /**
    * Update the state for the observed value.
    *
    * @param alpha Observed value (> 0).
    */
-  void update(S alpha) {
+  void update(S alpha) noexcept {
     S prop = 1 / (m_ + t0_);
     h_bar_ = (1 - prop) * h_bar_ + prop * (delta_ - alpha);
     S last_log_epsilon = log_epsilon_;
@@ -64,10 +64,11 @@ class DualAverage {
    *
    * @return Estimate of epsilon.
    */
-  S epsilon() const, noexcept {
-    return std::exp(state_.log_epsilon_);
+  S epsilon() const noexcept {
+    return std::exp(log_epsilon_);
   }
- private:
+
+private:
   S log_epsilon_;
   S log_epsilon_bar_;
   S h_bar_;

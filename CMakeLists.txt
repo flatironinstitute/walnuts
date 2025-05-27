@@ -16,7 +16,7 @@ endif()
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
-
+option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -79,14 +79,14 @@ target_include_directories(walnuts INTERFACE
   $<INSTALL_INTERFACE:include>                            # for installs
 )
 # 2) Create the “namespace” alias
-add_library(walnuts::walnuts ALIAS walnuts)
+add_library(nuts::nuts ALIAS walnuts)
 
 ##########################
 ##       Example        ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
-  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen walnuts::walnuts)
+  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen nuts::nuts)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 
@@ -95,4 +95,36 @@ endif()
 ##########################
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
+endif()
+
+##########################
+##       Tests         ##
+##########################
+if (WALNUTS_BUILD_TESTS)
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
+endif()
+
+##########################
+##       Format         ##
+##########################
+# Define list of files to format (you can make this recursive if desired)
+file(GLOB_RECURSE ALL_SOURCE_FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+)
+
+find_program(CLANG_FORMAT_BIN clang-format)
+
+if (CLANG_FORMAT_BIN)
+  add_custom_target(
+    format
+    COMMAND ${CLANG_FORMAT_BIN}
+      -i
+      -style=file
+      ${ALL_SOURCE_FILES}
+    COMMENT "Running clang-format on source files"
+  )
+else()
+  message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()

@@ -7,7 +7,6 @@ FetchContent_Declare(googletest
 FetchContent_MakeAvailable(googletest)
 
 # Set up testing framework, then add tests
-
 # define a function to add a gtest‐based nuts test
 function(add_nuts_test TEST_NAME TEST_SOURCE)
   # create the executable
@@ -24,11 +23,11 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
   # register it with CTest
   add_test(
     NAME ${TEST_NAME}
-    COMMAND ${TEST_NAME}
+    COMMAND $<TARGET_FILE:${TEST_NAME}>
   )
 endfunction()
 
-add_nuts_test(mock_test mock_test.cpp) 
-add_nuts_test(welford_test welford_test.cpp) 
-add_nuts_test(dual_average_test dual_average_test.cpp) 
+add_nuts_test(mock_test mock_test.cpp)
+add_nuts_test(welford_test welford_test.cpp)
+add_nuts_test(dual_average_test dual_average_test.cpp)
 

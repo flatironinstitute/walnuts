@@ -37,7 +37,7 @@ void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
 
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (U == Sampler::Walnuts) {
-    walnuts::walnuts(generator, logp, inv_mass, step_size, max_depth, max_error,
+    nuts::walnuts(generator, logp, inv_mass, step_size, max_depth, max_error,
                      theta_init, N, writer);
   } else if constexpr (U == Sampler::Nuts) {
     nuts::nuts(generator, logp, inv_mass, step_size, max_depth, theta_init, N,

@@ -64,7 +64,7 @@ if(WALNUTS_BUILD_STAN)
     )
 
   add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
-  target_link_libraries(test_stan PRIVATE Eigen3::Eigen walnuts::walnuts BridgeStan::BridgeStan)
+  target_link_libraries(test_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
   target_compile_options(test_stan PRIVATE -O3 -Wall)
 endif()
 
@@ -101,6 +101,7 @@ endif()
 ##       Tests         ##
 ##########################
 if (WALNUTS_BUILD_TESTS)
+  enable_testing()
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()
 

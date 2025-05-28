@@ -5,6 +5,7 @@ project(walnuts
   LANGUAGES CXX
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -13,9 +14,10 @@ endif()
 ##########################
 ## Cmake Options        ##
 ##########################
-option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
-
+option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
+option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
+option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -24,7 +26,6 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
 ##########################
 ## Global Dependencies  ##
 ##########################
-include(FetchContent)
 find_package(Git REQUIRED)
 
 # where to put Eigen
@@ -48,7 +49,9 @@ target_include_directories(Eigen3::Eigen INTERFACE
   "${EIGEN_SRC_DIR}"
 )
 
-set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Used version of mimalloc")
+include(FetchContent)
+
+set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Version of mimalloc to use")
 if(WALNUTS_USE_MIMALLOC)
     option(MI_BUILD_TESTS OFF)
     option(MI_BUILD_SHARED OFF)
@@ -60,6 +63,25 @@ if(WALNUTS_USE_MIMALLOC)
             GIT_TAG ${WALNUTS_MIMALLOC_TAG}
     )
     FetchContent_MakeAvailable(mimalloc)
+endif()
+
+set(WALNUTS_BRIDGESTAN_TAG "1d4ff6a10d572ee22ed26b0274059bb4fe885187" CACHE STRING "Version of BridgeStan to use")
+if(WALNUTS_BUILD_STAN)
+    FetchContent_Declare(
+            bridgestan
+            GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
+            GIT_TAG ${WALNUTS_BRIDGESTAN_TAG}
+    )
+    FetchContent_MakeAvailable(bridgestan)
+
+    add_library(BridgeStan::BridgeStan INTERFACE IMPORTED)
+    target_include_directories(BridgeStan::BridgeStan INTERFACE
+      "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
+    )
+
+  add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
+  target_link_libraries(test_stan PRIVATE Eigen3::Eigen walnuts::walnuts BridgeStan::BridgeStan)
+  target_compile_options(test_stan PRIVATE -O3 -Wall)
 endif()
 
 #############################
@@ -80,7 +102,7 @@ if (WALNUTS_USE_MIMALLOC)
 endif()
 
 # 2) Create the “namespace” alias
-add_library(walnuts::walnuts ALIAS walnuts)
+add_library(nuts::nuts ALIAS walnuts)
 
 ##########################
 ##       Example        ##
@@ -91,7 +113,6 @@ if (WALNUTS_BUILD_EXAMPLES)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 
-
 ##########################
 ##       Extras         ##
 ##########################
@@ -99,4 +120,34 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
 endif()
 
+##########################
+##       Tests         ##
+##########################
+if (WALNUTS_BUILD_TESTS)
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
+endif()
 
+##########################
+##       Format         ##
+##########################
+# Define list of files to format (you can make this recursive if desired)
+file(GLOB_RECURSE ALL_SOURCE_FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+)
+
+find_program(CLANG_FORMAT_BIN clang-format)
+
+if (CLANG_FORMAT_BIN)
+  add_custom_target(
+    format
+    COMMAND ${CLANG_FORMAT_BIN}
+      -i
+      -style=file
+      ${ALL_SOURCE_FILES}
+    COMMENT "Running clang-format on source files"
+  )
+else()
+  message(WARNING "clang-format not found. 'format' target will not be available.")
+endif()

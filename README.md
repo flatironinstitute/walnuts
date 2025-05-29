@@ -116,8 +116,9 @@ For an existing build you want to completely refresh use `--fresh` when building
 ```bash
 # /usr/bin/bash
 # From walnuts_cpp
-# Run a build but use --fresh to force
-# a hard reset of all cached variables
+
+# remove old build, rebuild with --fresh to force a hard reset of cached variables
+rm -rf ./build
 cmake -S . -B "build" --fresh
 
 # All the cmake targets now exist in build

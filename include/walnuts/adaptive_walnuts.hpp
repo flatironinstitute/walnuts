@@ -4,12 +4,14 @@ namespace nuts {
 
 template <typename S>
 struct MassAdaptConfig {
-  MassAdaptConfig(const Vec<S>& mass_init,
+  MassAdaptConfig(const Vec<S>& mass_init, Integer init_count,
                   S iteration_offset):
-      mass_init_(mass_init), iteration_offset_(iteration_offset)
+    mass_init_(mass_init), init_count_(init_count),
+    iteration_offset_(iteration_offset)
   {}
 
   const Vec<S> mass_init_;
+  const S init_count_;
   const S iteration_offset_;
 };
 
@@ -34,44 +36,51 @@ struct StepAdaptConfig {
 
 template <typename S>
 struct WalnutsConfig {
-  WalnutsConifg(S log_min_accept,
+  WalnutsConifg(S log_max_error,
                 Intger max_nuts_depth,
                 Integer max_step_depth):
-      log_min_accept_(log_min_accept), max_nuts_depth_(max_nuts_depth),
+      log_max_error_(log_max_error), max_nuts_depth_(max_nuts_depth),
       max_step_depth_(max_step_depth)
   {}
 
-  const S log_min_accept_;
+  const S log_max_error_;
   const Integer max_nuts_depth_;
   const Integer max_step_depth_;
 };
 
-template <class F, typename S, RNG = std::mt19937>
+template <class F, typename S, class RNG>
 class WalnutsSampler {
  public:
-  WalnutsSampler(RNG& rng, F& logp_grad,
-                 const Vec<S>& inverse_mass_matrix,
+  WalnutsSampler(RNG& rng,
+		 F& logp_grad,
+                 const Vec<S>& inv_mass,
                  S macro_step_size,
                  const WalnutsConfig& walnuts_cfg
                  const Vec<S>& theta):
-      rng_(rng), logp_grad_(logp_grad),
-      inverse_mass_matrix_(inverse_mass_matrix),
-      step_size_(macro_step_size), walnuts_cfg_(walnuts_cfg)
+      rand_(rng), logp_grad_(logp_grad), inv_mass_(inv_mass),
+      cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
+      macro_step_size_(macro_step_size), walnuts_cfg_(walnuts_cfg)
   { }
 
-  Vec<S> operator()();
+  const Vec<S>& operator()() {
+    theta_ = transition_w(rand_, logp_grad_, inv_mass_, chol_mass_,
+			  macro_step_size_, walnuts_cfg_.max_nuts_depth_
+			  std::move(theta_), walnuts_cfg_.log_max_error_);
+    return theta_;
+  }
 
  private:
-  RNG rng_;
+  Random<S, Generator> rand_{rng};
   F& logp_grad_
   Vec<S> theta_;
-  const Vec<S> inv_mass_matrix_;
-  const S step_size_;
+  const Vec<S> inv_mass_;
+  const Vec<S> cholesky_mass_;
+  const S macro_step_size_;
   const WalnutsConfig walnuts_cfg;
 };
 
 
-template <class F, typename S, class RNG = std::mt19937>
+template <class F, typename S, class RNG>
 class AdaptiveWalnuts {
  public:
   AdaptiveWalnuts(RNG& rng,
@@ -82,7 +91,9 @@ class AdaptiveWalnuts {
                   const WalnutsConfig& walnuts_cfg):
       rng_(rng), logp_grad_(logp_grad), theta_(theta_init),
       mass_cfg_(mass_cfg), step_cfg_(step_cfg), walnuts_cfg_(walnuts_cfg)
-  { }
+  {
+    mass_adapt_
+  }
 
   Vec<S> operator()();
 
@@ -92,13 +103,13 @@ class AdaptiveWalnuts {
   }
 
  private:
-  Vec<S> theta_;
-  F& logp_grad_
   RNG rng_;
+  F& logp_grad_;
+  Vec<S> theta_;
 
-  MassAdapt mass_adapt_;
+  const WalnutsConfig walnuts_cfg_;
+
+  DiscountedOnlineMoments mass_adapt_;
   StepAdapt step_adapt_;
 
-  const F logp_grad_;
-  const WalnutsConfig walnuts_cfg_;
 };

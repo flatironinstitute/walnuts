@@ -50,15 +50,38 @@ class DiscountedOnlineMoments {
   using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
   /**
-   * Construct an online estimator of moments of the given dimensionality that
-   * discounts the past by a factor of `alpha` before each
-   * observation.  Setting `alpha` to 1 does no discounting.
+   * Construct an online estimator of moments of the given
+   * dimensionality that discounts the past by a factor of `alpha`
+   * before each observation.  Setting `alpha` to 1 does no
+   * discounting.
    *
-   * @param alpha The discount factor (between 0 and 1, inclusive).
+   * @param alpha The past discount factor (between 0 and 1, inclusive).
+   * @param dim Number of dimensions in observation vectors (non-negative
+   *     integer).
+   */
+  DiscountedOnlineMoments(S alpha,
+                          int dim)
+      : alpha_(alpha),
+        weight_(0),
+        mu_(Vec::Zero(dim)),
+        s_(Vec::Zero(dim)) { }
+
+  /**
+   * Construct an online estimamator of moments with the specified
+   * discount factor and initialized at the specified mean and
+   * variance with a weight equal to the specified pseudocount.
+   *
+   * @param alpha The past discount factor (between 0 and 1, inclusive).
    * @param dim Number of dimensions in observation vectors.
    */
-  DiscountedOnlineMoments(S alpha, int dim)
-      : alpha_(alpha), weight_(0), mu_(Vec::Zero(dim)), s_(Vec::Zero(dim)) {}
+  DiscountedOnlineMoments(S alpha,
+                          S init_weight,
+                          Vec& init_mean,
+                          Vec& init_variance)
+      : alpha_(alpha),
+        weight_(init_weight),
+        mu_(init_mean),
+        s_(init_weight * init_variance) { }
 
   /**
    * Update the state of this accumulator by observing the specified vector.
@@ -89,6 +112,11 @@ class DiscountedOnlineMoments {
       return s_ / weight_;
     }
     return Vec::Zero(mu_.size());
+  }
+
+  void set_alpha(S alpha) {
+    // unchecked requirement: alpha in (0, 1]
+    alpha_ = alpha;
   }
 
  private:

@@ -99,10 +99,11 @@ bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   return true;
 }
 
-template <Direction D, typename S, typename F>
+template <Direction D, typename S, typename F, class C>
 bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
                 const SpanW<S> &span, Vec<S> &theta_next, Vec<S> &rho_next,
-                Vec<S> &grad_next, S &logp_next, S max_error) {
+                Vec<S> &grad_next, S &logp_next, S max_error,
+                C& adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
   const Vec<S> &theta = is_forward ? span.theta_fw_ : span.theta_bk_;
   const Vec<S> &rho = is_forward ? span.rho_fw_ : span.rho_bk_;
@@ -128,6 +129,10 @@ bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       logp_next += logp_momentum(rho_next, inv_mass);
       logp_min = fmin(logp_min, logp_next);
       logp_max = fmax(logp_max, logp_next);
+      if (num_steps == 1) {
+        S min_accept = std::exp(logp_min - logp_max);
+        adapt_handler(min_accept);
+      }
     }
     if (logp_max - logp_min <= max_error) {
       return !reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
@@ -156,38 +161,43 @@ SpanW<S> combine(Random<S, Generator> &rng, SpanW<S> &&span_old,
                   logp_total);
 }
 
-template <Direction D, typename S, class F>
+template <Direction D, typename S, class F, class C>
 std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
                                    const Vec<S> &inv_mass, S step,
-                                   S max_error) {
+                                   S max_error, C& adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
   if (macro_step<D>(logp_grad_fun, inv_mass, step, span, theta_next, rho_next,
-                    grad_theta_next, logp_theta_next, max_error)) {
+                    grad_theta_next, logp_theta_next, max_error,
+                    adapt_handler)) {
     return std::nullopt;
   }
   return SpanW<S>(std::move(theta_next), std::move(rho_next),
                   std::move(grad_theta_next), logp_theta_next);
 }
 
-template <Direction D, typename S, class F, class Generator>
+template <Direction D, typename S, class F, class Generator, class C>
 std::optional<SpanW<S>> build_span(Random<S, Generator> &rng,
                                    const F &logp_grad_fun,
                                    const Vec<S> &inv_mass, S step,
                                    Integer depth, S max_error,
-                                   const SpanW<S> &last_span) {
+                                   const SpanW<S> &last_span,
+                                   C& adapt_handler) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, max_error);
+    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, max_error,
+                         adapt_handler);
   }
   auto maybe_subspan1 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, max_error, last_span);
+                                      depth - 1, max_error, last_span,
+                                      adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
   auto maybe_subspan2 = build_span<D>(rng, logp_grad_fun, inv_mass, step,
-                                      depth - 1, max_error, *maybe_subspan1);
+                                      depth - 1, max_error, *maybe_subspan1,
+                                      adapt_handler);
   if (!maybe_subspan2) {
     return std::nullopt;
   }
@@ -198,10 +208,11 @@ std::optional<SpanW<S>> build_span(Random<S, Generator> &rng,
       rng, std::move(*maybe_subspan1), std::move(*maybe_subspan2)));
 }
 
-template <typename S, class F, class Generator>
+template <typename S, class F, class Generator, class C>
 Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
                     const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                    Integer max_depth, Vec<S> &&theta, S max_error) {
+                    Integer max_depth, Vec<S> &&theta, S max_error,
+                    C& adapt_handler) {
   Vec<S> rho = rng.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -213,7 +224,8 @@ Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
     if (go_forward) {
       constexpr Direction D = Direction::Forward;
       auto maybe_next_span = build_span<D>(rng, logp_grad_fun, inv_mass, step,
-                                           depth, max_error, span_accum);
+                                           depth, max_error, span_accum,
+                                           adapt_handler);
       if (!maybe_next_span) {
         break;
       }
@@ -226,7 +238,7 @@ Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
     } else {
       constexpr Direction D = Direction::Backward;
       auto span_next = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth,
-                                     max_error, span_accum);
+                                     max_error, span_accum, adapt_handler);
       if (!span_next) {
         break;
       }
@@ -241,17 +253,24 @@ Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
   return std::move(span_accum.theta_select_);
 }
 
+class NoOpHandler {
+ public:
+  template <typename T>
+  void operator()(const T& x) const noexcept { }
+};
+
 template <typename S, class F, class Generator, class H>
 void walnuts(Generator &generator, const F &logp_grad_fun,
              const Vec<S> &inv_mass, S step, Integer max_depth, S max_error,
              const Vec<S> &theta_init, Integer num_draws, H &handler) {
+  NoOpHandler adapt_handler;
   Random<S, Generator> rng{generator};
   Vec<S> chol_mass = inv_mass.array().sqrt().inverse().matrix();
   Vec<S> theta = theta_init;
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
     theta = transition_w(rng, logp_grad_fun, inv_mass, chol_mass, step,
-                         max_depth, std::move(theta), max_error);
+                         max_depth, std::move(theta), max_error, adapt_handler);
     handler(n, theta);
   }
 }

@@ -1,3 +1,6 @@
+#ifndef NUTS_DUAL_AVERAGE_HPP
+#define NUTS_DUAL_AVERAGE_HPP
+
 #include <cmath>
 
 // REFERENCE: Hoffman, M.D. and Gelman, A., 2014. The No-U-Turn
@@ -90,3 +93,5 @@ private:
 };
 
 }  // namespace nuts
+
+#endif // NUTS_DUAL_AVERAGE_HPP

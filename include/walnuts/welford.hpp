@@ -1,5 +1,5 @@
-#ifndef WALNUTS_WELFORD_HPP
-#define WALNUTS_WELFORD_HPP
+#ifndef NUTS_WELFORD_HPP
+#define NUTS_WELFORD_HPP
 
 #include <Eigen/Dense>
 
@@ -128,4 +128,4 @@ class DiscountedOnlineMoments {
 
 }  // namespace nuts
 
-#endif  // WALNUTS_WELFORD_HPP
+#endif  // NUTS_WELFORD_HPP

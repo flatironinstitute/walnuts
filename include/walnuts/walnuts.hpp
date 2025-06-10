@@ -1,3 +1,6 @@
+#ifndef NUTS_WALNUTS_HPP
+#define NUTS_WALNUTS_HPP
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -284,4 +287,44 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
           theta_init, sample.cols(), handler);
 }
 
+
+template <class F, typename S, class RNG>
+class WalnutsSampler {
+ public:
+  WalnutsSampler(RNG& rng,
+		 F& logp_grad,
+                 const Vec<S>& theta,
+                 const Vec<S>& inv_mass,
+                 S macro_step_size,
+                 Integer max_nuts_depth,
+                 S log_max_error):
+      rand_(rng), logp_grad_(logp_grad), theta_(theta), inv_mass_(inv_mass),
+      cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
+      macro_step_size_(macro_step_size), max_nuts_depth_(max_nuts_depth),
+      log_max_error_(log_max_error)
+  { }
+
+  Vec<S> operator()() {
+    theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
+			  macro_step_size_, max_nuts_depth_, std::move(theta_),
+                          log_max_error_);
+    return theta_;
+  }
+
+ private:
+  Random<S, RNG> rand_;
+  F& logp_grad_;
+  Vec<S> theta_;
+  const Vec<S> inv_mass_;
+  const Vec<S> cholesky_mass_;
+  const S macro_step_size_;
+  const Integer max_nuts_depth_;
+  const S log_max_error_;
+};
+
+template <class F, typename S, class RNG>
+WalnutsSampler(RNG&, F&, const Vec<S>&, const Vec<S>&, S, Integer, S)
+  -> WalnutsSampler<F, S, RNG>;
+
 }  // namespace nuts
+#endif

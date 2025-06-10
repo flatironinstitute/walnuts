@@ -4,6 +4,7 @@
 #include <random>
 #include <walnuts/nuts.hpp>
 #include <walnuts/walnuts.hpp>
+#include <walnuts/adaptive_walnuts.hpp>
 
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;

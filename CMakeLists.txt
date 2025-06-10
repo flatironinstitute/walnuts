@@ -11,6 +11,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
   set(CMAKE_VERBOSE_MAKEFILE YES)
 endif()
+
+##########################
+## Apple fix            ##
+##########################
+if(APPLE)
+  execute_process(
+    COMMAND xcrun --sdk macosx --show-sdk-path
+    OUTPUT_VARIABLE _sdk_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  set(CMAKE_OSX_SYSROOT "${_sdk_dir}" CACHE STRING "macOS SDK root")
+  set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Build for Intel")
+endif()
+
 ##########################
 ## Cmake Options        ##
 ##########################

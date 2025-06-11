@@ -114,7 +114,7 @@ class AdaptiveWalnuts {
                    std::move(mean_init), std::move(grad_init)};
   }
 
-  const Vec<S>& operator()() {
+  const Vec<S> operator()() {
     auto mass = mass_adapt_.variance();
     auto inv_mass = 1 / mass;
     auto chol_mass = mass.array().sqrt().matrix();

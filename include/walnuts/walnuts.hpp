@@ -301,13 +301,13 @@ class WalnutsSampler {
       rand_(rng), logp_grad_(logp_grad), theta_(theta), inv_mass_(inv_mass),
       cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
       macro_step_size_(macro_step_size), max_nuts_depth_(max_nuts_depth),
-      log_max_error_(log_max_error)
+      log_max_error_(log_max_error), no_op_adapt_handler_()
   { }
 
   Vec<S> operator()() {
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
 			  macro_step_size_, max_nuts_depth_, std::move(theta_),
-                          log_max_error_);
+                          log_max_error_, no_op_adapt_handler_);
     return theta_;
   }
 
@@ -320,6 +320,7 @@ class WalnutsSampler {
   const S macro_step_size_;
   const Integer max_nuts_depth_;
   const S log_max_error_;
+  const NoOpHandler no_op_adapt_handler_;
 };
 
 template <class F, typename S, class RNG>

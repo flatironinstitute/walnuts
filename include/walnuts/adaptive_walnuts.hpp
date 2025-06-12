@@ -86,7 +86,6 @@ class StepAdaptHandler {
   DualAverage<S> dual_average_;
 };
 
-
 template <class F, typename S, class RNG>
 class AdaptiveWalnuts {
  public:

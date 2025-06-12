@@ -27,7 +27,6 @@ struct MassAdaptConfig {
   const Vec<S> mass_init_;
   const S init_count_;
   const S iteration_offset_;
-  const S discount_factor_;
 };
 
 template <typename S>
@@ -104,14 +103,11 @@ class AdaptiveWalnuts {
       iteration_(0),
       step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
                           step_cfg.iteration_offset_, step_cfg.learning_rate_,
-                          step_cfg.decay_rate_) {
-    S discount_factor = 1;
-    S iter_offset = mass_cfg.iteration_offset_;
-    Vec<S> mean_init = Vec<S>::Zeros(theta_init.size());
-    Vec<S> grad_init = grad(logp_grad, theta_init).array().abs().vector();
-    mass_adapt_ = {discount_factor, iter_offset,
-                   std::move(mean_init), std::move(grad_init)};
-  }
+                          step_cfg.decay_rate_),
+      mass_adapt_(1.0, mass_cfg.iteration_offset_,
+		  std::move(Vec<S>::Zero(theta_init.size()).eval()),
+		  std::move(grad(logp_grad, theta_init).array().abs().matrix()))
+  { }
 
   const Vec<S> operator()() {
     auto mass = mass_adapt_.variance();
@@ -152,6 +148,11 @@ class AdaptiveWalnuts {
   StepAdaptHandler<S> step_adapt_handler_;
   DiscountedOnlineMoments<S> mass_adapt_;
 };
+
+template <class F, typename S, class RNG>
+AdaptiveWalnuts(RNG&, F&, const Vec<S>&, MassAdaptConfig<S>&&,
+		StepAdaptConfig<S>&&, WalnutsConfig<S>&&)
+  -> AdaptiveWalnuts<F, S, RNG>;
 
 } // namespace nuts
 

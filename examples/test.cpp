@@ -42,6 +42,34 @@ void summarize(const MatrixS& draws) {
 }
 
 template <typename RNG>
+void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
+			   int max_nuts_depth, S log_max_error) {
+  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
+  double init_count = 5.0;
+  double mass_iteration_offset = 4.0;
+  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
+
+  double step_size_init = 1.0;
+  double accept_rate_target = 0.8;
+  double step_iteration_offset = 4.0;
+  double learning_rate = 0.95;
+  double decay_rate = 0.05;
+  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
+				 step_iteration_offset, learning_rate,
+				 decay_rate);
+
+  int max_step_depth = 5;
+  nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
+				  max_step_depth);
+
+  nuts::AdaptiveWalnuts sample(rng, standard_normal_logp_grad,
+			       theta_init, std::move(mass_cfg),
+			       std::move(step_cfg), std::move(walnuts_cfg));
+
+  std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
+}
+
+template <typename RNG>
 void test_walnuts_iter(VectorS theta_init, RNG& rng, int D, int N,
 		       S macro_step_size, int max_nuts_depth, S log_max_error,
 		       VectorS inv_mass) {
@@ -115,6 +143,8 @@ int main() {
 
   test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
 		    inv_mass);
+
+  test_adaptive_walnuts(theta_init, rng, D, N, max_depth, log_max_error);
 
   return 0;
 }

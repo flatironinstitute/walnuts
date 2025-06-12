@@ -76,8 +76,8 @@ class DiscountedOnlineMoments {
    */
   DiscountedOnlineMoments(S alpha,
                           S init_weight,
-                          Vec& init_mean,
-                          Vec& init_variance)
+                          const Vec& init_mean,
+                          const Vec& init_variance)
       : alpha_(alpha),
         weight_(init_weight),
         mu_(init_mean),

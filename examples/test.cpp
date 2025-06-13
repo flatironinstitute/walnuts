@@ -44,6 +44,7 @@ void summarize(const MatrixS& draws) {
 template <typename RNG>
 void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
 			   int max_nuts_depth, S log_max_error) {
+  std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 5.0;
   double mass_iteration_offset = 4.0;
@@ -62,11 +63,23 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
 				  max_step_depth);
 
-  nuts::AdaptiveWalnuts sample(rng, standard_normal_logp_grad,
-			       theta_init, std::move(mass_cfg),
-			       std::move(step_cfg), std::move(walnuts_cfg));
+  nuts::AdaptiveWalnuts walnuts(rng, standard_normal_logp_grad,
+                                theta_init, std::move(mass_cfg),
+                                std::move(step_cfg),
+                                std::move(walnuts_cfg));
+  // N warmup draws
+  for (int n = 0; n < N; ++n) {
+    walnuts();
+  }
 
-  std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
+
+  // N post-warmup draws
+  auto sample = walnuts.sampler();  // freeze tuning
+  MatrixS draws(D, N);
+  for (int n = 0; n < N; ++n) {
+    draws.col(n) = sample();
+  }
+  summarize(draws);
 }
 
 template <typename RNG>
@@ -74,16 +87,17 @@ void test_walnuts_iter(VectorS theta_init, RNG& rng, int D, int N,
 		       S macro_step_size, int max_nuts_depth, S log_max_error,
 		       VectorS inv_mass) {
   std::cout << "\nWALNUTS ITERATOR" << std::endl;
-  nuts::WalnutsSampler sample(rng, standard_normal_logp_grad, theta_init,
+  nuts::Random<double, RNG> rand(rng);
+  nuts::WalnutsSampler sample(rand, standard_normal_logp_grad, theta_init,
 			      inv_mass, macro_step_size, max_nuts_depth,
 			      log_max_error);
   MatrixS draws(D, N);
   for (int n = 0; n < N; ++n) {
     draws.col(n) = sample();
-  }    
+  }
   summarize(draws);
 }
-				 
+
 
 template <Sampler U, typename G>
 void test_nuts(const VectorS& theta_init, G& generator, int D, int N,

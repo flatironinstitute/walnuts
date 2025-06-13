@@ -111,8 +111,8 @@ class AdaptiveWalnuts {
 
   const Vec<S> operator()() {
     auto mass = mass_adapt_.variance();
-    auto inv_mass = 1 / mass;
-    auto chol_mass = mass.array().sqrt().matrix();
+    Vec<S> inv_mass = mass.array().inverse().matrix();
+    Vec<S> chol_mass = mass.array().sqrt().matrix();
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,
         		  step_adapt_handler_.step_size(),
                           walnuts_cfg_.max_nuts_depth_,
@@ -124,14 +124,15 @@ class AdaptiveWalnuts {
     return theta_;
   }
 
-
   WalnutsSampler<F, S, RNG> sampler() {
-    return WalnutsSampler<F, S, RNG>(rand_, logp_grad_,
-                                     mass_adapt_.inverse_mass_matrix(),
-                                     step_adapt_handler_.step_size(),
-                                     walnuts_cfg_.max_nuts_depth_,
-                                     walnuts_cfg_.log_max_error_,
-                                     theta_);
+    return WalnutsSampler<F, S, RNG>(
+        rand_,
+        logp_grad_,
+        theta_,
+        mass_adapt_.variance().array().inverse().matrix(),
+        step_adapt_handler_.step_size(),
+        walnuts_cfg_.max_nuts_depth_,
+        walnuts_cfg_.log_max_error_);
   }
 
  private:

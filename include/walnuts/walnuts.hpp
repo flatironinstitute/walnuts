@@ -291,18 +291,21 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
 template <class F, typename S, class RNG>
 class WalnutsSampler {
  public:
-  WalnutsSampler(RNG& rng,
+  WalnutsSampler(Random<S, RNG>& rand,
 		 F& logp_grad,
                  const Vec<S>& theta,
                  const Vec<S>& inv_mass,
                  S macro_step_size,
                  Integer max_nuts_depth,
                  S log_max_error):
-      rand_(rng), logp_grad_(logp_grad), theta_(theta), inv_mass_(inv_mass),
+      rand_(rand), logp_grad_(logp_grad), theta_(theta), inv_mass_(inv_mass),
       cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
       macro_step_size_(macro_step_size), max_nuts_depth_(max_nuts_depth),
       log_max_error_(log_max_error), no_op_adapt_handler_()
-  { }
+  {
+    std::cout << "inv_mass = " << inv_mass.transpose() << std::endl;
+    std::cout << "macro_step_size = " << macro_step_size << std::endl;
+  }
 
   Vec<S> operator()() {
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,

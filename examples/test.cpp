@@ -19,8 +19,10 @@ void standard_normal_logp_grad(const Eigen::Matrix<S, Eigen::Dynamic, 1>& x,
                                S& logp,
                                Eigen::Matrix<S, Eigen::Dynamic, 1>& grad) {
   auto start = std::chrono::high_resolution_clock::now();
-  logp = -0.5 * x.dot(x);
-  grad = -x;
+  double sigma = 0.1;
+  double sigma_sq = sigma * sigma;
+  logp = -0.5 * x.dot(x) / sigma_sq;
+  grad = -x / sigma_sq;
   auto end = std::chrono::high_resolution_clock::now();
   total_time += std::chrono::duration<double>(end - start).count();
   ++count;
@@ -59,7 +61,7 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
 				 step_iteration_offset, learning_rate,
 				 decay_rate);
 
-  int max_step_depth = 5;
+  int max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
 				  max_step_depth);
 
@@ -140,7 +142,7 @@ int main() {
   int N = 5000;
   S step_size = 0.25;
   int max_depth = 10;
-  S log_max_error = 0.2;  // 80% Metropolis, 45% Barker
+  S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
 
   std::mt19937 rng(seed);

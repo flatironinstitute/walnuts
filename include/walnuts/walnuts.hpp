@@ -125,8 +125,8 @@ bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     for (Integer n = 0; n < num_steps && logp_max - logp_min <= max_error;
          ++n) {
       rho_next.noalias() = rho_next + half_step * grad_next;
-      theta_next.noalias() +=
-          step * (inv_mass.array() * rho_next.array()).matrix();
+      theta_next.noalias()
+          += step * (inv_mass.array() * rho_next.array()).matrix();
       logp_grad_fun(theta_next, logp_next, grad_next);
       rho_next.noalias() += half_step * grad_next;
       logp_next += logp_momentum(rho_next, inv_mass);

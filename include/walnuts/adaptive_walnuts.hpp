@@ -110,15 +110,15 @@ class AdaptiveWalnuts {
   { }
 
   const Vec<S> operator()() {
-    auto mass = mass_adapt_.variance();
-    Vec<S> inv_mass = mass.array().inverse().matrix();
+    auto inv_mass = mass_adapt_.variance();
+    Vec<S> mass = inv_mass.array().inverse().matrix();
     Vec<S> chol_mass = mass.array().sqrt().matrix();
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,
         		  step_adapt_handler_.step_size(),
                           walnuts_cfg_.max_nuts_depth_,
                           std::move(theta_), walnuts_cfg_.log_max_error_,
                           step_adapt_handler_);
-    mass_adapt_.set_alpha(1 - 1 / (mass_cfg_.iteration_offset_ + iteration_));
+    mass_adapt_.set_alpha(1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_));
     mass_adapt_.update(theta_);
     ++iteration_;
     return theta_;
@@ -129,7 +129,7 @@ class AdaptiveWalnuts {
         rand_,
         logp_grad_,
         theta_,
-        mass_adapt_.variance().array().inverse().matrix(),
+        mass_adapt_.variance().array().inverse().matrix(), // mass matrix
         step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_,
         walnuts_cfg_.log_max_error_);

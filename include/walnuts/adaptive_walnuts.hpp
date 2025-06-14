@@ -104,13 +104,19 @@ class AdaptiveWalnuts {
       step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
                           step_cfg.iteration_offset_, step_cfg.learning_rate_,
                           step_cfg.decay_rate_),
-      mass_adapt_(1.0, mass_cfg.iteration_offset_,
-		  std::move(Vec<S>::Zero(theta_init.size()).eval()),
-		  std::move(grad(logp_grad, theta_init).array().abs().matrix()))
+      mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
+                      std::move(Vec<S>::Zero(theta_init.size()).eval()),
+                      std::move(grad(logp_grad, theta_init).array().abs().matrix())),
+      mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
+                       std::move(Vec<S>::Zero(theta_init.size()).eval()),
+                       std::move(grad(logp_grad, theta_init).array().abs()
+                                 .inverse().matrix())) // TODO: reuse grad
   { }
 
   const Vec<S> operator()() {
-    auto inv_mass = mass_adapt_.variance();
+    auto inv_mass_est_var = mass_adapt_var_.variance().array();
+    auto inv_mass_est_prec = mass_adapt_prec_.variance().array().inverse();
+    auto inv_mass = (inv_mass_est_var * inv_mass_est_prec).sqrt().matrix().eval();
     Vec<S> mass = inv_mass.array().inverse().matrix();
     Vec<S> chol_mass = mass.array().sqrt().matrix();
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,
@@ -118,8 +124,11 @@ class AdaptiveWalnuts {
                           walnuts_cfg_.max_nuts_depth_,
                           std::move(theta_), walnuts_cfg_.log_max_error_,
                           step_adapt_handler_);
-    mass_adapt_.set_alpha(1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_));
-    mass_adapt_.update(theta_);
+    double alpha = 1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_);
+    mass_adapt_var_.set_alpha(alpha);
+    mass_adapt_var_.update(theta_);
+    mass_adapt_prec_.set_alpha(alpha);
+    mass_adapt_prec_.update(grad(logp_grad_, theta_));  // TODO: Use cached gradient
     ++iteration_;
     return theta_;
   }
@@ -129,7 +138,7 @@ class AdaptiveWalnuts {
         rand_,
         logp_grad_,
         theta_,
-        mass_adapt_.variance().array().inverse().matrix(), // mass matrix
+        mass_adapt_var_.variance(),
         step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_,
         walnuts_cfg_.log_max_error_);
@@ -147,7 +156,8 @@ class AdaptiveWalnuts {
   Integer iteration_;
 
   StepAdaptHandler<S> step_adapt_handler_;
-  DiscountedOnlineMoments<S> mass_adapt_;
+  DiscountedOnlineMoments<S> mass_adapt_var_;
+  DiscountedOnlineMoments<S> mass_adapt_prec_;
 };
 
 template <class F, typename S, class RNG>

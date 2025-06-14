@@ -19,7 +19,7 @@ void standard_normal_logp_grad(const Eigen::Matrix<S, Eigen::Dynamic, 1>& x,
                                S& logp,
                                Eigen::Matrix<S, Eigen::Dynamic, 1>& grad) {
   auto start = std::chrono::high_resolution_clock::now();
-  double sigma = 0.1;
+  double sigma = 10;
   double sigma_sq = sigma * sigma;
   logp = -0.5 * x.dot(x) / sigma_sq;
   grad = -x / sigma_sq;
@@ -69,11 +69,11 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
                                 theta_init, std::move(mass_cfg),
                                 std::move(step_cfg),
                                 std::move(walnuts_cfg));
-  // N warmup draws
-  for (int n = 0; n < N; ++n) {
+  int M = 1000;
+  // M warmup draws
+  for (int m = 0; m < M; ++m) {
     walnuts();
   }
-
 
   // N post-warmup draws
   auto sample = walnuts.sampler();  // freeze tuning

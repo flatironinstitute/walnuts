@@ -15,14 +15,19 @@ enum class Sampler { Nuts, Walnuts };
 double total_time = 0.0;
 int count = 0;
 
-void standard_normal_logp_grad(const Eigen::Matrix<S, Eigen::Dynamic, 1>& x,
-                               S& logp,
-                               Eigen::Matrix<S, Eigen::Dynamic, 1>& grad) {
+void normal_logp_grad(const VectorS& x,
+                      S& logp,
+                      VectorS& grad) {
   auto start = std::chrono::high_resolution_clock::now();
-  double sigma = 10;
-  double sigma_sq = sigma * sigma;
-  logp = -0.5 * x.dot(x) / sigma_sq;
-  grad = -x / sigma_sq;
+  int D = x.size();
+  grad = VectorS::Zero(D);
+  logp = 0;
+  for (int d = 0; d < D; ++d) {
+    double sigma = d + 1;
+    double sigma_sq = sigma * sigma;
+    logp += -0.5 * x[d] * x[d] / sigma_sq;
+    grad[d] = -x[d] / sigma_sq;
+  }
   auto end = std::chrono::high_resolution_clock::now();
   total_time += std::chrono::duration<double>(end - start).count();
   ++count;
@@ -48,8 +53,8 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
 			   int max_nuts_depth, S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 5.0;
-  double mass_iteration_offset = 4.0;
+  double init_count = 2.0;
+  double mass_iteration_offset = 2.0;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
 
   double step_size_init = 1.0;
@@ -65,11 +70,11 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
 				  max_step_depth);
 
-  nuts::AdaptiveWalnuts walnuts(rng, standard_normal_logp_grad,
+  nuts::AdaptiveWalnuts walnuts(rng, normal_logp_grad,
                                 theta_init, std::move(mass_cfg),
                                 std::move(step_cfg),
                                 std::move(walnuts_cfg));
-  int M = 1000;
+  int M = 10000;
   // M warmup draws
   for (int m = 0; m < M; ++m) {
     walnuts();
@@ -90,7 +95,7 @@ void test_walnuts_iter(VectorS theta_init, RNG& rng, int D, int N,
 		       VectorS inv_mass) {
   std::cout << "\nWALNUTS ITERATOR" << std::endl;
   nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler sample(rand, standard_normal_logp_grad, theta_init,
+  nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
 			      inv_mass, macro_step_size, max_nuts_depth,
 			      log_max_error);
   MatrixS draws(D, N);
@@ -115,10 +120,10 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 
   auto global_start = std::chrono::high_resolution_clock::now();
   if constexpr (U == Sampler::Walnuts) {
-    nuts::walnuts(generator, standard_normal_logp_grad, inv_mass, step_size,
+    nuts::walnuts(generator, normal_logp_grad, inv_mass, step_size,
                   max_depth, max_error, theta_init, draws);
   } else if constexpr (U == Sampler::Nuts) {
-    nuts::nuts(generator, standard_normal_logp_grad, inv_mass, step_size,
+    nuts::nuts(generator, normal_logp_grad, inv_mass, step_size,
                max_depth, theta_init, draws);
   }
   auto global_end = std::chrono::high_resolution_clock::now();
@@ -140,7 +145,7 @@ int main() {
   int seed = 428763;
   int D = 200;
   int N = 5000;
-  S step_size = 0.25;
+  S step_size = 1.5;
   int max_depth = 10;
   S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);

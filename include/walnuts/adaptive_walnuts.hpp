@@ -106,12 +106,19 @@ class AdaptiveWalnuts {
                           step_cfg.decay_rate_),
       mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
                       std::move(Vec<S>::Zero(theta_init.size()).eval()),
-                      std::move(grad(logp_grad, theta_init).array().abs().matrix())),
+                      // std::move(Vec<S>::Ones(theta_init.size()).eval())),
+                      std::move(grad(logp_grad, theta_init).array().abs()
+                                .sqrt().inverse().matrix())),
       mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
                        std::move(Vec<S>::Zero(theta_init.size()).eval()),
+                       // std::move(Vec<S>::Ones(theta_init.size()).eval()))
                        std::move(grad(logp_grad, theta_init).array().abs()
-                                 .inverse().matrix())) // TODO: reuse grad
-  { }
+                                 .sqrt().matrix())) // TODO: reuse abs grad
+  {
+    std::cout << "grad(logp_grad, theta_init).array().abs() = "
+              << grad(logp_grad, theta_init).array().abs().sqrt().transpose()
+              << std::endl;
+  }
 
   const Vec<S> operator()() {
     auto inv_mass_est_var = mass_adapt_var_.variance().array();

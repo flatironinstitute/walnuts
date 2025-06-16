@@ -36,15 +36,18 @@ void normal_logp_grad(const VectorS& x,
 void summarize(const MatrixS& draws) {
   int N = draws.cols();
   int D = draws.rows();
-  for (int d = 0; d < std::min(D, 5); ++d) {
+  for (int d = 0; d < D; ++d) {
+    if (d > 3 && d < D - 3) {
+      if (d == 4) {
+	std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
+      }
+      continue;
+    }
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
     std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
               << "\n";
-  }
-  if (D > 5) {
-    std::cout << "... elided " << (D - 5) << " dimensions ..." << std::endl;
   }
 }
 
@@ -143,7 +146,7 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 
 int main() {
   int seed = 428763;
-  int D = 200;
+  int D = 150;
   int N = 5000;
   S step_size = 1.5;
   int max_depth = 10;

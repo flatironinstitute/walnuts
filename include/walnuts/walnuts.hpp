@@ -132,10 +132,10 @@ bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       logp_next += logp_momentum(rho_next, inv_mass);
       logp_min = fmin(logp_min, logp_next);
       logp_max = fmax(logp_max, logp_next);
-      if (num_steps == 1) {
-        S min_accept = std::exp(logp_min - logp_max);
-        adapt_handler(min_accept);
-      }
+    }
+    if (num_steps == 1) {
+      S min_accept = std::exp(logp_min - logp_max);
+      adapt_handler(min_accept);
     }
     if (logp_max - logp_min <= max_error) {
       return !reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,

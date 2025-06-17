@@ -45,6 +45,7 @@ public:
    */
   DualAverage(S epsilon_init, S delta, S t0 = 10, S gamma = 0.05,
               S kappa = 0.75):
+      // std::cout << "epsilon_init=" << epsilon_init << std::endl;
       log_epsilon_(std::log(epsilon_init)),
       log_epsilon_bar_(0),
       h_bar_(0),
@@ -53,7 +54,9 @@ public:
       delta_(delta),
       t0_(t0),
       gamma_(gamma),
-      neg_kappa_(-kappa) { }
+      neg_kappa_(-kappa) {
+    std::cout << "epsilon_init = " << epsilon_init << std::endl;
+  }
 
   /**
    * Update the state for the observed value.
@@ -61,6 +64,9 @@ public:
    * @param alpha Observed value (> 0).
    */
   void update(S alpha) noexcept {
+    if (std::isnan(alpha)) {  // TODO: figure out why this is sometimes nan
+      return;
+    }
     S prop = 1 / (m_ + t0_);
     h_bar_ = (1 - prop) * h_bar_ + prop * (delta_ - alpha);
     S last_log_epsilon = log_epsilon_;

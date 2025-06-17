@@ -56,8 +56,8 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
 			   int max_nuts_depth, S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 2.0;
-  double mass_iteration_offset = 2.0;
+  double init_count = 20.0;
+  double mass_iteration_offset = 20.0;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
 
   double step_size_init = 1.0;
@@ -77,8 +77,8 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
                                 theta_init, std::move(mass_cfg),
                                 std::move(step_cfg),
                                 std::move(walnuts_cfg));
-  int M = 10000;
-  // M warmup draws
+
+  int M = 5000;    // M warmup draws; M = 0 works in low dims
   for (int m = 0; m < M; ++m) {
     walnuts();
   }
@@ -146,7 +146,7 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 
 int main() {
   int seed = 428763;
-  int D = 150;
+  int D = 100;
   int N = 5000;
   S step_size = 1.5;
   int max_depth = 10;

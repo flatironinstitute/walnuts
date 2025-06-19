@@ -27,6 +27,10 @@ void normal_logp_grad(const VectorS& x,
     double sigma_sq = sigma * sigma;
     logp += -0.5 * x[d] * x[d] / sigma_sq;
     grad[d] = -x[d] / sigma_sq;
+    if (std::isnan(logp)) {
+      std::cout << "normal_logp_grad: logp = " << logp
+		<< ";  x = " << x.transpose() << std::endl;
+    }
   }
   auto end = std::chrono::high_resolution_clock::now();
   total_time += std::chrono::duration<double>(end - start).count();
@@ -78,7 +82,7 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
                                 std::move(step_cfg),
                                 std::move(walnuts_cfg));
 
-  int M = 5000;    // M warmup draws; M = 0 works in low dims
+  int M = 5;    // M warmup draws; M = 0 works in low dims
   for (int m = 0; m < M; ++m) {
     walnuts();
   }
@@ -146,9 +150,9 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 
 int main() {
   int seed = 428763;
-  int D = 100;
-  int N = 5000;
-  S step_size = 1.5;
+  int D = 2;
+  int N = 1000;
+  S step_size = 0.5;
   int max_depth = 10;
   S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
@@ -160,13 +164,13 @@ int main() {
     theta_init(i) = std_normal(rng);
   }
 
-  test_nuts<Sampler::Nuts>(theta_init, rng, D, N, step_size, max_depth,
-                           log_max_error, inv_mass);
-  test_nuts<Sampler::Walnuts>(theta_init, rng, D, N, step_size, max_depth,
-                              log_max_error, inv_mass);
+  // test_nuts<Sampler::Nuts>(theta_init, rng, D, N, step_size, max_depth,
+  // log_max_error, inv_mass);
+  // test_nuts<Sampler::Walnuts>(theta_init, rng, D, N, step_size, max_depth,
+  // log_max_error, inv_mass);
 
-  test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
-		    inv_mass);
+  // test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
+  // inv_mass);
 
   test_adaptive_walnuts(theta_init, rng, D, N, max_depth, log_max_error);
 

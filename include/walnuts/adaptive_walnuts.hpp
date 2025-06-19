@@ -15,7 +15,6 @@ Vec<S> grad(const F& logp_grad_fun, const Vec<S>& theta) {
   return std::move(g);
 }
 
-
 template <typename S>
 struct MassAdaptConfig {
   MassAdaptConfig(const Vec<S>& mass_init, Integer init_count,
@@ -114,16 +113,12 @@ class AdaptiveWalnuts {
                        // std::move(Vec<S>::Ones(theta_init.size()).eval()))
                        std::move(grad(logp_grad, theta_init).array().abs()
                                  .sqrt().matrix())) // TODO: reuse abs grad
-  {
-    std::cout << "grad(logp_grad, theta_init).array().abs() = "
-              << grad(logp_grad, theta_init).array().abs().sqrt().transpose()
-              << std::endl;
-  }
+  {}
 
   const Vec<S> operator()() {
-    auto inv_mass_est_var = mass_adapt_var_.variance().array();
-    auto inv_mass_est_prec = mass_adapt_prec_.variance().array().inverse();
-    auto inv_mass = (inv_mass_est_var * inv_mass_est_prec).sqrt().matrix().eval();
+    Vec<S> inv_mass_est_var = mass_adapt_var_.variance().array();
+    Vec<S> inv_mass_est_prec = mass_adapt_prec_.variance().array().inverse().matrix();
+    Vec<S> inv_mass = (inv_mass_est_var.array() * inv_mass_est_prec.array()).sqrt().matrix();
     Vec<S> mass = inv_mass.array().inverse().matrix();
     Vec<S> chol_mass = mass.array().sqrt().matrix();
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,

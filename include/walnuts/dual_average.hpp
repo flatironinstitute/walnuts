@@ -45,7 +45,6 @@ public:
    */
   DualAverage(S epsilon_init, S delta, S t0 = 10, S gamma = 0.05,
               S kappa = 0.75):
-      // std::cout << "epsilon_init=" << epsilon_init << std::endl;
       log_epsilon_(std::log(epsilon_init)),
       log_epsilon_bar_(0),
       h_bar_(0),
@@ -55,7 +54,6 @@ public:
       t0_(t0),
       gamma_(gamma),
       neg_kappa_(-kappa) {
-    std::cout << "epsilon_init = " << epsilon_init << std::endl;
   }
 
   /**

@@ -1,6 +1,8 @@
 #ifndef NUTS_ADAPTIVE_WALNUTS_HPP
 #define NUTS_ADAPTIVE_WALNUTS_HPP
 
+#include <utility>
+
 #include "dual_average.hpp"
 #include "util.hpp"
 #include "welford.hpp"
@@ -17,7 +19,7 @@ Vec<S> grad(const F& logp_grad_fun, const Vec<S>& theta) {
 
 template <typename S>
 struct MassAdaptConfig {
-  MassAdaptConfig(const Vec<S>& mass_init, Integer init_count,
+  MassAdaptConfig(const Vec<S>& mass_init, S init_count,
                   S iteration_offset):
     mass_init_(mass_init), init_count_(init_count),
     iteration_offset_(iteration_offset)
@@ -29,12 +31,15 @@ struct MassAdaptConfig {
 };
 
 template <typename S>
+MassAdaptConfig(const Vec<S>& mass_init, S init_count,
+                  S iteration_offset)
+  -> MassAdaptConfig<S>;
+
+  
+template <typename S>
 struct StepAdaptConfig {
-  StepAdaptConfig(S step_size_init,
-                  S accept_rate_target,
-                  S iteration_offset,
-                  S learning_rate,
-                  S decay_rate):
+  StepAdaptConfig(S step_size_init, S accept_rate_target, S iteration_offset,
+		  S learning_rate,  S decay_rate):
       step_size_init_(step_size_init), accept_rate_target_(accept_rate_target),
       iteration_offset_(iteration_offset), learning_rate_(learning_rate),
       decay_rate_(decay_rate)
@@ -46,6 +51,12 @@ struct StepAdaptConfig {
   const S learning_rate_;
   const S decay_rate_;
 };
+
+template <typename S>
+StepAdaptConfig(S step_size_init, S accept_rate_target, S iteration_offset,
+                  S learning_rate, S decay_rate)
+  -> StepAdaptConfig<S>;
+  
 
 
 template <typename S>
@@ -62,7 +73,12 @@ struct WalnutsConfig {
   const Integer max_step_depth_;
 };
 
-
+template <typename S>
+  WalnutsConfig(S log_max_error,
+                Integer max_nuts_depth,
+                Integer max_step_depth)
+  -> WalnutsConfig<S>;
+  
 template <typename S>
 class StepAdaptHandler {
  public:

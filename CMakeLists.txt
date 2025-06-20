@@ -15,6 +15,8 @@ endif()
 ##########################
 ## Cmake Options        ##
 ##########################
+# TODO:  figure out how to install include-what-you-use
+# set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "include-what-you-use;-Xiwyu;--mapping_file=...")
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
@@ -22,6 +24,21 @@ option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
     FORCE)
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Enable -Weverything and other Clang-only warnings
+  add_compile_options(-Wall -Weverything -Wno-c++98-compat -Wno-padded
+  -Wno-poison-system-directories)
+
+  # Optionally enable IWYU if found
+  find_program(IWYU_PATH NAMES include-what-you-use iwyu)
+  if (IWYU_PATH)
+    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_PATH};-Xiwyu;--mapping_file=...")
+  else()
+    message(STATUS "include-what-you-use not found, skipping IWYU integration.")
+  endif()
+endif()
+
 
 ##########################
 ## Global Dependencies  ##

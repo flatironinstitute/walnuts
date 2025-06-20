@@ -9,20 +9,21 @@
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
+using Integer = long;
 
 enum class Sampler { Nuts, Walnuts };
 
-double total_time = 0.0;
-int count = 0;
+static double total_time = 0.0;
+static Integer count = 0;
 
-void normal_logp_grad(const VectorS& x,
-                      S& logp,
-                      VectorS& grad) {
+static void normal_logp_grad(const VectorS& x,
+			     S& logp,
+			     VectorS& grad) {
   auto start = std::chrono::high_resolution_clock::now();
-  int D = x.size();
+  Integer D = x.size();
   grad = VectorS::Zero(D);
   logp = 0;
-  for (int d = 0; d < D; ++d) {
+  for (Integer d = 0; d < D; ++d) {
     double sigma = d + 1;
     double sigma_sq = sigma * sigma;
     logp += -0.5 * x[d] * x[d] / sigma_sq;
@@ -37,10 +38,10 @@ void normal_logp_grad(const VectorS& x,
   ++count;
 }
 
-void summarize(const MatrixS& draws) {
-  int N = draws.cols();
-  int D = draws.rows();
-  for (int d = 0; d < D; ++d) {
+static void summarize(const MatrixS& draws) {
+  Integer N = draws.cols();
+  Integer D = draws.rows();
+  for (Integer d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
 	std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
@@ -56,8 +57,8 @@ void summarize(const MatrixS& draws) {
 }
 
 template <typename RNG>
-void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
-			   int max_nuts_depth, S log_max_error) {
+static void test_adaptive_walnuts(VectorS theta_init, RNG& rng, Integer D, Integer N,
+				  Integer max_nuts_depth, S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 20.0;
@@ -73,7 +74,7 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
 				 step_iteration_offset, learning_rate,
 				 decay_rate);
 
-  int max_step_depth = 8;
+  Integer max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
 				  max_step_depth);
 
@@ -82,31 +83,30 @@ void test_adaptive_walnuts(VectorS theta_init, RNG& rng, int D, int N,
                                 std::move(step_cfg),
                                 std::move(walnuts_cfg));
 
-  int M = 5;    // M warmup draws; M = 0 works in low dims
-  for (int m = 0; m < M; ++m) {
+  for (Integer n = 0; n < N; ++n) {
     walnuts();
   }
 
   // N post-warmup draws
   auto sample = walnuts.sampler();  // freeze tuning
   MatrixS draws(D, N);
-  for (int n = 0; n < N; ++n) {
+  for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
   }
   summarize(draws);
 }
 
 template <typename RNG>
-void test_walnuts_iter(VectorS theta_init, RNG& rng, int D, int N,
-		       S macro_step_size, int max_nuts_depth, S log_max_error,
-		       VectorS inv_mass) {
-  std::cout << "\nWALNUTS ITERATOR" << std::endl;
+static void test_walnuts_iter(VectorS theta_init, RNG& rng, Integer D, Integer N,
+			      S macro_step_size, Integer max_nuts_depth, S log_max_error,
+			      VectorS inv_mass) {
+  std::cout << "\nTEST WALNUTS ITERATOR" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
 			      inv_mass, macro_step_size, max_nuts_depth,
 			      log_max_error);
   MatrixS draws(D, N);
-  for (int n = 0; n < N; ++n) {
+  for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
   }
   summarize(draws);
@@ -114,13 +114,13 @@ void test_walnuts_iter(VectorS theta_init, RNG& rng, int D, int N,
 
 
 template <Sampler U, typename G>
-void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
-               S step_size, S max_depth, S max_error, const VectorS& inv_mass) {
+static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Integer N,
+		      S step_size, Integer max_depth, S max_error, const VectorS& inv_mass) {
+  std::cout << "\nTEST " << (U == Sampler::Walnuts ? "WALNUTS" : "NUTS") << std::endl;
   total_time = 0.0;
   count = 0;
   MatrixS draws(D, N);
-  std::cout << std::endl
-            << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
+  std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
             << ";  max_depth = " << max_depth
             << ";  WALNUTS = " << (U == Sampler::Walnuts ? "true" : "false")
             << std::endl;
@@ -149,29 +149,27 @@ void test_nuts(const VectorS& theta_init, G& generator, int D, int N,
 }
 
 int main() {
-  int seed = 428763;
-  int D = 2;
-  int N = 1000;
+  unsigned int seed = 428763;
+  Integer D = 1000;
+  Integer N = 4000;
   S step_size = 0.5;
-  int max_depth = 10;
+  Integer max_depth = 10;
   S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
 
   std::mt19937 rng(seed);
   std::normal_distribution<S> std_normal(0.0, 1.0);
   VectorS theta_init(D);
-  for (int i = 0; i < D; ++i) {
+  for (Integer i = 0; i < D; ++i) {
     theta_init(i) = std_normal(rng);
   }
 
-  // test_nuts<Sampler::Nuts>(theta_init, rng, D, N, step_size, max_depth,
-  // log_max_error, inv_mass);
-  // test_nuts<Sampler::Walnuts>(theta_init, rng, D, N, step_size, max_depth,
-  // log_max_error, inv_mass);
-
-  // test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
-  // inv_mass);
-
+  test_nuts<Sampler::Nuts>(theta_init, rng, D, N, step_size, max_depth,
+			   log_max_error, inv_mass);
+  test_nuts<Sampler::Walnuts>(theta_init, rng, D, N, step_size, max_depth,
+                          log_max_error, inv_mass);
+  test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
+		    inv_mass);
   test_adaptive_walnuts(theta_init, rng, D, N, max_depth, log_max_error);
 
   return 0;

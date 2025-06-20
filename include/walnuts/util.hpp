@@ -12,7 +12,7 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-using Integer = std::int32_t;
+using Integer = std::int64_t;
 
 enum class Update { Barker, Metropolis };
 
@@ -21,7 +21,7 @@ enum class Direction { Backward, Forward };
 template <typename S, class Generator>
 class Random {
  public:
-  explicit Random(Generator &rng)
+  Random(Generator &rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   inline S uniform_real_01() { return unif_(rng_); }
@@ -38,6 +38,7 @@ class Random {
   std::bernoulli_distribution binary_;
   std::normal_distribution<S> normal_;
 };
+
 
 template <typename S>
 S log_sum_exp(const S &x1, const S &x2) {

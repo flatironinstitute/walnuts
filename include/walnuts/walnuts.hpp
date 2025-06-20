@@ -1,9 +1,7 @@
 #ifndef NUTS_WALNUTS_HPP
 #define NUTS_WALNUTS_HPP
 
-#include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <optional>
 #include <random>
 #include <tuple>
@@ -259,12 +257,12 @@ Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
 class NoOpHandler {
  public:
   template <typename T>
-  void operator()(const T& x) const noexcept { }
+  void operator()(const T&) const noexcept { }
 };
 
 template <typename S, class F, class Generator, class H>
 void walnuts(Generator &generator, const F &logp_grad_fun,
-             const Vec<S> &inv_mass, S step, Integer max_depth, S max_error,
+             const Vec<S> &inv_mass, S step, Integer max_depth, S log_max_error,
              const Vec<S> &theta_init, Integer num_draws, H &handler) {
   NoOpHandler adapt_handler;
   Random<S, Generator> rng{generator};
@@ -273,7 +271,7 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
   handler(0, theta);
   for (Integer n = 1; n < num_draws; ++n) {
     theta = transition_w(rng, logp_grad_fun, inv_mass, chol_mass, step,
-                         max_depth, std::move(theta), max_error, adapt_handler);
+                         max_depth, std::move(theta), log_max_error, adapt_handler);
     handler(n, theta);
   }
 }

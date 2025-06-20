@@ -71,8 +71,12 @@ class DiscountedOnlineMoments {
    * discount factor and initialized at the specified mean and
    * variance with a weight equal to the specified pseudocount.
    *
-   * @param alpha The past discount factor (between 0 and 1, inclusive).
-   * @param dim Number of dimensions in observation vectors.
+   * @param alpha The past discount factor (between 0 and 1,
+   * inclusive).  
+   * @param init_weight Weight (in number of draws) of initial mean
+   * and variance (positive).
+   * @param init_mean Initial mean.
+   * @param init_variance Initial variance.
    */
   DiscountedOnlineMoments(S alpha,
                           S init_weight,

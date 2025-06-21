@@ -90,7 +90,7 @@ class DiscountedOnlineMoments {
   /**
    * Update the state of this accumulator by observing the specified vector.
    *
-   * @param y An observation vector.
+   * @param y The observed vector.
    */
   void update(const Vec& y) {
     const Vec delta = y - mu_;

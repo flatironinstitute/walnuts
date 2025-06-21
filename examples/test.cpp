@@ -150,8 +150,8 @@ static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Intege
 
 int main() {
   unsigned int seed = 428763;
-  Integer D = 1000;
-  Integer N = 4000;
+  Integer D = 10;
+  Integer N = 2000;
   S step_size = 0.5;
   Integer max_depth = 10;
   S log_max_error = 0.1;  // 80% Metropolis, 45% Barker

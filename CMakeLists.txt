@@ -147,3 +147,28 @@ if (CLANG_FORMAT_BIN)
 else()
   message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()
+
+##########################
+##     Doxygen Docs     ##
+##########################
+#################################
+##        Documentation        ##
+#################################
+find_package(Doxygen REQUIRED)
+
+# Public headers only
+file(GLOB_RECURSE WALNUT_HEADERS
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
+
+# Doxygen configuration overrides
+set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/doc")
+set(DOXYGEN_FILE_PATTERNS    "*.hpp")
+set(DOXYGEN_GENERATE_HTML    YES)
+set(DOXYGEN_GENERATE_LATEX   NO)
+
+# `cmake --build . --target doc`
+doxygen_add_docs(
+  doc                         # target name
+  ${WALNUT_HEADERS}           # INPUT files
+  COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
+)

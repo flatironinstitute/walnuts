@@ -13,9 +13,30 @@
 
 namespace nuts {
 
+/**
+ * @brief A class for holding the minimal information in a Hamiltonian
+ * trajectory required for WALNUTS.
+ * 
+ * A span has member variables for the initial and final sates (a)
+ * position, (b) momentum, (c) log density of the state, and (d)
+ * gradient of target log density.  It also holds a selected state,
+ * and the log of the sum of all joint densities on the trajectory.
+ * 
+ * @tparam S Type of scalars.
+ */
 template <typename S>
 class SpanW {
  public:
+
+  /**
+   * @brief Construct a span of one state given the specified
+   * position, momentum, gradient, and log density.
+   *
+   * @param theta The position.
+   * @param rho The momentum.
+   * @param grad_theta The gradient of the log density at `theta`.
+   * @param logp The joint log density of the position and momentum.
+   */
   SpanW(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
       : theta_bk_(theta),
         rho_bk_(rho),
@@ -28,6 +49,15 @@ class SpanW {
         theta_select_(std::move(theta)),
         logp_(logp) {}
 
+  /**
+   * Construct a span by concatening the two specified spans with the
+   * given state selected and total log density.
+   * 
+   * @param span1 The first span (temporally ordered).
+   * @param span2 The second span (temporally ordered).
+   * @param theta_select The selected state.
+   * @param logp The log of the sum of the densities on the trajectory.
+   */
   SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select, S logp)
       : theta_bk_(std::move(span1.theta_bk_)),
         rho_bk_(std::move(span1.rho_bk_)),
@@ -40,15 +70,35 @@ class SpanW {
         theta_select_(std::move(theta_select)),
         logp_(logp) {}
 
+  /** The first state in the trajectory (temporally ordered). */
   Vec<S> theta_bk_;
+
+  /** The first momentum in the trajectory (temporally ordered). */
   Vec<S> rho_bk_;
+
+  /** The first log density gradient in the trajectory (temporally ordered). */
   Vec<S> grad_theta_bk_;
+
+  /** The first log density in the trajectory (temporally ordered). */
   S logp_bk_;
+
+  /** The last state in the trajectory (temporally ordered). */
   Vec<S> theta_fw_;
+
+  /** The last momentum in the trajectory (temporally ordered). */
   Vec<S> rho_fw_;
+
+  /** The last log density gradient of position in the trajectory (temporally
+      ordered). */ 
   Vec<S> grad_theta_fw_;
+
+  /** The last joint log density in the trajectory (temporally odered). */
   S logp_fw_;
+  
+  /** The selected state. */
   Vec<S> theta_select_;
+
+  /** The log of the sum of the joint densities in the trajectory. */
   S logp_;
 };
 
@@ -284,8 +334,32 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
   walnuts(generator, logp_grad_fun, inv_mass, step, max_depth, max_error,
           theta_init, sample.cols(), handler);
 }
-
-
+  
+/**
+ * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler functor.
+ *
+ * The sampler is constructed with a base random number generator, a log density
+ * and gradient function, an initialization, and several tuning parameters.
+ * It provides a no-argument functor for generating the next state in the 
+ * Markov chain.
+ * 
+ * The target log density and gradient function must implement the signature
+ * 
+ * ```cpp
+ * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+ *                              S& logp,
+ *                              Eigen::Matrix<S, -1, 1>& grad);
+ * ```
+ * 
+ * where `S` is the scalar type parameter of the sampler (the log
+ * density function need not be templated itself.  The argument `x`
+ * is the position argument, and `logp` is set to the log density of
+ * `x`, and `grad` set to the gradient of the log density at `x`.
+ * 
+ * @tparam F The type of the log density and gradient function.
+ * @tparam S The type of scalars.
+ * @tparam RNG The type of the base random number generator.
+ */
 template <class F, typename S, class RNG>
 class WalnutsSampler {
  public:

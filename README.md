@@ -93,6 +93,8 @@ After running the top level cmake, from the `build` directory, run
 make doc
 ```
 
+The root of the doc will be found in `walnuts_cpp/doc/html/index.html`.
+
 ## CMake Tips
 
 ### View Optional Project Flags

@@ -253,6 +253,19 @@ class StepAdaptHandler {
  * After adaptation, the method `sampler()` returns the a WALNUTS
  * sampler configured with the result of adaptation.
  * 
+ * The target log density and gradient function must implement the signature
+ * 
+ * ```cpp
+ * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+ *                              S& logp,
+ *                              Eigen::Matrix<S, -1, 1>& grad);
+ * ```
+ * 
+ * where `S` is the scalar type parameter of the sampler (the log
+ * density function need not be templated itself.  The argument `x`
+ * is the position argument, and `logp` is set to the log density of
+ * `x`, and `grad` set to the gradient of the log density at `x`.
+ * 
  * @tparam F Type of log density/gradient function.
  * @tparam S Type of scalars.
  * @tparam RNG Type of base random number generator.
@@ -260,7 +273,6 @@ class StepAdaptHandler {
 template <class F, typename S, class RNG>
 class AdaptiveWalnuts {
  public:
-
   /**
    * @brief Construct an adaptive WALNUTS sampler.
    *
@@ -275,36 +287,34 @@ class AdaptiveWalnuts {
    * @param[in,out] rng The base random number generator.
    * @param[in,out] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
-   * @param[in] mass_cfg The mass-matrix adaptation configuration (moved).
-   * @param[in] step_cfg The step-size adaptation configuration (moved).
-   * @param[in] walnuts_cfg The WALNUTS configuration (moved).
+   * @param[in] mass_cfg The mass-matrix adaptation configuration.
+   * @param[in] step_cfg The step-size adaptation configuration.
+   * @param[in] walnuts_cfg The WALNUTS configuration.
    */
   AdaptiveWalnuts(RNG& rng,
                   F& logp_grad,
                   const Vec<S>& theta_init,
-                  MassAdaptConfig<S>&& mass_cfg,
-                  StepAdaptConfig<S>&& step_cfg,
-                  WalnutsConfig<S>&& walnuts_cfg):
-      mass_cfg_(mass_cfg),
-      step_cfg_(step_cfg),
-      walnuts_cfg_(walnuts_cfg),
-      rand_(rng),
-      logp_grad_(logp_grad),
-      theta_(theta_init),
-      iteration_(0),
-      step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
-                          step_cfg.iteration_offset_, step_cfg.learning_rate_,
-                          step_cfg.decay_rate_),
-      mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
-                      std::move(Vec<S>::Zero(theta_init.size()).eval()),
-                      // std::move(Vec<S>::Ones(theta_init.size()).eval())),
-                      std::move(grad(logp_grad, theta_init).array().abs()
-                                .sqrt().inverse().matrix())),
-      mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
-                       std::move(Vec<S>::Zero(theta_init.size()).eval()),
-                       // std::move(Vec<S>::Ones(theta_init.size()).eval()))
-                       std::move(grad(logp_grad, theta_init).array().abs()
-                                 .sqrt().matrix())) // TODO: reuse abs grad
+                  const MassAdaptConfig<S>& mass_cfg,
+                  const StepAdaptConfig<S>& step_cfg,
+                  const WalnutsConfig<S>& walnuts_cfg):
+    mass_cfg_(mass_cfg), 
+    step_cfg_(step_cfg),
+    walnuts_cfg_(walnuts_cfg),
+    rand_(rng),
+    logp_grad_(logp_grad),
+    theta_(theta_init),
+    iteration_(0),
+    step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
+			step_cfg.iteration_offset_, step_cfg.learning_rate_,
+			step_cfg.decay_rate_),
+    mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
+		    std::move(Vec<S>::Zero(theta_init.size()).eval()),
+		    std::move(grad(logp_grad, theta_init).array().abs()
+			      .sqrt().inverse().matrix())),
+    mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
+		     std::move(Vec<S>::Zero(theta_init.size()).eval()),
+		     std::move(grad(logp_grad, theta_init).array().abs()
+			       .sqrt().matrix())) // TODO: reuse abs grad
   {}
 
   /**
@@ -359,7 +369,7 @@ class AdaptiveWalnuts {
         walnuts_cfg_.log_max_error_);
   }
 
-  private:
+ private:
   /** The mass adaptaiton configuration. */
   const MassAdaptConfig<S> mass_cfg_;
 

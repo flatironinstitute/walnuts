@@ -11,8 +11,6 @@ using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
 using Integer = long;
 
-enum class Sampler { Nuts, Walnuts };
-
 static double total_time = 0.0;
 static Integer count = 0;
 
@@ -56,8 +54,56 @@ static void summarize(const MatrixS& draws) {
   }
 }
 
+
+template <typename G>
+static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Integer N,
+		      S step_size, Integer max_depth, const VectorS& inv_mass) {
+  std::cout << "\nTEST NUTS" << std::endl;
+  total_time = 0.0;
+  count = 0;
+  MatrixS draws(D, N);
+  std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
+            << ";  max_depth = " << max_depth
+            << std::endl;
+
+  auto global_start = std::chrono::high_resolution_clock::now();
+  nuts::nuts(generator, normal_logp_grad, inv_mass, step_size,
+	     max_depth, theta_init, draws);
+  auto global_end = std::chrono::high_resolution_clock::now();
+  auto global_total_time =
+      std::chrono::duration<double>(global_end - global_start).count();
+
+  std::cout << "    total time: " << global_total_time << "s" << std::endl;
+  std::cout << "logp_grad time: " << total_time << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << total_time / global_total_time
+            << std::endl;
+  std::cout << "        logp_grad calls: " << count << std::endl;
+  std::cout << "        time per call: " << total_time / count << "s"
+            << std::endl;
+  std::cout << std::endl;
+  summarize(draws);
+}
+
+
 template <typename RNG>
-static void test_adaptive_walnuts(VectorS theta_init, RNG& rng, Integer D, Integer N,
+static void test_walnuts(VectorS theta_init, RNG& rng, Integer D, Integer N,
+			 S macro_step_size, Integer max_nuts_depth, S log_max_error,
+			 VectorS inv_mass) {
+  std::cout << "\nTEST WALNUTS ITERATOR" << std::endl;
+  nuts::Random<double, RNG> rand(rng);
+  nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
+			      inv_mass, macro_step_size, max_nuts_depth,
+			      log_max_error);
+  MatrixS draws(D, N);
+  for (Integer n = 0; n < N; ++n) {
+    draws.col(n) = sample();
+  }
+  summarize(draws);
+}
+
+
+template <typename RNG>
+static void test_adaptive_walnuts(const VectorS& theta_init, RNG& rng, Integer D, Integer N,
 				  Integer max_nuts_depth, S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
@@ -78,10 +124,8 @@ static void test_adaptive_walnuts(VectorS theta_init, RNG& rng, Integer D, Integ
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
 				  max_step_depth);
 
-  nuts::AdaptiveWalnuts walnuts(rng, normal_logp_grad,
-                                theta_init, std::move(mass_cfg),
-                                std::move(step_cfg),
-                                std::move(walnuts_cfg));
+  nuts::AdaptiveWalnuts walnuts(rng, normal_logp_grad, theta_init, mass_cfg,
+				step_cfg, walnuts_cfg);
 
   for (Integer n = 0; n < N; ++n) {
     walnuts();
@@ -96,57 +140,7 @@ static void test_adaptive_walnuts(VectorS theta_init, RNG& rng, Integer D, Integ
   summarize(draws);
 }
 
-template <typename RNG>
-static void test_walnuts_iter(VectorS theta_init, RNG& rng, Integer D, Integer N,
-			      S macro_step_size, Integer max_nuts_depth, S log_max_error,
-			      VectorS inv_mass) {
-  std::cout << "\nTEST WALNUTS ITERATOR" << std::endl;
-  nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
-			      inv_mass, macro_step_size, max_nuts_depth,
-			      log_max_error);
-  MatrixS draws(D, N);
-  for (Integer n = 0; n < N; ++n) {
-    draws.col(n) = sample();
-  }
-  summarize(draws);
-}
 
-
-template <Sampler U, typename G>
-static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Integer N,
-		      S step_size, Integer max_depth, S max_error, const VectorS& inv_mass) {
-  std::cout << "\nTEST " << (U == Sampler::Walnuts ? "WALNUTS" : "NUTS") << std::endl;
-  total_time = 0.0;
-  count = 0;
-  MatrixS draws(D, N);
-  std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
-            << ";  WALNUTS = " << (U == Sampler::Walnuts ? "true" : "false")
-            << std::endl;
-
-  auto global_start = std::chrono::high_resolution_clock::now();
-  if constexpr (U == Sampler::Walnuts) {
-    nuts::walnuts(generator, normal_logp_grad, inv_mass, step_size,
-                  max_depth, max_error, theta_init, draws);
-  } else if constexpr (U == Sampler::Nuts) {
-    nuts::nuts(generator, normal_logp_grad, inv_mass, step_size,
-               max_depth, theta_init, draws);
-  }
-  auto global_end = std::chrono::high_resolution_clock::now();
-  auto global_total_time =
-      std::chrono::duration<double>(global_end - global_start).count();
-
-  std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << total_time << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << total_time / global_total_time
-            << std::endl;
-  std::cout << "        logp_grad calls: " << count << std::endl;
-  std::cout << "        time per call: " << total_time / count << "s"
-            << std::endl;
-  std::cout << std::endl;
-  summarize(draws);
-}
 
 int main() {
   unsigned int seed = 428763;
@@ -164,12 +158,11 @@ int main() {
     theta_init(i) = std_normal(rng);
   }
 
-  test_nuts<Sampler::Nuts>(theta_init, rng, D, N, step_size, max_depth,
-			   log_max_error, inv_mass);
-  test_nuts<Sampler::Walnuts>(theta_init, rng, D, N, step_size, max_depth,
-                          log_max_error, inv_mass);
-  test_walnuts_iter(theta_init, rng, D, N, step_size, max_depth, log_max_error,
+  test_nuts(theta_init, rng, D, N, step_size, max_depth, inv_mass);
+
+  test_walnuts(theta_init, rng, D, N, step_size, max_depth, log_max_error,
 		    inv_mass);
+
   test_adaptive_walnuts(theta_init, rng, D, N, max_depth, log_max_error);
 
   return 0;

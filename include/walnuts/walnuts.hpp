@@ -102,10 +102,25 @@ class SpanW {
   S logp_;
 };
 
+/**
+ * @brief Return `true` if running the specified number of leapfrog steps
+ * is within the maximum error tolerance.
+ *
+ * @tparam S The type of scalars.
+ * @tparam F The type of the log density/gradient function.
+ * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The micro step size.
+ * @param[in] num_steps The number of micro steps to take.
+ * @param[in] logp_next Initial log density.
+ * @param[in,out] theta_next Input initial position, set to final position.
+ * @param[in,out] rho_next Input initial momentum, set to final position.
+ * @param[in,out] grad_next Input initial gradient, set to final gradient.
+ */
 template <typename S, typename F>
-bool within_tolerance(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
-                      Integer num_steps, S max_error, Vec<S> &theta_next,
-                      Vec<S> &rho_next, Vec<S> &grad_next, S logp_next) {
+bool within_tolerance(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+                      Integer num_steps, S max_error, S logp_next,
+		      Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next) {
   S half_step = 0.5 * step;
   S logp_min = logp_next;
   S logp_max = logp_next;
@@ -126,10 +141,27 @@ bool within_tolerance(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   return true;
 }
 
+/**
+ * @brief Return `true` if the number of micro steps provided is the one chosen
+ * from the input position, moment, and gradient.
+ *
+ * @tparam S Type of scalars.
+ * @tparam F Type of log density/gradient function.
+ * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The micro step size.
+ * @param[in] num_steps The number of micro steps to take.
+ * @param[in] max_error The maximum error tolerance in Hessians.
+ * @param[in] logp_next The log density of the starting position.
+ * @param[in] theta The final position from which to reverse.
+ * @param[in] rho The final momentum from which to reverse.
+ * @param[in] grad The final gradient from which to reverse.
+ * @return `true` if the path ending in the specified state is reversible.
+ */
 template <typename S, typename F>
-bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
-                Integer num_steps, S max_error, const Vec<S> &theta,
-                const Vec<S> &rho, const Vec<S> &grad, S logp_next) {
+bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+                Integer num_steps, S max_error, S logp_next, const Vec<S> &theta,
+                const Vec<S> &rho, const Vec<S> &grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -143,18 +175,40 @@ bool reversible(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     num_steps /= 2;
     step *= 2;
     if (within_tolerance(logp_grad_fun, inv_mass, step, num_steps, max_error,
-                         theta_next, rho_next, grad_next, logp_next)) {
+                         logp_next, theta_next, rho_next, grad_next)) {
       return false;
     }
   }
   return true;
 }
 
-template <Direction D, typename S, typename F, class C>
-bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
-                const SpanW<S> &span, Vec<S> &theta_next, Vec<S> &rho_next,
-                Vec<S> &grad_next, S &logp_next, S max_error,
-                C& adapt_handler) {
+/**
+ * @brief Take a macro step from the specified state given the log
+ * density/gradient, ntuning parameters and adaptation handler and
+ * return whether it conserves the Hamiltonian and is reversible.
+ *
+ * @tparam D The time direction of Hamiltonian simulation.
+ * @tparam S The type of scalars.
+ * @tparam F The type of the log density/gradient function.
+ * @tparam A The type of the adaptation handler.
+ * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The macro step size.
+ * @param[in] max_error The maximum Hamiltonian diference allowed in the macro step.
+ * @param[in] span The span to extend.
+ * @param[out] theta_next The position after the macro step.
+ * @param[out] rho_next The momentum after the macro step.
+ * @param[out] grad_next The gradient of the position after the macro step.
+ * @param[out] logp_next The log density of the positon and momentum after the
+ * macro step.  
+ * @param[in,out] adapt_handler The step-size adaptation handler.
+ * @return `true` if the Hamiltonian is conserved reversibly.
+ */
+template <Direction D, typename S, typename F, class A>
+bool macro_step(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+		S max_error, const SpanW<S> &span, Vec<S> &theta_next,
+		Vec<S> &rho_next, Vec<S> &grad_next, S &logp_next,
+		A& adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
   const Vec<S> &theta = is_forward ? span.theta_fw_ : span.theta_bk_;
   const Vec<S> &rho = is_forward ? span.rho_fw_ : span.rho_bk_;
@@ -186,15 +240,36 @@ bool macro_step(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
       adapt_handler(min_accept);
     }
     if (logp_max - logp_min <= max_error) {
-      return !reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
-                         theta_next, rho_next, grad_next, logp_next);
+      return reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
+                         logp_next, theta_next, rho_next, grad_next);
     }
   }
-  return true;
+  return false;
 }
 
-template <Update U, Direction D, typename S, class Generator>
-SpanW<S> combine(Random<S, Generator> &rng, SpanW<S> &&span_old,
+/**
+ * @brief Return the specified spans into a new span and select a new position.
+ * state.
+ *
+ * If the direction `D` is `Forward`, then `span_new` is ordered after
+ * `span_old` in time; if it is `Backward`, then `span_new` is before
+ * `span_old`.  
+ *
+ * The new selected state is determined with either a
+ * Metropolis update rule or a Barker update rule based on the
+ * template parameter, using the specified random number generator.
+ * 
+ * @tparam U The type of update (`Metropolis` or `Barker`).
+ * @tparam D The direction of combination in time (`Forward` or `Backward`).
+ * @tparam S The type of scalars.
+ * @tparam RNG The type of the base random numer generator.
+ * @param rng The random number generator used to select a new position.
+ * @param span_old The old span.
+ * @param span_new The span continuing the old span forward or backward in time.
+ * @return The combined span.
+ */
+template <Update U, Direction D, typename S, class RNG>
+SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
                  SpanW<S> &&span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
@@ -212,30 +287,77 @@ SpanW<S> combine(Random<S, Generator> &rng, SpanW<S> &&span_old,
                   logp_total);
 }
 
-template <Direction D, typename S, class F, class C>
+/**
+ * @brief Extend the specified span with a span of a single state.
+ *
+ * Given the specified span and direction `D`, build a new leaf span consisting
+ * of a single state.  If `D` is `Forward`, the leaf extends the specified span
+ * forward in time; if `Backward, it extends the span backward in time.
+ *
+ * The step-size adaptation handler is called with the acceptance of each
+ * macro step attempt.
+ *
+ * The step size is reduced so that the Hamiltonian is conserved
+ * within the specified error.  The mass matrix and macro step size
+ * are passed on to the leapfrog algorithm.
+ *
+ * The reuslt is `std::optional` and will be `std::nullopt` only if the
+ * specified span could not be extended reversibly within the error threshold.
+ *
+ * @tparam D The direction in time to extend.
+ * @tparam S The type of scalars.
+ * @tparam F The type of the log density/gradient function.
+ * @tparam A The type of the adaptation handler.
+ * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in] span The span to extend.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The macro step size.
+ * @param[in] max_error The maximum error allowed in the Hamiltonian.
+ * @param[in,out] adapt_handler The step-size adaptation handler.
+ * @return The span resulting from extending the specified span or
+ * `std::nullopt` if that could not be done reversibly within threshold. 
+ */
+template <Direction D, typename S, class F, class A>
 std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
                                    const Vec<S> &inv_mass, S step,
-                                   S max_error, C& adapt_handler) {
+                                   S max_error, A& adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  if (macro_step<D>(logp_grad_fun, inv_mass, step, span, theta_next, rho_next,
-                    grad_theta_next, logp_theta_next, max_error,
-                    adapt_handler)) {
+  if (!macro_step<D>(logp_grad_fun, inv_mass, step, max_error, span, theta_next,
+		     rho_next, grad_theta_next, logp_theta_next,
+		     adapt_handler)) {
     return std::nullopt;
   }
   return SpanW<S>(std::move(theta_next), std::move(rho_next),
                   std::move(grad_theta_next), logp_theta_next);
 }
 
-template <Direction D, typename S, class F, class Generator, class C>
-std::optional<SpanW<S>> build_span(Random<S, Generator> &rng,
+/**
+ * @brief Return a span of two to the power of the depth states extending from
+ * the specified span. 
+ *
+ * @tparam D The direction in time to extend.
+ * @tparam S The type of scalars.
+ * @tparam F The type of the log density/gradient function.
+ * @tparam RNG The type of the base random number generator.
+ * @tparam A The type of the step-size adaptation callback function.
+ * @param[in,out] rng The random number generator.
+ * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The macro step size.
+ * @param[in] last_span The span to extend.
+ * @param[in,out] adapt_handler The step-size adaptation handler.
+ * @return The new span or `std::nullopt` if it could not be constructed.
+ */
+template <Direction D, typename S, class F, class RNG, class A>
+std::optional<SpanW<S>> build_span(Random<S, RNG> &rng,
                                    const F &logp_grad_fun,
                                    const Vec<S> &inv_mass, S step,
                                    Integer depth, S max_error,
                                    const SpanW<S> &last_span,
-                                   C& adapt_handler) {
+                                   A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, max_error,
                          adapt_handler);
@@ -259,42 +381,60 @@ std::optional<SpanW<S>> build_span(Random<S, Generator> &rng,
       rng, std::move(*maybe_subspan1), std::move(*maybe_subspan2)));
 }
 
-template <typename S, class F, class Generator, class C>
-Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
+/**
+ * @brief Return the next state in the Markov chain given the previous state.
+ *
+ * @tparam S The type of scalars.
+ * @tparam F The type of the log density/gradient function.
+ * @tparam RNG The type of the base random number generator.
+ * @tparam A The type of the step-size adaptation callback function.
+ * @param[in,out] rand The random number generator.
+ * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass matrix.
+ * @param[in] step The macro step size.
+ * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
+ * @param[in] theta The previous state.
+ * @param[in] max_error The maximum difference in Hamiltonians.
+ * @param[in,out] adapt_handler The step-size adaptation handler.
+ * @return The next state in the Markov chain.
+ */  
+template <typename S, class F, class RNG, class A>
+Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
                     const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
                     Integer max_depth, Vec<S> &&theta, S max_error,
-                    C& adapt_handler) {
-  Vec<S> rho = rng.standard_normal(theta.size()).cwiseProduct(chol_mass);
+                    A& adapt_handler) {
+  Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad_fun(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   SpanW<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
-    const bool go_forward = rng.uniform_binary();
+    const bool go_forward = rand.uniform_binary();
     if (go_forward) {
       constexpr Direction D = Direction::Forward;
-      auto maybe_next_span = build_span<D>(rng, logp_grad_fun, inv_mass, step,
+      auto maybe_next_span = build_span<D>(rand, logp_grad_fun, inv_mass, step,
                                            depth, max_error, span_accum,
                                            adapt_handler);
       if (!maybe_next_span) {
         break;
       }
       bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
                                                   std::move(*maybe_next_span));
       if (combined_uturn) {
         break;
       }
     } else {
       constexpr Direction D = Direction::Backward;
-      auto span_next = build_span<D>(rng, logp_grad_fun, inv_mass, step, depth,
+      auto span_next = build_span<D>(rand, logp_grad_fun, inv_mass, step, depth,
                                      max_error, span_accum, adapt_handler);
       if (!span_next) {
         break;
       }
       bool combined_uturn = uturn<D>(span_accum, *span_next, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rng, std::move(span_accum),
+      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
                                                   std::move(*span_next));
       if (combined_uturn) {
         break;
@@ -304,39 +444,27 @@ Vec<S> transition_w(Random<S, Generator> &rng, const F &logp_grad_fun,
   return std::move(span_accum.theta_select_);
 }
 
+/**
+ * @brief A functor of one argument that does nothing.
+ *
+ * The use is as an adaptation handler when there is no adaptation. Because
+ * it has no body, it will be inlined away at optimization level `-O2` or
+ * above.
+ */
 class NoOpHandler {
  public:
+  /**
+   * Do nothing.
+   *
+   * @tparam T The type of the functor argument.
+   */
   template <typename T>
-  void operator()(const T&) const noexcept { }
+  inline void operator()(const T&) const noexcept { }
 };
 
-template <typename S, class F, class Generator, class H>
-void walnuts(Generator &generator, const F &logp_grad_fun,
-             const Vec<S> &inv_mass, S step, Integer max_depth, S log_max_error,
-             const Vec<S> &theta_init, Integer num_draws, H &handler) {
-  NoOpHandler adapt_handler;
-  Random<S, Generator> rng{generator};
-  Vec<S> chol_mass = inv_mass.array().sqrt().inverse().matrix();
-  Vec<S> theta = theta_init;
-  handler(0, theta);
-  for (Integer n = 1; n < num_draws; ++n) {
-    theta = transition_w(rng, logp_grad_fun, inv_mass, chol_mass, step,
-                         max_depth, std::move(theta), log_max_error, adapt_handler);
-    handler(n, theta);
-  }
-}
-
-template <typename S, class F, class Generator>
-void walnuts(Generator &generator, const F &logp_grad_fun,
-             const Vec<S> &inv_mass, S step, Integer max_depth, S max_error,
-             const Vec<S> &theta_init, Matrix<S> &sample) {
-  auto handler = [&sample](Integer n, const Vec<S> &v) { sample.col(n) = v; };
-  walnuts(generator, logp_grad_fun, inv_mass, step, max_depth, max_error,
-          theta_init, sample.cols(), handler);
-}
   
 /**
- * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler functor.
+ * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initialization, and several tuning parameters.

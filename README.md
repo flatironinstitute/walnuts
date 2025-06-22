@@ -86,6 +86,13 @@ cmake --build build --parallel 3 --target mock_test welford_test
 ctest --test-dir ./build/tests
 ```
 
+## Making documentation
+
+After running the top level cmake, from the `build` directory, run
+```bash
+make doc
+```
+
 ## CMake Tips
 
 ### View Optional Project Flags

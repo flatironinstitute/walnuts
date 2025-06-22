@@ -165,6 +165,7 @@ set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/doc")
 set(DOXYGEN_FILE_PATTERNS    "*.hpp")
 set(DOXYGEN_GENERATE_HTML    YES)
 set(DOXYGEN_GENERATE_LATEX   NO)
+set(DOXYGEN_EXTRACT_ALL YES)
 
 # `cmake --build . --target doc`
 doxygen_add_docs(

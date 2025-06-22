@@ -363,6 +363,20 @@ void walnuts(Generator &generator, const F &logp_grad_fun,
 template <class F, typename S, class RNG>
 class WalnutsSampler {
  public:
+  /**
+   * @brief Construct a WALNUTS sampler from the specified RNG, target log
+   * density/gradient initialization, and tuning parameters. 
+   *
+   * @param rand The randomizer for HMC.
+   * @param logp_grad The target log density and gradient function (see the
+   * class documentation.
+   * @param theta The initial state.
+   * @param inv_mass The diagonal of the diagonal inverse mass matrix.
+   * @param macro_step_size The initial (largest) step size.
+   * @param max_nuts_depth The maximum number of trajectory doublings for NUTS.
+   * @param log_max_error The log of the maximum error in joint densities 
+   * allowed in Hamiltonian trajectories. 
+   */
   WalnutsSampler(Random<S, RNG>& rand,
 		 F& logp_grad,
                  const Vec<S>& theta,
@@ -376,6 +390,11 @@ class WalnutsSampler {
       log_max_error_(log_max_error), no_op_adapt_handler_()
   {}
 
+  /**
+   * @brief Return the next draw from the sampler.
+   *
+   * @return The next draw.
+   */
   Vec<S> operator()() {
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
 			  macro_step_size_, max_nuts_depth_, std::move(theta_),
@@ -384,17 +403,44 @@ class WalnutsSampler {
   }
 
  private:
+  /** The underlying randomizer. */
   Random<S, RNG> rand_;
+
+  /** The target log density/gradient function. */
   F& logp_grad_;
+
+  /** The current state. */
   Vec<S> theta_;
+
+  /** The inverse mass matrix. */
   const Vec<S> inv_mass_;
+
+  /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
   const Vec<S> cholesky_mass_;
+
+  /** The initial step size. */
   const S macro_step_size_;
+
+  /** The maximum number of doublings in NUTS trajectories. */
   const Integer max_nuts_depth_;
+
+  /** The max difference in Hamiltonians along a trajectory. */
   const S log_max_error_;
+
+  /** A handler for adaptation which does nothing. */
   const NoOpHandler no_op_adapt_handler_;
 };
 
+/**
+ * @brief The deduction guide for `WalnutsSampler`.
+ *
+ * The deduced type is `WalnutsSampler<F, S, RNG>`.
+ * 
+ * @tparam F The type of the target log density/gradien function.
+ * @tparam S The type of scalars.
+ * @tparam RNG The type of the base random number generator.
+ * @relates WalnutsSampler
+ */
 template <class F, typename S, class RNG>
 WalnutsSampler(RNG&, F&, const Vec<S>&, const Vec<S>&, S, Integer, S)
   -> WalnutsSampler<F, S, RNG>;

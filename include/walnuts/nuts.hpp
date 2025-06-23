@@ -1,3 +1,6 @@
+#ifndef NUTS_NUTS_HPP
+#define NUTS_NUTS_HPP
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -167,28 +170,79 @@ Vec<S> transition(Random<S, Generator> &rng, const F &logp_grad_fun,
   return std::move(span_accum.theta_select_);
 }
 
-template <typename S, class F, class Generator, class H>
-void nuts(Generator &generator, const F &logp_grad_fun, const Vec<S> &inv_mass,
-          S step, Integer max_depth, const Vec<S> &theta_init,
-          Integer num_draws, H &handler) {
-  Random<S, Generator> rng{generator};
-  Vec<S> chol_mass = inv_mass.array().sqrt().inverse().matrix();
-  Vec<S> theta = theta_init;
-  handler(0, theta);
-  for (Integer n = 1; n < num_draws; ++n) {
-    theta = transition(rng, logp_grad_fun, inv_mass, chol_mass, step, max_depth,
-                       std::move(theta));
-    handler(n, theta);
+/**
+ * @brief The NUTS Markov chain Monte Carlo (MCMC) sampler.
+ *
+ * The sampler is constructed with a base random number generator, a log density
+ * and gradient function, an initialization, and several tuning parameters.
+ * It provides a no-argument functor for generating the next state in the 
+ * Markov chain.
+ * 
+ * The target log density and gradient function must implement the signature
+ * 
+ * ```cpp
+ * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+ *                              S& logp,
+ *                              Eigen::Matrix<S, -1, 1>& grad);
+ * ```
+ * 
+ * where `S` is the scalar type parameter of the sampler (the log
+ * density function need not be templated itself.  The argument `x`
+ * is the position argument, and `logp` is set to the log density of
+ * `x`, and `grad` set to the gradient of the log density at `x`.
+ * 
+ * @tparam F The type of the log density and gradient function.
+ * @tparam S The type of scalars.
+ * @tparam RNG The type of the base random number generator.
+ */  
+template <class F, typename S, class RNG>
+class Nuts {
+ public:
+  Nuts(Random<S, RNG>& rand,
+       F& logp_grad,
+       const Vec<S>& theta_init,
+       const Vec<S>& inv_mass,
+       S step_size,
+       Integer max_nuts_depth):
+    rand_(rand), logp_grad_(logp_grad), theta_(theta_init), inv_mass_(inv_mass),
+    cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
+    step_size_(step_size), max_nuts_depth_(max_nuts_depth)
+  {}
+    
+  /**
+   * @brief Return the next draw from the sampler.
+   *
+   * @return The next draw.
+   */
+  Vec<S> operator()() {
+    theta_ = transition(rand_, logp_grad_, inv_mass_, cholesky_mass_,
+			step_size_, max_nuts_depth_, std::move(theta_));
+    return theta_;
   }
-}
 
-template <typename S, class F, class Generator>
-void nuts(Generator &generator, const F &logp_grad_fun, const Vec<S> &inv_mass,
-          S step, Integer max_depth, const Vec<S> &theta_init,
-          Matrix<S> &sample) {
-  auto handler = [&sample](Integer n, const Vec<S> &v) { sample.col(n) = v; };
-  nuts(generator, logp_grad_fun, inv_mass, step, max_depth, theta_init,
-       sample.cols(), handler);
-}
+ private:
+  /** The underlying randomizer. */
+  Random<S, RNG> rand_;
+
+  /** The target log density/gradient function. */
+  F& logp_grad_;
+
+  /** The current state. */
+  Vec<S> theta_;
+
+  /** The diagonal of the diagonal inverse mass matrix. */
+  const Vec<S> inv_mass_;
+
+  /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
+  const Vec<S> cholesky_mass_;
+
+  /** The initial step size. */
+  const S step_size_;
+
+  /** The maximum number of doublings in NUTS trajectories. */
+  const Integer max_nuts_depth_;
+};  
 
 }  // namespace nuts
+
+#endif // NUTS_NUTS_HPP

@@ -70,29 +70,29 @@ class SpanW {
         theta_select_(std::move(theta_select)),
         logp_(logp) {}
 
-  /** The first state in the trajectory (temporally ordered). */
+  /** The earliest state. */
   Vec<S> theta_bk_;
 
-  /** The first momentum in the trajectory (temporally ordered). */
+  /** The earliest momentum. */
   Vec<S> rho_bk_;
 
-  /** The first log density gradient in the trajectory (temporally ordered). */
+  /** The gradient of the target log density at the earliest state . */
   Vec<S> grad_theta_bk_;
 
-  /** The first log density in the trajectory (temporally ordered). */
+  /** The joint log density of the earliest position and momentum. */
   S logp_bk_;
 
-  /** The last state in the trajectory (temporally ordered). */
+  /** The latest state in the trajectory. */
   Vec<S> theta_fw_;
 
-  /** The last momentum in the trajectory (temporally ordered). */
+
+  /** The latest momentum in the trajectory. */
   Vec<S> rho_fw_;
 
-  /** The last log density gradient of position in the trajectory (temporally
-      ordered). */ 
+  /** The gradient of the target log density at the latest position. */
   Vec<S> grad_theta_fw_;
 
-  /** The last joint log density in the trajectory (temporally odered). */
+  /** The joint log density o the latest position and momentum. */
   S logp_fw_;
   
   /** The selected state. */

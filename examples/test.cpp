@@ -55,24 +55,24 @@ static void summarize(const MatrixS& draws) {
 }
 
 
-template <typename G>
-static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Integer N,
+template <typename RNG>
+static void test_nuts(const VectorS& theta_init, RNG& rng, Integer D, Integer N,
 		      S step_size, Integer max_depth, const VectorS& inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
   total_time = 0.0;
   count = 0;
-  MatrixS draws(D, N);
-  std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
-            << std::endl;
 
   auto global_start = std::chrono::high_resolution_clock::now();
-  nuts::nuts(generator, normal_logp_grad, inv_mass, step_size,
-	     max_depth, theta_init, draws);
+  nuts::Random<double, RNG> rand(rng);
+  nuts::Nuts sample(rand, normal_logp_grad, theta_init, inv_mass, step_size, max_depth);
+  MatrixS draws(D, N);
+  for (Integer n = 0; n < N; ++n) {
+    draws.col(n) = sample();
+  }
+
   auto global_end = std::chrono::high_resolution_clock::now();
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
-
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
   std::cout << "logp_grad time: " << total_time << "s" << std::endl;
   std::cout << "logp_grad fraction: " << total_time / global_total_time
@@ -81,6 +81,7 @@ static void test_nuts(const VectorS& theta_init, G& generator, Integer D, Intege
   std::cout << "        time per call: " << total_time / count << "s"
             << std::endl;
   std::cout << std::endl;
+
   summarize(draws);
 }
 
@@ -89,7 +90,7 @@ template <typename RNG>
 static void test_walnuts(VectorS theta_init, RNG& rng, Integer D, Integer N,
 			 S macro_step_size, Integer max_nuts_depth, S log_max_error,
 			 VectorS inv_mass) {
-  std::cout << "\nTEST WALNUTS ITERATOR" << std::endl;
+  std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
 			      inv_mass, macro_step_size, max_nuts_depth,
@@ -150,6 +151,15 @@ int main() {
   Integer max_depth = 10;
   S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
+
+  std::cout << "SHARED CONSTANTS:" << std::endl;
+  std::cout << "D = " << D
+	    << ";  N = " << N
+	    << ";  step_size = " << step_size
+            << ";  max_depth = " << max_depth
+	    << ";  log_max_error = " << log_max_error
+            << std::endl;
+
 
   std::mt19937 rng(seed);
   std::normal_distribution<S> std_normal(0.0, 1.0);

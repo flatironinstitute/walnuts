@@ -14,9 +14,6 @@ using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
 using Integer = long;
 
-static double total_time = 0.0;
-static Integer count = 0;
-
 static void summarize(const MatrixS &draws) {
   Integer N = draws.cols();
   Integer D = draws.rows();
@@ -40,8 +37,8 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
                       RNG &rng, Integer D, Integer N, S step_size,
                       Integer max_depth, const VectorS &inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
-  total_time = 0.0;
-  count = 0;
+  model.total_time_ = 0.0;
+  model.count_ = 0;
 
   auto global_start = std::chrono::high_resolution_clock::now();
   nuts::Random<double, RNG> rand(rng);
@@ -58,12 +55,12 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << total_time << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << total_time / global_total_time
+  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
             << std::endl;
-  std::cout << "        logp_grad calls: " << count << std::endl;
-  std::cout << "        time per call: " << total_time / count << "s"
-            << std::endl;
+  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
+  std::cout << "        time per call: " << model.total_time_ / model.count_
+            << "s" << std::endl;
   std::cout << std::endl;
 
   summarize(draws);

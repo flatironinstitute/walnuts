@@ -186,19 +186,6 @@ struct WalnutsConfig {
 };
 
 /**
- * @brief Deducuction guide for WALNUTS configurations.
- *
- * The deduced type is `WalnutsConfig<S>`.
- *
- * @tparam S The type of scalars.
- */
-template <typename S>
-  WalnutsConfig(S log_max_error,
-                Integer max_nuts_depth,
-                Integer max_step_depth)
-  -> WalnutsConfig<S>;
-
-/**
  * @brief The step-size adaptation handler for WALNUTS.
  * 
  * WALNUTS works through callbacks to an adaptation handler, impelemented
@@ -401,20 +388,6 @@ class AdaptiveWalnuts {
       scores of draws. */
   DiscountedOnlineMoments<S> mass_adapt_prec_;
 };
-
-/**
- * @brief The template deduction guide for adaptive WALNUTS.
- *
- * The deduced type is `AdaptiveWalnuts<F, S, RNG>`.
- *
- * @tparam F The type of the log density/gradient function.
- * @tparam S The type of scalars.
- * @tparam RNG The type of the base random number generator.
- */
-template <class F, typename S, class RNG>
-AdaptiveWalnuts(RNG&, F&, const Vec<S>&, MassAdaptConfig<S>&&,
-		StepAdaptConfig<S>&&, WalnutsConfig<S>&&)
-  -> AdaptiveWalnuts<F, S, RNG>;
 
 } // namespace nuts
 

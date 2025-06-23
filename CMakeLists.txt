@@ -28,7 +28,7 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Enable -Weverything and other Clang-only warnings
   add_compile_options(-Wall -Weverything -Wno-c++98-compat -Wno-padded
-  -Wno-poison-system-directories)
+  -Wno-poison-system-directories -Wno-ctad-maybe-unsupported)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)

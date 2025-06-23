@@ -540,7 +540,7 @@ class WalnutsSampler {
   /** The current state. */
   Vec<S> theta_;
 
-  /** The inverse mass matrix. */
+  /** The diagonal of the diagonal inverse mass matrix. */
   const Vec<S> inv_mass_;
 
   /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
@@ -558,20 +558,6 @@ class WalnutsSampler {
   /** A handler for adaptation which does nothing. */
   const NoOpHandler no_op_adapt_handler_;
 };
-
-/**
- * @brief The deduction guide for `WalnutsSampler`.
- *
- * The deduced type is `WalnutsSampler<F, S, RNG>`.
- * 
- * @tparam F The type of the target log density/gradien function.
- * @tparam S The type of scalars.
- * @tparam RNG The type of the base random number generator.
- * @relates WalnutsSampler
- */
-template <class F, typename S, class RNG>
-WalnutsSampler(RNG&, F&, const Vec<S>&, const Vec<S>&, S, Integer, S)
-  -> WalnutsSampler<F, S, RNG>;
 
 }  // namespace nuts
 #endif

@@ -3,6 +3,7 @@
 
 #include <utility>
 
+#include "walnuts.hpp"
 #include "dual_average.hpp"
 #include "util.hpp"
 #include "welford.hpp"

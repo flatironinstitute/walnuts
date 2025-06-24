@@ -161,7 +161,6 @@ file(GLOB_RECURSE WALNUT_HEADERS
      "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
 
 # Doxygen configuration overrides
-set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/doc")
 set(DOXYGEN_FILE_PATTERNS    "*.hpp")
 set(DOXYGEN_GENERATE_HTML    YES)
 set(DOXYGEN_GENERATE_LATEX   NO)

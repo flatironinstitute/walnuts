@@ -28,6 +28,7 @@ endif()
 ##########################
 ## Cmake Options        ##
 ##########################
+option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
@@ -63,6 +64,21 @@ target_include_directories(Eigen3::Eigen INTERFACE
 )
 
 include(FetchContent)
+
+set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Version of mimalloc to use")
+if(WALNUTS_USE_MIMALLOC)
+    option(MI_BUILD_TESTS OFF)
+    option(MI_BUILD_SHARED OFF)
+    option(MI_PADDING OFF)
+    option(MI_DEBUG_FULL OFF)
+    FetchContent_Declare(
+            mimalloc
+            GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+            GIT_TAG ${WALNUTS_MIMALLOC_TAG}
+    )
+    FetchContent_MakeAvailable(mimalloc)
+endif()
+
 set(WALNUTS_BRIDGESTAN_TAG "1d4ff6a10d572ee22ed26b0274059bb4fe885187" CACHE STRING "Version of BridgeStan to use")
 if(WALNUTS_BUILD_STAN)
     FetchContent_Declare(
@@ -92,6 +108,13 @@ target_include_directories(walnuts INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
   $<INSTALL_INTERFACE:include>                            # for installs
 )
+
+target_link_libraries(walnuts INTERFACE Eigen3::Eigen)
+
+if (WALNUTS_USE_MIMALLOC)
+    target_link_libraries(walnuts INTERFACE mimalloc-static)
+endif()
+
 # 2) Create the “namespace” alias
 add_library(nuts::nuts ALIAS walnuts)
 
@@ -100,7 +123,7 @@ add_library(nuts::nuts ALIAS walnuts)
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
-  target_link_libraries(test_nuts PRIVATE Eigen3::Eigen nuts::nuts)
+  target_link_libraries(test_nuts PRIVATE nuts::nuts)
   target_compile_options(test_nuts PRIVATE -O3 -Wall)
 endif()
 

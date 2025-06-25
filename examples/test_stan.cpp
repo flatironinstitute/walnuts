@@ -90,13 +90,17 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
                                   Integer D, Integer N, Integer max_nuts_depth,
                                   S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
+  model.total_time_ = 0.0;
+  model.count_ = 0;
+  auto global_start = std::chrono::high_resolution_clock::now();
+
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 20.0;
   double mass_iteration_offset = 20.0;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
 
   double step_size_init = 1.0;
-  double accept_rate_target = 0.8;
+  double accept_rate_target = 0.70;
   double step_iteration_offset = 4.0;
   double learning_rate = 0.95;
   double decay_rate = 0.05;
@@ -116,17 +120,53 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
     walnuts();
   }
 
+  auto global_end = std::chrono::high_resolution_clock::now();
+  auto global_total_time =
+      std::chrono::duration<double>(global_end - global_start).count();
+  std::cout << "    total time: " << global_total_time << "s" << std::endl;
+  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
+            << std::endl;
+  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
+  std::cout << "        time per call: " << model.total_time_ / model.count_
+            << "s" << std::endl;
+  std::cout << std::endl;
+
   // N post-warmup draws
-  auto sample = walnuts.sampler();  // freeze tuning
+  auto sampler = walnuts.sampler();  // freeze tuning
+  std::cout << "Adaptation completed." << std::endl;
+  std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
+  std::cout << "Max error = " << sampler.max_error() << std::endl;
+  std::cout << "Inverse mass matrix = "
+            << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl
+            << std::endl;
+
+  model.total_time_ = 0.0;
+  model.count_ = 0;
+  global_start = std::chrono::high_resolution_clock::now();
+
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
-    model.constrain_draw(sample(), draws.col(n));
+    model.constrain_draw(sampler(), draws.col(n));
   }
+
+  global_end = std::chrono::high_resolution_clock::now();
+  global_total_time =
+      std::chrono::duration<double>(global_end - global_start).count();
+  std::cout << "    total time: " << global_total_time << "s" << std::endl;
+  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
+            << std::endl;
+  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
+  std::cout << "        time per call: " << model.total_time_ / model.count_
+            << "s" << std::endl;
+  std::cout << std::endl;
+
   summarize(draws);
 }
 
 int main(int argc, char **argv) {
-  unsigned int seed = 428763;
+  unsigned int seed = 4287631;
   Integer N = 2000;
   S step_size = 0.5;
   Integer max_depth = 10;

@@ -5,7 +5,7 @@
 #include "walnuts.hpp"
 #include "dual_average.hpp"
 #include "util.hpp"
-#include "welford.hpp"
+#include "online_moments.hpp"
 
 namespace nuts {
 
@@ -329,11 +329,11 @@ class AdaptiveWalnuts {
                           walnuts_cfg_.max_nuts_depth_,
                           std::move(theta_), grad_select, walnuts_cfg_.log_max_error_,
                           step_adapt_handler_);
-    double alpha = 1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_);
-    mass_adapt_var_.set_alpha(alpha);
-    mass_adapt_var_.update(theta_);
-    mass_adapt_prec_.set_alpha(alpha);
-    mass_adapt_prec_.update(grad_select); 
+    double discount_factor = 1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_);
+    mass_adapt_var_.set_discount_factor(discount_factor);
+    mass_adapt_var_.observe(theta_);
+    mass_adapt_prec_.set_discount_factor(discount_factor);
+    mass_adapt_prec_.observe(grad_select); 
     ++iteration_;
     return theta_;
   }
@@ -383,11 +383,11 @@ class AdaptiveWalnuts {
   StepAdaptHandler<S> step_adapt_handler_;
 
   /** The estimator for inverse mass matrices based on variance of draws. */
-  DiscountedOnlineMoments<S> mass_adapt_var_;
+  OnlineMoments<S> mass_adapt_var_;
 
   /** The estimator for mass matrices based on the variance of the
       scores of draws. */
-  DiscountedOnlineMoments<S> mass_adapt_prec_;
+  OnlineMoments<S> mass_adapt_prec_;
 };
 
 } // namespace nuts

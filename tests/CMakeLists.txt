@@ -28,6 +28,6 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
 endfunction()
 
 add_nuts_test(mock_test mock_test.cpp)
-add_nuts_test(welford_test welford_test.cpp)
+add_nuts_test(online_moments_test online_moments_test.cpp)
 add_nuts_test(dual_average_test dual_average_test.cpp)
 

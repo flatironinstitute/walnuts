@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
 
-#include <walnuts/welford.hpp>
+#include <walnuts/online_moments.hpp>
 
 Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
                                 double alpha) {
@@ -42,7 +42,7 @@ Eigen::VectorXd discounted_variance(const std::vector<Eigen::VectorXd>& ys,
 TEST(Welford, test_zero_observations) {
   double alpha = 0.95;
   int dim = 2;
-  nuts::DiscountedOnlineMoments<double> acc(alpha, dim);
+  nuts::OnlineMoments<double> acc(alpha, dim);
 
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();
@@ -57,11 +57,11 @@ TEST(Welford, test_zero_observations) {
 TEST(Welford, test_one_observation) {
   double alpha = 0.95;
   int dim = 2;
-  nuts::DiscountedOnlineMoments<double> acc(alpha, dim);
+  nuts::OnlineMoments<double> acc(alpha, dim);
 
   Eigen::VectorXd y(2);
   y << 0.2, -1.3;
-  acc.update(y);
+  acc.observe(y);
 
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();
@@ -100,10 +100,10 @@ TEST(Welford, test_no_discounting) {
   Eigen::VectorXd variance_expected = sum_sq_diffs / N;
 
   double alpha = 1.0;
-  nuts::DiscountedOnlineMoments<double> acc(alpha, D);
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   for (int n = 0; n < N; ++n) {
-    acc.update(ys[n]);
+    acc.observe(ys[n]);
   }
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();
@@ -125,10 +125,10 @@ TEST(Welford, test_ten_observations) {
   }
 
   double alpha = 0.95;
-  nuts::DiscountedOnlineMoments<double> acc(alpha, D);
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   for (int n = 0; n < N; ++n) {
-    acc.update(ys[n]);
+    acc.observe(ys[n]);
   }
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();

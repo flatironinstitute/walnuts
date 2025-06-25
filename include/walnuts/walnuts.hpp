@@ -530,6 +530,33 @@ class WalnutsSampler {
     return theta_;
   }
 
+  /**
+   * @brief  Return the diagonal of the diagonal inverse mass matrix.
+   *
+   * @return The diagonal of the inverse mass matrix.
+   */
+  Vec<S> inverse_mass_matrix_diagonal() const {
+    return inv_mass_;
+  }
+
+  /**
+   * @brief Return the macro (largest) step size.
+   *
+   * @return The largest step size.
+   */
+  S macro_step_size() const {
+    return macro_step_size_;
+  }
+
+  /**
+   * @brief Return the maximum error allowed among Hamiltonians.
+   *
+   * @return The maximum error allowed among Hamiltonians.
+   */
+  S max_error() const {
+    return log_max_error_;
+  }
+  
  private:
   /** The underlying randomizer. */
   Random<S, RNG> rand_;

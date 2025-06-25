@@ -133,12 +133,18 @@ static void test_adaptive_walnuts(const VectorS& theta_init, RNG& rng, Integer D
   }
 
   // N post-warmup draws
-  auto sample = walnuts.sampler();  // freeze tuning
+  auto sampler = walnuts.sampler();  // freeze tuning
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
-    draws.col(n) = sample();
+    draws.col(n) = sampler();
   }
   summarize(draws);
+
+  std::cout << std::endl;
+  std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
+  std::cout << "Max error = " << sampler.max_error() << std::endl;
+  std::cout << "Inverse mass matrix = "
+	    << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
 }
 
 

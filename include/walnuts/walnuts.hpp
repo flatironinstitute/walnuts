@@ -44,9 +44,10 @@ class SpanW {
         logp_bk_(logp),
         theta_fw_(theta),
         rho_fw_(std::move(rho)),
-        grad_theta_fw_(std::move(grad_theta)),
+        grad_theta_fw_(grad_theta),
         logp_fw_(logp),
         theta_select_(std::move(theta)),
+	grad_select_(std::move(grad_theta)),
         logp_(logp) {}
 
   /**
@@ -58,7 +59,8 @@ class SpanW {
    * @param theta_select The selected state.
    * @param logp The log of the sum of the densities on the trajectory.
    */
-  SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select, S logp)
+  SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select,
+	Vec<S>&& grad_select, S logp)
       : theta_bk_(std::move(span1.theta_bk_)),
         rho_bk_(std::move(span1.rho_bk_)),
         grad_theta_bk_(std::move(span1.grad_theta_bk_)),
@@ -68,6 +70,7 @@ class SpanW {
         grad_theta_fw_(std::move(span2.grad_theta_fw_)),
         logp_fw_(span2.logp_fw_),
         theta_select_(std::move(theta_select)),
+	grad_select_(std::move(grad_select)),
         logp_(logp) {}
 
   /** The earliest state. */
@@ -92,11 +95,14 @@ class SpanW {
   /** The gradient of the target log density at the latest position. */
   Vec<S> grad_theta_fw_;
 
-  /** The joint log density o the latest position and momentum. */
+  /** The joint log density of the latest position and momentum. */
   S logp_fw_;
   
   /** The selected state. */
   Vec<S> theta_select_;
+
+  /** The gradient of the log density at the selected state. */
+  Vec<S> grad_select_;
 
   /** The log of the sum of the joint densities in the trajectory. */
   S logp_;
@@ -282,9 +288,10 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
+  auto &grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
   auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return SpanW<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
-                  logp_total);
+                  std::move(grad_selected), logp_total);
 }
 
 /**
@@ -402,7 +409,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng,
 template <typename S, class F, class RNG, class A>
 Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
                     const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                    Integer max_depth, Vec<S> &&theta, S max_error,
+                    Integer max_depth, Vec<S> &&theta, Vec<S>& theta_grad, S max_error,
                     A& adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
@@ -441,6 +448,7 @@ Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
       }
     }
   }
+  theta_grad = span_accum.grad_select_;
   return std::move(span_accum.theta_select_);
 }
 
@@ -524,9 +532,10 @@ class WalnutsSampler {
    * @return The next draw.
    */
   Vec<S> operator()() {
+    Vec<S> grad_next;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
 			  macro_step_size_, max_nuts_depth_, std::move(theta_),
-                          log_max_error_, no_op_adapt_handler_);
+			  grad_next, log_max_error_, no_op_adapt_handler_);
     return theta_;
   }
 

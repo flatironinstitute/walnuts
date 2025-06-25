@@ -298,12 +298,12 @@ class AdaptiveWalnuts {
     mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
 		    std::move(Vec<S>::Zero(theta_init.size()).eval()),
 		    std::move(grad(logp_grad, theta_init).array().abs()
-			      .sqrt().inverse().matrix())),
+			      .sqrt().inverse().matrix())),  // sqrt regularizes
     mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
 		     std::move(Vec<S>::Zero(theta_init.size()).eval()),
-		     std::move(grad(logp_grad, theta_init).array().abs()
-			       .sqrt().matrix())) // TODO: reuse abs grad
+		     mass_adapt_var_.variance().array().inverse().matrix())
   {}
+
 
   /**
    * @brief Return the next state from warmup.  
@@ -324,16 +324,17 @@ class AdaptiveWalnuts {
       .sqrt().matrix();
     Vec<S> mass = inv_mass.array().inverse().matrix();
     Vec<S> chol_mass = mass.array().sqrt().matrix();
+    Vec<S> grad_select;
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,
         		  step_adapt_handler_.step_size(),
                           walnuts_cfg_.max_nuts_depth_,
-                          std::move(theta_), walnuts_cfg_.log_max_error_,
+                          std::move(theta_), grad_select, walnuts_cfg_.log_max_error_,
                           step_adapt_handler_);
     double alpha = 1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_);
     mass_adapt_var_.set_alpha(alpha);
     mass_adapt_var_.update(theta_);
     mass_adapt_prec_.set_alpha(alpha);
-    mass_adapt_prec_.update(grad(logp_grad_, theta_));  // TODO: cache gradient
+    mass_adapt_prec_.update(grad_select); 
     ++iteration_;
     return theta_;
   }

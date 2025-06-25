@@ -1,5 +1,4 @@
-#ifndef NUTS_NUTS_HPP
-#define NUTS_NUTS_HPP
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -375,5 +374,3 @@ class Nuts {
 };  
 
 }  // namespace nuts
-
-#endif // NUTS_NUTS_HPP

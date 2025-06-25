@@ -1,5 +1,4 @@
-#ifndef NUTS_UTIL_HPP
-#define NUTS_UTIL_HPP
+#pragma once
 
 #include <Eigen/Dense>
 #include <random>
@@ -212,5 +211,3 @@ inline bool uturn(const U &span_1, const U &span_2, const Vec<S> &inv_mass) {
 }
 
 }  // namespace nuts
-
-#endif

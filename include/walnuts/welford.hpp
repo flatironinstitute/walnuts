@@ -1,5 +1,4 @@
-#ifndef NUTS_WELFORD_HPP
-#define NUTS_WELFORD_HPP
+#pragma once
 
 #include <Eigen/Dense>
 
@@ -118,18 +117,26 @@ class DiscountedOnlineMoments {
     return Vec::Zero(mu_.size());
   }
 
+  /**
+   * @brief Set the discount factor for previous observations to the specified
+   * value.
+   */
   void set_alpha(S alpha) {
-    // unchecked requirement: alpha in (0, 1]
     alpha_ = alpha;
   }
 
  private:
+  /** The discount factor applied to all previous observations. */
   S alpha_;
+
+  /** The combined weight in sample size of all previous observations. */
   S weight_;
+
+  /** The current mean estimate */
   Vec mu_;
+
+  /** The current variance estimate scaled by the weight. */
   Vec s_;
 };
 
 }  // namespace nuts
-
-#endif  // NUTS_WELFORD_HPP

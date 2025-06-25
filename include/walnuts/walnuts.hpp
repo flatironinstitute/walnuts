@@ -1,5 +1,4 @@
-#ifndef NUTS_WALNUTS_HPP
-#define NUTS_WALNUTS_HPP
+#pragma once
 
 #include <cmath>
 #include <optional>
@@ -596,4 +595,4 @@ class WalnutsSampler {
 };
 
 }  // namespace nuts
-#endif
+

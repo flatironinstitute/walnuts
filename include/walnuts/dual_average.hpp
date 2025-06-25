@@ -1,5 +1,4 @@
-#ifndef NUTS_DUAL_AVERAGE_HPP
-#define NUTS_DUAL_AVERAGE_HPP
+#pragma once
 
 #include <cmath>
 
@@ -97,5 +96,3 @@ private:
 };
 
 }  // namespace nuts
-
-#endif // NUTS_DUAL_AVERAGE_HPP

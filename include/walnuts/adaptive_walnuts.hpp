@@ -1,5 +1,4 @@
-#ifndef NUTS_ADAPTIVE_WALNUTS_HPP
-#define NUTS_ADAPTIVE_WALNUTS_HPP
+#pragma once
 
 #include <utility>
 
@@ -392,5 +391,3 @@ class AdaptiveWalnuts {
 };
 
 } // namespace nuts
-
-#endif // NUTS_ADAPTIVE_WALNUTS_HPP

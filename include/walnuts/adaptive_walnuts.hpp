@@ -211,7 +211,7 @@ class StepAdaptHandler {
    * @param accept_prob The observed acceptance probability.
    */
   void operator()(S accept_prob) {
-    dual_average_.update(accept_prob);
+    dual_average_.observe(accept_prob);
   }
 
   /**
@@ -294,12 +294,12 @@ class AdaptiveWalnuts {
     step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
 			step_cfg.iteration_offset_, step_cfg.learning_rate_,
 			step_cfg.decay_rate_),
-    mass_adapt_var_(1.0, mass_cfg.iteration_offset_,
-		    std::move(Vec<S>::Zero(theta_init.size()).eval()),
+    mass_adapt_var_(0.98, mass_cfg.iteration_offset_,
+		    std::move(Vec<S>::Zero(theta_init.size()).eval()), // TODO: jitter?
 		    std::move(grad(logp_grad, theta_init).array().abs()
-			      .sqrt().inverse().matrix())),  // sqrt regularizes
-    mass_adapt_prec_(1.0, mass_cfg.iteration_offset_,
-		     std::move(Vec<S>::Zero(theta_init.size()).eval()),
+			      .sqrt().inverse().matrix())),
+    mass_adapt_prec_(0.98, mass_cfg.iteration_offset_,
+		     std::move(Vec<S>::Zero(theta_init.size()).eval()), // TODO: jitter?
 		     mass_adapt_var_.variance().array().inverse().matrix())
   {}
 

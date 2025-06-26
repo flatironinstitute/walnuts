@@ -26,8 +26,14 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Enable -Weverything and other Clang-only warnings
-  add_compile_options(-Wall -Weverything -Wno-c++98-compat -Wno-padded
-  -Wno-poison-system-directories -Wno-ctad-maybe-unsupported)
+  # After no-c++98 warnings, rest are to suppress gtest warnings
+  add_compile_options(-Wall -Weverything -Wno-padded
+  -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
+  -Wno-c++98-compat-pedantic -Wno-c++98-compat 
+  -Wno-global-constructors -Wno-exit-time-destructors
+  -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
+  -Wno-zero-as-null-pointer-constant -Wno-switch-default
+  -Wno-missing-variable-declarations)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)

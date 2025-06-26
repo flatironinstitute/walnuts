@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstddef>
 #include <cmath>
 #include <iostream>
 #include <random>
@@ -9,13 +10,13 @@
 
 #include <walnuts/online_moments.hpp>
 
-Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
+static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
                                 double alpha) {
-  int N = ys.size();
-  int D = ys[0].size();
+  std::size_t N = ys.size();
+  long D = ys[0].size();
   double weight_sum = 0;
   Eigen::VectorXd weighted_value_sum = Eigen::VectorXd::Zero(D);
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     double weight = std::pow(alpha, N - n - 1);
     weight_sum += weight;
     weighted_value_sum += weight * ys[n];
@@ -23,14 +24,14 @@ Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
   return weighted_value_sum / weight_sum;
 }
 
-Eigen::VectorXd discounted_variance(const std::vector<Eigen::VectorXd>& ys,
+static Eigen::VectorXd discounted_variance(const std::vector<Eigen::VectorXd>& ys,
                                     double alpha) {
   Eigen::VectorXd mu = discounted_mean(ys, alpha);
-  int N = ys.size();
-  int D = ys[0].size();
+  std::size_t N = ys.size();
+  long D = ys[0].size();
   double weight_sum = 0;
   Eigen::VectorXd weighted_sq_diff_sum = Eigen::VectorXd::Zero(D);
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     double weight = std::pow(alpha, N - n - 1);
     weight_sum += weight;
     auto diff = (ys[n] - mu).array();
@@ -41,8 +42,8 @@ Eigen::VectorXd discounted_variance(const std::vector<Eigen::VectorXd>& ys,
 
 TEST(Welford, test_zero_observations) {
   double alpha = 0.95;
-  int dim = 2;
-  nuts::OnlineMoments<double> acc(alpha, dim);
+  long D = 2;
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();
@@ -56,8 +57,8 @@ TEST(Welford, test_zero_observations) {
 
 TEST(Welford, test_one_observation) {
   double alpha = 0.95;
-  int dim = 2;
-  nuts::OnlineMoments<double> acc(alpha, dim);
+  long D = 2;
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   Eigen::VectorXd y(2);
   y << 0.2, -1.3;
@@ -75,13 +76,13 @@ TEST(Welford, test_one_observation) {
 }
 
 TEST(Welford, test_no_discounting) {
-  int D = 2;
-  int N = 100;
+  long D = 2;
+  std::size_t N = 100;
   std::vector<Eigen::VectorXd> ys(N);
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     ys[n] = Eigen::VectorXd::Zero(D);
   }
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     double x = static_cast<double>(n);
     ys[n] << x, std::sqrt(x);
   }
@@ -102,7 +103,7 @@ TEST(Welford, test_no_discounting) {
   double alpha = 1.0;
   nuts::OnlineMoments<double> acc(alpha, D);
 
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     acc.observe(ys[n]);
   }
   Eigen::VectorXd m = acc.mean();
@@ -113,13 +114,13 @@ TEST(Welford, test_no_discounting) {
 }
 
 TEST(Welford, test_ten_observations) {
-  int D = 3;
-  int N = 10;
+  long D = 3;
+  std::size_t N = 10;
   std::vector<Eigen::VectorXd> ys(N);
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     ys[n] = Eigen::VectorXd::Zero(D);
   }
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     double x = static_cast<double>(n);
     ys[n] << x, x * x, std::exp(x);
   }
@@ -127,7 +128,7 @@ TEST(Welford, test_ten_observations) {
   double alpha = 0.95;
   nuts::OnlineMoments<double> acc(alpha, D);
 
-  for (int n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     acc.observe(ys[n]);
   }
   Eigen::VectorXd m = acc.mean();

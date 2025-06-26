@@ -47,6 +47,7 @@ namespace nuts {
  */
 template <typename S>
 class OnlineMoments {
+  using Integer = long;
  public:
   /**
    * The type of vectors with scalar type `S`.
@@ -66,7 +67,7 @@ class OnlineMoments {
    * @throw std::invalid_argument If `dim` is negative.
    */
   OnlineMoments(S discount_factor,
-		int dim)
+		Integer dim)
       : discount_factor_(discount_factor),
         weight_(0),
         mean_(VecS::Zero(dim)),
@@ -157,6 +158,12 @@ class OnlineMoments {
   /**
    * @brief Set the discount factor for previous observations to the specified
    * value.
+   *
+   * **WARNING**:  There are no checks on this method that `discount_factor
+   * in [0, 1]`.
+   * 
+   * @param discount_factor The past discount factor (between 0 and 1,
+   * inclusive).  
    */
   inline void set_discount_factor(S discount_factor) noexcept {
     discount_factor_ = discount_factor;

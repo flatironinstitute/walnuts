@@ -9,12 +9,12 @@
 
 #include <walnuts/dual_average.hpp>
 
-double std_normal_lpdf(double x) {
+static double std_normal_lpdf(double x) {
   return -0.5 * x * x;
 }
 
 template <class G>
-double sim_metropolis_accept(G& rng, double epsilon) {
+static double sim_metropolis_accept(G& rng, double epsilon) {
   // draw previous state from std normal target
   std::normal_distribution<double> init_dist(0, 1);
   double x0 = init_dist(rng);
@@ -45,7 +45,7 @@ TEST(DualAverage, Metropolis1D) {
   for (int n = 0; n < N; ++n) {
     double epsilon_hat = da.epsilon();
     double alpha = sim_metropolis_accept(rng, epsilon_hat);
-    da.update(alpha);
+    da.observe(alpha);
     total += alpha;
     count += 1.0;
   }

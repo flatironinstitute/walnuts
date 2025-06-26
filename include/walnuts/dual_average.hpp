@@ -1,10 +1,7 @@
 #pragma once
 
 #include <cmath>
-
-// REFERENCE: Hoffman, M.D. and Gelman, A., 2014. The No-U-Turn
-// sampler: adaptively setting path lengths in Hamiltonian Monte
-// Carlo. J. Mach. Learn. Res., 15(1), pp.1593-1623.
+#include <stdexcept>
 
 namespace nuts {
 
@@ -14,9 +11,9 @@ namespace nuts {
  *
  * The algorithm is defined in the following reference.
  *
- * \see Hoffman, M.D. and Gelman, A. 2014. The No-U-Turn
- * sampler: adaptively setting path lengths in Hamiltonian Monte
- * Carlo. J. Mach. Learn. Res., 15(1), pp.1593-1623.
+ * \see Hoffman, M.D. and Gelman, A. 2014. The No-U-Turn sampler:
+ * Adaptively setting path lengths in Hamiltonian Monte
+ * Carlo. *Journal of Machine Learning Research*, 15(1), pp.1593-1623.
  *
  * @tparam S Type of scalars.
  */
@@ -24,12 +21,12 @@ template <typename S>
 class DualAverage {
 public:
   /**
-   * Construct a dual averaging estimator with the specified initial
+   * @brief Construct a dual averaging estimator with the specified initial
    * value, target value, and tuning parameters.
    *
-   * Larger values of `t0` delay fast adaptation and damp early
-   * instability.  Smaller values of `gamma` lead to slower, but more
-   * stable adaptation.  Higher values of `kappa` slow the freezing of
+   * Larger values of `obs_count_offset` delay fast adaptation and damp early
+   * instability.  Smaller values of `learn_rate` lead to slower, but more
+   * stable adaptation.  Higher values of `decay_rate` slow the freezing of
    * updates and provide more smoothing.
    *
    * The algorithm converges at a logarithmic rate.  It should be
@@ -37,62 +34,95 @@ public:
    * the step size estimates themselves tend to be higher variance.
    *
    * @param epsilon_init Initial value (> 0).
-   * @param delta Target acceptance rate (> 0).
-   * @param t0 Iteration offset (> 0, default 10).
-   * @param gamma Learning rate (> 0, default 0.05).
-   * @param kappa Decay for averaging (> 0, default 0.75).
+   * @param target_accept_rate Target acceptance rate (> 0).
+   * @param obs_count_offset Iteration offset (> 0, default 10).
+   * @param learn_rate Learning rate (> 0, default 0.05).
+   * @param decay_rate Decay for averaging (> 0, default 0.75).
+   * @throw std::except If initial epsilon is not finite and positive.
+   * @throw std::except If target acceptance rate is not finite and positive.
+   * @throw std::except If iteration offset is not finite and positive.
+   * @throw std::except If learning rate is not finite and positive.
    */
-  DualAverage(S epsilon_init, S delta, S t0 = 10, S gamma = 0.05,
-              S kappa = 0.75):
-      log_epsilon_(std::log(epsilon_init)),
-      log_epsilon_bar_(0),
-      h_bar_(0),
-      mu_(std::log(10) + std::log(epsilon_init)),
-      m_(1),
-      delta_(delta),
-      t0_(t0),
-      gamma_(gamma),
-      neg_kappa_(-kappa) {
+  DualAverage(S epsilon_init, S target_accept_rate, S obs_count_offset = 10, S learn_rate = 0.05,
+              S decay_rate = 0.75):
+      log_est_(std::log(epsilon_init)),
+      log_est_avg_(0),
+      grad_avg_(0),
+      obs_count_(1),
+      log_step_offset_(std::log(10) + std::log(epsilon_init)),
+      target_accept_rate_(target_accept_rate),
+      obs_count_offset_(obs_count_offset),
+      learn_rate_(learn_rate),
+      decay_rate_(decay_rate) {
+    if (!(epsilon_init > 0 && std::isfinite(epsilon_init))) {
+      throw std::invalid_argument("Initial epsilon must be positive and finite.");
+    }
+    if (!(target_accept_rate > 0 && std::isfinite(target_accept_rate))) {
+      throw std::invalid_argument("Target acceptance rate must be positive and finite.");
+    }
+    if (!(obs_count_offset > 0 && std::isfinite(obs_count_offset))) {
+      throw std::invalid_argument("Iteration offset must be positive and finite.");
+    }
+    if (!(learn_rate > 0 && std::isfinite(learn_rate))) {
+      throw std::invalid_argument("Learning rate must be positive and finite.");
+    }
+    if (!(decay_rate > 0 && std::isfinite(decay_rate))) {
+      throw std::invalid_argument("Decay rate must be positive and finite.");
+    }
   }
 
   /**
-   * Update the state for the observed value.
+   * @brief Update the state for the observed value.
    *
    * @param alpha Observed value (> 0).
    */
-  void update(S alpha) noexcept {
-    if (std::isnan(alpha)) {  // TODO: figure out why this is sometimes nan
-      return;
-    }
-    S prop = 1 / (m_ + t0_);
-    h_bar_ = (1 - prop) * h_bar_ + prop * (delta_ - alpha);
-    S last_log_epsilon = log_epsilon_;
-    log_epsilon_ = mu_ - std::sqrt(m_) / gamma_ * h_bar_;
-    S prop2 = std::pow(m_, neg_kappa_);
-    log_epsilon_bar_ = prop2 * log_epsilon_
-        + (1 - prop2) * last_log_epsilon;
-    ++m_;
+  inline void observe(S alpha) noexcept {
+    S prop = 1 / (obs_count_ + obs_count_offset_);
+    grad_avg_ = (1 - prop) * grad_avg_ + prop * (target_accept_rate_ - alpha);
+    S last_log_est = log_est_;
+    log_est_ = log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
+    S prop2 = std::pow(obs_count_, -decay_rate_); 
+    log_est_avg_ = prop2 * log_est_
+        + (1 - prop2) * last_log_est;
+    ++obs_count_;
   }
 
   /**
-   * Return the current estimate of epsilon.
+   * @brief Return the current estimate.
    *
-   * @return Estimate of epsilon.
+   * @return The current estimate.
    */
-  S epsilon() const noexcept {
-    return std::exp(log_epsilon_bar_);
+  inline S epsilon() const noexcept {
+    return std::exp(log_est_avg_);
   }
 
 private:
-  S log_epsilon_;
-  S log_epsilon_bar_;
-  S h_bar_;
-  S mu_;
-  S m_;
-  const S delta_;
-  const S t0_;
-  const S gamma_;
-  const S neg_kappa_;
+  /** The local estimate. */
+  S log_est_;
+
+  /** The log estimate, a decayed running average of `log_est_`. */
+  S log_est_avg_;
+
+  /** Average gradient (hbar in paper). */
+  S grad_avg_;
+
+  /** The observation count. */
+  S obs_count_;
+
+  /** The target log-step offset. */
+  const S log_step_offset_;
+
+  /** The target acceptance rate. */
+  const S target_accept_rate_;
+
+  /** The observation count offset. */
+  const S obs_count_offset_;
+
+  /** Learning rate. */
+  const S learn_rate_;
+
+  /** The decay rate. */
+  const S decay_rate_;
 };
 
 }  // namespace nuts

@@ -13,11 +13,41 @@ using Integer = long;
 
 static double total_time = 0.0;
 static Integer count = 0;
+static auto global_start = std::chrono::high_resolution_clock::now();
+static auto block_start = std::chrono::high_resolution_clock::now();
 
-static void normal_logp_grad(const VectorS& x,
-			     S& logp,
-			     VectorS& grad) {
-  auto start = std::chrono::high_resolution_clock::now();
+static void global_start_timer() {
+  count = 0;
+  global_start = std::chrono::high_resolution_clock::now();
+}
+
+static void global_end_timer() {
+  auto global_end = std::chrono::high_resolution_clock::now();
+  auto global_total_time =
+      std::chrono::duration<double>(global_end - global_start).count();
+  std::cout << "     logp_grad calls: " << count << std::endl;
+  std::cout << "          total time: " << global_total_time
+	    << "s" << std::endl;
+  std::cout << "      logp_grad time: " << total_time << "s" << std::endl;
+  std::cout << "  logp_grad fraction: " << total_time / global_total_time
+            << std::endl;
+  std::cout << std::endl;
+}
+
+static void block_start_timer() {
+  block_start = std::chrono::high_resolution_clock::now();
+}
+
+static void block_end_timer() {
+  auto end = std::chrono::high_resolution_clock::now();
+  total_time += std::chrono::duration<double>(end - block_start).count();
+  ++count;
+}
+
+static void ill_cond_normal_logp_grad(const VectorS& x,
+				      S& logp,
+				      VectorS& grad) {
+  block_start_timer();
   Integer D = x.size();
   grad = VectorS::Zero(D);
   logp = 0;
@@ -26,15 +56,19 @@ static void normal_logp_grad(const VectorS& x,
     double sigma_sq = sigma * sigma;
     logp += -0.5 * x[d] * x[d] / sigma_sq;
     grad[d] = -x[d] / sigma_sq;
-    if (std::isnan(logp)) {
-      std::cout << "normal_logp_grad: logp = " << logp
-		<< ";  x = " << x.transpose() << std::endl;
-    }
   }
-  auto end = std::chrono::high_resolution_clock::now();
-  total_time += std::chrono::duration<double>(end - start).count();
-  ++count;
+  block_end_timer();
 }
+
+static void std_normal_logp_grad(const VectorS& x,
+				 S& logp,
+				 VectorS& grad) {
+  block_start_timer();
+  logp = -0.5 * x.dot(x);
+  grad = -x;
+  block_end_timer();
+}
+
 
 static void summarize(const MatrixS& draws) {
   Integer N = draws.cols();
@@ -55,63 +89,60 @@ static void summarize(const MatrixS& draws) {
 }
 
 
-template <typename RNG>
-static void test_nuts(const VectorS& theta_init, RNG& rng, Integer D, Integer N,
+template <typename F, typename RNG>
+static void test_nuts(const F& target_logp_grad, const VectorS& theta_init, RNG& rng, Integer D, Integer N,
 		      S step_size, Integer max_depth, const VectorS& inv_mass) {
-  std::cout << "\nTEST NUTS" << std::endl;
-  total_time = 0.0;
-  count = 0;
-
-  auto global_start = std::chrono::high_resolution_clock::now();
+  std::cout << "\nTEST NUTS"
+	    << ";  D = " << D
+	    << ";  N = " << N
+	    << ";  step_size = " << step_size
+	    << ";  max_depth = " << max_depth
+	    << std::endl;
+  global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::Nuts sample(rand, normal_logp_grad, theta_init, inv_mass, step_size, max_depth);
+  nuts::Nuts sample(rand, target_logp_grad, theta_init, inv_mass, step_size, max_depth);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
   }
-
-  auto global_end = std::chrono::high_resolution_clock::now();
-  auto global_total_time =
-      std::chrono::duration<double>(global_end - global_start).count();
-  std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << total_time << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << total_time / global_total_time
-            << std::endl;
-  std::cout << "        logp_grad calls: " << count << std::endl;
-  std::cout << "        time per call: " << total_time / count << "s"
-            << std::endl;
-  std::cout << std::endl;
-
+  global_end_timer();
   summarize(draws);
 }
 
 
-template <typename RNG>
-static void test_walnuts(VectorS theta_init, RNG& rng, Integer D, Integer N,
-			 S macro_step_size, Integer max_nuts_depth, S log_max_error,
+template <typename F, typename RNG>
+static void test_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng, Integer D, Integer N,
+			 S macro_step_size, Integer max_nuts_depth, S max_error,
 			 VectorS inv_mass) {
-  std::cout << "\nTEST WALNUTS" << std::endl;
+  std::cout << "\nTEST WALNUTS"
+	    << ";  D = " << D
+	    << ";  N = " << N
+	    << ";  macro_step_size = " << macro_step_size
+	    << ";  max_nuts_depth = " << max_nuts_depth
+	    << ";  max_error = " << max_error
+	    << std::endl;
+  global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler sample(rand, normal_logp_grad, theta_init,
+  nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init,
 			      inv_mass, macro_step_size, max_nuts_depth,
-			      log_max_error);
+			      max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
   }
+  global_end_timer();
   summarize(draws);
 }
 
 
-template <typename RNG>
-static void test_adaptive_walnuts(const VectorS& theta_init, RNG& rng, Integer D, Integer N,
-				  Integer max_nuts_depth, S log_max_error) {
-  std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
+template <typename F, typename RNG>
+static void test_adaptive_walnuts(const F& target_logp_grad,
+				  const VectorS& theta_init, RNG& rng, Integer D, Integer N,
+				  Integer max_nuts_depth, S max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 20.0;
   double mass_iteration_offset = 20.0;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
-
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
   double step_iteration_offset = 4.0;
@@ -120,26 +151,29 @@ static void test_adaptive_walnuts(const VectorS& theta_init, RNG& rng, Integer D
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
 				 step_iteration_offset, learning_rate,
 				 decay_rate);
-
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth,
 				  max_step_depth);
-
-  nuts::AdaptiveWalnuts walnuts(rng, normal_logp_grad, theta_init, mass_cfg,
+  std::cout << "\nTEST ADAPTIVE WALNUTS"
+	    << ";  D = " << D
+	    << ";  N = " << N
+	    << "; step_size_init = " << step_size_init
+	    << "; max_nuts_depth = " << max_nuts_depth
+	    << "; max_error = " << max_error
+	    << std::endl;
+  global_start_timer();
+  nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
 				step_cfg, walnuts_cfg);
-
   for (Integer n = 0; n < N; ++n) {
     walnuts();
   }
-
-  // N post-warmup draws
-  auto sampler = walnuts.sampler();  // freeze tuning
+  auto sampler = walnuts.sampler();
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sampler();
   }
+  global_end_timer();
   summarize(draws);
-
   std::cout << std::endl;
   std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
   std::cout << "Max error = " << sampler.max_error() << std::endl;
@@ -151,35 +185,26 @@ static void test_adaptive_walnuts(const VectorS& theta_init, RNG& rng, Integer D
 
 int main() {
   unsigned int seed = 428763;
-  Integer D = 10;
+  Integer D = 250;
   Integer N = 2000;
-  S step_size = 0.5;
+  S step_size = 0.425;
   Integer max_depth = 10;
-  S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
+  S max_error = 0.5;  // 80% Metropolis, 45% Barker
   VectorS inv_mass = VectorS::Ones(D);
-
-  std::cout << "SHARED CONSTANTS:" << std::endl;
-  std::cout << "D = " << D
-	    << ";  N = " << N
-	    << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
-	    << ";  log_max_error = " << log_max_error
-            << std::endl;
-
-
   std::mt19937 rng(seed);
   std::normal_distribution<S> std_normal(0.0, 1.0);
   VectorS theta_init(D);
   for (Integer i = 0; i < D; ++i) {
     theta_init(i) = std_normal(rng);
   }
+  auto target_logp_grad = std_normal_logp_grad;
 
-  test_nuts(theta_init, rng, D, N, step_size, max_depth, inv_mass);
+  test_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(theta_init, rng, D, N, step_size, max_depth, log_max_error,
+  test_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, max_error,
 		    inv_mass);
 
-  test_adaptive_walnuts(theta_init, rng, D, N, max_depth, log_max_error);
+  test_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, max_depth, max_error);
 
   return 0;
 }

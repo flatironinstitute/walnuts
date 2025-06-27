@@ -19,6 +19,7 @@ static auto block_start = std::chrono::high_resolution_clock::now();
 static void global_start_timer() {
   count = 0;
   global_start = std::chrono::high_resolution_clock::now();
+  total_time = 0;
 }
 
 static void global_end_timer() {
@@ -187,7 +188,7 @@ int main() {
   Integer N = 1000;
   S step_size = 0.465;
   Integer max_depth = 10;
-  S max_error = 0.5;  // 61% Metropolis
+  S max_error = 1.0;  // 61% Metropolis
   VectorS inv_mass = VectorS::Ones(D);
   std::mt19937 rng(seed);
 

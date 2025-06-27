@@ -152,7 +152,7 @@ class OnlineMoments {
     if (weight_ > 0) {
       return sum_sq_dev_ / weight_;
     }
-    return VecS::Zero(mean_.size());
+    return VecS::Ones(mean_.size());
   }
 
   /**
@@ -160,7 +160,7 @@ class OnlineMoments {
    * value.
    *
    * **WARNING**:  There are no checks on this method that `discount_factor
-   * in [0, 1]`.
+   * is in [0, 1]`.
    * 
    * @param discount_factor The past discount factor (between 0 and 1,
    * inclusive).  
@@ -170,7 +170,10 @@ class OnlineMoments {
   }
 
  private:
-  /** The discount factor applied to all previous observations. */
+  /**
+   * The discount factor applied to all previous observations before the next
+   *  observation.
+   */
   S discount_factor_;
 
   /** The combined weight in sample size of all previous observations. */
@@ -180,8 +183,9 @@ class OnlineMoments {
   VecS mean_;
 
   /** 
-   * The sum of weighted squared deviation (i.e., current variance estimate
-   * scaled by weight).
+   * The sum of weighted squared deviations from the mean.
+   *
+   * This is the current variance estimate scaled by weight.
    */
   VecS sum_sq_dev_;
 };

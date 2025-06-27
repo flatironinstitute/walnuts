@@ -140,8 +140,8 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
 				  const VectorS& theta_init, RNG& rng, Integer D, Integer N,
 				  Integer max_nuts_depth, S max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 20.0;
-  double mass_iteration_offset = 20.0;
+  double init_count = 10.0;
+  double mass_iteration_offset = 4.0;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
@@ -181,28 +181,30 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
 	    << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
 }
 
-
-
 int main() {
   unsigned int seed = 428763;
-  Integer D = 250;
-  Integer N = 2000;
-  S step_size = 0.425;
+  Integer D = 200;
+  Integer N = 1000;
+  S step_size = 0.465;
   Integer max_depth = 10;
-  S max_error = 0.5;  // 80% Metropolis, 45% Barker
+  S max_error = 0.5;  // 61% Metropolis
   VectorS inv_mass = VectorS::Ones(D);
   std::mt19937 rng(seed);
-  std::normal_distribution<S> std_normal(0.0, 1.0);
-  VectorS theta_init(D);
-  for (Integer i = 0; i < D; ++i) {
-    theta_init(i) = std_normal(rng);
-  }
-  auto target_logp_grad = std_normal_logp_grad;
+
+  // std::normal_distribution<S> std_normal(0, 1);
+  // VectorS theta_init(D);
+  // for (Integer i = 0; i < D; ++i) {
+  //   theta_init(i) = std_normal(rng);
+  // }
+  VectorS theta_init = VectorS::Zero(D);
+
+  // auto target_logp_grad = std_normal_logp_grad;
+  auto target_logp_grad = ill_cond_normal_logp_grad;
 
   test_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, inv_mass);
 
   test_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, max_error,
-		    inv_mass);
+	       inv_mass);
 
   test_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, max_depth, max_error);
 

@@ -294,14 +294,20 @@ class AdaptiveWalnuts {
     step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
 			step_cfg.iteration_offset_, step_cfg.learning_rate_,
 			step_cfg.decay_rate_),
-    mass_adapt_var_(0.98, mass_cfg.iteration_offset_,
-		    std::move(Vec<S>::Zero(theta_init.size()).eval()), // TODO: jitter?
-		    std::move(grad(logp_grad, theta_init).array().abs()
-			      .sqrt().inverse().matrix())),
-    mass_adapt_prec_(0.98, mass_cfg.iteration_offset_,
-		     std::move(Vec<S>::Zero(theta_init.size()).eval()), // TODO: jitter?
-		     mass_adapt_var_.variance().array().inverse().matrix())
-  {}
+    mass_adapt_var_(0.0, theta_init.size()),  // init overridden later
+    mass_adapt_prec_(0.0, theta_init.size())
+  {
+    S smoothing = 0.05;
+    Vec<S> zero = Vec<S>::Zero(theta_init.size());
+    Vec<S> smooth_vec = Vec<S>::Constant(theta_init.size(), smoothing);
+    Vec<S> sqrt_abs_grad_init = grad(logp_grad, theta_init).array().abs().sqrt();
+    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
+    Vec<S> init_var = init_prec.array().inverse().matrix();
+    mass_adapt_var_ = OnlineMoments<S>(0.98, mass_cfg.iteration_offset_,
+				       zero, init_var);
+    mass_adapt_prec_ = OnlineMoments<S>(0.98, mass_cfg.iteration_offset_,
+					zero, init_prec);
+  }
 
 
   /**

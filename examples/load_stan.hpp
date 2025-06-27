@@ -3,7 +3,6 @@
 
 #include <bridgestan.h>
 
-#include <chrono>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -64,9 +63,7 @@ class DynamicStanModel {
   DynamicStanModel(const char *model_path, const char *data, int seed)
       : library_(dlopen_safe(model_path)),
         model_ptr_(nullptr, no_op_deleter<bs_model>),
-        rng_ptr_(nullptr, no_op_deleter<bs_rng>),
-        total_time_(0),
-        count_(0) {
+        rng_ptr_(nullptr, no_op_deleter<bs_rng>) {
     auto model_construct =
         dlsym_cast(library_, &bs_model_construct, "bs_model_construct");
     auto model_destruct =
@@ -126,12 +123,8 @@ class DynamicStanModel {
     grad.resizeLike(x);
 
     char *err = nullptr;
-    auto start = std::chrono::high_resolution_clock::now();
     int ret = log_density_gradient_(model_ptr_.get(), true, true, x.data(),
                                     &logp, grad.data(), &err);
-    auto end = std::chrono::high_resolution_clock::now();
-    total_time_ += std::chrono::duration<double>(end - start).count();
-    ++count_;
 
     if (ret != 0) {
       if (err) {
@@ -186,11 +179,6 @@ class DynamicStanModel {
   decltype(&bs_log_density_gradient) log_density_gradient_;
   decltype(&bs_param_constrain) param_constrain_;
   decltype(&bs_param_names) param_names_;
-
- public:
-  //   timing info, shouldn't be included in 'production' version
-  mutable double total_time_;
-  mutable int count_;
 };
 
 #endif

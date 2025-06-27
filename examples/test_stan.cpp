@@ -37,13 +37,21 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
                       RNG &rng, Integer D, Integer N, S step_size,
                       Integer max_depth, const VectorS &inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
-  model.total_time_ = 0.0;
-  model.count_ = 0;
+  double logp_time = 0.0;
+  int logp_count = 0;
 
   auto global_start = std::chrono::high_resolution_clock::now();
   nuts::Random<double, RNG> rand(rng);
 
-  auto logp = [&model](auto &&...args) { model.logp_grad(args...); };
+  auto logp = [&](auto &&...args) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    model.logp_grad(args...);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    logp_time += std::chrono::duration<double>(end - start).count();
+    ++logp_count;
+  };
 
   nuts::Nuts sample(rand, logp, theta_init, inv_mass, step_size, max_depth);
   MatrixS draws(D, N);
@@ -55,22 +63,22 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
+  std::cout << "logp_grad time: " << logp_time << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << logp_time / global_total_time
             << std::endl;
-  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
-  std::cout << "        time per call: " << model.total_time_ / model.count_
-            << "s" << std::endl;
+  std::cout << "        logp_grad calls: " << logp_count << std::endl;
+  std::cout << "        time per call: " << logp_time / logp_count << "s"
+            << std::endl;
   std::cout << std::endl;
 
   summarize(draws);
 }
 
 template <typename RNG>
-static void test_walnuts(const DynamicStanModel &model, VectorS theta_init,
-                         RNG &rng, Integer D, Integer N, S macro_step_size,
-                         Integer max_nuts_depth, S log_max_error,
-                         VectorS inv_mass) {
+static void test_walnuts(const DynamicStanModel &model,
+                         const VectorS &theta_init, RNG &rng, Integer D,
+                         Integer N, S macro_step_size, Integer max_nuts_depth,
+                         S log_max_error, VectorS inv_mass) {
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   auto logp = [&model](auto &&...args) { model.logp_grad(args...); };
@@ -90,8 +98,8 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
                                   Integer D, Integer N, Integer max_nuts_depth,
                                   S log_max_error) {
   std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
-  model.total_time_ = 0.0;
-  model.count_ = 0;
+  double logp_time = 0.0;
+  int logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
@@ -111,8 +119,15 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   Integer max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
                                   max_step_depth);
-  auto logp = [&model](auto &&...args) { model.logp_grad(args...); };
+  auto logp = [&](auto &&...args) {
+    auto start = std::chrono::high_resolution_clock::now();
 
+    model.logp_grad(args...);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    logp_time += std::chrono::duration<double>(end - start).count();
+    ++logp_count;
+  };
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
                                 walnuts_cfg);
 
@@ -124,12 +139,12 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
+  std::cout << "logp_grad time: " << logp_time << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << logp_time / global_total_time
             << std::endl;
-  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
-  std::cout << "        time per call: " << model.total_time_ / model.count_
-            << "s" << std::endl;
+  std::cout << "        logp_grad calls: " << logp_count << std::endl;
+  std::cout << "        time per call: " << logp_time / logp_count << "s"
+            << std::endl;
   std::cout << std::endl;
 
   // N post-warmup draws
@@ -137,12 +152,9 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   std::cout << "Adaptation completed." << std::endl;
   std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
   std::cout << "Max error = " << sampler.max_error() << std::endl;
-  std::cout << "Inverse mass matrix = "
-            << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl
-            << std::endl;
 
-  model.total_time_ = 0.0;
-  model.count_ = 0;
+  logp_time = 0.0;
+  logp_count = 0;
   global_start = std::chrono::high_resolution_clock::now();
 
   MatrixS draws(D, N);
@@ -154,26 +166,26 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
   std::cout << "    total time: " << global_total_time << "s" << std::endl;
-  std::cout << "logp_grad time: " << model.total_time_ << "s" << std::endl;
-  std::cout << "logp_grad fraction: " << model.total_time_ / global_total_time
+  std::cout << "logp_grad time: " << logp_time << "s" << std::endl;
+  std::cout << "logp_grad fraction: " << logp_time / global_total_time
             << std::endl;
-  std::cout << "        logp_grad calls: " << model.count_ << std::endl;
-  std::cout << "        time per call: " << model.total_time_ / model.count_
-            << "s" << std::endl;
+  std::cout << "        logp_grad calls: " << logp_count << std::endl;
+  std::cout << "        time per call: " << logp_time / logp_count << "s"
+            << std::endl;
   std::cout << std::endl;
 
   summarize(draws);
 }
 
 int main(int argc, char **argv) {
-  unsigned int seed = 4287631;
-  Integer N = 2000;
-  S step_size = 0.5;
+  unsigned int seed = 428763;
+  Integer N = 1000;
+  S step_size = 0.465;
   Integer max_depth = 10;
-  S log_max_error = 0.1;  // 80% Metropolis, 45% Barker
+  S max_error = 0.5;
 
-  char *lib;
-  char *data;
+  char *lib{nullptr};
+  char *data{nullptr};
 
   if (argc <= 1) {
     // require at least the library name
@@ -181,7 +193,6 @@ int main(int argc, char **argv) {
     return 1;
   } else if (argc == 2) {
     lib = argv[1];
-    data = NULL;
   } else {
     lib = argv[1];
     data = argv[2];
@@ -194,8 +205,8 @@ int main(int argc, char **argv) {
 
   std::cout << "SHARED CONSTANTS:" << std::endl;
   std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
-            << ";  max_depth = " << max_depth
-            << ";  log_max_error = " << log_max_error << std::endl;
+            << ";  max_depth = " << max_depth << ";  max_error = " << max_error
+            << std::endl;
 
   std::mt19937 rng(seed);
   std::normal_distribution<S> std_normal(0.0, 1.0);
@@ -206,10 +217,10 @@ int main(int argc, char **argv) {
 
   test_nuts(model, theta_init, rng, D, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(model, theta_init, rng, D, N, step_size, max_depth,
-               log_max_error, inv_mass);
+  test_walnuts(model, theta_init, rng, D, N, step_size, max_depth, max_error,
+               inv_mass);
 
-  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth, log_max_error);
+  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth, max_error);
 
   return 0;
 }

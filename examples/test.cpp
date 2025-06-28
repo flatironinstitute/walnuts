@@ -143,7 +143,9 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 10.0;
   double mass_iteration_offset = 4.0;
-  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
+  double additive_smoothing = 0.05;
+  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
+				 additive_smoothing);
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
   double step_iteration_offset = 4.0;

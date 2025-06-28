@@ -48,13 +48,15 @@ struct MassAdaptConfig {
    * (finite positive scalar components).
    * @param[in] init_count The pseudocount of observations for the
    * initialization (finite positive scalar).
-   * @param[in] iteration_offset The offset from 1 of the first
-   * observation (finite non-negative scalar).
+   * @param[in] iter_offset The offset from 1 of the first observation (finite
+   * non-negative scalar).
+   * @param[in] additive_smoothing The additive smoothing of inverse mass
+   * estimates.
    */
-  MassAdaptConfig(const Vec<S>& mass_init, S init_count,
-                  S iteration_offset):
-    mass_init_(mass_init), init_count_(init_count),
-    iteration_offset_(iteration_offset)
+  MassAdaptConfig(const Vec<S>& mass_init, S init_count, S iter_offset,
+		  S additive_smoothing):
+    mass_init_(mass_init), init_count_(init_count), iter_offset_(iter_offset),
+    additive_smoothing_(additive_smoothing)
   {}
 
   /** The diagonal of the diagonal initial mass matrix. */
@@ -64,7 +66,11 @@ struct MassAdaptConfig {
   const S init_count_;
 
   /** The offset from 1 of the first observation. */
-  const S iteration_offset_;
+  const S iter_offset_;
+
+  /** The additive smoothing. */
+  const S additive_smoothing_;
+  
 };
 
 
@@ -77,7 +83,7 @@ struct MassAdaptConfig {
  */
 template <typename S>
 MassAdaptConfig(const Vec<S>& mass_init, S init_count,
-                  S iteration_offset)
+                  S iter_offset)
   -> MassAdaptConfig<S>;
 
 /**
@@ -98,17 +104,17 @@ struct StepAdaptConfig {
   * @param[in] step_size_init Initial step size (finite positive scalar).
   * @param[in] accept_rate_target Target bidirectional accept rate (scalar 
   * between 0 and 1 exclusive) 
-  * @param[in] iteration_offset Relative postion of first observation
+  * @param[in] iter_offset Relative postion of first observation
   * (finite positive scalar).
   * @param[in] learning_rate The learning rate for dual averaging (finite
   * positive scalar).
   * @param[in] decay_rate The decay rate of older observations (finite
   * scalar between 0 and 1 exclusive)
   */
-  StepAdaptConfig(S step_size_init, S accept_rate_target, S iteration_offset,
+  StepAdaptConfig(S step_size_init, S accept_rate_target, S iter_offset,
 		  S learning_rate,  S decay_rate):
       step_size_init_(step_size_init), accept_rate_target_(accept_rate_target),
-      iteration_offset_(iteration_offset), learning_rate_(learning_rate),
+      iter_offset_(iter_offset), learning_rate_(learning_rate),
       decay_rate_(decay_rate)
   {}
 
@@ -119,7 +125,7 @@ struct StepAdaptConfig {
   const S accept_rate_target_;
 
   /** Offset count for initial observation. */
-  const S iteration_offset_;
+  const S iter_offset_;
 
   /** Learning rate for dual averaging. */
   const S learning_rate_;
@@ -136,7 +142,7 @@ struct StepAdaptConfig {
  * @tparam S Type of scalars.
  */
 template <typename S>
-StepAdaptConfig(S step_size_init, S accept_rate_target, S iteration_offset,
+StepAdaptConfig(S step_size_init, S accept_rate_target, S iter_offset,
 		S learning_rate, S decay_rate)
   -> StepAdaptConfig<S>;
   
@@ -198,9 +204,9 @@ struct WalnutsConfig {
 template <typename S>
 class StepAdaptHandler {
  public:
-  StepAdaptHandler(S step_size_init, S target_accept_rate, S iteration_offset,
+  StepAdaptHandler(S step_size_init, S target_accept_rate, S iter_offset,
                    S learning_rate, S decay_rate):
-      dual_average_(step_size_init, target_accept_rate, iteration_offset,
+      dual_average_(step_size_init, target_accept_rate, iter_offset,
                     learning_rate, decay_rate)
   {}
 
@@ -228,6 +234,101 @@ class StepAdaptHandler {
   DualAverage<S> dual_average_;
 };
 
+/**
+ * @brief A mass matrix estimator based on exponentially discounted draws
+ * and scores (gradients of log densities).
+ *
+ * @tparam S The type of scalars.
+ */
+template <typename S>
+class MassEstimator {
+ public:
+
+  /**
+   * @brief Construct a mass matrix estimator with the specified configuration,
+   * at the specified initial position and gradient of the log density at the
+   * position.
+   *
+   * The estimator observes positions and their gradients at given iterations 
+   * with the function `observe()`.  At each step, the discount factor for discounting
+   * past draws the online moment estimators is set to
+   * ```
+   * discount_factor = 1 - 1 / (iter_offset + iter)
+   * ```
+   * where `iter_offset` is the offset specified in the configuration and `iter`
+   * is the iteration number for the observation.
+   *
+   * The final estimate for the inverse mass matrix is given by the geometric
+   * mean of the variance of the scores (the inverse variance estimator)
+   * and the variance of the draws (the variance estimator).  This estimate
+   * is then additively smoothed by multiplying by multiplying by one minus
+   * the additive smoothign and adding the additive smoothing.
+   *
+   * @param mass_cfg The mass matrix adaptation configuration.
+   * @param theta The initial position.
+   * @param grad The gradient of the target log density at the initial position.
+   */
+  MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
+		const Vec<S>& grad):
+    mass_cfg_(mass_cfg),
+    var_estimator_(0, theta.size()),
+    inv_var_estimator_(0, theta.size())
+  {
+    S smoothing = mass_cfg_.additive_smoothing_;
+    Vec<S> zero = Vec<S>::Zero(theta.size());
+    Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
+    Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
+    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
+    Vec<S> init_var = init_prec.array().inverse().matrix();
+    S dummy_discount = 0.98;  // gets reset before being used
+    inv_var_estimator_ = OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_,
+					  zero, init_prec);
+    var_estimator_ = OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_,
+				      zero, init_var);
+  }
+
+  /**
+   * @brief Update the estimate for the specified iteration with the
+   * observation and gradient.
+   *
+   * @param theta The position observed.
+   * @param grad The gradient of the log density at the position.
+   * @param iteration The iteration number (non-negative integer).
+   */
+  void observe(const Vec<S>& theta, const Vec<S>& grad, Integer iteration) {
+    double discount_factor = 1.0 - 1.0 / (mass_cfg_.iter_offset_ + iteration);
+    var_estimator_.set_discount_factor(discount_factor);  // TODO: one encapsulated function
+    var_estimator_.observe(theta);
+    inv_var_estimator_.set_discount_factor(discount_factor);
+    inv_var_estimator_.observe(grad); 
+  }
+
+  /**
+   * @brief Return an estimate of the inverse mass matrix.
+   *
+   * @return The inverse mass matrix estimate.
+   */
+  Vec<S> inv_mass_estimate() {
+    Vec<S> inv_mass_est_var = var_estimator_.variance().array();
+    Vec<S> inv_mass_est_inv_var = inv_var_estimator_.variance().array().inverse()
+      .matrix();
+    Vec<S> inv_mass_est = (inv_mass_est_var.array() * inv_mass_est_inv_var.array())
+      .sqrt().matrix();
+    return inv_mass_est;
+  }
+    
+ private:
+  /** The mass matrix adaptation configuration. */
+  MassAdaptConfig<S> mass_cfg_;
+
+  /** The online variance estimator for draws. */
+  OnlineMoments<S> var_estimator_;
+
+  /** The online inverse variance estimator for scores. */
+  OnlineMoments<S> inv_var_estimator_;
+};
+    
+  
 /**
  * @brief The adaptive WALNUTS sampler.
  *
@@ -292,22 +393,11 @@ class AdaptiveWalnuts {
     theta_(theta_init),
     iteration_(0),
     step_adapt_handler_(step_cfg.step_size_init_, step_cfg.accept_rate_target_,
-			step_cfg.iteration_offset_, step_cfg.learning_rate_,
+			step_cfg.iter_offset_, step_cfg.learning_rate_,
 			step_cfg.decay_rate_),
-    mass_adapt_var_(0.0, theta_init.size()),  // init overridden later
-    mass_adapt_prec_(0.0, theta_init.size())
-  {
-    S smoothing = 0.05;
-    Vec<S> zero = Vec<S>::Zero(theta_init.size());
-    Vec<S> smooth_vec = Vec<S>::Constant(theta_init.size(), smoothing);
-    Vec<S> sqrt_abs_grad_init = grad(logp_grad, theta_init).array().abs().sqrt();
-    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
-    Vec<S> init_var = init_prec.array().inverse().matrix();
-    mass_adapt_var_ = OnlineMoments<S>(0.98, mass_cfg.iteration_offset_,
-				       zero, init_var);
-    mass_adapt_prec_ = OnlineMoments<S>(0.98, mass_cfg.iteration_offset_,
-					zero, init_prec);
-  }
+    mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_))
+  {}
+
 
 
   /**
@@ -322,24 +412,15 @@ class AdaptiveWalnuts {
    * @return The next warmup state.
    */
   const Vec<S> operator()() {
-    Vec<S> inv_mass_est_var = mass_adapt_var_.variance().array();
-    Vec<S> inv_mass_est_prec = mass_adapt_prec_.variance().array().inverse()
-      .matrix();
-    Vec<S> inv_mass = (inv_mass_est_var.array() * inv_mass_est_prec.array())
-      .sqrt().matrix();
-    Vec<S> mass = inv_mass.array().inverse().matrix();
-    Vec<S> chol_mass = mass.array().sqrt().matrix();
+    Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
+    Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
     theta_ = transition_w(rand_, logp_grad_, inv_mass, chol_mass,
         		  step_adapt_handler_.step_size(),
                           walnuts_cfg_.max_nuts_depth_,
                           std::move(theta_), grad_select, walnuts_cfg_.log_max_error_,
                           step_adapt_handler_);
-    double discount_factor = 1.0 - 1.0 / (mass_cfg_.iteration_offset_ + iteration_);
-    mass_adapt_var_.set_discount_factor(discount_factor);
-    mass_adapt_var_.observe(theta_);
-    mass_adapt_prec_.set_discount_factor(discount_factor);
-    mass_adapt_prec_.observe(grad_select); 
+    mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
     return theta_;
   }
@@ -357,7 +438,7 @@ class AdaptiveWalnuts {
         rand_,
         logp_grad_,
         theta_,
-        mass_adapt_var_.variance(),
+        mass_estimator_.inv_mass_estimate(),
         step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_,
         walnuts_cfg_.log_max_error_);
@@ -388,12 +469,9 @@ class AdaptiveWalnuts {
   /** The handler for WALNUTS for step size adaptation. */
   StepAdaptHandler<S> step_adapt_handler_;
 
-  /** The estimator for inverse mass matrices based on variance of draws. */
-  OnlineMoments<S> mass_adapt_var_;
+  /** The estimat for mass matrices. */
+  MassEstimator<S> mass_estimator_;
 
-  /** The estimator for mass matrices based on the variance of the
-      scores of draws. */
-  OnlineMoments<S> mass_adapt_prec_;
 };
 
 } // namespace nuts

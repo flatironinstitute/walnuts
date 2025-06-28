@@ -226,25 +226,22 @@ bool macro_step(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     theta_next = theta;
     rho_next = rho;
     grad_next = grad;
-    S logp_min = logp;
-    S logp_max = logp;
     S half_step = 0.5 * step;
-    for (Integer n = 0; n < num_steps && logp_max - logp_min <= max_error;
-         ++n) {
+    for (Integer n = 0; n < num_steps; ++n) {
       rho_next.noalias() = rho_next + half_step * grad_next;
       theta_next.noalias()
           += step * (inv_mass.array() * rho_next.array()).matrix();
       logp_grad_fun(theta_next, logp_next, grad_next);
       rho_next.noalias() += half_step * grad_next;
-      logp_next += logp_momentum(rho_next, inv_mass);
-      logp_min = fmin(logp_min, logp_next);
-      logp_max = fmax(logp_max, logp_next);
     }
+    logp_next += logp_momentum(rho_next, inv_mass);
     if (num_steps == 1) {
-      S min_accept = std::exp(logp_min - logp_max);
+      S min_accept = std::exp(-std::fabs(logp - logp_next));
       adapt_handler(min_accept);
     }
-    if (logp_max - logp_min <= max_error) {
+    // checking only at macro step misses early failures
+    // TODO: evaluate if better to do mass density to early stop
+    if (std::fabs(logp - logp_next) <= max_error) {
       return reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
                          logp_next, theta_next, rho_next, grad_next);
     }

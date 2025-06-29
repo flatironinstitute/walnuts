@@ -16,8 +16,8 @@ namespace nuts {
 
 /**
  * @brief A span encodes the necessary information about a Hamiltonian
- * trajectory for Hamiltonian Monte Carlo with computation caching.
- * 
+ * trajectory for Hamiltonian Monte Carlo.
+ *
  * @tparam S The type of scalars.
  */
 template <typename S>
@@ -41,13 +41,13 @@ class Span {
         theta_select_(std::move(theta)),
         logp_(logp) {}
   /**
-   * @brief Construct a span by concatening the specified spans with
+   * @brief Construct a span by concatenating the specified spans with
    * the specified selected state.
    *
    * @param[in] span1 The first span in temporal order.
    * @param[in] span2 The second span in temporal order.
    * @param[in] theta_select The selected position.
-   * @param[in] logp The log of the sum of the denisites on the trajectory.
+   * @param[in] logp The log of the sum of the densities on the trajectory.
    */
   Span(Span<S> &&span1, Span<S> &&span2, Vec<S> &&theta_select, S logp)
       : theta_bk_(std::move(span1.theta_bk_)),
@@ -84,8 +84,9 @@ class Span {
   S logp_;
 };
 
+  
 /**
- * @brief Perfrom one step of the leapfrog algorithm for simulating
+ * @brief Perform one step of the leapfrog algorithm for simulating
  * Hamiltonians.
  *
  * @tparam S The type of scalars.
@@ -93,14 +94,18 @@ class Span {
  * @param[in,out] logp_grad_fun The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
  * (finite positive components).
- * @param[in] theta Starting position.
- * @param[in] rho Starting momentum.
- * @param[in] grad Gradient of target log densitity at the starting position.
+ * @param[in] step The step size.
+ * @param[in] theta The initial position.
+ * @param[in] rho The initial momentum.
+ * @param[in] grad The gradient of target log density at the initial position.
  * @param[out] theta_next The ending position.
  * @param[out] rho_next The ending momentum.
  * @param[out] grad_next The gradient of the log density at the ending position.
- * @param[out] logp_next The joint log density of the ending poisiton and
- * momentum.
+ * @param[out] logp_next The joint log density of the ending position and
+ * ending momentum.
+ * @pre theta.size() == rho.size()
+ * @pre theta.size() == grad.size()
+ * @pre theta.size() == inv_mass.size()
  */  
 template <typename S, typename F>
 void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
@@ -116,6 +121,7 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   logp_next += logp_momentum(rho_next, inv_mass);
 }
 
+  
 /**
  * @brief Return the concatenation of the specified spans in the
  * specified temporal direction.
@@ -125,7 +131,7 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  * @tparam S The type of scalars.
  * @tparam RNG The base random number generator.
  * @param[in,out] rand The compound random number generator.
- * @param[in] span_old The first span in the ordering.
+ * @param[in] span_old The starting span in the ordering.
  * @param[in] span_new The new span in the ordering.
  * @return The spans combined in the specified temporal ordering.
  */  
@@ -149,6 +155,7 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old,
                  logp_total);
 }
 
+  
 /**
  * @brief Return the span consisting of one state that follows the specified
  * span in the specified temporal direction.
@@ -183,6 +190,7 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
                  std::move(grad_theta_next), logp_theta_next);
 }
 
+  
 /**
  * @brief If possible, return a span of the specified depth that extends
  * the last span in the specified direction.
@@ -240,7 +248,7 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand,
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
  * @param[in] step The step size.
- * @param[in] max_depth The maxmium number of doublings of the trajectory.
+ * @param[in] max_depth The maximum number of doublings of the trajectory.
  * @param[in] theta The current state.
  * @return The next state in the NUTS Markov chain.
  */
@@ -298,15 +306,15 @@ Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad_fun,
  * The target log density and gradient function must implement the signature
  * 
  * ```cpp
- * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+ * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& theta,
  *                              S& logp,
  *                              Eigen::Matrix<S, -1, 1>& grad);
  * ```
  * 
  * where `S` is the scalar type parameter of the sampler (the log
- * density function need not be templated itself.  The argument `x`
+ * density function need not be templated itself.  The argument `theta`
  * is the position argument, and `logp` is set to the log density of
- * `x`, and `grad` set to the gradient of the log density at `x`.
+ * `theta`, and `grad` set to the gradient of the log density at `theta`.
  * 
  * @tparam F The type of the log density and gradient function.
  * @tparam S The type of scalars.
@@ -323,10 +331,12 @@ class Nuts {
    * @param[in,out] logp_grad The target log density/gradient function.
    * @param[in] theta_init The initial position.
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix (finite
-   * positive comonents).
+   * positive components).
    * @param [in] step_size The step size (finite positive floating point).
    * @param [in] max_nuts_depth The maximum number of trajectory doublings
    * in NUTS (positive integer).
+   * @pre step_size > 0
+   * @pre theta_init.size() == inv_mass.size()
    */
   Nuts(Random<S, RNG>& rand,
        F& logp_grad,
@@ -342,6 +352,8 @@ class Nuts {
   /**
    * @brief Return the next draw from the sampler.
    *
+   * As a side effect, this method updates the current position.
+   *
    * @return The next draw.
    */
   Vec<S> operator()() {
@@ -351,7 +363,7 @@ class Nuts {
   }
 
  private:
-  /** The underlying randomizer. */
+  /** The compound random number generator. */
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */

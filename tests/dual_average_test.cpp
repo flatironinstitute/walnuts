@@ -14,13 +14,13 @@ static double std_normal_lpdf(double x) {
 }
 
 template <class G>
-static double sim_metropolis_accept(G& rng, double epsilon) {
+static double sim_metropolis_accept(G& rng, double step_size) {
   // draw previous state from std normal target
   std::normal_distribution<double> init_dist(0, 1);
   double x0 = init_dist(rng);
 
   // random-walk Metropolis proposal
-  std::normal_distribution<double> proposal_dist(x0, epsilon);
+  std::normal_distribution<double> proposal_dist(x0, step_size);
   double x1 = proposal_dist(rng);
 
   // Metropolis accept probability
@@ -43,14 +43,14 @@ TEST(DualAverage, Metropolis1D) {
   double total = 0;
   double count = 0;
   for (int n = 0; n < N; ++n) {
-    double epsilon_hat = da.epsilon();
-    double alpha = sim_metropolis_accept(rng, epsilon_hat);
+    double step_size_hat = da.step_size();
+    double alpha = sim_metropolis_accept(rng, step_size_hat);
     da.observe(alpha);
     total += alpha;
     count += 1.0;
   }
-  double epsilon_hat = da.epsilon();
-  EXPECT_NEAR(2.4, epsilon_hat, 0.1);   // step size not so accurate
+  double step_size_hat = da.step_size();
+  EXPECT_NEAR(2.4, step_size_hat, 0.1);   // step size not so accurate
   double accept_hat = total / count;
   EXPECT_NEAR(0.44, accept_hat, 0.01);  // achieved acceptance very accurate
 }

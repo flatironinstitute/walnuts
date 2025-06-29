@@ -6,8 +6,15 @@
 namespace nuts {
 
 /**
- * Class holding configuration and state for a dual averaging
- * estimator.
+ * @brief The configuration and state for a dual averaging estimator
+ * of step size based on a target acceptance rate.
+ *
+ * The estimator works by observing empirical acceptance rates.  If
+ * they are above the target acceptance rate, the step size is
+ * increased; if they are below, the step size is decreased.  This
+ * implies a standard normal error model as the basis for the
+ * stochastic gradients. Estimates are averaged as new observations
+ * come in for stability.
  *
  * The algorithm is defined in the following reference.
  *
@@ -29,33 +36,39 @@ public:
    * stable adaptation.  Higher values of `decay_rate` slow the freezing of
    * updates and provide more smoothing.
    *
-   * The algorithm converges at a logarithmic rate.  It should be
-   * reasonably accurate at achieving a target acceptance rate, but
-   * the step size estimates themselves tend to be higher variance.
+   * The dual averaging algorithm converges at a logarithmic rate.  It
+   * should be reasonably accurate at achieving a target acceptance
+   * rate, but the step size estimates themselves tend to be higher
+   * variance.
    *
-   * @param epsilon_init Initial value (> 0).
-   * @param target_accept_rate Target acceptance rate (> 0).
-   * @param obs_count_offset Iteration offset (> 0, default 10).
-   * @param learn_rate Learning rate (> 0, default 0.05).
-   * @param decay_rate Decay for averaging (> 0, default 0.75).
-   * @throw std::except If initial epsilon is not finite and positive.
+   * @param[in] step_size_init Initial step size value.
+   * @param[in] target_accept_rate Target acceptance rate.
+   * @param[in] obs_count_offset Iteration offset.
+   * @param[in] learn_rate Learning rate.
+   * @param[in] decay_rate Decay for averaging.
+   * @throw std::except If initial step_size is not finite and positive.
    * @throw std::except If target acceptance rate is not finite and positive.
    * @throw std::except If iteration offset is not finite and positive.
    * @throw std::except If learning rate is not finite and positive.
+   * @pre step_size_init > 0
+   * @pre target_accept_rate > 0
+   * @pre obs_count_offset > 0
+   * @pre learn_rate > 0
+   * @pre decay_rate > 0
    */
-  DualAverage(S epsilon_init, S target_accept_rate, S obs_count_offset = 10, S learn_rate = 0.05,
-              S decay_rate = 0.75):
-      log_est_(std::log(epsilon_init)),
+  DualAverage(S step_size_init, S target_accept_rate, S obs_count_offset = 10,
+	      S learn_rate = 0.05, S decay_rate = 0.75):
+      log_est_(std::log(step_size_init)),
       log_est_avg_(0),
       grad_avg_(0),
       obs_count_(1),
-      log_step_offset_(std::log(10) + std::log(epsilon_init)),
+      log_step_offset_(std::log(10) + std::log(step_size_init)),
       target_accept_rate_(target_accept_rate),
       obs_count_offset_(obs_count_offset),
       learn_rate_(learn_rate),
       decay_rate_(decay_rate) {
-    if (!(epsilon_init > 0 && std::isfinite(epsilon_init))) {
-      throw std::invalid_argument("Initial epsilon must be positive and finite.");
+    if (!(step_size_init > 0 && std::isfinite(step_size_init))) {
+      throw std::invalid_argument("Initial step_size must be positive and finite.");
     }
     if (!(target_accept_rate > 0 && std::isfinite(target_accept_rate))) {
       throw std::invalid_argument("Target acceptance rate must be positive and finite.");
@@ -74,7 +87,8 @@ public:
   /**
    * @brief Update the state for the observed value.
    *
-   * @param alpha Observed value (> 0).
+   * @param[in] alpha The observed value.
+   * @pre alpha > 0
    */
   inline void observe(S alpha) noexcept {
     S prop = 1 / (obs_count_ + obs_count_offset_);
@@ -88,22 +102,22 @@ public:
   }
 
   /**
-   * @brief Return the current estimate.
+   * @brief Return the current step-size estimate.
    *
-   * @return The current estimate.
+   * @return The current estimate of step size.
    */
-  inline S epsilon() const noexcept {
+  inline S step_size() const noexcept {
     return std::exp(log_est_avg_);
   }
 
 private:
-  /** The local estimate. */
+  /** The local estimate of step size last iteration. */
   S log_est_;
 
-  /** The log estimate, a decayed running average of `log_est_`. */
+  /** The log estimate of step size, a decayed running average of `log_est_`. */
   S log_est_avg_;
 
-  /** Average gradient (hbar in paper). */
+  /** The average gradient. */
   S grad_avg_;
 
   /** The observation count. */
@@ -118,7 +132,7 @@ private:
   /** The observation count offset. */
   const S obs_count_offset_;
 
-  /** Learning rate. */
+  /** The learning rate. */
   const S learn_rate_;
 
   /** The decay rate. */

@@ -16,10 +16,12 @@ namespace nuts {
  * @brief A class for holding the minimal information in a Hamiltonian
  * trajectory required for WALNUTS.
  * 
- * A span has member variables for the initial and final sates (a)
+ * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
  * gradient of target log density.  It also holds a selected state,
- * and the log of the sum of all joint densities on the trajectory.
+ * the gradient of the selected state, and the log of the sum of all
+ * joint densities on the trajectory. The gradients could be recomputed,
+ * but storing them serves as a local cache.
  * 
  * @tparam S Type of scalars.
  */
@@ -37,25 +39,20 @@ class SpanW {
    * @param logp The joint log density of the position and momentum.
    */
   SpanW(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
-      : theta_bk_(theta),
-        rho_bk_(rho),
-        grad_theta_bk_(grad_theta),
-        logp_bk_(logp),
-        theta_fw_(theta),
-        rho_fw_(std::move(rho)),
-        grad_theta_fw_(grad_theta),
-        logp_fw_(logp),
-        theta_select_(std::move(theta)),
-	grad_select_(std::move(grad_theta)),
-        logp_(logp) {}
+      : theta_bk_(theta), rho_bk_(rho), grad_theta_bk_(grad_theta),
+        logp_bk_(logp), theta_fw_(theta), rho_fw_(std::move(rho)),
+        grad_theta_fw_(grad_theta), logp_fw_(logp),
+	theta_select_(std::move(theta)), grad_select_(std::move(grad_theta)),
+        logp_(logp)
+  {}
 
   /**
-   * Construct a span by concatening the two specified spans with the
-   * given state selected and total log density.
+   * @brief Construct a span by concatenating the two specified spans
+   * with the given state selected and total log density.
    * 
-   * @param span1 The first span (temporally ordered).
-   * @param span2 The second span (temporally ordered).
-   * @param theta_select The selected state.
+   * @param span1 The earlier span by temporal ordering.
+   * @param span2 The later span by temporal ordering.
+   * @param theta_select The selected position.
    * @param logp The log of the sum of the densities on the trajectory.
    */
   SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select,
@@ -189,7 +186,7 @@ bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
 
 /**
  * @brief Take a macro step from the specified state given the log
- * density/gradient, ntuning parameters and adaptation handler and
+ * density/gradient, tuning parameters and adaptation handler and
  * return whether it conserves the Hamiltonian and is reversible.
  *
  * @tparam D The time direction of Hamiltonian simulation.
@@ -304,7 +301,7 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
  * within the specified error.  The mass matrix and macro step size
  * are passed on to the leapfrog algorithm.
  *
- * The reuslt is `std::optional` and will be `std::nullopt` only if the
+ * The result is `std::optional` and will be `std::nullopt` only if the
  * specified span could not be extended reversibly within the error threshold.
  *
  * @tparam D The direction in time to extend.
@@ -400,7 +397,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng,
  * @param[in] theta The previous state.
  * @param[in] max_error The maximum difference in Hamiltonians.
  * @param[in,out] adapt_handler The step-size adaptation handler.
- * @return The next state in the Markov chain.
+ * @return The next position in the Markov chain.
  */  
 template <typename S, class F, class RNG, class A>
 Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
@@ -472,7 +469,7 @@ class NoOpHandler {
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initialization, and several tuning parameters.
- * It provides a no-argument functor for generating the next state in the 
+ * It provides a no-argument functor for generating the next element of the 
  * Markov chain.
  * 
  * The target log density and gradient function must implement the signature
@@ -502,7 +499,7 @@ class WalnutsSampler {
    * @param rand The randomizer for HMC.
    * @param logp_grad The target log density and gradient function (see the
    * class documentation.
-   * @param theta The initial state.
+   * @param theta The initial position.
    * @param inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param macro_step_size The initial (largest) step size.
    * @param max_nuts_depth The maximum number of trajectory doublings for NUTS.
@@ -569,7 +566,7 @@ class WalnutsSampler {
   /** The target log density/gradient function. */
   F& logp_grad_;
 
-  /** The current state. */
+  /** The current position. */
   Vec<S> theta_;
 
   /** The diagonal of the diagonal inverse mass matrix. */
@@ -584,7 +581,7 @@ class WalnutsSampler {
   /** The maximum number of doublings in NUTS trajectories. */
   const Integer max_nuts_depth_;
 
-  /** The max difference in Hamiltonians along a trajectory. */
+  /** The max difference of Hamiltonians along a macro step. */
   const S log_max_error_;
 
   /** A handler for adaptation which does nothing. */

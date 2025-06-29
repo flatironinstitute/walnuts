@@ -33,10 +33,10 @@ class SpanW {
    * @brief Construct a span of one state given the specified
    * position, momentum, gradient, and log density.
    *
-   * @param theta The position.
-   * @param rho The momentum.
-   * @param grad_theta The gradient of the log density at `theta`.
-   * @param logp The joint log density of the position and momentum.
+   * @param[in] theta The position.
+   * @param[in] rho The momentum.
+   * @param[in] grad_theta The gradient of the log density at `theta`.
+   * @param[in] logp The joint log density of the position and momentum.
    */
   SpanW(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
       : theta_bk_(theta), rho_bk_(rho), grad_theta_bk_(grad_theta),
@@ -50,10 +50,12 @@ class SpanW {
    * @brief Construct a span by concatenating the two specified spans
    * with the given state selected and total log density.
    * 
-   * @param span1 The earlier span by temporal ordering.
-   * @param span2 The later span by temporal ordering.
-   * @param theta_select The selected position.
-   * @param logp The log of the sum of the densities on the trajectory.
+   * @param[in] span1 The earlier span by temporal ordering.
+   * @param[in] span2 The later span by temporal ordering.
+   * @param[in] theta_select The selected position.
+   * @param[in] grad_select The gradient of the target log density at the
+   * selected position.
+   * @param[in] logp The log of the sum of the densities on the trajectory.
    */
   SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select,
 	Vec<S>&& grad_select, S logp)
@@ -114,6 +116,7 @@ class SpanW {
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
+ * @param[in] max_error The maximum error in Hamiltonian at macro steps.
  * @param[in] logp_next Initial log density.
  * @param[in,out] theta_next Input initial position, set to final position.
  * @param[in,out] rho_next Input initial momentum, set to final position.
@@ -347,6 +350,8 @@ std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
  * @param[in,out] logp_grad_fun The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
+ * @param[in] depth The maximum NUTS depth.
+ * @param[in] max_error The maximum error allowed at macro steps.
  * @param[in] last_span The span to extend.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
@@ -395,6 +400,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng,
  * @param[in] step The macro step size.
  * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
  * @param[in] theta The previous state.
+ * @param[out] theta_grad The gradient of the log density at the previous state.
  * @param[in] max_error The maximum difference in Hamiltonians.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.

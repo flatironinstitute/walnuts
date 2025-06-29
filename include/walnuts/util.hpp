@@ -7,52 +7,48 @@ namespace nuts {
 
 /**
  * @brief The type of column vectors.
- * 
+ *
  * The type for dynamic Eigen column vectors with scalar type `S`.
  * @tparam S Type of scalars.
  */
 template <typename S>
 using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
-
 /**
  * @brief The type of matrices.
- * 
+ *
  * The type for dynamic Eigen matrices with scalar type `S`.
  * @tparam S Type of scalars.
  */
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
-  
 
 /**
  * @brief The type of integers.
- * 
+ *
  * Integers are signed and 64 bits.
  */
 using Integer = std::int64_t;
-  
 
 /**
  * @brief Proposal update schemes for MCMC transitions.
  */
 enum class Update {
-  Barker,      /**< Use Barker's acceptance rule (proportional to density). */
-  Metropolis   /**< Use standard Metropolis acceptance rule */
+  Barker,    /**< Use Barker's acceptance rule (proportional to density). */
+  Metropolis /**< Use standard Metropolis acceptance rule */
 };
 
-  
 /**
  * @brief Time direction of Hamiltonian simulation.
  */
 enum class Direction {
-  Backward,    /**< Step backward in time. */
-  Forward      /**< Step forward in time. */
-};  
+  Backward, /**< Step backward in time. */
+  Forward   /**< Step forward in time. */
+};
 
-  
 /**
- * @brief A class encapsulating the randomizers needed for Hamiltonian Monte Carlo.
+ * @brief A class encapsulating the randomizers needed for Hamiltonian Monte
+ * Carlo.
  *
  * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
@@ -67,12 +63,11 @@ class Random {
    * The base generator is held as a reference and used for all of the
    * generation. Thus it must be kept in scope as the instance constructed with
    * it is used.  The base generator may be shared with other applications.
-   * 
+   *
    * @param rng The base random number generator.
    */
   Random(RNG &rng)
-      : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0)
-  {}
+      : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   /**
    * @brief Return a number between 0 and 1 generated uniformly at random.
@@ -122,7 +117,6 @@ class Random {
   std::normal_distribution<S> normal_;
 };
 
-
 /**
  * @brief Return the log of the sum of the exponentiated arguments.
  *
@@ -140,7 +134,6 @@ S log_sum_exp(const S &x1, const S &x2) {
   S m = fmax(x1, x2);
   return m + log(exp(x1 - m) + exp(x2 - m));
 }
-
 
 /**
  * @brief Return the log of the sum of the components of the argument
@@ -160,10 +153,9 @@ S log_sum_exp(const Vec<S> &x) {
   return m + log((x.array() - m).exp().sum());
 }
 
-
 /**
  * @brief Return the unnormalized log density of the specified momentum given
- * the specified inverse mass matrix. 
+ * the specified inverse mass matrix.
  *
  * The unnormalized log density is the negative kinetic energy.
  *
@@ -179,7 +171,6 @@ S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
   return -0.5 * rho.dot(inv_mass.cwiseProduct(rho));
 }
 
-  
 /**
  * @brief Return a tuple of the arguments ordered by direction.
 
@@ -187,7 +178,7 @@ S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
  * template argument `D` is `Direction::Forward`, then the tuple is
  * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple
  * is `(x2, x1)`.
- * 
+ *
  * @tparam D The `Direction` in which to combine the arguments
  * (`Forward` or `Backward`).
  * @tparam T The type of the arguments.
@@ -204,11 +195,10 @@ inline auto order_forward_backward(T &&x1, T &&x2) {
   }
 }
 
-  
 /**
  * @brief Return `true` if the two spans ordered as specified form a
  * U-turn in the metric determined by the inverse mass matrix.
- * 
+ *
  * For computing U-turns, the squared distance between two vectors `x` and `y`
  * is defined by the Mahalanobis distance,
  * ```
@@ -216,7 +206,7 @@ inline auto order_forward_backward(T &&x1, T &&x2) {
  * ```
  * Equivalently, distance is measured in the Euclidean metric specified by the
  * mass matrix (i.e., the inverse of `inv_mass`).
- * 
+ *
  * If the spans ordered according to `D` are `(span_bk, span_fw)`, let
  * `theta_start` be the first position in `span_bk` and let `theta_end` be
  * the last position of `span_fw`. The U-turn condition will be satisfied if
@@ -235,7 +225,7 @@ inline auto order_forward_backward(T &&x1, T &&x2) {
  * @param[in] span_2 The second argument span.
  * @param[in] inv_mass The inverse mass matrix to determine distances.
  * @return `true` if there is a U-turn between the ends of the ordered spans.
- */  
+ */
 template <Direction D, typename S, class U>
 inline bool uturn(const U &span_1, const U &span_2, const Vec<S> &inv_mass) {
   auto &&[span_bk, span_fw] = order_forward_backward<D>(span_1, span_2);

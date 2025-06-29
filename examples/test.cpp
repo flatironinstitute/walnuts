@@ -2,9 +2,9 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <walnuts/adaptive_walnuts.hpp>
 #include <walnuts/nuts.hpp>
 #include <walnuts/walnuts.hpp>
-#include <walnuts/adaptive_walnuts.hpp>
 
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
@@ -27,8 +27,8 @@ static void global_end_timer() {
   auto global_total_time =
       std::chrono::duration<double>(global_end - global_start).count();
   std::cout << "     logp_grad calls: " << count << std::endl;
-  std::cout << "          total time: " << global_total_time
-	    << "s" << std::endl;
+  std::cout << "          total time: " << global_total_time << "s"
+            << std::endl;
   std::cout << "      logp_grad time: " << total_time << "s" << std::endl;
   std::cout << "  logp_grad fraction: " << total_time / global_total_time
             << std::endl;
@@ -45,9 +45,8 @@ static void block_end_timer() {
   ++count;
 }
 
-static void ill_cond_normal_logp_grad(const VectorS& x,
-				      S& logp,
-				      VectorS& grad) {
+static void ill_cond_normal_logp_grad(const VectorS& x, S& logp,
+                                      VectorS& grad) {
   block_start_timer();
   Integer D = x.size();
   grad = VectorS::Zero(D);
@@ -61,15 +60,12 @@ static void ill_cond_normal_logp_grad(const VectorS& x,
   block_end_timer();
 }
 
-static void std_normal_logp_grad(const VectorS& x,
-				 S& logp,
-				 VectorS& grad) {
+static void std_normal_logp_grad(const VectorS& x, S& logp, VectorS& grad) {
   block_start_timer();
   logp = -0.5 * x.dot(x);
   grad = -x;
   block_end_timer();
 }
-
 
 static void summarize(const MatrixS& draws) {
   Integer N = draws.cols();
@@ -77,7 +73,7 @@ static void summarize(const MatrixS& draws) {
   for (Integer d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
-	std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
+        std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
       }
       continue;
     }
@@ -89,19 +85,18 @@ static void summarize(const MatrixS& draws) {
   }
 }
 
-
 template <typename F, typename RNG>
-static void test_nuts(const F& target_logp_grad, const VectorS& theta_init, RNG& rng, Integer D, Integer N,
-		      S step_size, Integer max_depth, const VectorS& inv_mass) {
+static void test_nuts(const F& target_logp_grad, const VectorS& theta_init,
+                      RNG& rng, Integer D, Integer N, S step_size,
+                      Integer max_depth, const VectorS& inv_mass) {
   std::cout << "\nTEST NUTS"
-	    << ";  D = " << D
-	    << ";  N = " << N
-	    << ";  step_size = " << step_size
-	    << ";  max_depth = " << max_depth
-	    << std::endl;
+            << ";  D = " << D << ";  N = " << N
+            << ";  step_size = " << step_size << ";  max_depth = " << max_depth
+            << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::Nuts sample(rand, target_logp_grad, theta_init, inv_mass, step_size, max_depth);
+  nuts::Nuts sample(rand, target_logp_grad, theta_init, inv_mass, step_size,
+                    max_depth);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
@@ -109,24 +104,21 @@ static void test_nuts(const F& target_logp_grad, const VectorS& theta_init, RNG&
   global_end_timer();
   summarize(draws);
 }
-
 
 template <typename F, typename RNG>
-static void test_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng, Integer D, Integer N,
-			 S macro_step_size, Integer max_nuts_depth, S max_error,
-			 VectorS inv_mass) {
+static void test_walnuts(const F& target_logp_grad, VectorS theta_init,
+                         RNG& rng, Integer D, Integer N, S macro_step_size,
+                         Integer max_nuts_depth, S max_error,
+                         VectorS inv_mass) {
   std::cout << "\nTEST WALNUTS"
-	    << ";  D = " << D
-	    << ";  N = " << N
-	    << ";  macro_step_size = " << macro_step_size
-	    << ";  max_nuts_depth = " << max_nuts_depth
-	    << ";  max_error = " << max_error
-	    << std::endl;
+            << ";  D = " << D << ";  N = " << N
+            << ";  macro_step_size = " << macro_step_size
+            << ";  max_nuts_depth = " << max_nuts_depth
+            << ";  max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init,
-			      inv_mass, macro_step_size, max_nuts_depth,
-			      max_error);
+  nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
+                              macro_step_size, max_nuts_depth, max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
@@ -134,39 +126,36 @@ static void test_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng
   global_end_timer();
   summarize(draws);
 }
-
 
 template <typename F, typename RNG>
 static void test_adaptive_walnuts(const F& target_logp_grad,
-				  const VectorS& theta_init, RNG& rng, Integer D, Integer N,
-				  Integer max_nuts_depth, S max_error) {
+                                  const VectorS& theta_init, RNG& rng,
+                                  Integer D, Integer N, Integer max_nuts_depth,
+                                  S max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 10.0;
   double mass_iteration_offset = 4.0;
   double additive_smoothing = 0.05;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
-				 additive_smoothing);
+                                 additive_smoothing);
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
   double step_iteration_offset = 4.0;
   double learning_rate = 0.95;
   double decay_rate = 0.05;
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-				 step_iteration_offset, learning_rate,
-				 decay_rate);
+                                 step_iteration_offset, learning_rate,
+                                 decay_rate);
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth,
-				  max_step_depth);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
   std::cout << "\nTEST ADAPTIVE WALNUTS"
-	    << ";  D = " << D
-	    << ";  N = " << N
-	    << "; step_size_init = " << step_size_init
-	    << "; max_nuts_depth = " << max_nuts_depth
-	    << "; max_error = " << max_error
-	    << std::endl;
+            << ";  D = " << D << ";  N = " << N
+            << "; step_size_init = " << step_size_init
+            << "; max_nuts_depth = " << max_nuts_depth
+            << "; max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
-				step_cfg, walnuts_cfg);
+                                step_cfg, walnuts_cfg);
   for (Integer n = 0; n < N; ++n) {
     walnuts();
   }
@@ -181,7 +170,7 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
   std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
   std::cout << "Max error = " << sampler.max_error() << std::endl;
   std::cout << "Inverse mass matrix = "
-	    << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
+            << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
 }
 
 int main() {
@@ -204,12 +193,14 @@ int main() {
   // auto target_logp_grad = std_normal_logp_grad;
   auto target_logp_grad = ill_cond_normal_logp_grad;
 
-  test_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, inv_mass);
+  test_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
+            inv_mass);
 
-  test_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth, max_error,
-	       inv_mass);
+  test_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
+               max_error, inv_mass);
 
-  test_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, max_depth, max_error);
+  test_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, max_depth,
+                        max_error);
 
   return 0;
 }

@@ -9,9 +9,7 @@
 
 #include <walnuts/dual_average.hpp>
 
-static double std_normal_lpdf(double x) {
-  return -0.5 * x * x;
-}
+static double std_normal_lpdf(double x) { return -0.5 * x * x; }
 
 template <class G>
 static double sim_metropolis_accept(G& rng, double step_size) {
@@ -27,15 +25,14 @@ static double sim_metropolis_accept(G& rng, double step_size) {
   return std::fmin(1.0, std::exp(std_normal_lpdf(x1) - std_normal_lpdf(x0)));
 }
 
-
 TEST(DualAverage, Metropolis1D) {
   // theory says that if we target 0.44 accept rate, the step size will be 2.4
   unsigned int seed = 763545;
   std::mt19937 rng(seed);
-  
+
   double delta = 0.44;  // optimal acceptance probability for D=1
   double init = 1.0;
-  double t0 = 10.0;  // equal to default from Stan's NUTS
+  double t0 = 10.0;    // equal to default from Stan's NUTS
   double gamma = 0.1;  // equal to default from Stan's NUTS
   double kappa = 0.9;  // higher than default from Stan's NUTS
   nuts::DualAverage<double> da(init, delta, t0, gamma, kappa);
@@ -50,7 +47,7 @@ TEST(DualAverage, Metropolis1D) {
     count += 1.0;
   }
   double step_size_hat = da.step_size();
-  EXPECT_NEAR(2.4, step_size_hat, 0.1);   // step size not so accurate
+  EXPECT_NEAR(2.4, step_size_hat, 0.1);  // step size not so accurate
   double accept_hat = total / count;
   EXPECT_NEAR(0.44, accept_hat, 0.01);  // achieved acceptance very accurate
 }

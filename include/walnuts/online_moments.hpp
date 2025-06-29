@@ -23,7 +23,7 @@ namespace nuts {
  * following the original Welford accumulator, to which it reduces
  * when `discount_factor = 1`.
  *
- * After initialization and updating with `N` vectors 
+ * After initialization and updating with `N` vectors
  * `y[0], ..., y[N - 1]`, the weight for vector `y[n]` is
  * ```
  * weight[n] = discount_factor^(N - n - 1).
@@ -68,8 +68,7 @@ class OnlineMoments {
    * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
    * @throw std::invalid_argument If `dim` is negative.
    */
-  OnlineMoments(S discount_factor,
-		Integer dim)
+  OnlineMoments(S discount_factor, Integer dim)
       : discount_factor_(discount_factor),
         weight_(0),
         mean_(VecS::Zero(dim)),
@@ -81,7 +80,7 @@ class OnlineMoments {
       throw std::invalid_argument("discount_factor must be in [0, 1]");
     }
   }
-  
+
   /**
    * @brief Construct an online estimator of moments with the
    * specified discount factor and initialization.
@@ -92,7 +91,7 @@ class OnlineMoments {
    * `init_weight` observations.
    *
    * @param[in] discount_factor The past discount factor (between 0 and 1,
-   * inclusive).  
+   * inclusive).
    * @param[in] init_weight Weight (in number of draws) of initial mean
    * and variance (positive).
    * @param[in] init_mean Initial mean.
@@ -103,10 +102,8 @@ class OnlineMoments {
    * @throw std::invalid_argument If the initial mean and variance are not
    * the same size.
    */
-  OnlineMoments(S discount_factor,
-		S init_weight,
-		const VecS& init_mean,
-		const VecS& init_variance)
+  OnlineMoments(S discount_factor, S init_weight, const VecS& init_mean,
+                const VecS& init_variance)
       : discount_factor_(discount_factor),
         weight_(init_weight),
         mean_(init_mean),
@@ -115,10 +112,12 @@ class OnlineMoments {
       throw std::invalid_argument("Discount factor must be in [0, 1].");
     }
     if (!(init_weight > 0) || std::isinf(init_weight)) {
-      throw std::invalid_argument("Initial weight must be finite and positive.");
+      throw std::invalid_argument(
+          "Initial weight must be finite and positive.");
     }
     if (init_mean.size() != init_variance.size()) {
-      throw std::invalid_argument("Initial mean and variance must be same size.");
+      throw std::invalid_argument(
+          "Initial mean and variance must be same size.");
     }
   }
 
@@ -137,18 +136,17 @@ class OnlineMoments {
     const VecS delta = y - mean_;
     weight_ = discount_factor_ * weight_ + 1;
     mean_ += delta / weight_;
-    sum_sq_dev_ = discount_factor_ * sum_sq_dev_ + delta.cwiseProduct(y - mean_);
+    sum_sq_dev_ =
+        discount_factor_ * sum_sq_dev_ + delta.cwiseProduct(y - mean_);
   }
-  
+
   /**
    * @brief Return the estimate of the mean.
    *
    * @return The mean estimate.
    */
-  inline const VecS& mean() const noexcept {
-    return mean_;
-  }
- 
+  inline const VecS& mean() const noexcept { return mean_; }
+
   /**
    * @brief Return the estimate of the variance.
    *
@@ -160,14 +158,14 @@ class OnlineMoments {
     }
     return VecS::Ones(mean_.size());
   }
- 
+
   /**
    * @brief Set the discount factor for previous observations to the specified
    * value.
    *
    * **WARNING**:  There are no checks on this method that `discount_factor
    * is in (0, 1]` (i.e., `discount_factor > 0` and `discount_factor <= 1`).
-   * 
+   *
    * @param discount_factor The discount factor (scalar in (0, 1]).
    * @pre discount_factor > 0 && discount_factor <= 1
    */

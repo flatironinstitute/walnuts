@@ -26,7 +26,7 @@ namespace nuts {
  */
 template <typename S>
 class DualAverage {
-public:
+ public:
   /**
    * @brief Construct a dual averaging estimator with the specified initial
    * value, target value, and tuning parameters.
@@ -57,24 +57,27 @@ public:
    * @pre decay_rate > 0
    */
   DualAverage(S step_size_init, S target_accept_rate, S obs_count_offset = 10,
-	      S learn_rate = 0.05, S decay_rate = 0.75):
-      log_est_(std::log(step_size_init)),
-      log_est_avg_(0),
-      grad_avg_(0),
-      obs_count_(1),
-      log_step_offset_(std::log(10) + std::log(step_size_init)),
-      target_accept_rate_(target_accept_rate),
-      obs_count_offset_(obs_count_offset),
-      learn_rate_(learn_rate),
-      decay_rate_(decay_rate) {
+              S learn_rate = 0.05, S decay_rate = 0.75)
+      : log_est_(std::log(step_size_init)),
+        log_est_avg_(0),
+        grad_avg_(0),
+        obs_count_(1),
+        log_step_offset_(std::log(10) + std::log(step_size_init)),
+        target_accept_rate_(target_accept_rate),
+        obs_count_offset_(obs_count_offset),
+        learn_rate_(learn_rate),
+        decay_rate_(decay_rate) {
     if (!(step_size_init > 0 && std::isfinite(step_size_init))) {
-      throw std::invalid_argument("Initial step_size must be positive and finite.");
+      throw std::invalid_argument(
+          "Initial step_size must be positive and finite.");
     }
     if (!(target_accept_rate > 0 && std::isfinite(target_accept_rate))) {
-      throw std::invalid_argument("Target acceptance rate must be positive and finite.");
+      throw std::invalid_argument(
+          "Target acceptance rate must be positive and finite.");
     }
     if (!(obs_count_offset > 0 && std::isfinite(obs_count_offset))) {
-      throw std::invalid_argument("Iteration offset must be positive and finite.");
+      throw std::invalid_argument(
+          "Iteration offset must be positive and finite.");
     }
     if (!(learn_rate > 0 && std::isfinite(learn_rate))) {
       throw std::invalid_argument("Learning rate must be positive and finite.");
@@ -94,10 +97,10 @@ public:
     S prop = 1 / (obs_count_ + obs_count_offset_);
     grad_avg_ = (1 - prop) * grad_avg_ + prop * (target_accept_rate_ - alpha);
     S last_log_est = log_est_;
-    log_est_ = log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
-    S prop2 = std::pow(obs_count_, -decay_rate_); 
-    log_est_avg_ = prop2 * log_est_
-        + (1 - prop2) * last_log_est;
+    log_est_ =
+        log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
+    S prop2 = std::pow(obs_count_, -decay_rate_);
+    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * last_log_est;
     ++obs_count_;
   }
 
@@ -106,11 +109,9 @@ public:
    *
    * @return The current estimate of step size.
    */
-  inline S step_size() const noexcept {
-    return std::exp(log_est_avg_);
-  }
+  inline S step_size() const noexcept { return std::exp(log_est_avg_); }
 
-private:
+ private:
   /** The local estimate of step size last iteration. */
   S log_est_;
 

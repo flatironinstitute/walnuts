@@ -1,6 +1,6 @@
 #include <chrono>
-#include <cstddef>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -11,7 +11,7 @@
 #include <walnuts/online_moments.hpp>
 
 static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
-                                double alpha) {
+                                       double alpha) {
   std::size_t N = ys.size();
   long D = ys[0].size();
   double weight_sum = 0;
@@ -24,8 +24,8 @@ static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
   return weighted_value_sum / weight_sum;
 }
 
-static Eigen::VectorXd discounted_variance(const std::vector<Eigen::VectorXd>& ys,
-                                    double alpha) {
+static Eigen::VectorXd discounted_variance(
+    const std::vector<Eigen::VectorXd>& ys, double alpha) {
   Eigen::VectorXd mu = discounted_mean(ys, alpha);
   std::size_t N = ys.size();
   long D = ys[0].size();
@@ -51,8 +51,8 @@ TEST(Welford, test_zero_observations) {
   EXPECT_FLOAT_EQ(0.0, m(0));
   EXPECT_FLOAT_EQ(0.0, m(1));
   EXPECT_EQ(2, v.size());
-  EXPECT_FLOAT_EQ(0.0, v(0));
-  EXPECT_FLOAT_EQ(0.0, v(1));
+  EXPECT_FLOAT_EQ(1.0, v(0));
+  EXPECT_FLOAT_EQ(1.0, v(1));
 }
 
 TEST(Welford, test_one_observation) {

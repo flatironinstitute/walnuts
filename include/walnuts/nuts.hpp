@@ -28,7 +28,7 @@ class Span {
    * @param[in] theta The position.
    * @param[in] rho The momentum.
    * @param[in] grad_theta The gradient of the target log density at the
-   * position. 
+   * position.
    * @param[in] logp The joint log density of the position and momentum.
    */
   Span(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
@@ -84,7 +84,6 @@ class Span {
   S logp_;
 };
 
-  
 /**
  * @brief Perform one step of the leapfrog algorithm for simulating
  * Hamiltonians.
@@ -106,7 +105,7 @@ class Span {
  * @pre theta.size() == rho.size()
  * @pre theta.size() == grad.size()
  * @pre theta.size() == inv_mass.size()
- */  
+ */
 template <typename S, typename F>
 void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
               const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
@@ -121,7 +120,6 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   logp_next += logp_momentum(rho_next, inv_mass);
 }
 
-  
 /**
  * @brief Return the concatenation of the specified spans in the
  * specified temporal direction.
@@ -134,10 +132,9 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  * @param[in] span_old The starting span in the ordering.
  * @param[in] span_new The new span in the ordering.
  * @return The spans combined in the specified temporal ordering.
- */  
+ */
 template <Update U, Direction D, typename S, class RNG>
-Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old,
-                Span<S> &&span_new) {
+Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -155,11 +152,10 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old,
                  logp_total);
 }
 
-  
 /**
  * @brief Return the span consisting of one state that follows the specified
  * span in the specified temporal direction.
- * 
+ *
  * @tparam D The temporal direction in which to extend the last span.
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
@@ -190,12 +186,11 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
                  std::move(grad_theta_next), logp_theta_next);
 }
 
-  
 /**
  * @brief If possible, return a span of the specified depth that extends
  * the last span in the specified direction.
  *
- * If there is a sub-U-turn within the newly built span, the return will 
+ * If there is a sub-U-turn within the newly built span, the return will
  * be `std::nullopt`.  The randomizer is required to update states.
  *
  * @tparam D The temporal direction in which to extend the last span.
@@ -211,8 +206,7 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
  * @return The new span of `std::nullopt` if there was a sub-u-turn.
  */
 template <Direction D, typename S, class F, class RNG>
-std::optional<Span<S>> build_span(Random<S, RNG> &rand,
-                                  const F &logp_grad_fun,
+std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad_fun,
                                   const Vec<S> &inv_mass, S step, Integer depth,
                                   const Span<S> &last_span) {
   if (depth == 0) {
@@ -300,26 +294,26 @@ Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad_fun,
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initial position, and several tuning parameters.
- * It provides a no-argument functor for generating the next state in the 
+ * It provides a no-argument functor for generating the next state in the
  * Markov chain.
- * 
+ *
  * The target log density and gradient function must implement the signature
- * 
+ *
  * ```cpp
  * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& theta,
  *                              S& logp,
  *                              Eigen::Matrix<S, -1, 1>& grad);
  * ```
- * 
+ *
  * where `S` is the scalar type parameter of the sampler (the log
  * density function need not be templated itself.  The argument `theta`
  * is the position argument, and `logp` is set to the log density of
  * `theta`, and `grad` set to the gradient of the log density at `theta`.
- * 
+ *
  * @tparam F The type of the log density and gradient function.
  * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
- */  
+ */
 template <class F, typename S, class RNG>
 class Nuts {
  public:
@@ -330,25 +324,24 @@ class Nuts {
    * @param[in,out] rand The compound random number generator for MCMC.
    * @param[in,out] logp_grad The target log density/gradient function.
    * @param[in] theta_init The initial position.
-   * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix (finite
-   * positive components).
+   * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
+   * (finite positive components).
    * @param [in] step_size The step size (finite positive floating point).
    * @param [in] max_nuts_depth The maximum number of trajectory doublings
    * in NUTS (positive integer).
    * @pre step_size > 0
    * @pre theta_init.size() == inv_mass.size()
    */
-  Nuts(Random<S, RNG>& rand,
-       F& logp_grad,
-       const Vec<S>& theta_init,
-       const Vec<S>& inv_mass,
-       S step_size,
-       Integer max_nuts_depth):
-    rand_(rand), logp_grad_(logp_grad), theta_(theta_init), inv_mass_(inv_mass),
-    cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
-    step_size_(step_size), max_nuts_depth_(max_nuts_depth)
-  {}
-    
+  Nuts(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &theta_init,
+       const Vec<S> &inv_mass, S step_size, Integer max_nuts_depth)
+      : rand_(rand),
+        logp_grad_(logp_grad),
+        theta_(theta_init),
+        inv_mass_(inv_mass),
+        cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
+        step_size_(step_size),
+        max_nuts_depth_(max_nuts_depth) {}
+
   /**
    * @brief Return the next draw from the sampler.
    *
@@ -358,7 +351,7 @@ class Nuts {
    */
   Vec<S> operator()() {
     theta_ = transition(rand_, logp_grad_, inv_mass_, cholesky_mass_,
-			step_size_, max_nuts_depth_, std::move(theta_));
+                        step_size_, max_nuts_depth_, std::move(theta_));
     return theta_;
   }
 
@@ -367,7 +360,7 @@ class Nuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  F& logp_grad_;
+  F &logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;
@@ -383,6 +376,6 @@ class Nuts {
 
   /** The maximum number of doublings in NUTS trajectories. */
   const Integer max_nuts_depth_;
-};  
+};
 
 }  // namespace nuts

@@ -3,6 +3,8 @@
 
 #include <bridgestan.h>
 
+#include <cmath>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -130,7 +132,11 @@ class DynamicStanModel {
       if (err) {
         std::string error_string(err);
         free_error_msg_(err);
-        throw std::runtime_error(error_string);
+        std::cerr << "Error in logp_grad: " << error_string << std::endl;
+
+        logp = -INFINITY;
+        grad.setZero();
+        return;
       }
       throw std::runtime_error("Failed to compute log density and gradient");
     }
@@ -146,7 +152,9 @@ class DynamicStanModel {
       if (err) {
         std::string error_string(err);
         free_error_msg_(err);
-        throw std::runtime_error(error_string);
+        std::cerr << "Error in constrain_draw: " << error_string << std::endl;
+        out.array() = NAN;
+        return;
       }
       throw std::runtime_error("Failed to constrain draw");
     }

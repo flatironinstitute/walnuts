@@ -8,13 +8,16 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <string>
+#include <vector>
 
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
 using Integer = long;
 
-static void summarize(const MatrixS &draws) {
+static void summarize(const std::vector<std::string> names,
+                      const MatrixS &draws) {
   Integer N = draws.cols();
   Integer D = draws.rows();
   for (Integer d = 0; d < D; ++d) {
@@ -27,15 +30,15 @@ static void summarize(const MatrixS &draws) {
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << "dim " << d << ": mean = " << mean << ", stddev = " << stddev
+    std::cout << names[d] << ": mean = " << mean << ", stddev = " << stddev
               << "\n";
   }
 }
 
 template <typename RNG>
 static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
-                      RNG &rng, Integer D, Integer N, S step_size,
-                      Integer max_depth, const VectorS &inv_mass) {
+                      RNG &rng, Integer N, S step_size, Integer max_depth,
+                      const VectorS &inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
   double logp_time = 0.0;
   int logp_count = 0;
@@ -54,7 +57,10 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
   };
 
   nuts::Nuts sample(rand, logp, theta_init, inv_mass, step_size, max_depth);
-  MatrixS draws(D, N);
+
+  int M = model.constrained_dimensions();
+
+  MatrixS draws(M, N);
   for (Integer n = 0; n < N; ++n) {
     model.constrain_draw(sample(), draws.col(n));
   }
@@ -71,13 +77,13 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
             << std::endl;
   std::cout << std::endl;
 
-  summarize(draws);
+  summarize(model.param_names(), draws);
 }
 
 template <typename RNG>
 static void test_walnuts(const DynamicStanModel &model,
-                         const VectorS &theta_init, RNG &rng, Integer D,
-                         Integer N, S macro_step_size, Integer max_nuts_depth,
+                         const VectorS &theta_init, RNG &rng, Integer N,
+                         S macro_step_size, Integer max_nuts_depth,
                          S log_max_error, VectorS inv_mass) {
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
@@ -85,40 +91,45 @@ static void test_walnuts(const DynamicStanModel &model,
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
                               max_nuts_depth, log_max_error);
-  MatrixS draws(D, N);
+  int M = model.constrained_dimensions();
+
+  MatrixS draws(M, N);
   for (Integer n = 0; n < N; ++n) {
     model.constrain_draw(sample(), draws.col(n));
   }
-  summarize(draws);
+  summarize(model.param_names(), draws);
 }
 
 template <typename RNG>
 static void test_adaptive_walnuts(const DynamicStanModel &model,
                                   const VectorS &theta_init, RNG &rng,
                                   Integer D, Integer N, Integer max_nuts_depth,
-                                  S log_max_error) {
-  std::cout << "\nTEST ADAPTIVE WALNUTS" << std::endl;
+                                  S max_error) {
   double logp_time = 0.0;
   int logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 20.0;
-  double mass_iteration_offset = 20.0;
-  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset);
-
+  double init_count = 10.0;
+  double mass_iteration_offset = 4.0;
+  double additive_smoothing = 0.05;
+  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
+                                 additive_smoothing);
   double step_size_init = 1.0;
-  double accept_rate_target = 0.70;
+  double accept_rate_target = 0.8;
   double step_iteration_offset = 4.0;
   double learning_rate = 0.95;
   double decay_rate = 0.05;
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
-
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(log_max_error, max_nuts_depth,
-                                  max_step_depth);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  std::cout << "\nTEST ADAPTIVE WALNUTS"
+            << ";  D = " << D << ";  N = " << N
+            << "; step_size_init = " << step_size_init
+            << "; max_nuts_depth = " << max_nuts_depth
+            << "; max_error = " << max_error << std::endl;
   auto logp = [&](auto &&...args) {
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -157,7 +168,9 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   logp_count = 0;
   global_start = std::chrono::high_resolution_clock::now();
 
-  MatrixS draws(D, N);
+  int M = model.constrained_dimensions();
+
+  MatrixS draws(M, N);
   for (Integer n = 0; n < N; ++n) {
     model.constrain_draw(sampler(), draws.col(n));
   }
@@ -174,7 +187,7 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
             << std::endl;
   std::cout << std::endl;
 
-  summarize(draws);
+  summarize(model.param_names(), draws);
 }
 
 int main(int argc, char **argv) {
@@ -215,9 +228,9 @@ int main(int argc, char **argv) {
     theta_init(i) = std_normal(rng);
   }
 
-  test_nuts(model, theta_init, rng, D, N, step_size, max_depth, inv_mass);
+  test_nuts(model, theta_init, rng, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(model, theta_init, rng, D, N, step_size, max_depth, max_error,
+  test_walnuts(model, theta_init, rng, N, step_size, max_depth, max_error,
                inv_mass);
 
   test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth, max_error);

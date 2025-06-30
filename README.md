@@ -1,7 +1,7 @@
 # Adaptive WALNUTS in C++
 
 This is a C++ implementation of the following three Hamiltonian Monte
-Carlo (HMC) samplers. 
+Carlo (HMC) samplers.
 
 * [NUTS](https://www.jmlr.org/papers/volume15/hoffman14a/hoffman14a.pdf)
 * [WALNUTS](https://arxiv.org/abs/2506.18746)
@@ -48,7 +48,7 @@ licensed](https://opensource.org/license/bsd-3-clause))
 
 All of the build files use CMake.  The root CMake configuration is in
 
-* Base CMake configuration: `walnuts_cpp/CMakelists.txt` 
+* Base CMake configuration: `CMakelists.txt`
 
 All instructions below are coded for the `bash` shell, which is
 conventionally located in in `/usr/bin/bash`.
@@ -58,15 +58,14 @@ All instructions assume the user **starts in the top-level directory**.
 ### Internet connection required
 
 The build uses CMake's `fetch_content` and `ExternalProject_Add`
-commands to manage dependencies.  This means that **creating 
+commands to manage dependencies.  This means that **creating
 the project from source requires an internet connection.**
 
 ### Base directory
 
-All instructions assume the scripts start int he top level directory
-`walnuts_cpp`.
+All instructions assume the scripts start in the top level directory.
 
-### Preliminary build 
+### Preliminary build
 
 **Before anything else,** the following core build must be done to
 prime CMake.  The script is **run from the top-level directory**.
@@ -115,9 +114,9 @@ make -j3 test_nuts
 The unit tests may be run with the following pair of commands to build
 and run. Googletest must be installed (see dependencies above).
 
-```bash 
-cmake --build build --parallel 3 --target online_moments_test dual_average_test 
-ctest --test-dir ./build/tests 
+```bash
+cmake --build build --parallel 3 --target online_moments_test dual_average_test
+ctest --test-dir ./build/tests
 ```
 
 
@@ -125,13 +124,13 @@ ctest --test-dir ./build/tests
 
 The following commands may be used to make the C++ documentation.
 
-```bash 
+```bash
 cd build
-make doc 
+make doc
 ```
 
 The root of the generated doc will be found in
-`walnuts_cpp/doc/html/index.html`.
+`build/html/index.html`.
 
 
 ## Automatic code formatting with clang-format
@@ -149,7 +148,7 @@ make format
 ```
 
 The formatting style is defined in the file
-`walnuts_cpp/.clang_format`.  It specifies
+`.clang_format`.  It specifies
 
 * baseline Google format for compactness,
 * braces and newlines around conditional and loop bodies, and
@@ -158,17 +157,16 @@ The formatting style is defined in the file
 
 ## CMake Tips
 
-### Refresh CMake 
+### Refresh CMake
 
-Cmake stores a `CMakeCache.txt` file with the variables from your most recent build. 
-For an existing build you want to completely refresh use `--fresh` when building. 
+Cmake stores a `CMakeCache.txt` file with the variables from your most recent build.
+For an existing build you want to completely refresh use `--fresh` when building.
 
-```bash 
-# /usr/bin/bash 
-# From walnuts_cpp 
+```bash
+# /usr/bin/bash
 
-# remove old build, rebuild with --fresh to force a hard reset of cached variables 
-rm -rf ./build 
+# remove old build, rebuild with --fresh to force a hard reset of cached variables
+rm -rf ./build
 cmake -S . -B "build" --fresh
 
 # All the cmake targets now exist in build
@@ -181,7 +179,6 @@ To view the optional flags for cmake with this project call `cmake -S . -B "buil
 
 ```bash
 # /usr/bin/bash
-# From walnuts_cpp
 # Same as other command but -LH lists all cached cmake variables
 # along with their help comment
 cmake -S . -B "build" -LH | grep "WALNUTS" -B1
@@ -202,7 +199,6 @@ To see the available targets from the top level directory run the following afte
 
 ```bash
 # /usr/bin/bash
-# From walnuts_cpp
 cmake -S . -B "build"
 cmake --build build --target help
 ```
@@ -213,7 +209,6 @@ We can also use this to build from the top level directory
 
 ```bash
 # /usr/bin/bash
-# From walnuts_cpp
 
 # This will take longer as we include dependencies
 # google test and google benchmark
@@ -254,8 +249,6 @@ the top-level names of which are listed.
 │       ├── nuts.hpp
 │       ├── util.hpp
 │       └── walnuts.hpp
-├── lib
-│   ├── eigen-3.4.0...
 ├── tests
 │   ├── CMakeLists.txt
 │   └── mock_test.cpp

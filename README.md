@@ -55,17 +55,17 @@ conventionally located in in `/usr/bin/bash`.
 
 All instructions assume the user **starts in the top-level directory**.
 
-### Internet connection required
+#### Internet connection required
 
 The build uses CMake's `fetch_content` and `ExternalProject_Add`
 commands to manage dependencies.  This means that **creating
 the project from source requires an internet connection.**
 
-### Base directory
+#### Base directory
 
 All instructions assume the scripts start in the top level directory.
 
-### Preliminary build
+#### Preliminary build
 
 **Before anything else,** the following core build must be done to
 prime CMake.  The script is **run from the top-level directory**.
@@ -83,7 +83,7 @@ The cmake options are:
 * `-DCMAKE_BUILD_TYPE=RELEASE` indicates a release build (use `DEBUG`
 for a debug build)
 
-### Inspect build targets
+#### Inspect build targets
 
 After the call, the build dependences now exist in the `build`
 directory. To see the make targets that may be built, run the
@@ -109,20 +109,20 @@ make -j3 test_nuts
 ```
 
 
-## Running unit tests
+### Running unit tests
 
 The unit tests may be run with the following pair of commands to build
 and run. Googletest must be installed (see dependencies above).
 
 ```bash
-cmake --build build --parallel 3 --target online_moments_test dual_average_test
+cmake --build build --parallel 3 --target online_moments_test dual_average_test util_test
 ctest --test-dir ./build/tests
 ```
 
 
-## Making documentation with Doxygen
+### Building documentation
 
-The following commands may be used to make the C++ documentation.
+The following commands may be used to make the C++ documentation with Doxygen.
 
 ```bash
 cd build
@@ -133,7 +133,7 @@ The root of the generated doc will be found in
 `build/html/index.html`.
 
 
-## Automatic code formatting with clang-format
+### Automatic code formatting
 
 The following commands will use `clang-format` to automatically format
 the following files.

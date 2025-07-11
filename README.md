@@ -250,7 +250,6 @@ the top-level names of which are listed.
 ├── tests
 │   ├── CMakeLists.txt 
 │   ├── dual_average_test.cpp
-│   ├── mock_test.cpp 
 │   ├── online_moments_test.cpp
 │   └── util_test.cpp 
 ├── CMakeLists.txt

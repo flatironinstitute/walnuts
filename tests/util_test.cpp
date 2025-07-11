@@ -78,7 +78,6 @@ TEST(Util, Walnuts) {
 
 
 TEST(Util, WalnutsRegression) {
-  EXPECT_EQ(2 + 2, 4);
   Vec thetabk1 = vec(3, 0);
   Vec thetafw1 = vec(0, 0);
   Vec thetabk2 = vec(1, 0);

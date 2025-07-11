@@ -71,6 +71,9 @@ TEST(Util, Walnuts) {
 
   EXPECT_TRUE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(span1, span2, inv_mass)));
   EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(span2, span1, inv_mass)));
+
+  EXPECT_TRUE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(span2, span1, inv_mass)));
+  EXPECT_FALSE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(span1, span2, inv_mass)));
 }
 
 

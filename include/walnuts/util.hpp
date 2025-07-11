@@ -221,14 +221,14 @@ inline auto order_forward_backward(T &&x1, T &&x2) {
  * @tparam D The direction in which to order the spans.
  * @tparam S The type of scalars.
  * @tparam U The type of spans, which must define begin and end positions.
- * @param[in] span_1 The first argument span.
- * @param[in] span_2 The second argument span.
+ * @param[in] span1 The first argument span.
+ * @param[in] span2 The second argument span.
  * @param[in] inv_mass The inverse mass matrix to determine distances.
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
 template <Direction D, typename S, class U>
-inline bool uturn(const U &span_1, const U &span_2, const Vec<S> &inv_mass) {
-  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_1, span_2);
+inline bool uturn(const U &span1, const U &span2, const Vec<S> &inv_mass) {
+  auto &&[span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
           .matrix();

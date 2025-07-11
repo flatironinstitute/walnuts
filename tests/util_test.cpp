@@ -24,10 +24,6 @@ static Mat mat(S x00, S x01, S x10, S x11) {
   return y;
 }
 
-TEST(Util, Dummy) {
-  EXPECT_EQ(1 + 1, 2);
-}
-
 TEST(Util, Walnuts) {
   EXPECT_EQ(2 + 2, 4);
   Vec thetabk1 = vec(-3, 0);

@@ -104,7 +104,7 @@ if(WALNUTS_BUILD_STAN)
 
   add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
   target_link_libraries(test_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
-  target_compile_options(test_stan PRIVATE -O3 -Wall)
+  target_compile_options(test_stan PRIVATE -Wall)
 endif()
 
 #############################
@@ -133,7 +133,7 @@ add_library(nuts::nuts ALIAS walnuts)
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
   target_link_libraries(test_nuts PRIVATE nuts::nuts)
-  target_compile_options(test_nuts PRIVATE -O3 -Wall)
+  target_compile_options(test_nuts PRIVATE -Wall)
 endif()
 
 ##########################

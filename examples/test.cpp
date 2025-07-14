@@ -48,10 +48,10 @@ static void block_end_timer() {
 static void ill_cond_normal_logp_grad(const VectorS& x, S& logp,
                                       VectorS& grad) {
   block_start_timer();
-  Integer D = x.size();
+  const auto D = x.size();
   grad = VectorS::Zero(D);
   logp = 0;
-  for (Integer d = 0; d < D; ++d) {
+  for (auto d = 0; d < D; ++d) {
     double sigma = d + 1;
     double sigma_sq = sigma * sigma;
     logp += -0.5 * x[d] * x[d] / sigma_sq;

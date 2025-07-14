@@ -29,4 +29,4 @@ endfunction()
 
 add_nuts_test(online_moments_test online_moments_test.cpp)
 add_nuts_test(dual_average_test dual_average_test.cpp)
-
+add_nuts_test(util_test util_test.cpp)

@@ -18,7 +18,8 @@ The project is distributed under the following licenses.
 
 ## Dependencies
 
-The dependencies may all be downloaded through CMake (see the next section).
+The dependencies may all be downloaded through CMake (see the next
+section).
 
 ### Required build dependencies
 
@@ -44,123 +45,119 @@ information on its dependencies.
 licensed](https://opensource.org/license/bsd-3-clause))
 
 
-## Compiling and running with CMake
+## CMake Preliminary Build
 
-All of the build files use CMake.  The root CMake configuration is in
+All build steps use CMake. The root configuration file is:
 
-* Base CMake configuration: `CMakelists.txt`
+* `CMakeLists.txt`
 
-All instructions below are coded for the `bash` shell, which is
-conventionally located in in `/usr/bin/bash`.
+All instructions assume a `bash` shell (typically at `/usr/bin/bash`)
+and that commands are run from the top-level `walnuts` directory of
+the repository.
 
-All instructions assume the user **starts in the top-level directory**.
+### Internet Connection Required
 
-### Internet connection required
+The build uses CMake's `FetchContent` and `ExternalProject_Add` to
+manage dependencies. **An internet connection is required when first
+building the project.**
 
-The build uses CMake's `fetch_content` and `ExternalProject_Add`
-commands to manage dependencies.  This means that **creating
-the project from source requires an internet connection.**
+### Initial Configuration
 
-### Base directory
-
-All instructions assume the scripts start in the top level directory.
-
-### Preliminary build
-
-**Before anything else,** the following core build must be done to
-prime CMake.  The script is **run from the top-level directory**.
-
+**Before building any targets**, you must configure the build with:
 
 ```bash
-cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 ```
 
-The cmake options are:
+The options used are as follows.
 
-* `-S .` indicates that the source is in the current directory
-* `-B "build"` indicates the build will happen in a a new folder
-`build` under the top-level directory
-* `-DCMAKE_BUILD_TYPE=RELEASE` indicates a release build (use `DEBUG`
-for a debug build)
+* `-S .`: Source is the current directory.
+* `-B build`: Build directory will be `./build`.
+* `-DCMAKE_BUILD_TYPE=Release`: Use Debug for debugging builds.
 
 ### Inspect build targets
 
-After the call, the build dependences now exist in the `build`
-directory. To see the make targets that may be built, run the
-following.
+To see available build targets:
 
 ```bash
-cd build
-make help
-```
-
-### Running example code
-
-An example of NUTS, WALNUTS and adaptive WALNUTS may be found in.
-
-* `examples/test.cpp`
-
-Making it the first time will cause make to download the Eigen library.
-
-```bash
-cd build
-make -j3 test_nuts
-./test_nuts
+cmake --build build --target help
 ```
 
 
-## Running unit tests
+## Building Targets
 
-The unit tests may be run with the following pair of commands to build
-and run. Googletest must be installed (see dependencies above).
+Once the [Preliminary build](#preliminary-build)above) has been run,
+you can build individual targets from the top-level directory.
+
+### Run example code
+
+The file `examples/test.cpp` contains examples using NUTS, WALNUTS,
+and adaptive WALNUTS. The first build will trigger a download of the
+Eigen library.
+
+To build and run the examples:
 
 ```bash
-cmake --build build --parallel 3 --target online_moments_test dual_average_test
-ctest --test-dir ./build/tests
+cmake --build build --parallel 3 --target test_nuts
+./build/test_nuts
 ```
 
 
-## Making documentation with Doxygen
+### Run unit tests
 
-The following commands may be used to make the C++ documentation.
+To build and run the unit tests:
 
 ```bash
-cd build
-make doc
+cmake --build build --parallel 3 --target online_moments_test dual_average_test util_test
+ctest --test-dir ./build/tests 
+```
+
+### Build documentation
+
+To build the C++ documentatino using Doxygen:
+
+```bash
+cmake --build build --target doc  
 ```
 
 The root of the generated doc will be found in
-`build/html/index.html`.
+
+* `build/html/index.html`.
 
 
-## Automatic code formatting with clang-format
+### Format code
 
-The following commands will use `clang-format` to automatically format
-the following files.
+Automatic code formatting applies to files
 
-* `.hpp` files in `include`
-* `.cpp` files in `examples`
-* `.cpp` files in `tests`.
+* `.hpp` files in `include`,
+* `.cpp` files in `examples`, and
+* `.cpp` files in `tests`. 
+
+To automatically format C++ code using Clang Format:
 
 ```bash
-cd build
-make format
+cmake --build build --target format
 ```
 
-The formatting style is defined in the file
-`.clang_format`.  It specifies
+#### Formatting style
 
-* baseline Google format for compactness,
-* braces and newlines around conditional and loop bodies, and
-* includes sorted within block with blocks maintained.
+The formatting style is defined in top-level file
+
+* `.clang_format`.
+
+The style is based on the Google style guide, with 
+
+* braces/newline around all conditionals and loops, and
+* sorted `#include` blocks.
 
 
 ## CMake Tips
 
 ### Refresh CMake
 
-Cmake stores a `CMakeCache.txt` file with the variables from your most recent build.
-For an existing build you want to completely refresh use `--fresh` when building.
+Cmake stores a `CMakeCache.txt` file with the variables from your most
+recent build.  For an existing build you want to completely refresh
+use `--fresh` when building.
 
 ```bash
 # /usr/bin/bash
@@ -242,17 +239,19 @@ the top-level names of which are listed.
 ├── examples
 │   ├── test_stan.cpp
 │   └── test.cpp
-├── extras
-│   └── readme.md
 ├── include
 │   └── walnuts
+│       ├── adaptive_walnuts.hpp 
+│       ├── dual_average.hpp 
 │       ├── nuts.hpp
-│       ├── util.hpp
-│       └── walnuts.hpp
+│       ├── online_moments.hpp
+│       ├── util.hpp 
+│       └── walnuits.hpp
 ├── tests
-│   ├── CMakeLists.txt
-│   └── mock_test.cpp
-│   └── welford_test.cpp
+│   ├── CMakeLists.txt 
+│   ├── dual_average_test.cpp
+│   ├── online_moments_test.cpp
+│   └── util_test.cpp 
 ├── CMakeLists.txt
 └── README.md
 ```

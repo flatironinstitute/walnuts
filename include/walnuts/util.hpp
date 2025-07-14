@@ -236,4 +236,43 @@ inline bool uturn(const U &span1, const U &span2, const Vec<S> &inv_mass) {
          span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
+/**
+ * @brief A wrapper for a log density and gradient function that traps
+ * exceptions.
+ *
+ * @tparam F Type of underlying log density function.
+ * @tparam S Type of scalars.
+ */  
+template <typename F, typename S>
+class NoExceptLogpGrad {
+ public:
+  /**
+   * @brief Construct a log density and gradient function from a base
+   * log density and gradient function.
+   *
+   * @param logp_grad The base log density and gradient function.
+   */
+  NoExceptLogpGrad(F& logp_grad): logp_grad_(logp_grad) { }
+
+  /**
+   * @brief Given the specified position, set the log density and
+   * gradient.
+   *
+   * @param[in] x The position vector.
+   * @param[out] logp The log density to set.
+   * @param[out] grad The gradient to set.
+   */
+  inline void operator()(const Vec<S>& x, S& logp, Vec<S>& grad)
+    const noexcept {
+    try {
+      logp_grad_(x, logp, grad);
+    } catch (...) {
+      logp = -std::numeric_limits<S>::infinity();
+      grad = Vec<S>::Zero(x.size());
+    }
+  }    
+
+  F& logp_grad_;
+};
+  
 }  // namespace nuts

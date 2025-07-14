@@ -86,8 +86,8 @@ cmake --build build --target help
 
 ## Building Targets
 
-Once the [Preliminary build](#preliminary-build)above) has been run,
-you can build individual targets from the top-level directory.
+Once the preliminary build has been run (see above), you can build
+individual targets from the top-level directory.
 
 ### Run example code
 

@@ -115,7 +115,7 @@ class SpanW {
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
- * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in,out] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
@@ -126,7 +126,7 @@ class SpanW {
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <typename S, typename F>
-bool within_tolerance(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+bool within_tolerance(F &logp_grad, const Vec<S> &inv_mass, S step,
                       Integer num_steps, S max_error, S logp_next,
                       Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next) {
   S half_step = 0.5 * step;
@@ -135,7 +135,7 @@ bool within_tolerance(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     rho_next.noalias() = rho_next + half_step * grad_next;
     theta_next.noalias() +=
         step * (inv_mass.array() * rho_next.array()).matrix();
-    logp_grad_fun(theta_next, logp_next, grad_next);
+    logp_grad(theta_next, logp_next, grad_next);
     rho_next.noalias() += half_step * grad_next;
   }
   logp_next += logp_momentum(rho_next, inv_mass);
@@ -148,7 +148,7 @@ bool within_tolerance(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  *
  * @tparam S Type of scalars.
  * @tparam F Type of log density/gradient function.
- * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in,out] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
@@ -160,7 +160,7 @@ bool within_tolerance(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step,
                 Integer num_steps, S max_error, S logp_next,
                 const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad) {
   if (num_steps == 1) {
@@ -175,7 +175,7 @@ bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
     grad_next = grad;
     num_steps /= 2;
     step *= 2;
-    if (within_tolerance(logp_grad_fun, inv_mass, step, num_steps, max_error,
+    if (within_tolerance(logp_grad, inv_mass, step, num_steps, max_error,
                          logp_next, theta_next, rho_next, grad_next)) {
       return false;
     }
@@ -192,7 +192,7 @@ bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
- * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in,out] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] max_error The maximum Hamiltonian diference allowed in the macro
@@ -207,7 +207,7 @@ bool reversible(F &logp_grad_fun, const Vec<S> &inv_mass, S step,
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, typename S, typename F, class A>
-bool macro_step(F &logp_grad_fun, const Vec<S> &inv_mass, S step, S max_error,
+bool macro_step(F &logp_grad, const Vec<S> &inv_mass, S step, S max_error,
                 const SpanW<S> &span, Vec<S> &theta_next, Vec<S> &rho_next,
                 Vec<S> &grad_next, S &logp_next, A &adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
@@ -227,7 +227,7 @@ bool macro_step(F &logp_grad_fun, const Vec<S> &inv_mass, S step, S max_error,
       rho_next.noalias() = rho_next + half_step * grad_next;
       theta_next.noalias() +=
           step * (inv_mass.array() * rho_next.array()).matrix();
-      logp_grad_fun(theta_next, logp_next, grad_next);
+      logp_grad(theta_next, logp_next, grad_next);
       rho_next.noalias() += half_step * grad_next;
     }
     logp_next += logp_momentum(rho_next, inv_mass);
@@ -238,7 +238,7 @@ bool macro_step(F &logp_grad_fun, const Vec<S> &inv_mass, S step, S max_error,
     // checking only at macro step misses early failures
     // TODO: evaluate if better to do mass density to early stop
     if (std::fabs(logp - logp_next) <= max_error) {
-      return reversible(logp_grad_fun, inv_mass, step, num_steps, max_error,
+      return reversible(logp_grad, inv_mass, step, num_steps, max_error,
                         logp_next, theta_next, rho_next, grad_next);
     }
   }
@@ -307,7 +307,7 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
- * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in,out] logp_grad The log density/gradient function.
  * @param[in] span The span to extend.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
@@ -317,14 +317,14 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
 template <Direction D, typename S, class F, class A>
-std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
+std::optional<SpanW<S>> build_leaf(const F &logp_grad, const SpanW<S> &span,
                                    const Vec<S> &inv_mass, S step, S max_error,
                                    A &adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  if (!macro_step<D>(logp_grad_fun, inv_mass, step, max_error, span, theta_next,
+  if (!macro_step<D>(logp_grad, inv_mass, step, max_error, span, theta_next,
                      rho_next, grad_theta_next, logp_theta_next,
                      adapt_handler)) {
     return std::nullopt;
@@ -343,7 +343,7 @@ std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
  * @tparam RNG The type of the base random number generator.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rng The random number generator.
- * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in,out] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] depth The maximum NUTS depth.
@@ -353,23 +353,23 @@ std::optional<SpanW<S>> build_leaf(const F &logp_grad_fun, const SpanW<S> &span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, typename S, class F, class RNG, class A>
-std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad_fun,
+std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
                                    const Vec<S> &inv_mass, S step,
                                    Integer depth, S max_error,
                                    const SpanW<S> &last_span,
                                    A &adapt_handler) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step, max_error,
+    return build_leaf<D>(logp_grad, last_span, inv_mass, step, max_error,
                          adapt_handler);
   }
   auto maybe_subspan1 =
-      build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1, max_error,
+      build_span<D>(rng, logp_grad, inv_mass, step, depth - 1, max_error,
                     last_span, adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
   auto maybe_subspan2 =
-      build_span<D>(rng, logp_grad_fun, inv_mass, step, depth - 1, max_error,
+      build_span<D>(rng, logp_grad, inv_mass, step, depth - 1, max_error,
                     *maybe_subspan1, adapt_handler);
   if (!maybe_subspan2) {
     return std::nullopt;
@@ -389,7 +389,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad_fun,
  * @tparam RNG The type of the base random number generator.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rand The random number generator.
- * @param[in,out] logp_grad_fun The log density/gradient function.
+ * @param[in,out] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
@@ -402,14 +402,14 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad_fun,
  * @return The next position in the Markov chain.
  */
 template <typename S, class F, class RNG, class A>
-Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
+Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad,
                     const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
                     Integer max_depth, Vec<S> &&theta, Vec<S> &theta_grad,
                     S max_error, A &adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
-  logp_grad_fun(theta, logp, grad);
+  logp_grad(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   SpanW<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
@@ -417,7 +417,7 @@ Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
     if (go_forward) {
       constexpr Direction D = Direction::Forward;
       auto maybe_next_span =
-          build_span<D>(rand, logp_grad_fun, inv_mass, step, depth, max_error,
+          build_span<D>(rand, logp_grad, inv_mass, step, depth, max_error,
                         span_accum, adapt_handler);
       if (!maybe_next_span) {
         break;
@@ -430,7 +430,7 @@ Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad_fun,
       }
     } else {
       constexpr Direction D = Direction::Backward;
-      auto span_next = build_span<D>(rand, logp_grad_fun, inv_mass, step, depth,
+      auto span_next = build_span<D>(rand, logp_grad, inv_mass, step, depth,
                                      max_error, span_accum, adapt_handler);
       if (!span_next) {
         break;
@@ -559,7 +559,7 @@ class WalnutsSampler {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  F &logp_grad_;
+  NoExceptLogpGrad<F, S> logp_grad_;
 
   /** The current position. */
   Vec<S> theta_;

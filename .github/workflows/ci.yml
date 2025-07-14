@@ -1,0 +1,95 @@
+name: walnuts tests
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+  workflow_dispatch: {}
+
+env:
+  CACHE_VERSION: 1
+
+# only run one copy per PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
+    runs-on: ${{matrix.cfg.os}}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+          - os: windows
+            compiler: gcc
+          - os: ubuntu
+            compiler: gcc
+          - os: macos
+            compiler: clang
+
+    steps:
+      - name: Check out github
+        uses: actions/checkout@v4
+
+      - name: build caching
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: ./build/deps/
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
+
+      - name: Build
+        run: |
+          mkdir -p build/
+          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
+          cmake --build build/ --parallel 4
+        shell: bash
+
+      - name: Run examples
+        run: |
+          cd build/
+          ./test_nuts
+        shell: bash
+
+      - name: Test
+        run: |
+          cd build/
+          ctest --output-on-failure --parallel 4 --repeat until-pass:2
+        shell: bash
+
+  build-msvc:
+    name: Build (windows/MSVC)
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out github
+        uses: actions/checkout@v4
+
+      - name: build caching
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: ./build/deps/
+          key: windows-msvc-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
+
+      - name: Build
+        run: |
+          mkdir -p build/
+          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build/ --parallel 4 --config RelWithDebInfo
+        shell: bash
+
+      - name: Run examples
+        run: |
+          cd build/RelWithDebInfo/
+          ./test_nuts.exe
+        shell: bash
+
+      - name: Test
+        run: |
+          cd build/
+          ctest --output-on-failure --parallel 4 --repeat until-pass:2 -C RelWithDebInfo
+        shell: bash

@@ -267,6 +267,7 @@ class NoExceptLogpGrad {
     try {
       logp_grad_(x, logp, grad);
     } catch (...) {
+      // TODO: log exception
       logp = -std::numeric_limits<S>::infinity();
       grad = Vec<S>::Zero(x.size());
     }

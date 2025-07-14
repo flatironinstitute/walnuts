@@ -90,7 +90,7 @@ class Span {
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
- * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in,out] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
  * (finite positive components).
  * @param[in] step The step size.
@@ -107,7 +107,7 @@ class Span {
  * @pre theta.size() == inv_mass.size()
  */
 template <typename S, typename F>
-void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
+void leapfrog(const F &logp_grad, const Vec<S> &inv_mass, S step,
               const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
               Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
               S &logp_next) {
@@ -115,7 +115,7 @@ void leapfrog(const F &logp_grad_fun, const Vec<S> &inv_mass, S step,
   rho_next.noalias() = rho + half_step * grad;
   theta_next.noalias() =
       theta + step * (inv_mass.array() * rho_next.array()).matrix();
-  logp_grad_fun(theta_next, logp_next, grad_next);
+  logp_grad(theta_next, logp_next, grad_next);
   rho_next.noalias() += half_step * grad_next;
   logp_next += logp_momentum(rho_next, inv_mass);
 }
@@ -159,7 +159,7 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
  * @tparam D The temporal direction in which to extend the last span.
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
- * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in,out] logp_grad The target log density/gradient function.
  * @param[in] span The span to extend.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
  * (positive finite components).
@@ -167,18 +167,18 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
  * @return The single-state span that follows the specified span.
  */
 template <Direction D, typename S, class F>
-Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
+Span<S> build_leaf(const F &logp_grad, const Span<S> &span,
                    const Vec<S> &inv_mass, S step) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
   if constexpr (D == Direction::Forward) {
-    leapfrog(logp_grad_fun, inv_mass, step, span.theta_fw_, span.rho_fw_,
+    leapfrog(logp_grad, inv_mass, step, span.theta_fw_, span.rho_fw_,
              span.grad_theta_fw_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
   } else {  // Direction::Backward
-    leapfrog(logp_grad_fun, inv_mass, -step, span.theta_bk_, span.rho_bk_,
+    leapfrog(logp_grad, inv_mass, -step, span.theta_bk_, span.rho_bk_,
              span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
   }
@@ -197,7 +197,7 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
  * @tparam F The type of the target log density/gradient function.
  * @tparam RNG The type of the base random number generator.
  * @param[in,out] rand The compound random number generator.
- * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in,out] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix (finite
  * positive components).
  * @param[in] step The step size (finite positive floating point).
@@ -206,18 +206,18 @@ Span<S> build_leaf(const F &logp_grad_fun, const Span<S> &span,
  * @return The new span of `std::nullopt` if there was a sub-u-turn.
  */
 template <Direction D, typename S, class F, class RNG>
-std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad_fun,
+std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad,
                                   const Vec<S> &inv_mass, S step, Integer depth,
                                   const Span<S> &last_span) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad_fun, last_span, inv_mass, step);
+    return build_leaf<D>(logp_grad, last_span, inv_mass, step);
   }
   auto maybe_subspan1 =
-      build_span<D>(rand, logp_grad_fun, inv_mass, step, depth - 1, last_span);
+      build_span<D>(rand, logp_grad, inv_mass, step, depth - 1, last_span);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
-  auto maybe_subspan2 = build_span<D>(rand, logp_grad_fun, inv_mass, step,
+  auto maybe_subspan2 = build_span<D>(rand, logp_grad, inv_mass, step,
                                       depth - 1, *maybe_subspan1);
   if (!maybe_subspan2) {
     return std::nullopt;
@@ -237,7 +237,7 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad_fun,
  * @tparam F The type of the log density/gradient function.
  * @tparam RNG The type of the base random number generator.
  * @param[in,out] rand The compound random number generator.
- * @param[in,out] logp_grad_fun The target log density/gradient function.
+ * @param[in,out] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
@@ -247,13 +247,13 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad_fun,
  * @return The next state in the NUTS Markov chain.
  */
 template <typename S, class F, class RNG>
-Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad_fun,
+Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad,
                   const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
                   Integer max_depth, Vec<S> &&theta) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
-  logp_grad_fun(theta, logp, grad);
+  logp_grad(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
@@ -261,7 +261,7 @@ Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad_fun,
     if (go_forward) {
       constexpr Direction D = Direction::Forward;
       auto maybe_next_span =
-          build_span<D>(rand, logp_grad_fun, inv_mass, step, depth, span_accum);
+          build_span<D>(rand, logp_grad, inv_mass, step, depth, span_accum);
       if (!maybe_next_span) {
         break;
       }
@@ -274,7 +274,7 @@ Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad_fun,
     } else {
       constexpr Direction D = Direction::Backward;
       auto maybe_next_span =
-          build_span<D>(rand, logp_grad_fun, inv_mass, step, depth, span_accum);
+          build_span<D>(rand, logp_grad, inv_mass, step, depth, span_accum);
       if (!maybe_next_span) {
         break;
       }
@@ -360,7 +360,7 @@ class Nuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  F &logp_grad_;
+  NoExceptLogpGrad<F, S> logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

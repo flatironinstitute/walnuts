@@ -17,18 +17,24 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
+    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compilerpp}})
     runs-on: ${{matrix.cfg.os}}-latest
     strategy:
       fail-fast: false
       matrix:
         cfg:
           - os: windows
-            compiler: gcc
+            compiler: cl.exe
+            compilerpp: cl.exe
+          - os: windows
+            compiler: gcc.exe
+            compilerpp: g++.exe
           - os: ubuntu
             compiler: gcc
+            compilerpp: g++
           - os: macos
             compiler: clang
+            compilerpp: clang++
 
     steps:
       - name: Check out github
@@ -39,14 +45,17 @@ jobs:
         id: deps-cache
         with:
           path: ./build/deps/
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
+          key: ${{ runner.os }}-${{ matrix.cfg.compiler }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.cfg.compiler == 'cl.exe'
 
       - name: Build
         run: |
           mkdir -p build/
-          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja
+          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja -DCMAKE_C_COMPILER=${{ matrix.cfg.compiler }} -DCMAKE_CXX_COMPILER=${{ matrix.cfg.compilerpp }}
           cmake --build build/ --parallel 4
-        shell: bash
+
 
       - name: Run examples
         run: |
@@ -58,38 +67,4 @@ jobs:
         run: |
           cd build/
           ctest --output-on-failure --parallel 4 --repeat until-pass:2
-        shell: bash
-
-  build-msvc:
-    name: Build (windows/MSVC)
-    runs-on: windows-latest
-
-    steps:
-      - name: Check out github
-        uses: actions/checkout@v4
-
-      - name: build caching
-        uses: actions/cache@v4
-        id: deps-cache
-        with:
-          path: ./build/deps/
-          key: windows-msvc-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
-
-      - name: Build
-        run: |
-          mkdir -p build/
-          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          cmake --build build/ --parallel 4 --config RelWithDebInfo
-        shell: bash
-
-      - name: Run examples
-        run: |
-          cd build/RelWithDebInfo/
-          ./test_nuts.exe
-        shell: bash
-
-      - name: Test
-        run: |
-          cd build/
-          ctest --output-on-failure --parallel 4 --repeat until-pass:2 -C RelWithDebInfo
         shell: bash

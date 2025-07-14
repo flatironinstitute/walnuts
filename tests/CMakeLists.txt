@@ -1,4 +1,4 @@
-set(gtest_force_shared_crt on)
+
 
 FetchContent_Declare(googletest
         DOWNLOAD_EXTRACT_TIMESTAMP ON

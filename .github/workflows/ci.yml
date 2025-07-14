@@ -17,24 +17,20 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compilerpp}})
+    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
     runs-on: ${{matrix.cfg.os}}-latest
     strategy:
       fail-fast: false
       matrix:
         cfg:
           - os: windows
-            compiler: cl.exe
-            compilerpp: cl.exe
+            compiler: msvc
           - os: windows
-            compiler: gcc.exe
-            compilerpp: g++.exe
+            compiler: gcc
           - os: ubuntu
             compiler: gcc
-            compilerpp: g++
           - os: macos
             compiler: clang
-            compilerpp: clang++
 
     steps:
       - name: Check out github
@@ -48,14 +44,13 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.cfg.compiler }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
 
       - uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.cfg.compiler == 'cl.exe'
+        if: matrix.cfg.compiler == 'msvc'
 
       - name: Build
         run: |
           mkdir -p build/
-          cmake -S . -B build/ -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -G Ninja -DCMAKE_C_COMPILER=${{ matrix.cfg.compiler }} -DCMAKE_CXX_COMPILER=${{ matrix.cfg.compilerpp }}
-          cmake --build build/ --parallel 4
-
+          cmake -S . -B build/ -G Ninja -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build/ --parallel 4 --config RelWithDebInfo
 
       - name: Run examples
         run: |
@@ -66,5 +61,5 @@ jobs:
       - name: Test
         run: |
           cd build/
-          ctest --output-on-failure --parallel 4 --repeat until-pass:2
+          ctest --output-on-failure --parallel 4 --repeat until-pass:2 -C RelWithDebInfo
         shell: bash

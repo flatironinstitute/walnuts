@@ -36,11 +36,11 @@ jobs:
       - name: Check out github
         uses: actions/checkout@v4
 
-      - name: build caching
+      - name: Dependency caching
         uses: actions/cache@v4
         id: deps-cache
         with:
-          path: ./build/deps/
+          path: ./build/_deps/
           key: ${{ runner.os }}-${{ matrix.cfg.compiler }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
 
       - uses: ilammy/msvc-dev-cmd@v1
@@ -48,7 +48,6 @@ jobs:
 
       - name: Build
         run: |
-          mkdir -p build/
           cmake -S . -B build/ -G Ninja -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build/ --parallel 4 --config RelWithDebInfo
 

@@ -5,7 +5,7 @@ Carlo (HMC) samplers.
 
 * [NUTS](https://www.jmlr.org/papers/volume15/hoffman14a/hoffman14a.pdf)
 * [WALNUTS](https://arxiv.org/abs/2506.18746)
-* Adaptive WALNUTS
+* Adaptive WALNUTS (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
 
 
 ## Licensing

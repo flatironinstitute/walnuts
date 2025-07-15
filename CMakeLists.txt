@@ -19,6 +19,7 @@ option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
+option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
 # Build Types
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -29,7 +30,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # After no-c++98 warnings, rest are to suppress gtest warnings
   add_compile_options(-Wall -Weverything -Wno-padded
   -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
-  -Wno-c++98-compat-pedantic -Wno-c++98-compat 
+  -Wno-c++98-compat-pedantic -Wno-c++98-compat
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
@@ -103,7 +104,7 @@ if(WALNUTS_BUILD_STAN)
 
   add_executable(test_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/test_stan.cpp)
   target_link_libraries(test_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
-  target_compile_options(test_stan PRIVATE -O3 -Wall)
+  target_compile_options(test_stan PRIVATE -Wall)
 endif()
 
 #############################
@@ -132,7 +133,7 @@ add_library(nuts::nuts ALIAS walnuts)
 if (WALNUTS_BUILD_EXAMPLES)
   add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
   target_link_libraries(test_nuts PRIVATE nuts::nuts)
-  target_compile_options(test_nuts PRIVATE -O3 -Wall)
+  target_compile_options(test_nuts PRIVATE -Wall)
 endif()
 
 ##########################
@@ -181,21 +182,23 @@ endif()
 #################################
 ##        Documentation        ##
 #################################
-find_package(Doxygen REQUIRED)
+if (WALNUTS_BUILD_DOCS)
+  find_package(Doxygen REQUIRED)
 
-# Public headers only
-file(GLOB_RECURSE WALNUT_HEADERS
-     "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
+  # Public headers only
+  file(GLOB_RECURSE WALNUT_HEADERS
+      "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
 
-# Doxygen configuration overrides
-set(DOXYGEN_FILE_PATTERNS    "*.hpp")
-set(DOXYGEN_GENERATE_HTML    YES)
-set(DOXYGEN_GENERATE_LATEX   NO)
-set(DOXYGEN_EXTRACT_ALL YES)
+  # Doxygen configuration overrides
+  set(DOXYGEN_FILE_PATTERNS    "*.hpp")
+  set(DOXYGEN_GENERATE_HTML    YES)
+  set(DOXYGEN_GENERATE_LATEX   NO)
+  set(DOXYGEN_EXTRACT_ALL YES)
 
-# `cmake --build . --target doc`
-doxygen_add_docs(
-  doc                         # target name
-  ${WALNUT_HEADERS}           # INPUT files
-  COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
-)
+  # `cmake --build . --target doc`
+  doxygen_add_docs(
+    doc                         # target name
+    ${WALNUT_HEADERS}           # INPUT files
+    COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
+  )
+endif()

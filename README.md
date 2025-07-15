@@ -61,8 +61,6 @@ CMake is required to build the examples and tests.
 The basic configuration is
 
 ```sh
-# run from a directory you want the build results to be placed in
-# NOT required to be in the repository folder
 cmake <options> <repo_root>
 ```
 
@@ -71,6 +69,7 @@ directory of the repository (where `CMakeLists.txt` is found).
 
 Some common options are:
 
+- `-B <build_dir>` - Specify the build directory where the build files will be generated. If omitted, the directory you run the command from will be used.
 - `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release.
 - `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
 - `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).

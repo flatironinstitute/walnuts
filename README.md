@@ -1,7 +1,7 @@
 # Adaptive WALNUTS in C++
 
-This is a C++ implementation of the following three Hamiltonian Monte
-Carlo (HMC) samplers.
+This is a C++ implementation of the following three [Hamiltonian Monte
+Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
 
 * [NUTS](https://www.jmlr.org/papers/volume15/hoffman14a/hoffman14a.pdf)
 * [WALNUTS](https://arxiv.org/abs/2506.18746)
@@ -37,8 +37,7 @@ licensed](https://opensource.org/license/bsd-3-clause))
 
 ### Optional build dependences
 
-For running Stan models, the following Stan interface that also
-includes Stan is required.  See the BridgeStan documentation for more
+Running Stan models requires the BridgeStan interface.  See the BridgeStan documentation for more
 information on its dependencies.
 
 * [BridgeStan](https://github.com/roualdes/bridgestan)  ([BSD-3
@@ -46,8 +45,9 @@ licensed](https://opensource.org/license/bsd-3-clause))
 
 ## Using WALNUTS in a C++ project
 
-This library is header only, and only requires Eigen (also header only)
-for downstream usage. If your project uses CMake, you can depend on our
+This library is header only and only requires Eigen (also header only)
+to run (additional dependencies are required for testing and documtnation). 
+If your project uses CMake, you can depend on our
 `walnuts` library target. If not, any method of adding the `include/`
 folder of this repository to your build system's include paths should suffice
 as long as you also provide Eigen yourself.
@@ -77,7 +77,7 @@ Some common options are:
 - `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
 - `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
 
-Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html)
+Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
 
 For example, a basic configuration which creates a `./build` directory in the repo
 root can be done with
@@ -86,7 +86,7 @@ root can be done with
 cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
 ```
 
-The remaining instructions assume that they are run from inside whatever
+The remaining instructions assume that commands are run from whatever
 directory you specified as the build directory (e.g., `./build` in the above command).
 
 ### Building
@@ -114,7 +114,7 @@ ctest
 
 ### Documentation
 
-To build the C++ documentatino using Doxygen:
+To build the C++ documentation using Doxygen:
 
 ```bash
 cmake --build . --target doc

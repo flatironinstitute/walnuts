@@ -44,214 +44,103 @@ information on its dependencies.
 * [BridgeStan](https://github.com/roualdes/bridgestan)  ([BSD-3
 licensed](https://opensource.org/license/bsd-3-clause))
 
+## Using WALNUTS in a C++ project
 
-## CMake Preliminary Build
+This library is header only, and only requires Eigen (also header only)
+for downstream usage. If your project uses CMake, you can depend on our
+`walnuts` library target. If not, any method of adding the `include/`
+folder of this repository to your build system's include paths should suffice
+as long as you also provide Eigen yourself.
 
-All build steps use CMake. The root configuration file is:
+## Building the examples and tests
 
-* `CMakeLists.txt`
+CMake is required to build the examples and tests.
 
-All instructions assume a `bash` shell (typically at `/usr/bin/bash`)
-and that commands are run from the top-level `walnuts` directory of
-the repository.
+### Configuring the build
 
-### Internet Connection Required
+The basic configuration is
 
-The build uses CMake's `FetchContent` and `ExternalProject_Add` to
-manage dependencies. **An internet connection is required when first
-building the project.**
-
-### Initial Configuration
-
-**Before building any targets**, you must configure the build with:
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+```sh
+# run from a directory you want the build results to be placed in
+# NOT required to be in the repository folder
+cmake <options> <repo_root>
 ```
 
-The options used are as follows.
+where `<options>` are the CMake options and `<repo_root>` is the root
+directory of the repository (where `CMakeLists.txt` is found).
 
-* `-S .`: Source is the current directory.
-* `-B build`: Build directory will be `./build`.
-* `-DCMAKE_BUILD_TYPE=Release`: Use Debug for debugging builds.
+Some common options are:
 
-### Inspect build targets
+- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release.
+- `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
+- `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
+- `-DWALNUTS_BUILD_DOC=ON` - Enable building of the documentation (currently on by default).
+- `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
+- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
 
-To see available build targets:
+Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html)
+
+For example, a basic configuration which creates a `./build` directory in the repo
+root can be done with
+
+```sh
+cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
+```
+
+The remaining instructions assume that they are run from inside whatever
+directory you specified as the build directory (e.g., `./build` in the above command).
+
+### Building
+
+The easiest way to build the project is with the `cmake --build`
+command. This will build all available executable targets by default.
+
+For example, to build and run the example:
 
 ```bash
-cmake --build build --target help
+cmake --build . --target test_nuts
+./test_nuts
 ```
 
 
-## Building Targets
+### Testing
 
-Once the preliminary build has been run (see above), you can build
-individual targets from the top-level directory.
-
-### Run example code
-
-The file `examples/test.cpp` contains examples using NUTS, WALNUTS,
-and adaptive WALNUTS. The first build will trigger a download of the
-Eigen library.
-
-To build and run the examples:
+Running the tests is easiest with the `ctest` command distributed with CMake.
 
 ```bash
-cmake --build build --parallel 3 --target test_nuts
-./build/test_nuts
+# assuming you did _not_ specify -DWALNUTS_BUILD_TESTS=OFF earlier...
+cmake --build . --target test --parallel 4
+ctest
 ```
 
-
-### Run unit tests
-
-To build and run the unit tests:
-
-```bash
-cmake --build build --parallel 3 --target online_moments_test dual_average_test util_test
-ctest --test-dir ./build/tests 
-```
-
-### Build documentation
+### Documentation
 
 To build the C++ documentatino using Doxygen:
 
 ```bash
-cmake --build build --target doc  
+cmake --build . --target doc
 ```
 
 The root of the generated doc will be found in
 
-* `build/html/index.html`.
+* `./html/index.html`.
 
 
-### Format code
+## Project overview
 
-Automatic code formatting applies to files
+The project directory structure is as follows.
 
-* `.hpp` files in `include`,
-* `.cpp` files in `examples`, and
-* `.cpp` files in `tests`. 
 
-To automatically format C++ code using Clang Format:
-
-```bash
-cmake --build build --target format
 ```
-
-#### Formatting style
-
-The formatting style is defined in top-level file
-
-* `.clang_format`.
-
-The style is based on the Google style guide, with 
-
-* braces/newline around all conditionals and loops, and
-* sorted `#include` blocks.
-
-
-## CMake Tips
-
-### Refresh CMake
-
-Cmake stores a `CMakeCache.txt` file with the variables from your most
-recent build.  For an existing build you want to completely refresh
-use `--fresh` when building.
-
-```bash
-# /usr/bin/bash
-
-# remove old build, rebuild with --fresh to force a hard reset of cached variables
-rm -rf ./build
-cmake -S . -B "build" --fresh
-
-# All the cmake targets now exist in build
-cd build
-```
-
-### View Optional Project Flags
-
-To view the optional flags for cmake with this project call `cmake -S . -B "build" -LH` and grep for cmake variables that start with walnuts.
-
-```bash
-# /usr/bin/bash
-# Same as other command but -LH lists all cached cmake variables
-# along with their help comment
-cmake -S . -B "build" -LH | grep "WALNUTS" -B1
-
-# Output
-$ // Build the example targets for the library
-$ WALNUTS_BUILD_EXAMPLES:BOOL=ON
-```
-
-### Include Variables When Compiling
-
-To set variables when compiling cmake we use `-DVARIABLE_NAME=VALUE` like setting a macro.
-
-
-### View Project Targets
-
-To see the available targets from the top level directory run the following after building
-
-```bash
-# /usr/bin/bash
-cmake -S . -B "build"
-cmake --build build --target help
-```
-
-### Building from the top-level directory
-
-We can also use this to build from the top level directory
-
-```bash
-# /usr/bin/bash
-
-# This will take longer as we include dependencies
-# google test and google benchmark
-cmake -S . -B "build" -DCMAKE_BUILD_TYPE=RELEASE
-
-# Now the build directory is setup and we we can build and run the benchmarks
-cmake --build build --parallel 3 --target test_nuts
-```
-
-When in the `build` directory you can call `cmake ..` to run cmake again.
-This is nice for refreshing variables with `cmake .. --fresh`
-
-### Debugging Options With CMake
-
-Setting `-DCMAKE_BUILD_TYPE=DEBUG` will make the make file generation
-verbose.  For all other build types you can add `VERBOSE=1` to your
-make call to see a trace of the actions CMake performs.
-
-
-## Project directory structure
-
-The project directory structure is as follows.  The `...` indicate
-elided subdirectories.  The `build` directories are generated
-automatically and the `lib` directory contains external includes, only
-the top-level names of which are listed.
-
-
-```bash
 .
-├── build...
 ├── examples
-│   ├── test_stan.cpp
-│   └── test.cpp
+│   └── .cpp files, one per example
 ├── include
 │   └── walnuts
-│       ├── adaptive_walnuts.hpp 
-│       ├── dual_average.hpp 
-│       ├── nuts.hpp
-│       ├── online_moments.hpp
-│       ├── util.hpp 
-│       └── walnuits.hpp
+│       └── .hpp files containing the library source code
 ├── tests
-│   ├── CMakeLists.txt 
-│   ├── dual_average_test.cpp
-│   ├── online_moments_test.cpp
-│   └── util_test.cpp 
+│   ├── .cpp files, one per test
+│   └── CMakeLists.txt
 ├── CMakeLists.txt
 └── README.md
 ```

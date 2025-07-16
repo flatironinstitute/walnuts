@@ -107,7 +107,7 @@ class Span {
  * @pre theta.size() == inv_mass.size()
  */
 template <typename S, typename F>
-void leapfrog(const F &logp_grad, const Vec<S> &inv_mass, S step,
+void leapfrog(F &logp_grad, const Vec<S> &inv_mass, S step,
               const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
               Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
               S &logp_next) {
@@ -167,7 +167,7 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
  * @return The single-state span that follows the specified span.
  */
 template <Direction D, typename S, class F>
-Span<S> build_leaf(const F &logp_grad, const Span<S> &span,
+Span<S> build_leaf(F &logp_grad, const Span<S> &span,
                    const Vec<S> &inv_mass, S step) {
   Vec<S> theta_next;
   Vec<S> rho_next;
@@ -206,7 +206,7 @@ Span<S> build_leaf(const F &logp_grad, const Span<S> &span,
  * @return The new span of `std::nullopt` if there was a sub-u-turn.
  */
 template <Direction D, typename S, class F, class RNG>
-std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad,
+std::optional<Span<S>> build_span(Random<S, RNG> &rand, F &logp_grad,
                                   const Vec<S> &inv_mass, S step, Integer depth,
                                   const Span<S> &last_span) {
   if (depth == 0) {
@@ -247,7 +247,7 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad,
  * @return The next state in the NUTS Markov chain.
  */
 template <typename S, class F, class RNG>
-Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad,
+Vec<S> transition(Random<S, RNG> &rand, F &logp_grad,
                   const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
                   Integer max_depth, Vec<S> &&theta) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
@@ -353,6 +353,15 @@ class Nuts {
     theta_ = transition(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                         step_size_, max_nuts_depth_, std::move(theta_));
     return theta_;
+  }
+
+  /**
+   * @brief Return the number of log density/gradient calls so far.
+   *
+   * @return The number of log density/gradient calls.
+   */
+  Integer logp_grad_calls() const noexcept {
+    return logp_grad_.logp_grad_calls();
   }
 
  private:

@@ -252,7 +252,7 @@ class NoExceptLogpGrad {
    *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(F& logp_grad): logp_grad_(logp_grad) { }
+  NoExceptLogpGrad(const F& logp_grad): logp_grad_(logp_grad), calls_(0) { }
 
   /**
    * @brief Given the specified position, set the log density and
@@ -262,8 +262,8 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  inline void operator()(const Vec<S>& x, S& logp, Vec<S>& grad)
-    const noexcept {
+  inline void operator()(const Vec<S>& x, S& logp, Vec<S>& grad) noexcept {
+    ++calls_;
     try {
       logp_grad_(x, logp, grad);
     } catch (...) {
@@ -273,7 +273,17 @@ class NoExceptLogpGrad {
     }
   }    
 
-  F& logp_grad_;
+  /**
+   * @brief Return the number of log density/gradient calls.
+   *
+   * @return The number of calls.
+   */
+  Integer logp_grad_calls() const noexcept {
+    return calls_;
+  }
+  
+  const F& logp_grad_;
+  Integer calls_;
 };
   
 }  // namespace nuts

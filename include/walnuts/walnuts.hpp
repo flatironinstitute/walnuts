@@ -317,7 +317,7 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
 template <Direction D, typename S, class F, class A>
-std::optional<SpanW<S>> build_leaf(const F &logp_grad, const SpanW<S> &span,
+std::optional<SpanW<S>> build_leaf(F &logp_grad, const SpanW<S> &span,
                                    const Vec<S> &inv_mass, S step, S max_error,
                                    A &adapt_handler) {
   Vec<S> theta_next;
@@ -353,7 +353,7 @@ std::optional<SpanW<S>> build_leaf(const F &logp_grad, const SpanW<S> &span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, typename S, class F, class RNG, class A>
-std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
+std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, F &logp_grad,
                                    const Vec<S> &inv_mass, S step,
                                    Integer depth, S max_error,
                                    const SpanW<S> &last_span,
@@ -402,7 +402,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
  * @return The next position in the Markov chain.
  */
 template <typename S, class F, class RNG, class A>
-Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad,
+Vec<S> transition_w(Random<S, RNG> &rand, F &logp_grad,
                     const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
                     Integer max_depth, Vec<S> &&theta, Vec<S> &theta_grad,
                     S max_error, A &adapt_handler) {
@@ -497,9 +497,12 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * @param rand The randomizer for HMC.
-   * @param logp_grad The target log density and gradient function (see the
-   * class documentation.
+   * The template parameter `U` allows this function to either wrap
+   * a bare `logp_grad` function or accept a `NoExceptLogpGrad` instance.
+   *
+   * @tparam U The type of the target log density/gradient function.
+   * @param rand The compound randomizer for HMC.
+   * @param logp_grad The target log density/gradient function.
    * @param theta The initial position.
    * @param inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param macro_step_size The initial (largest) step size.
@@ -507,7 +510,8 @@ class WalnutsSampler {
    * @param log_max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    */
-  WalnutsSampler(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &theta,
+  template <typename U>
+  WalnutsSampler(Random<S, RNG> &rand, const U &logp_grad, const Vec<S> &theta,
                  const Vec<S> &inv_mass, S macro_step_size,
                  Integer max_nuts_depth, S log_max_error)
       : rand_(rand),
@@ -532,6 +536,16 @@ class WalnutsSampler {
                           grad_next, log_max_error_, no_op_adapt_handler_);
     return theta_;
   }
+
+  /**
+   * @brief Return the number of log density/gradient calls so far.
+   *
+   * @return The number of log density/gradient calls.
+   */
+  Integer logp_grad_calls() const noexcept {
+    return logp_grad_.logp_grad_calls();
+  }
+
 
   /**
    * @brief  Return the diagonal of the diagonal inverse mass matrix.

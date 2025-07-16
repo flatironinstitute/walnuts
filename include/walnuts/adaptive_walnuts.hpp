@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include <utility>
 
 #include "dual_average.hpp"
@@ -504,10 +505,39 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
-    return WalnutsSampler<F, S, RNG>(
-        rand_, logp_grad_.logp_grad_, theta_, mass_estimator_.inv_mass_estimate(),
-        step_adapt_handler_.step_size(), walnuts_cfg_.max_nuts_depth_,
-        walnuts_cfg_.log_max_error_);
+    return WalnutsSampler<F, S, RNG>(rand_, logp_grad_, theta_,
+				     mass_estimator_.inv_mass_estimate(),
+				     step_adapt_handler_.step_size(),
+				     walnuts_cfg_.max_nuts_depth_,
+				     walnuts_cfg_.log_max_error_);
+  }
+
+  /**
+   * @brief Return the number of log density/gradient calls so far.
+   *
+   * @return The number of log density/gradient calls.
+   */
+  Integer logp_grad_calls() const noexcept {
+    return logp_grad_.logp_grad_calls();
+  }
+
+  /**
+   * @brief Return the diagonal of the current diagonal inverse mass
+   * matrix.
+   *
+   * @return The diagonal of the inverse mass matrix.
+   */
+  Vec<S> inv_mass() const {
+    return mass_estimator_.inv_mass_estimate();
+  }
+
+  /**
+   * @brief Return the current step size.
+   *
+   * @return The current step size.
+   */
+  S step_size() const {
+    return step_adapt_handler_.step_size();
   }
 
  private:

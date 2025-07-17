@@ -117,8 +117,8 @@ static void test_walnuts(const F& target_logp_grad, VectorS theta_init,
             << ";  max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
-                              macro_step_size, max_nuts_depth, max_error);
+  nuts::WalnutsSampler<F, S, RNG> sample(rand, target_logp_grad, theta_init, inv_mass,
+					 macro_step_size, max_nuts_depth, max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <fstream>
 #include <utility>
+
+#include <Eigen/Dense>
 
 #include "dual_average.hpp"
 #include "online_moments.hpp"

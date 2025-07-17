@@ -513,15 +513,6 @@ class AdaptiveWalnuts {
   }
 
   /**
-   * @brief Return the number of log density/gradient calls so far.
-   *
-   * @return The number of log density/gradient calls.
-   */
-  Integer logp_grad_calls() const noexcept {
-    return logp_grad_.logp_grad_calls();
-  }
-
-  /**
    * @brief Return the diagonal of the current diagonal inverse mass
    * matrix.
    *
@@ -550,7 +541,7 @@ class AdaptiveWalnuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  LogpGrad<F, S> logp_grad_;
+  F logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

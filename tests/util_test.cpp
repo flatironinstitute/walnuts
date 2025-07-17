@@ -24,7 +24,7 @@ static Mat mat(S x00, S x01, S x10, S x11) {
   return y;
 }
 
-TEST(Util, Walnuts) {
+TEST(Util, Uturn) {
   EXPECT_EQ(2 + 2, 4);
   Vec thetabk1 = vec(-3, 0);
   Vec thetafw1 = vec(-1, 0);
@@ -82,7 +82,7 @@ TEST(Util, Walnuts) {
       span1, span2, inv_mass)));
 }
 
-TEST(Util, WalnutsRegression) {
+TEST(Util, UturnRegression) {
   Vec thetabk1 = vec(3, 0);
   Vec thetafw1 = vec(0, 0);
   Vec thetabk2 = vec(1, 0);

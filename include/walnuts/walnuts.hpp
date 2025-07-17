@@ -496,11 +496,6 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * The template parameter `U` allows this function to either wrap a
-   * bare `logp_grad` function or accept a `LogpGrad` instance to
-   * copy (it will not double wrap).
-   *
-   * @tparam U The type of the target log density/gradient function.
    * @param rand The compound randomizer for HMC.
    * @param logp_grad The target log density/gradient function.
    * @param theta The initial position.
@@ -510,8 +505,7 @@ class WalnutsSampler {
    * @param log_max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    */
-  template <typename U>
-  WalnutsSampler(Random<S, RNG> &rand, const U &logp_grad, const Vec<S> &theta,
+  WalnutsSampler(Random<S, RNG> &rand, const F &logp_grad, const Vec<S> &theta,
                  const Vec<S> &inv_mass, S macro_step_size,
                  Integer max_nuts_depth, S log_max_error)
       : rand_(rand),
@@ -535,15 +529,6 @@ class WalnutsSampler {
                           macro_step_size_, max_nuts_depth_, std::move(theta_),
                           grad_next, log_max_error_, no_op_adapt_handler_);
     return theta_;
-  }
-
-  /**
-   * @brief Return the number of log density/gradient calls so far.
-   *
-   * @return The number of log density/gradient calls.
-   */
-  Integer logp_grad_calls() const noexcept {
-    return logp_grad_.logp_grad_calls();
   }
 
   /**
@@ -572,7 +557,7 @@ class WalnutsSampler {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  LogpGrad<F, S> logp_grad_;
+  F logp_grad_;
 
   /** The current position. */
   Vec<S> theta_;

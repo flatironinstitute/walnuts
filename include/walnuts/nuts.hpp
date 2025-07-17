@@ -368,7 +368,7 @@ class Nuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  LogpGrad<F, S> logp_grad_;
+  F logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

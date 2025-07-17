@@ -107,10 +107,9 @@ class Span {
  * @pre theta.size() == inv_mass.size()
  */
 template <typename S, typename F>
-void leapfrog(F &logp_grad, const Vec<S> &inv_mass, S step,
-              const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
-              Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
-              S &logp_next) {
+void leapfrog(F &logp_grad, const Vec<S> &inv_mass, S step, const Vec<S> &theta,
+              const Vec<S> &rho, const Vec<S> &grad, Vec<S> &theta_next,
+              Vec<S> &rho_next, Vec<S> &grad_next, S &logp_next) {
   S half_step = 0.5 * step;
   rho_next.noalias() = rho + half_step * grad;
   theta_next.noalias() =
@@ -167,8 +166,8 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
  * @return The single-state span that follows the specified span.
  */
 template <Direction D, typename S, class F>
-Span<S> build_leaf(F &logp_grad, const Span<S> &span,
-                   const Vec<S> &inv_mass, S step) {
+Span<S> build_leaf(F &logp_grad, const Span<S> &span, const Vec<S> &inv_mass,
+                   S step) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
@@ -247,9 +246,9 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand, F &logp_grad,
  * @return The next state in the NUTS Markov chain.
  */
 template <typename S, class F, class RNG>
-Vec<S> transition(Random<S, RNG> &rand, F &logp_grad,
-                  const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                  Integer max_depth, Vec<S> &&theta) {
+Vec<S> transition(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &inv_mass,
+                  const Vec<S> &chol_mass, S step, Integer max_depth,
+                  Vec<S> &&theta) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -369,7 +368,7 @@ class Nuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  LogpGrad<F, S> logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

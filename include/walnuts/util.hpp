@@ -242,9 +242,9 @@ inline bool uturn(const U &span1, const U &span2, const Vec<S> &inv_mass) {
  *
  * @tparam F Type of underlying log density function.
  * @tparam S Type of scalars.
- */  
+ */
 template <typename F, typename S>
-class NoExceptLogpGrad {
+class LogpGrad {
  public:
   /**
    * @brief Construct a log density and gradient function from a base
@@ -252,7 +252,7 @@ class NoExceptLogpGrad {
    *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(const F& logp_grad): logp_grad_(logp_grad), calls_(0) { }
+  LogpGrad(const F &logp_grad) : logp_grad_(logp_grad), calls_(0) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -262,7 +262,7 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  inline void operator()(const Vec<S>& x, S& logp, Vec<S>& grad) noexcept {
+  inline void operator()(const Vec<S> &x, S &logp, Vec<S> &grad) noexcept {
     ++calls_;
     try {
       logp_grad_(x, logp, grad);
@@ -271,19 +271,17 @@ class NoExceptLogpGrad {
       logp = -std::numeric_limits<S>::infinity();
       grad = Vec<S>::Zero(x.size());
     }
-  }    
+  }
 
   /**
    * @brief Return the number of log density/gradient calls.
    *
    * @return The number of calls.
    */
-  Integer logp_grad_calls() const noexcept {
-    return calls_;
-  }
-  
-  const F& logp_grad_;
+  Integer logp_grad_calls() const noexcept { return calls_; }
+
+  const F &logp_grad_;
   Integer calls_;
 };
-  
+
 }  // namespace nuts

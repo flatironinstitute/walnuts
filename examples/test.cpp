@@ -48,10 +48,10 @@ static void block_end_timer() {
 static void ill_cond_normal_logp_grad(const VectorS& x, S& logp,
                                       VectorS& grad) {
   block_start_timer();
-  Integer D = x.size();
+  const auto D = x.size();
   grad = VectorS::Zero(D);
   logp = 0;
-  for (Integer d = 0; d < D; ++d) {
+  for (auto d = 0; d < D; ++d) {
     double sigma = d + 1;
     double sigma_sq = sigma * sigma;
     logp += -0.5 * x[d] * x[d] / sigma_sq;
@@ -117,7 +117,7 @@ static void test_walnuts(const F& target_logp_grad, VectorS theta_init,
             << ";  max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
-  nuts::WalnutsSampler<F, S, RNG> sample(rand, target_logp_grad, theta_init, inv_mass,
+  nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
                               macro_step_size, max_nuts_depth, max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
@@ -133,9 +133,9 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
                                   Integer D, Integer N, Integer max_nuts_depth,
                                   S max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 2;
-  double mass_iteration_offset = 2;
-  double additive_smoothing = 0.001;
+  double init_count = 10.0;
+  double mass_iteration_offset = 4.0;
+  double additive_smoothing = 0.05;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
   double step_size_init = 1.0;
@@ -156,31 +156,9 @@ static void test_adaptive_walnuts(const F& target_logp_grad,
   global_start_timer();
   nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
                                 step_cfg, walnuts_cfg);
-
-  std::ofstream out("adapt_mass.csv");
-  std::ofstream out_step("adapt_step.csv");
-  std::ofstream out_grads("adapt_grads.csv");
   for (Integer n = 0; n < N; ++n) {
     walnuts();
-    auto mass_mat = walnuts.inv_mass();
-    out << mass_mat[0]
-	<< ", " << mass_mat[2]
-	<< ", " << mass_mat[9]
-	<< ", " << mass_mat[29]
-	<< ", " << mass_mat[49]
-	<< ", " << mass_mat[99]
-	<< ", " << mass_mat[149]
-	<< ", " << mass_mat[199]
-	<< std::endl;
-    out_step << walnuts.step_size() 
-	     << std::endl;
-    out_grads << walnuts.logp_grad_calls()
-	      << std::endl;
   }
-  out.close();
-  out_step.close();
-  out_grads.close();
-  
   auto sampler = walnuts.sampler();
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
@@ -205,15 +183,15 @@ int main() {
   VectorS inv_mass = VectorS::Ones(D);
   std::mt19937 rng(seed);
 
-  // std::normal_distribution<S> std_normal(0, 1);
-  // VectorS theta_init(D);
-  // for (Integer i = 0; i < D; ++i) {
-  //   theta_init(i) = std_normal(rng);
-  // }
-  VectorS theta_init = VectorS::Zero(D);
+  std::normal_distribution<S> std_normal(0, 1);
+  VectorS theta_init(D);
+  for (Integer i = 0; i < D; ++i) {
+    theta_init(i) = std_normal(rng);
+  }
+  // VectorS theta_init = VectorS::Zero(D);
 
-  // auto target_logp_grad = std_normal_logp_grad;
   auto target_logp_grad = ill_cond_normal_logp_grad;
+  // auto target_logp_grad = std_normal_logp_grad;
 
   test_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
             inv_mass);

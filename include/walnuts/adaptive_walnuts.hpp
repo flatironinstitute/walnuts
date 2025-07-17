@@ -505,11 +505,10 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
-    return WalnutsSampler<F, S, RNG>(rand_, logp_grad_, theta_,
-				     mass_estimator_.inv_mass_estimate(),
-				     step_adapt_handler_.step_size(),
-				     walnuts_cfg_.max_nuts_depth_,
-				     walnuts_cfg_.log_max_error_);
+    return WalnutsSampler<F, S, RNG>(
+        rand_, logp_grad_, theta_, mass_estimator_.inv_mass_estimate(),
+        step_adapt_handler_.step_size(), walnuts_cfg_.max_nuts_depth_,
+        walnuts_cfg_.log_max_error_);
   }
 
   /**
@@ -527,18 +526,14 @@ class AdaptiveWalnuts {
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  Vec<S> inv_mass() const {
-    return mass_estimator_.inv_mass_estimate();
-  }
+  Vec<S> inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
 
   /**
    * @brief Return the current step size.
    *
    * @return The current step size.
    */
-  S step_size() const {
-    return step_adapt_handler_.step_size();
-  }
+  S step_size() const { return step_adapt_handler_.step_size(); }
 
  private:
   /** The mass adaptation configuration. */
@@ -554,7 +549,7 @@ class AdaptiveWalnuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  LogpGrad<F, S> logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

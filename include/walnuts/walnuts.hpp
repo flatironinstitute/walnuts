@@ -160,9 +160,9 @@ bool within_tolerance(F &logp_grad, const Vec<S> &inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step,
-                Integer num_steps, S max_error, S logp_next,
-                const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad) {
+bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step, Integer num_steps,
+                S max_error, S logp_next, const Vec<S> &theta,
+                const Vec<S> &rho, const Vec<S> &grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -362,9 +362,8 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, F &logp_grad,
     return build_leaf<D>(logp_grad, last_span, inv_mass, step, max_error,
                          adapt_handler);
   }
-  auto maybe_subspan1 =
-      build_span<D>(rng, logp_grad, inv_mass, step, depth - 1, max_error,
-                    last_span, adapt_handler);
+  auto maybe_subspan1 = build_span<D>(rng, logp_grad, inv_mass, step, depth - 1,
+                                      max_error, last_span, adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
@@ -402,10 +401,10 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, F &logp_grad,
  * @return The next position in the Markov chain.
  */
 template <typename S, class F, class RNG, class A>
-Vec<S> transition_w(Random<S, RNG> &rand, F &logp_grad,
-                    const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                    Integer max_depth, Vec<S> &&theta, Vec<S> &theta_grad,
-                    S max_error, A &adapt_handler) {
+Vec<S> transition_w(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &inv_mass,
+                    const Vec<S> &chol_mass, S step, Integer max_depth,
+                    Vec<S> &&theta, Vec<S> &theta_grad, S max_error,
+                    A &adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -497,8 +496,9 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * The template parameter `U` allows this function to either wrap
-   * a bare `logp_grad` function or accept a `NoExceptLogpGrad` instance.
+   * The template parameter `U` allows this function to either wrap a
+   * bare `logp_grad` function or accept a `LogpGrad` instance to
+   * copy (it will not double wrap).
    *
    * @tparam U The type of the target log density/gradient function.
    * @param rand The compound randomizer for HMC.
@@ -546,7 +546,6 @@ class WalnutsSampler {
     return logp_grad_.logp_grad_calls();
   }
 
-
   /**
    * @brief  Return the diagonal of the diagonal inverse mass matrix.
    *
@@ -573,7 +572,7 @@ class WalnutsSampler {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  LogpGrad<F, S> logp_grad_;
 
   /** The current position. */
   Vec<S> theta_;

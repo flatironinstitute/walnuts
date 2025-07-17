@@ -13,7 +13,7 @@
 static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
                                        double alpha) {
   std::size_t N = ys.size();
-  long D = ys[0].size();
+  const auto D = ys[0].size();
   double weight_sum = 0;
   Eigen::VectorXd weighted_value_sum = Eigen::VectorXd::Zero(D);
   for (std::size_t n = 0; n < N; ++n) {

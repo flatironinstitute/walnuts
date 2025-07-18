@@ -54,7 +54,7 @@ jobs:
       - name: Run examples
         run: |
           cd build/
-          ./test_nuts
+          ./examples
         shell: bash
 
       - name: Test

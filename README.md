@@ -108,7 +108,7 @@ Running the tests is easiest with the `ctest` command distributed with CMake.
 
 ```bash
 # assuming you did _not_ specify -DWALNUTS_BUILD_TESTS=OFF earlier...
-cmake --build . --target test --parallel 4
+cmake --build . --parallel 4
 ctest
 ```
 

@@ -3,8 +3,8 @@
 
 #include <bridgestan.h>
 
-#include <cmath>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -24,7 +24,7 @@ static char* dlerror() {
   DWORD err = GetLastError();
   int length = snprintf(NULL, 0, "%ld", err);
   char* str = static_cast<char*>(malloc(length + 1));
-  snprintf(str, length + 1, "%d", err);
+  snprintf(str, length + 1, "%ld", err);
   return str;
 }
 
@@ -69,7 +69,7 @@ void no_op_deleter(T*) {}
 
 class DynamicStanModel {
  public:
-  DynamicStanModel(const char* model_path, const char* data, int seed)
+  DynamicStanModel(const char* model_path, const char* data, unsigned int seed)
       : library_(dlopen_safe(model_path)),
         model_ptr_(nullptr, no_op_deleter<bs_model>),
         rng_ptr_(nullptr, no_op_deleter<bs_rng>) {
@@ -133,7 +133,7 @@ class DynamicStanModel {
         free_error_msg_(err);
         std::cerr << "Error in logp_grad: " << error_string << std::endl;
 
-        logp = -INFINITY;
+        logp = -std::numeric_limits<double>::infinity();
         grad.setZero();
         return;
       }
@@ -152,7 +152,7 @@ class DynamicStanModel {
         std::string error_string(err);
         free_error_msg_(err);
         std::cerr << "Error in constrain_draw: " << error_string << std::endl;
-        out.array() = NAN;
+        out.array() = std::numeric_limits<double>::quiet_NaN();
         return;
       }
       throw std::runtime_error("Failed to constrain draw");

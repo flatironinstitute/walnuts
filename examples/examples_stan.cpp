@@ -110,14 +110,14 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   auto global_start = std::chrono::high_resolution_clock::now();
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
-  double init_count = 10.0;
-  double mass_iteration_offset = 4.0;
-  double additive_smoothing = 0.05;
+  double init_count = 1.1;
+  double mass_iteration_offset = 1.1;
+  double additive_smoothing = 0.1;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
-  double step_size_init = 1.0;
-  double accept_rate_target = 0.8;
-  double step_iteration_offset = 4.0;
+  double step_size_init = 0.5;
+  double accept_rate_target = 2.0 / 3.0;
+  double step_iteration_offset = 2.0;
   double learning_rate = 0.95;
   double decay_rate = 0.05;
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,

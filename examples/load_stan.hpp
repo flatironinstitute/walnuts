@@ -13,16 +13,16 @@
 // TODO: consider using something like https://github.com/martin-olivier/dylib/
 #ifdef _WIN32
 // hacky way to get dlopen and friends on Windows
-#include <libloaderapi.h>
 #include <errhandlingapi.h>
-#define dlopen(lib, flags) LoadLibraryA(lib)
-#define dlsym(handle, sym) (void *)GetProcAddress(handle, sym)
-#define dlclose(handle) FreeLibrary(handle)
+#include <libloaderapi.h>
+#define dlopen(lib, flags) static_cast<void*>(LoadLibraryA(lib))
+#define dlsym(handle, sym) static_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), sym))
+#define dlclose(handle) FreeLibrary(static_cast<HMODULE>(handle))
 
-char *dlerror() {
+char* dlerror() {
   DWORD err = GetLastError();
   int length = snprintf(NULL, 0, "%d", err);
-  char *str = static_cast<char*>(malloc(length + 1));
+  char* str = static_cast<char*>(malloc(length + 1));
   snprintf(str, length + 1, "%d", err);
   return str;
 }
@@ -31,14 +31,16 @@ char *dlerror() {
 #endif
 
 struct dlclose_deleter {
-  void operator()(void *handle) const {
+  void operator()(void* handle) const {
     if (handle) {
       dlclose(handle);
     }
   }
 };
 
-inline auto dlopen_safe(const char *path) {
+using dynamic_library = std::unique_ptr<void, dlclose_deleter>;
+
+inline dynamic_library dlopen_safe(const char* path) {
   auto handle = dlopen(path, RTLD_NOW);
   if (!handle) {
     throw std::runtime_error(std::string("Error loading library '") + path +
@@ -47,8 +49,8 @@ inline auto dlopen_safe(const char *path) {
   return std::unique_ptr<void, dlclose_deleter>(handle);
 }
 
-template <typename U, typename T>
-inline auto dlsym_cast(U &library, T &&, const char *name) {
+template <typename T>
+inline T dlsym_cast_impl(dynamic_library& library, const char* name) {
   auto sym = dlsym(library.get(), name);
   if (!sym) {
     throw std::runtime_error(std::string("Error loading symbol '") + name +
@@ -57,36 +59,31 @@ inline auto dlsym_cast(U &library, T &&, const char *name) {
   return reinterpret_cast<T>(sym);
 }
 
+#define dlsym_cast(library, func) \
+  dlsym_cast_impl<decltype(&func)>(library, #func)
+
 template <typename T>
-void no_op_deleter(T *) {}
+void no_op_deleter(T*) {}
 
 class DynamicStanModel {
  public:
-  DynamicStanModel(const char *model_path, const char *data, int seed)
+  DynamicStanModel(const char* model_path, const char* data, int seed)
       : library_(dlopen_safe(model_path)),
         model_ptr_(nullptr, no_op_deleter<bs_model>),
         rng_ptr_(nullptr, no_op_deleter<bs_rng>) {
-    auto model_construct =
-        dlsym_cast(library_, &bs_model_construct, "bs_model_construct");
-    auto model_destruct =
-        dlsym_cast(library_, &bs_model_destruct, "bs_model_destruct");
-    auto rng_construct =
-        dlsym_cast(library_, &bs_rng_construct, "bs_rng_construct");
-    auto rng_destruct =
-        dlsym_cast(library_, &bs_rng_destruct, "bs_rng_destruct");
+    auto model_construct = dlsym_cast(library_, bs_model_construct);
+    auto model_destruct = dlsym_cast(library_, bs_model_destruct);
+    auto rng_construct = dlsym_cast(library_, bs_rng_construct);
+    auto rng_destruct = dlsym_cast(library_, bs_rng_destruct);
 
-    free_error_msg_ =
-        dlsym_cast(library_, &bs_free_error_msg, "bs_free_error_msg");
-    param_unc_num_ =
-        dlsym_cast(library_, &bs_param_unc_num, "bs_param_unc_num");
-    param_num_ = dlsym_cast(library_, &bs_param_num, "bs_param_num");
-    log_density_gradient_ = dlsym_cast(library_, &bs_log_density_gradient,
-                                       "bs_log_density_gradient");
-    param_constrain_ =
-        dlsym_cast(library_, &bs_param_constrain, "bs_param_constrain");
-    param_names_ = dlsym_cast(library_, &bs_param_names, "bs_param_names");
+    free_error_msg_ = dlsym_cast(library_, bs_free_error_msg);
+    param_unc_num_ = dlsym_cast(library_, bs_param_unc_num);
+    param_num_ = dlsym_cast(library_, bs_param_num);
+    log_density_gradient_ = dlsym_cast(library_, bs_log_density_gradient);
+    param_constrain_ = dlsym_cast(library_, bs_param_constrain);
+    param_names_ = dlsym_cast(library_, bs_param_names);
 
-    char *err = nullptr;
+    char* err = nullptr;
     model_ptr_ = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
         model_construct(data, seed, &err), model_destruct);
 
@@ -121,10 +118,10 @@ class DynamicStanModel {
   }
 
   template <typename M>
-  inline void logp_grad(const M &x, double &logp, M &grad) const {
+  inline void logp_grad(const M& x, double& logp, M& grad) const {
     grad.resizeLike(x);
 
-    char *err = nullptr;
+    char* err = nullptr;
     int ret = log_density_gradient_(model_ptr_.get(), true, true, x.data(),
                                     &logp, grad.data(), &err);
 
@@ -143,8 +140,8 @@ class DynamicStanModel {
   }
 
   template <typename In, typename Out>
-  void constrain_draw(In &&in, Out &&out) const {
-    char *err = nullptr;
+  void constrain_draw(In&& in, Out&& out) const {
+    char* err = nullptr;
     int ret = param_constrain_(model_ptr_.get(), true, true, in.data(),
                                out.data(), rng_ptr_.get(), &err);
 
@@ -164,8 +161,8 @@ class DynamicStanModel {
     std::vector<std::string> names;
     names.reserve(constrained_dimensions());
 
-    const char *csv_names = param_names_(model_ptr_.get(), true, true);
-    const char *p;
+    const char* csv_names = param_names_(model_ptr_.get(), true, true);
+    const char* p;
     for (p = csv_names; *p != '\0'; ++p) {
       if (*p == ',') {
         names.emplace_back(csv_names, p - csv_names);

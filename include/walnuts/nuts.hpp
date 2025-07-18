@@ -90,7 +90,7 @@ class Span {
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
- * @param[in,out] logp_grad The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
  * (finite positive components).
  * @param[in] step The step size.
@@ -159,7 +159,7 @@ Span<S> combine(Random<S, RNG>& rand, Span<S>&& span_old, Span<S>&& span_new) {
  * @tparam D The temporal direction in which to extend the last span.
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
- * @param[in,out] logp_grad The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] span The span to extend.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
  * (positive finite components).
@@ -197,7 +197,7 @@ Span<S> build_leaf(const F& logp_grad, const Span<S>& span,
  * @tparam F The type of the target log density/gradient function.
  * @tparam RNG The type of the base random number generator.
  * @param[in,out] rand The compound random number generator.
- * @param[in,out] logp_grad The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix (finite
  * positive components).
  * @param[in] step The step size (finite positive floating point).
@@ -237,7 +237,7 @@ std::optional<Span<S>> build_span(Random<S, RNG>& rand, const F& logp_grad,
  * @tparam F The type of the log density/gradient function.
  * @tparam RNG The type of the base random number generator.
  * @param[in,out] rand The compound random number generator.
- * @param[in,out] logp_grad The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
@@ -322,7 +322,7 @@ class Nuts {
    * log density, initialization, and tuning parameters.
    *
    * @param[in,out] rand The compound random number generator for MCMC.
-   * @param[in,out] logp_grad The target log density/gradient function.
+   * @param[in] logp_grad The target log density/gradient function.
    * @param[in] theta_init The initial position.
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix
    * (finite positive components).
@@ -332,7 +332,7 @@ class Nuts {
    * @pre step_size > 0
    * @pre theta_init.size() == inv_mass.size()
    */
-  Nuts(Random<S, RNG>& rand, F& logp_grad, const Vec<S>& theta_init,
+  Nuts(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta_init,
        const Vec<S>& inv_mass, S step_size, Integer max_nuts_depth)
       : rand_(rand),
         logp_grad_(logp_grad),
@@ -360,7 +360,7 @@ class Nuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  const NoExceptLogpGrad<F, S> logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

@@ -250,9 +250,12 @@ class NoExceptLogpGrad {
    * @brief Construct a log density and gradient function from a base
    * log density and gradient function.
    *
+   * The log density and gradient function will be stored as a
+   * constant reference.
+   *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(F& logp_grad) : logp_grad_(logp_grad) {}
+  NoExceptLogpGrad(const F& logp_grad) : logp_grad_(logp_grad) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -273,7 +276,7 @@ class NoExceptLogpGrad {
     }
   }
 
-  F& logp_grad_;
+  const F& logp_grad_;
 };
 
 }  // namespace nuts

@@ -115,7 +115,7 @@ class SpanW {
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
- * @param[in,out] logp_grad The log density/gradient function.
+ * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
@@ -126,7 +126,7 @@ class SpanW {
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <typename S, typename F>
-bool within_tolerance(F& logp_grad, const Vec<S>& inv_mass, S step,
+bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
                       Integer num_steps, S max_error, S logp_next,
                       Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next) {
   S half_step = 0.5 * step;
@@ -148,7 +148,7 @@ bool within_tolerance(F& logp_grad, const Vec<S>& inv_mass, S step,
  *
  * @tparam S Type of scalars.
  * @tparam F Type of log density/gradient function.
- * @param[in,out] logp_grad The log density/gradient function.
+ * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
@@ -160,9 +160,9 @@ bool within_tolerance(F& logp_grad, const Vec<S>& inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(F& logp_grad, const Vec<S>& inv_mass, S step, Integer num_steps,
-                S max_error, S logp_next, const Vec<S>& theta,
-                const Vec<S>& rho, const Vec<S>& grad) {
+bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
+                Integer num_steps, S max_error, S logp_next,
+                const Vec<S>& theta, const Vec<S>& rho, const Vec<S>& grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -192,7 +192,7 @@ bool reversible(F& logp_grad, const Vec<S>& inv_mass, S step, Integer num_steps,
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
- * @param[in,out] logp_grad The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] max_error The maximum Hamiltonian diference allowed in the macro
@@ -207,7 +207,7 @@ bool reversible(F& logp_grad, const Vec<S>& inv_mass, S step, Integer num_steps,
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, typename S, typename F, class A>
-bool macro_step(F& logp_grad, const Vec<S>& inv_mass, S step, S max_error,
+bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step, S max_error,
                 const SpanW<S>& span, Vec<S>& theta_next, Vec<S>& rho_next,
                 Vec<S>& grad_next, S& logp_next, A& adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
@@ -307,7 +307,7 @@ SpanW<S> combine(Random<S, RNG>& rng, SpanW<S>&& span_old,
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
- * @param[in,out] logp_grad The log density/gradient function.
+ * @param[in] logp_grad The log density/gradient function.
  * @param[in] span The span to extend.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
@@ -343,7 +343,7 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * @tparam RNG The type of the base random number generator.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rng The random number generator.
- * @param[in,out] logp_grad The log density/gradient function.
+ * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] depth The maximum NUTS depth.
@@ -388,7 +388,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG>& rng, const F& logp_grad,
  * @tparam RNG The type of the base random number generator.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rand The random number generator.
- * @param[in,out] logp_grad The log density/gradient function.
+ * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
@@ -506,7 +506,7 @@ class WalnutsSampler {
    * @param log_max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    */
-  WalnutsSampler(Random<S, RNG>& rand, F& logp_grad, const Vec<S>& theta,
+  WalnutsSampler(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta,
                  const Vec<S>& inv_mass, S macro_step_size,
                  Integer max_nuts_depth, S log_max_error)
       : rand_(rand),
@@ -558,7 +558,7 @@ class WalnutsSampler {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  const NoExceptLogpGrad<F, S> logp_grad_;
 
   /** The current position. */
   Vec<S> theta_;

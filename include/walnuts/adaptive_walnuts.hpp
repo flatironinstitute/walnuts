@@ -14,15 +14,15 @@ namespace nuts {
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
- * @param[in] logp_grad_fun The target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
 template <typename S, class F>
-Vec<S> grad(const F& logp_grad_fun, const Vec<S>& theta) {
+Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
   Vec<S> g;
   S logp;
-  logp_grad_fun(theta, logp, g);
+  logp_grad(theta, logp, g);
   return g;
 }
 
@@ -447,13 +447,13 @@ class AdaptiveWalnuts {
    * is done by WALNUTS to mutate it.
    *
    * @param[in,out] rng The base random number generator.
-   * @param[in,out] logp_grad The target log density and gradient function.
+   * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
    * @param[in] mass_cfg The mass-matrix adaptation configuration.
    * @param[in] step_cfg The step-size adaptation configuration.
    * @param[in] walnuts_cfg The WALNUTS configuration.
    */
-  AdaptiveWalnuts(RNG& rng, F& logp_grad, const Vec<S>& theta_init,
+  AdaptiveWalnuts(RNG& rng, const F& logp_grad, const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
                   const StepAdaptConfig<S>& step_cfg,
                   const WalnutsConfig<S>& walnuts_cfg)
@@ -510,6 +510,21 @@ class AdaptiveWalnuts {
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_);
   }
 
+  /**
+   * @brief Return the diagonal of the current diagonal inverse mass
+   * matrix.
+   *
+   * @return The diagonal of the inverse mass matrix.
+   */
+  Vec<S> inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
+
+  /**
+   * @brief Return the current step size.
+   *
+   * @return The current step size.
+   */
+  S step_size() const { return step_adapt_handler_.step_size(); }
+
  private:
   /** The mass adaptation configuration. */
   const MassAdaptConfig<S> mass_cfg_;
@@ -524,7 +539,7 @@ class AdaptiveWalnuts {
   Random<S, RNG> rand_;
 
   /** The target log density/gradient function. */
-  NoExceptLogpGrad<F, S> logp_grad_;
+  const NoExceptLogpGrad<F, S> logp_grad_;
 
   /** The current state. */
   Vec<S> theta_;

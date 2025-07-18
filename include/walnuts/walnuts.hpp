@@ -160,9 +160,9 @@ bool within_tolerance(F &logp_grad, const Vec<S> &inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step,
-                Integer num_steps, S max_error, S logp_next,
-                const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad) {
+bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step, Integer num_steps,
+                S max_error, S logp_next, const Vec<S> &theta,
+                const Vec<S> &rho, const Vec<S> &grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -362,9 +362,8 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
     return build_leaf<D>(logp_grad, last_span, inv_mass, step, max_error,
                          adapt_handler);
   }
-  auto maybe_subspan1 =
-      build_span<D>(rng, logp_grad, inv_mass, step, depth - 1, max_error,
-                    last_span, adapt_handler);
+  auto maybe_subspan1 = build_span<D>(rng, logp_grad, inv_mass, step, depth - 1,
+                                      max_error, last_span, adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }

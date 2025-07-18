@@ -1,5 +1,8 @@
-BasedOnStyle: Google
-InsertBraces: true
 AlwaysBreakBeforeMultilineStrings: false
 AllowShortIfStatementsOnASingleLine: false
+BasedOnStyle: Google
 IncludeBlocks: Preserve
+IndentWidth: 2
+InsertBraces: true
+TabWidth: 2
+UseTab: Never

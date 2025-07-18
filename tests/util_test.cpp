@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <walnuts/nuts.hpp>
 #include <walnuts/util.hpp>
 #include <walnuts/walnuts.hpp>
-#include <walnuts/nuts.hpp>
 
 using S = double;
 using Vec = Eigen::Matrix<S, -1, 1>;
@@ -51,27 +51,36 @@ TEST(Util, Walnuts) {
   Vec theta2 = vec(0, 0);
   Vec grad1 = vec(0, 0);
   Vec grad2 = vec(0, 0);
-  
+
   S logp1 = 0;
   S logp2 = 0;
 
   Mat inv_mass = mat(1, 0, 0, 1);
 
-  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1), std::move(gradbk1), logpbk1);
-  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1), std::move(gradfw1), logpfw1);
-  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2), std::move(gradbk2), logpbk2);
-  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2), std::move(gradfw2), logpfw2);
-  
-  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw), std::move(theta1), std::move(grad1), logp1);
-  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw), std::move(theta2), std::move(grad2), logp2);
+  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
+                         std::move(gradbk1), logpbk1);
+  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1),
+                         std::move(gradfw1), logpfw1);
+  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2),
+                         std::move(gradbk2), logpbk2);
+  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2),
+                         std::move(gradfw2), logpfw2);
 
-  EXPECT_TRUE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(span1, span2, inv_mass)));
-  EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(span2, span1, inv_mass)));
+  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw),
+                       std::move(theta1), std::move(grad1), logp1);
+  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw),
+                       std::move(theta2), std::move(grad2), logp2);
 
-  EXPECT_TRUE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(span2, span1, inv_mass)));
-  EXPECT_FALSE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(span1, span2, inv_mass)));
+  EXPECT_TRUE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(
+      span1, span2, inv_mass)));
+  EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(
+      span2, span1, inv_mass)));
+
+  EXPECT_TRUE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(
+      span2, span1, inv_mass)));
+  EXPECT_FALSE((nuts::uturn<nuts::Direction::Backward, S, nuts::SpanW<S>>(
+      span1, span2, inv_mass)));
 }
-
 
 TEST(Util, WalnutsRegression) {
   Vec thetabk1 = vec(3, 0);
@@ -99,20 +108,27 @@ TEST(Util, WalnutsRegression) {
   Vec theta2 = vec(0, 0);
   Vec grad1 = vec(0, 0);
   Vec grad2 = vec(0, 0);
-  
+
   S logp1 = 0;
   S logp2 = 0;
 
   Mat inv_mass = mat(1, 0, 0, 1);
 
-  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1), std::move(gradbk1), logpbk1);
-  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1), std::move(gradfw1), logpfw1);
-  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2), std::move(gradbk2), logpbk2);
-  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2), std::move(gradfw2), logpfw2);
-  
-  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw), std::move(theta1), std::move(grad1), logp1);
-  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw), std::move(theta2), std::move(grad2), logp2);
+  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
+                         std::move(gradbk1), logpbk1);
+  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1),
+                         std::move(gradfw1), logpfw1);
+  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2),
+                         std::move(gradbk2), logpbk2);
+  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2),
+                         std::move(gradfw2), logpfw2);
+
+  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw),
+                       std::move(theta1), std::move(grad1), logp1);
+  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw),
+                       std::move(theta2), std::move(grad2), logp2);
 
   // following test fails in the original code with buggy uturn condition
-  EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(span1, span2, inv_mass)));
+  EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(
+      span1, span2, inv_mass)));
 }

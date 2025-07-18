@@ -36,7 +36,8 @@ TEST(DualAverage, Metropolis1D) {
   double gamma = 0.1;  // equal to default from Stan's NUTS
   double kappa = 0.9;  // higher than default from Stan's NUTS
   nuts::DualAverage<double> da(init, delta, t0, gamma, kappa);
-  int N = 100000; // large N to account for different random behavior on different OSes
+  int N = 100000;  // large N to account for different random behavior on
+                   // different OSes
   double total = 0;
   double count = 0;
   for (int n = 0; n < N; ++n) {

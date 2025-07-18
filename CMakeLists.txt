@@ -157,6 +157,7 @@ endif()
 # Define list of files to format (you can make this recursive if desired)
 file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )

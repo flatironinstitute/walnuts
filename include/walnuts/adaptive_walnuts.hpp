@@ -505,9 +505,9 @@ class AdaptiveWalnuts {
    */
   WalnutsSampler<F, S, RNG> sampler() {
     return WalnutsSampler<F, S, RNG>(
-        rand_, logp_grad_.logp_grad_, theta_, mass_estimator_.inv_mass_estimate(),
-        step_adapt_handler_.step_size(), walnuts_cfg_.max_nuts_depth_,
-        walnuts_cfg_.log_max_error_);
+        rand_, logp_grad_.logp_grad_, theta_,
+        mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_);
   }
 
  private:

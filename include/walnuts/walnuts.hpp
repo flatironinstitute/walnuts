@@ -37,7 +37,7 @@ class SpanW {
    * @param[in] grad_theta The gradient of the log density at `theta`.
    * @param[in] logp The joint log density of the position and momentum.
    */
-  SpanW(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
+  SpanW(Vec<S>&& theta, Vec<S>&& rho, Vec<S>&& grad_theta, S logp)
       : theta_bk_(theta),
         rho_bk_(rho),
         grad_theta_bk_(grad_theta),
@@ -61,8 +61,8 @@ class SpanW {
    * selected position.
    * @param[in] logp The log of the sum of the densities on the trajectory.
    */
-  SpanW(SpanW<S> &&span1, SpanW<S> &&span2, Vec<S> &&theta_select,
-        Vec<S> &&grad_select, S logp)
+  SpanW(SpanW<S>&& span1, SpanW<S>&& span2, Vec<S>&& theta_select,
+        Vec<S>&& grad_select, S logp)
       : theta_bk_(std::move(span1.theta_bk_)),
         rho_bk_(std::move(span1.rho_bk_)),
         grad_theta_bk_(std::move(span1.grad_theta_bk_)),
@@ -126,9 +126,9 @@ class SpanW {
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <typename S, typename F>
-bool within_tolerance(F &logp_grad, const Vec<S> &inv_mass, S step,
+bool within_tolerance(F& logp_grad, const Vec<S>& inv_mass, S step,
                       Integer num_steps, S max_error, S logp_next,
-                      Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next) {
+                      Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next) {
   S half_step = 0.5 * step;
   S logp = logp_next;
   for (int n = 0; n < num_steps; ++n) {
@@ -160,9 +160,9 @@ bool within_tolerance(F &logp_grad, const Vec<S> &inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step,
-                Integer num_steps, S max_error, S logp_next,
-                const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad) {
+bool reversible(F& logp_grad, const Vec<S>& inv_mass, S step, Integer num_steps,
+                S max_error, S logp_next, const Vec<S>& theta,
+                const Vec<S>& rho, const Vec<S>& grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -207,13 +207,13 @@ bool reversible(F &logp_grad, const Vec<S> &inv_mass, S step,
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, typename S, typename F, class A>
-bool macro_step(F &logp_grad, const Vec<S> &inv_mass, S step, S max_error,
-                const SpanW<S> &span, Vec<S> &theta_next, Vec<S> &rho_next,
-                Vec<S> &grad_next, S &logp_next, A &adapt_handler) {
+bool macro_step(F& logp_grad, const Vec<S>& inv_mass, S step, S max_error,
+                const SpanW<S>& span, Vec<S>& theta_next, Vec<S>& rho_next,
+                Vec<S>& grad_next, S& logp_next, A& adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
-  const Vec<S> &theta = is_forward ? span.theta_fw_ : span.theta_bk_;
-  const Vec<S> &rho = is_forward ? span.rho_fw_ : span.rho_bk_;
-  const Vec<S> &grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
+  const Vec<S>& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
+  const Vec<S>& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
+  const Vec<S>& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
   S logp = is_forward ? span.logp_fw_ : span.logp_bk_;
   step = is_forward ? step : -step;
   using std::fmax, std::fmin;
@@ -267,8 +267,8 @@ bool macro_step(F &logp_grad, const Vec<S> &inv_mass, S step, S max_error,
  * @return The combined span.
  */
 template <Update U, Direction D, typename S, class RNG>
-SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
-                 SpanW<S> &&span_new) {
+SpanW<S> combine(Random<S, RNG>& rng, SpanW<S>&& span_old,
+                 SpanW<S>&& span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -279,9 +279,9 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
   }
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
-  auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
-  auto &grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
-  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
+  auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
+  auto& grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
+  auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return SpanW<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
                   std::move(grad_selected), logp_total);
 }
@@ -317,9 +317,9 @@ SpanW<S> combine(Random<S, RNG> &rng, SpanW<S> &&span_old,
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
 template <Direction D, typename S, class F, class A>
-std::optional<SpanW<S>> build_leaf(const F &logp_grad, const SpanW<S> &span,
-                                   const Vec<S> &inv_mass, S step, S max_error,
-                                   A &adapt_handler) {
+std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
+                                   const Vec<S>& inv_mass, S step, S max_error,
+                                   A& adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
@@ -353,18 +353,17 @@ std::optional<SpanW<S>> build_leaf(const F &logp_grad, const SpanW<S> &span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, typename S, class F, class RNG, class A>
-std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
-                                   const Vec<S> &inv_mass, S step,
+std::optional<SpanW<S>> build_span(Random<S, RNG>& rng, const F& logp_grad,
+                                   const Vec<S>& inv_mass, S step,
                                    Integer depth, S max_error,
-                                   const SpanW<S> &last_span,
-                                   A &adapt_handler) {
+                                   const SpanW<S>& last_span,
+                                   A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step, max_error,
                          adapt_handler);
   }
-  auto maybe_subspan1 =
-      build_span<D>(rng, logp_grad, inv_mass, step, depth - 1, max_error,
-                    last_span, adapt_handler);
+  auto maybe_subspan1 = build_span<D>(rng, logp_grad, inv_mass, step, depth - 1,
+                                      max_error, last_span, adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
@@ -402,10 +401,10 @@ std::optional<SpanW<S>> build_span(Random<S, RNG> &rng, const F &logp_grad,
  * @return The next position in the Markov chain.
  */
 template <typename S, class F, class RNG, class A>
-Vec<S> transition_w(Random<S, RNG> &rand, const F &logp_grad,
-                    const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                    Integer max_depth, Vec<S> &&theta, Vec<S> &theta_grad,
-                    S max_error, A &adapt_handler) {
+Vec<S> transition_w(Random<S, RNG>& rand, const F& logp_grad,
+                    const Vec<S>& inv_mass, const Vec<S>& chol_mass, S step,
+                    Integer max_depth, Vec<S>&& theta, Vec<S>& theta_grad,
+                    S max_error, A& adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -462,7 +461,7 @@ class NoOpHandler {
    * @tparam T The type of the functor argument.
    */
   template <typename T>
-  inline void operator()(const T &) const noexcept {}
+  inline void operator()(const T&) const noexcept {}
 };
 
 /**
@@ -507,8 +506,8 @@ class WalnutsSampler {
    * @param log_max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    */
-  WalnutsSampler(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &theta,
-                 const Vec<S> &inv_mass, S macro_step_size,
+  WalnutsSampler(Random<S, RNG>& rand, F& logp_grad, const Vec<S>& theta,
+                 const Vec<S>& inv_mass, S macro_step_size,
                  Integer max_nuts_depth, S log_max_error)
       : rand_(rand),
         logp_grad_(logp_grad),

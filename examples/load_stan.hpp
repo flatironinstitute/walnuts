@@ -13,19 +13,21 @@
 // TODO: consider using something like https://github.com/martin-olivier/dylib/
 #ifdef _WIN32
 // hacky way to get dlopen and friends on Windows
-#include <errhandlingapi.h>
-#include <libloaderapi.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #define dlopen(lib, flags) static_cast<void*>(LoadLibraryA(lib))
-#define dlsym(handle, sym) static_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), sym))
+#define dlsym(handle, sym) GetProcAddress(static_cast<HMODULE>(handle), sym)
 #define dlclose(handle) FreeLibrary(static_cast<HMODULE>(handle))
 
-char* dlerror() {
+static char* dlerror() {
   DWORD err = GetLastError();
-  int length = snprintf(NULL, 0, "%d", err);
+  int length = snprintf(NULL, 0, "%ld", err);
   char* str = static_cast<char*>(malloc(length + 1));
   snprintf(str, length + 1, "%d", err);
   return str;
 }
+
 #else
 #include <dlfcn.h>
 #endif

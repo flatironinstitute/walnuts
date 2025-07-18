@@ -17,7 +17,7 @@ using MatrixS = Eigen::Matrix<S, -1, -1>;
 using Integer = long;
 
 static void summarize(const std::vector<std::string> names,
-                      const MatrixS &draws) {
+                      const MatrixS& draws) {
   Integer N = draws.cols();
   Integer D = draws.rows();
   for (Integer d = 0; d < D; ++d) {
@@ -36,9 +36,9 @@ static void summarize(const std::vector<std::string> names,
 }
 
 template <typename RNG>
-static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
-                      RNG &rng, Integer N, S step_size, Integer max_depth,
-                      const VectorS &inv_mass) {
+static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
+                      RNG& rng, Integer N, S step_size, Integer max_depth,
+                      const VectorS& inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
   double logp_time = 0.0;
   int logp_count = 0;
@@ -46,7 +46,7 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
   auto global_start = std::chrono::high_resolution_clock::now();
   nuts::Random<double, RNG> rand(rng);
 
-  auto logp = [&](auto &&...args) {
+  auto logp = [&](auto&&... args) {
     auto start = std::chrono::high_resolution_clock::now();
 
     model.logp_grad(args...);
@@ -81,13 +81,13 @@ static void test_nuts(const DynamicStanModel &model, const VectorS &theta_init,
 }
 
 template <typename RNG>
-static void test_walnuts(const DynamicStanModel &model,
-                         const VectorS &theta_init, RNG &rng, Integer N,
+static void test_walnuts(const DynamicStanModel& model,
+                         const VectorS& theta_init, RNG& rng, Integer N,
                          S macro_step_size, Integer max_nuts_depth,
                          S log_max_error, VectorS inv_mass) {
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
-  auto logp = [&model](auto &&...args) { model.logp_grad(args...); };
+  auto logp = [&model](auto&&... args) { model.logp_grad(args...); };
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
                               max_nuts_depth, log_max_error);
@@ -101,8 +101,8 @@ static void test_walnuts(const DynamicStanModel &model,
 }
 
 template <typename RNG>
-static void test_adaptive_walnuts(const DynamicStanModel &model,
-                                  const VectorS &theta_init, RNG &rng,
+static void test_adaptive_walnuts(const DynamicStanModel& model,
+                                  const VectorS& theta_init, RNG& rng,
                                   Integer D, Integer N, Integer max_nuts_depth,
                                   S max_error) {
   double logp_time = 0.0;
@@ -130,7 +130,7 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
             << "; step_size_init = " << step_size_init
             << "; max_nuts_depth = " << max_nuts_depth
             << "; max_error = " << max_error << std::endl;
-  auto logp = [&](auto &&...args) {
+  auto logp = [&](auto&&... args) {
     auto start = std::chrono::high_resolution_clock::now();
 
     model.logp_grad(args...);
@@ -190,15 +190,15 @@ static void test_adaptive_walnuts(const DynamicStanModel &model,
   summarize(model.param_names(), draws);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   unsigned int seed = 428763;
   Integer N = 1000;
   S step_size = 0.465;
   Integer max_depth = 10;
   S max_error = 0.5;
 
-  char *lib{nullptr};
-  char *data{nullptr};
+  char* lib{nullptr};
+  char* data{nullptr};
 
   if (argc <= 1) {
     // require at least the library name

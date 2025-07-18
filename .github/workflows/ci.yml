@@ -48,7 +48,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake -S . -B build/ -G Ninja -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B build/ -G Ninja -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_STAN=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build/ --parallel 4 --config RelWithDebInfo
 
       - name: Run examples

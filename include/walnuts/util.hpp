@@ -66,7 +66,7 @@ class Random {
    *
    * @param rng The base random number generator.
    */
-  Random(RNG &rng)
+  Random(RNG& rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   /**
@@ -105,7 +105,7 @@ class Random {
 
  private:
   /** The base random number generator reference. */
-  RNG &rng_;
+  RNG& rng_;
 
   /** The `uniform([0, 1])` random number generator. */
   std::uniform_real_distribution<S> unif_;
@@ -129,7 +129,7 @@ class Random {
  * @return The log of the sum of the exponentiations of the arguments.
  */
 template <typename S>
-S log_sum_exp(const S &x1, const S &x2) {
+S log_sum_exp(const S& x1, const S& x2) {
   using std::fmax, std::log, std::exp;
   S m = fmax(x1, x2);
   return m + log(exp(x1 - m) + exp(x2 - m));
@@ -147,7 +147,7 @@ S log_sum_exp(const S &x1, const S &x2) {
  * @return The log of the sum of the exponentiation of the vector's components.
  */
 template <typename S>
-S log_sum_exp(const Vec<S> &x) {
+S log_sum_exp(const Vec<S>& x) {
   using std::log;
   S m = x.maxCoeff();
   return m + log((x.array() - m).exp().sum());
@@ -167,7 +167,7 @@ S log_sum_exp(const Vec<S> &x) {
  * @return The log density of the momentum.
  */
 template <typename S>
-S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
+S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass) {
   return -0.5 * rho.dot(inv_mass.cwiseProduct(rho));
 }
 
@@ -187,7 +187,7 @@ S logp_momentum(const Vec<S> &rho, const Vec<S> &inv_mass) {
  * @return The arguments ordered according to `D`.
  */
 template <Direction D, typename T>
-inline auto order_forward_backward(T &&x1, T &&x2) {
+inline auto order_forward_backward(T&& x1, T&& x2) {
   if constexpr (D == Direction::Forward) {
     return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
   } else {  // Direction::Backward
@@ -227,8 +227,8 @@ inline auto order_forward_backward(T &&x1, T &&x2) {
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
 template <Direction D, typename S, class U>
-inline bool uturn(const U &span1, const U &span2, const Vec<S> &inv_mass) {
-  auto &&[span_bk, span_fw] = order_forward_backward<D>(span1, span2);
+inline bool uturn(const U& span1, const U& span2, const Vec<S>& inv_mass) {
+  auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
           .matrix();
@@ -252,7 +252,7 @@ class NoExceptLogpGrad {
    *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(F &logp_grad) : logp_grad_(logp_grad) {}
+  NoExceptLogpGrad(F& logp_grad) : logp_grad_(logp_grad) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -262,8 +262,8 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  inline void operator()(const Vec<S> &x, S &logp,
-                         Vec<S> &grad) const noexcept {
+  inline void operator()(const Vec<S>& x, S& logp,
+                         Vec<S>& grad) const noexcept {
     try {
       logp_grad_(x, logp, grad);
     } catch (...) {
@@ -273,7 +273,7 @@ class NoExceptLogpGrad {
     }
   }
 
-  F &logp_grad_;
+  F& logp_grad_;
 };
 
 }  // namespace nuts

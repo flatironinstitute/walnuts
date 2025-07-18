@@ -1,8 +1,11 @@
 AlwaysBreakBeforeMultilineStrings: false
 AllowShortIfStatementsOnASingleLine: false
 BasedOnStyle: Google
+DerivePointerAlignment: false
 IncludeBlocks: Preserve
 IndentWidth: 2
 InsertBraces: true
+PointerAlignment: Left
+ReferenceAlignment: Left
 TabWidth: 2
 UseTab: Never

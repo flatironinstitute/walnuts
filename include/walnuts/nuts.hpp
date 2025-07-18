@@ -31,7 +31,7 @@ class Span {
    * position.
    * @param[in] logp The joint log density of the position and momentum.
    */
-  Span(Vec<S> &&theta, Vec<S> &&rho, Vec<S> &&grad_theta, S logp)
+  Span(Vec<S>&& theta, Vec<S>&& rho, Vec<S>&& grad_theta, S logp)
       : theta_bk_(theta),
         rho_bk_(rho),
         grad_theta_bk_(grad_theta),
@@ -49,7 +49,7 @@ class Span {
    * @param[in] theta_select The selected position.
    * @param[in] logp The log of the sum of the densities on the trajectory.
    */
-  Span(Span<S> &&span1, Span<S> &&span2, Vec<S> &&theta_select, S logp)
+  Span(Span<S>&& span1, Span<S>&& span2, Vec<S>&& theta_select, S logp)
       : theta_bk_(std::move(span1.theta_bk_)),
         rho_bk_(std::move(span1.rho_bk_)),
         grad_theta_bk_(std::move(span1.grad_theta_bk_)),
@@ -107,10 +107,10 @@ class Span {
  * @pre theta.size() == inv_mass.size()
  */
 template <typename S, typename F>
-void leapfrog(const F &logp_grad, const Vec<S> &inv_mass, S step,
-              const Vec<S> &theta, const Vec<S> &rho, const Vec<S> &grad,
-              Vec<S> &theta_next, Vec<S> &rho_next, Vec<S> &grad_next,
-              S &logp_next) {
+void leapfrog(const F& logp_grad, const Vec<S>& inv_mass, S step,
+              const Vec<S>& theta, const Vec<S>& rho, const Vec<S>& grad,
+              Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next,
+              S& logp_next) {
   S half_step = 0.5 * step;
   rho_next.noalias() = rho + half_step * grad;
   theta_next.noalias() =
@@ -134,7 +134,7 @@ void leapfrog(const F &logp_grad, const Vec<S> &inv_mass, S step,
  * @return The spans combined in the specified temporal ordering.
  */
 template <Update U, Direction D, typename S, class RNG>
-Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
+Span<S> combine(Random<S, RNG>& rand, Span<S>&& span_old, Span<S>&& span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -145,9 +145,9 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
   }
   S update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rand.uniform_real_01()) < update_logprob;
-  auto &selected = update ? span_new.theta_select_ : span_old.theta_select_;
+  auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
 
-  auto &&[span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
+  auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return Span<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
                  logp_total);
 }
@@ -167,8 +167,8 @@ Span<S> combine(Random<S, RNG> &rand, Span<S> &&span_old, Span<S> &&span_new) {
  * @return The single-state span that follows the specified span.
  */
 template <Direction D, typename S, class F>
-Span<S> build_leaf(const F &logp_grad, const Span<S> &span,
-                   const Vec<S> &inv_mass, S step) {
+Span<S> build_leaf(const F& logp_grad, const Span<S>& span,
+                   const Vec<S>& inv_mass, S step) {
   Vec<S> theta_next;
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
@@ -206,9 +206,9 @@ Span<S> build_leaf(const F &logp_grad, const Span<S> &span,
  * @return The new span of `std::nullopt` if there was a sub-u-turn.
  */
 template <Direction D, typename S, class F, class RNG>
-std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad,
-                                  const Vec<S> &inv_mass, S step, Integer depth,
-                                  const Span<S> &last_span) {
+std::optional<Span<S>> build_span(Random<S, RNG>& rand, const F& logp_grad,
+                                  const Vec<S>& inv_mass, S step, Integer depth,
+                                  const Span<S>& last_span) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step);
   }
@@ -247,9 +247,9 @@ std::optional<Span<S>> build_span(Random<S, RNG> &rand, const F &logp_grad,
  * @return The next state in the NUTS Markov chain.
  */
 template <typename S, class F, class RNG>
-Vec<S> transition(Random<S, RNG> &rand, const F &logp_grad,
-                  const Vec<S> &inv_mass, const Vec<S> &chol_mass, S step,
-                  Integer max_depth, Vec<S> &&theta) {
+Vec<S> transition(Random<S, RNG>& rand, const F& logp_grad,
+                  const Vec<S>& inv_mass, const Vec<S>& chol_mass, S step,
+                  Integer max_depth, Vec<S>&& theta) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -332,8 +332,8 @@ class Nuts {
    * @pre step_size > 0
    * @pre theta_init.size() == inv_mass.size()
    */
-  Nuts(Random<S, RNG> &rand, F &logp_grad, const Vec<S> &theta_init,
-       const Vec<S> &inv_mass, S step_size, Integer max_nuts_depth)
+  Nuts(Random<S, RNG>& rand, F& logp_grad, const Vec<S>& theta_init,
+       const Vec<S>& inv_mass, S step_size, Integer max_nuts_depth)
       : rand_(rand),
         logp_grad_(logp_grad),
         theta_(theta_init),

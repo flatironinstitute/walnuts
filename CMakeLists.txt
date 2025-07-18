@@ -128,12 +128,12 @@ endif()
 add_library(nuts::nuts ALIAS walnuts)
 
 ##########################
-##       Example        ##
+##       Examples       ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
-  add_executable(test_nuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/test.cpp)
-  target_link_libraries(test_nuts PRIVATE nuts::nuts)
-  target_compile_options(test_nuts PRIVATE -Wall)
+  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp)
+  target_link_libraries(examples PRIVATE nuts::nuts)
+  target_compile_options(examples PRIVATE -O3 -Wall)
 endif()
 
 ##########################

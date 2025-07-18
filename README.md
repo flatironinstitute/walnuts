@@ -46,7 +46,7 @@ licensed](https://opensource.org/license/bsd-3-clause))
 ## Using WALNUTS in a C++ project
 
 This library is header only and only requires Eigen (also header only)
-to run (additional dependencies are required for testing and documtnation). 
+to run (additional dependencies are required for testing and documtnation).
 If your project uses CMake, you can depend on our
 `walnuts` library target. If not, any method of adding the `include/`
 folder of this repository to your build system's include paths should suffice
@@ -97,8 +97,8 @@ command. This will build all available executable targets by default.
 For example, to build and run the example:
 
 ```bash
-cmake --build . --target test_nuts
-./test_nuts
+cmake --build . --target examples
+./examples
 ```
 
 

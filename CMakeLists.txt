@@ -131,9 +131,13 @@ add_library(nuts::nuts ALIAS walnuts)
 ##       Examples       ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
-  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp)
-  target_link_libraries(examples PRIVATE nuts::nuts)
-  target_compile_options(examples PRIVATE -O3 -Wall)
+  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp) 
+  target_link_libraries(examples PRIVATE nuts::nuts) 
+  target_compile_options(examples PRIVATE -O3 -Wall) 
+
+  add_executable(walnuts-stationarity ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-stationarity.cpp) 
+  target_link_libraries(walnuts-stationarity PRIVATE nuts::nuts) 
+  target_compile_options(walnuts-stationarity PRIVATE -O3 -Wall) 
 endif()
 
 ##########################

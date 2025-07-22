@@ -32,11 +32,11 @@ int main() {
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
 
-  double step_size_init = 0.5;
-  double accept_rate_target = 2.0 / 3.0;
-  double step_iteration_offset = 2.0;
-  double learning_rate = 0.95;
-  double decay_rate = 0.05;
+  double step_size_init = 5.0;
+  double accept_rate_target = 0.8; // 2.0 / 3.0;
+  double step_iteration_offset = 10;  // stan default: 10.0
+  double learning_rate = 0.8;  // stan default: 0.75
+  double decay_rate = 0.05;  // stan default: 0.05
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
@@ -46,7 +46,7 @@ int main() {
   Integer max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
 
-  unsigned int seed = 428763;
+  unsigned int seed = 783909;
   std::mt19937 rng(seed);
 
   std::normal_distribution<S> std_normal(0, 1);

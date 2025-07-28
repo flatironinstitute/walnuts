@@ -8,6 +8,8 @@ FetchContent_Declare(googletest
         GIT_TAG main)
 FetchContent_MakeAvailable(googletest)
 
+find_package(GTest)
+
 # Set up testing framework, then add tests
 # define a function to add a gtest‐based nuts test
 function(add_nuts_test TEST_NAME TEST_SOURCE)
@@ -22,11 +24,8 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
       nuts::nuts
   )
 
-  # register it with CTest
-  add_test(
-    NAME ${TEST_NAME}
-    COMMAND $<TARGET_FILE:${TEST_NAME}>
-  )
+  #  register it with CTest
+  gtest_discover_tests(${TEST_NAME})
 endfunction()
 
 add_nuts_test(online_moments_test online_moments_test.cpp)

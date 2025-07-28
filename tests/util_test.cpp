@@ -10,17 +10,10 @@
 
 using S = double;
 using Vec = Eigen::Matrix<S, -1, 1>;
-using Mat = Eigen::Matrix<S, -1, -1>;
 
 static Vec vec(S x1, S x2) {
   Vec y(2);
   y << x1, x2;
-  return y;
-}
-
-static Mat mat(S x00, S x01, S x10, S x11) {
-  Mat y(2, 2);
-  y << x00, x01, x10, x11;
   return y;
 }
 
@@ -55,7 +48,7 @@ TEST(Util, Walnuts) {
   S logp1 = 0;
   S logp2 = 0;
 
-  Mat inv_mass = mat(1, 0, 0, 1);
+  Vec inv_mass = vec(1, 1);
 
   nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
                          std::move(gradbk1), logpbk1);
@@ -112,7 +105,7 @@ TEST(Util, WalnutsRegression) {
   S logp1 = 0;
   S logp2 = 0;
 
-  Mat inv_mass = mat(1, 0, 0, 1);
+  Vec inv_mass = vec(1, 1);
 
   nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
                          std::move(gradbk1), logpbk1);

@@ -28,7 +28,7 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 
+add_nuts_test(combine_span_test combine_span_test.cpp)
 add_nuts_test(online_moments_test online_moments_test.cpp)
 add_nuts_test(dual_average_test dual_average_test.cpp)
 add_nuts_test(util_test util_test.cpp)
-add_nuts_test(span_test span_test.cpp)

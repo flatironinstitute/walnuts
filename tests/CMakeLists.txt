@@ -31,7 +31,6 @@ function(add_gtest_test TEST_NAME)
 endfunction()
 
 add_gtest_test(online_moments_test)
-add_gtest_test(dual_average_test)
 add_gtest_test(util_test)
 
 
@@ -49,9 +48,11 @@ function(add_boost_ut_test TEST_NAME)
       nuts::nuts
   )
 
-  add_test(${TEST_NAME}
+  add_test(
+    NAME ${TEST_NAME}
     COMMAND $<TARGET_FILE:${TEST_NAME}>
   )
 endfunction()
 
 add_boost_ut_test(combine_span_test)
+add_boost_ut_test(dual_average_test)

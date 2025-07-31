@@ -5,18 +5,21 @@ endif()
 FetchContent_Declare(googletest
         DOWNLOAD_EXTRACT_TIMESTAMP ON
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG main)
+        GIT_TAG main         )
 FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
-# Set up testing framework, then add tests
-# define a function to add a gtest‐based nuts test
-function(add_nuts_test TEST_NAME TEST_SOURCE)
-  # create the executable
-  add_executable(${TEST_NAME} ${TEST_SOURCE})
+FetchContent_Declare(boost_ut
+        DOWNLOAD_EXTRACT_TIMESTAMP ON
+        GIT_REPOSITORY https://github.com/boost-ext/ut.git
+        GIT_TAG v2.3.1)
+FetchContent_MakeAvailable(boost_ut)
 
-  # link in GoogleTest, Eigen, and your nuts lib
+
+function(add_gtest_test TEST_NAME)
+  add_executable(${TEST_NAME} ${TEST_NAME}.cpp)
+
   target_link_libraries(${TEST_NAME}
     PRIVATE
       gtest_main
@@ -24,11 +27,31 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
       nuts::nuts
   )
 
-  #  register it with CTest
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 
-add_nuts_test(combine_span_test combine_span_test.cpp)
-add_nuts_test(online_moments_test online_moments_test.cpp)
-add_nuts_test(dual_average_test dual_average_test.cpp)
-add_nuts_test(util_test util_test.cpp)
+add_gtest_test(online_moments_test)
+add_gtest_test(dual_average_test)
+add_gtest_test(util_test)
+
+
+add_library(boost_ut_runner OBJECT test_runner.cpp)
+target_link_libraries(boost_ut_runner PUBLIC Boost::ut)
+
+function(add_boost_ut_test TEST_NAME)
+  add_executable(${TEST_NAME} ${TEST_NAME}.cpp)
+  set_property(TARGET ${TEST_NAME} PROPERTY CXX_STANDARD 20)
+
+  target_link_libraries(${TEST_NAME}
+    PRIVATE
+      boost_ut_runner
+       Eigen3::Eigen
+      nuts::nuts
+  )
+
+  add_test(${TEST_NAME}
+    COMMAND $<TARGET_FILE:${TEST_NAME}>
+  )
+endfunction()
+
+add_boost_ut_test(combine_span_test)

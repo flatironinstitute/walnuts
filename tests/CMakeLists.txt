@@ -8,7 +8,7 @@ FetchContent_Declare(googletest
         GIT_TAG main)
 FetchContent_MakeAvailable(googletest)
 
-find_package(GTest)
+include(GoogleTest)
 
 # Set up testing framework, then add tests
 # define a function to add a gtest‐based nuts test

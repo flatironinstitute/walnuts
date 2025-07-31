@@ -64,9 +64,9 @@ using BackwardAndBarker = std::tuple<Backward, Barker>;
 
 using namespace boost::ut;
 
-void expect_forward_endpoint_equal(
-    auto& span_expected, auto& span_received,
-    const std::source_location& location = std::source_location::current()) {
+void expect_forward_endpoint_equal(auto& span_expected, auto& span_received,
+                                   const reflection::source_location& location =
+                                       reflection::source_location::current()) {
   expect(span_expected.theta_fw_ == span_received.theta_fw_, location);
   expect(span_expected.rho_fw_ == span_received.rho_fw_, location);
   expect(span_expected.grad_theta_fw_ == span_received.grad_theta_fw_,
@@ -76,7 +76,8 @@ void expect_forward_endpoint_equal(
 
 void expect_backward_endpoint_equal(
     auto& span_expected, auto& span_received,
-    const std::source_location& location = std::source_location::current()) {
+    const reflection::source_location& location =
+        reflection::source_location::current()) {
   expect(span_expected.theta_bk_ == span_received.theta_bk_, location);
   expect(span_expected.rho_bk_ == span_received.rho_bk_, location);
   expect(span_expected.grad_theta_bk_ == span_received.grad_theta_bk_,
@@ -84,9 +85,10 @@ void expect_backward_endpoint_equal(
   expect(span_expected.logp_bk_ == span_received.logp_bk_, location);
 }
 
-void expect_selected_point_equal(
-    auto& span_expected, double logp_expected, auto& span_received,
-    const std::source_location& location = std::source_location::current()) {
+void expect_selected_point_equal(auto& span_expected, double logp_expected,
+                                 auto& span_received,
+                                 const reflection::source_location& location =
+                                     reflection::source_location::current()) {
   expect(span_expected.theta_select_ == span_received.theta_select_, location);
   expect(span_expected.grad_select_ == span_received.grad_select_, location);
   expect(approx(logp_expected, span_received.logp_, 1e-6), location);

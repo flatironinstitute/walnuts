@@ -9,11 +9,12 @@ int main(int argc, const char* argv[]) {
 
   if (argc == 2) {
     if (std::string(argv[1]) == "--help") {
-      std::cout << "Usage: " << argv[0] << " <options> [filter]\n";
-      std::cout << "Run all tests or filter by a specific test name.\n";
-      std::cout << "Options:\n";
-      std::cout << "  --help       Show this help message\n";
-      std::cout << "  --list       List all available tests\n";
+      std::cout << "Usage: " << argv[0] << " <options> [filter]" << std::endl;
+      std::cout << "Run all tests or filter by a specific test name."
+                << std::endl;
+      std::cout << "Options:" << std::endl;
+      std::cout << "  --help       Show this help message" << std::endl;
+      std::cout << "  --list       List all available tests" << std::endl;
       // _Exit avoids running static destructors, which is what triggers
       // tests to run (if they haven't already)
       std::_Exit(1);

@@ -30,9 +30,20 @@ function(add_gtest_test TEST_NAME)
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 
-add_gtest_test(online_moments_test)
 add_gtest_test(util_test)
 
+
+add_executable(jumbo_test EXCLUDE_FROM_ALL test_runner.cpp)
+set_target_properties(jumbo_test PROPERTIES
+  CXX_STANDARD 20
+  UNITY_BUILD ON
+ )
+target_link_libraries(jumbo_test
+  PRIVATE
+    nuts::nuts
+    Eigen3::Eigen
+    Boost::ut
+)
 
 add_library(boost_ut_runner OBJECT test_runner.cpp)
 target_link_libraries(boost_ut_runner PUBLIC Boost::ut)
@@ -44,7 +55,7 @@ function(add_boost_ut_test TEST_NAME)
   target_link_libraries(${TEST_NAME}
     PRIVATE
       boost_ut_runner
-       Eigen3::Eigen
+      Eigen3::Eigen
       nuts::nuts
   )
 
@@ -52,7 +63,11 @@ function(add_boost_ut_test TEST_NAME)
     NAME ${TEST_NAME}
     COMMAND $<TARGET_FILE:${TEST_NAME}>
   )
+
+  target_sources(jumbo_test PRIVATE ${TEST_NAME}.cpp)
 endfunction()
 
 add_boost_ut_test(combine_span_test)
 add_boost_ut_test(dual_average_test)
+add_boost_ut_test(online_moments_test)
+

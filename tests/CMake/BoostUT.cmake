@@ -45,6 +45,7 @@ endfunction()
 # Based on https://gitlab.kitware.com/cmake/cmake/-/blob/master/Modules/GoogleTest.cmake#L545
 # This defines a function that is an alternative to add_test()
 # that adds each individual test in the executable as its own ctest test
+# A nice overview of this feature is described here: https://www.kitware.com/dynamic-google-test-discovery-in-cmake-3-10/
 function (discover_boost_ut_test TARGET)
 
   set(ctest_file_base "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")

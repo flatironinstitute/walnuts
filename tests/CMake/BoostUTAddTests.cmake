@@ -1,6 +1,7 @@
 # based on https://gitlab.kitware.com/cmake/cmake/-/blob/master/Modules/GoogleTestAddTests.cmake?ref_type=heads
 # this file defines a script that lists all the tests in a given executable
 # and adds each one individually as a ctest test
+# A nice overview of this feature is described here: https://www.kitware.com/dynamic-google-test-discovery-in-cmake-3-10/
 
 set(script)
 set(suite)

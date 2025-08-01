@@ -1,4 +1,6 @@
 #include <boost/ut.hpp>
+#include <cstdlib>
+#include <iostream>
 
 // a small custom runner for boost.UT tests
 int main(int argc, const char* argv[]) {
@@ -14,7 +16,7 @@ int main(int argc, const char* argv[]) {
       std::cout << "  --list       List all available tests\n";
       // _Exit avoids running static destructors, which is what triggers
       // tests to run (if they haven't already)
-      _Exit(1);
+      std::_Exit(1);
     } else if (std::string(argv[1]) == "--list") {
       // tell runner to print names
       boost::ut::detail::cfg::show_test_names = true;

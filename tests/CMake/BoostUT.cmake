@@ -55,7 +55,7 @@ function (discover_boost_ut_test TARGET)
       "if(EXISTS \"${ctest_tests_file}\")\n"
       "  include(\"${ctest_tests_file}\")\n"
       "else()\n"
-      "  add_test(${TARGET}_NOT_BUILT-${args_hash} ${TARGET}_NOT_BUILT-${args_hash})\n"
+      "  add_test(${TARGET}_NOT_BUILT ${TARGET}_NOT_BUILT)\n"
       "endif()\n"
   )
 

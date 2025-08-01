@@ -39,16 +39,15 @@ endif()
 
 string(REPLACE "\n" ";" output "${output}")
 
-foreach(line ${output})
-    # strip whitespace
-    string(REGEX REPLACE " +" "" test "${line}")
-    add_command(add_test
-                "${test}"
-                "${TEST_EXECUTABLE}"
-                "${test}"
-    )
-    message(CONFIGURE_LOG "Discovered test: ${test}")
-    list(APPEND tests "${test}")
+get_filename_component(test_file ${TEST_EXECUTABLE} NAME)
+foreach(test ${output})
+  add_command(add_test
+          "${test_file}:${test}"
+          "${TEST_EXECUTABLE}"
+          "${test}"
+  )
+  message(CONFIGURE_LOG "Discovered test: ${test_file}:${test}")
+  list(APPEND tests "${test}")
 
 endforeach()
 

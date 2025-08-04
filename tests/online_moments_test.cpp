@@ -1,14 +1,13 @@
-#include <chrono>
 #include <cmath>
 #include <cstddef>
-#include <iostream>
-#include <random>
 #include <vector>
 
-#include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <boost/ut.hpp>
 
 #include <walnuts/online_moments.hpp>
+
+namespace online_moments_test {
 
 static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
                                        double alpha) {
@@ -40,103 +39,109 @@ static Eigen::VectorXd discounted_variance(
   return weighted_sq_diff_sum / weight_sum;
 }
 
-TEST(Welford, test_zero_observations) {
-  double alpha = 0.95;
-  long D = 2;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+using namespace boost::ut;
 
-  Eigen::VectorXd m = acc.mean();
-  Eigen::VectorXd v = acc.variance();
-  EXPECT_EQ(2, m.size());
-  EXPECT_FLOAT_EQ(0.0, m(0));
-  EXPECT_FLOAT_EQ(0.0, m(1));
-  EXPECT_EQ(2, v.size());
-  EXPECT_FLOAT_EQ(1.0, v(0));
-  EXPECT_FLOAT_EQ(1.0, v(1));
-}
+suite<"welford"> tests = [] {
+  "zero_observations"_test = [] {
+    double alpha = 0.95;
+    long D = 2;
+    nuts::OnlineMoments<double, long> acc(alpha, D);
 
-TEST(Welford, test_one_observation) {
-  double alpha = 0.95;
-  long D = 2;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+    Eigen::VectorXd m = acc.mean();
+    Eigen::VectorXd v = acc.variance();
+    expect(m.size() == 2_u);
+    expect(m(0) == 0.0_d);
+    expect(m(1) == 0.0_d);
+    expect(v.size() == 2_u);
+    expect(v(0) == 1.0_d);
+    expect(v(1) == 1.0_d);
+  };
 
-  Eigen::VectorXd y(2);
-  y << 0.2, -1.3;
-  acc.observe(y);
+  "one_observation"_test = [] {
+    double alpha = 0.95;
+    long D = 2;
+    nuts::OnlineMoments<double, long> acc(alpha, D);
 
-  Eigen::VectorXd m = acc.mean();
-  Eigen::VectorXd v = acc.variance();
+    Eigen::VectorXd y(2);
+    y << 0.2, -1.3;
+    acc.observe(y);
 
-  EXPECT_EQ(2, m.size());
-  EXPECT_FLOAT_EQ(0.2, m(0));
-  EXPECT_FLOAT_EQ(-1.3, m(1));
-  EXPECT_EQ(2, v.size());
-  EXPECT_FLOAT_EQ(0.0, v(0));
-  EXPECT_FLOAT_EQ(0.0, v(1));
-}
+    Eigen::VectorXd m = acc.mean();
+    Eigen::VectorXd v = acc.variance();
 
-TEST(Welford, test_no_discounting) {
-  long D = 2;
-  std::size_t N = 100;
-  std::vector<Eigen::VectorXd> ys(N);
-  for (std::size_t n = 0; n < N; ++n) {
-    ys[n] = Eigen::VectorXd::Zero(D);
-  }
-  for (std::size_t n = 0; n < N; ++n) {
-    double x = static_cast<double>(n);
-    ys[n] << x, std::sqrt(x);
-  }
+    expect(m.size() == 2_u);
+    expect(m(0) == 0.2_d);
+    expect(m(1) == -1.3_d);
+    expect(v.size() == 2_u);
+    expect(v(0) == 0.0_d);
+    expect(v(1) == 0.0_d);
+  };
 
-  Eigen::VectorXd sum = Eigen::VectorXd::Zero(D);
-  for (auto y : ys) {
-    sum += y;
-  }
-  Eigen::VectorXd mean_expected = sum / N;
+  "no_discounting"_test = [] {
+    long D = 2;
+    std::size_t N = 100;
+    std::vector<Eigen::VectorXd> ys(N);
+    for (std::size_t n = 0; n < N; ++n) {
+      ys[n] = Eigen::VectorXd::Zero(D);
+    }
+    for (std::size_t n = 0; n < N; ++n) {
+      double x = static_cast<double>(n);
+      ys[n] << x, std::sqrt(x);
+    }
 
-  Eigen::VectorXd sum_sq_diffs = Eigen::VectorXd::Zero(D);
-  for (auto y : ys) {
-    sum_sq_diffs +=
-        ((y - mean_expected).array() * (y - mean_expected).array()).matrix();
-  }
-  Eigen::VectorXd variance_expected = sum_sq_diffs / N;
+    Eigen::VectorXd sum = Eigen::VectorXd::Zero(D);
+    for (auto y : ys) {
+      sum += y;
+    }
+    Eigen::VectorXd mean_expected = sum / N;
 
-  double alpha = 1.0;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+    Eigen::VectorXd sum_sq_diffs = Eigen::VectorXd::Zero(D);
+    for (auto y : ys) {
+      sum_sq_diffs +=
+          ((y - mean_expected).array() * (y - mean_expected).array()).matrix();
+    }
+    Eigen::VectorXd variance_expected = sum_sq_diffs / N;
 
-  for (std::size_t n = 0; n < N; ++n) {
-    acc.observe(ys[n]);
-  }
-  Eigen::VectorXd m = acc.mean();
-  Eigen::VectorXd v = acc.variance();
+    double alpha = 1.0;
+    nuts::OnlineMoments<double, long> acc(alpha, D);
 
-  EXPECT_TRUE(m.isApprox(mean_expected, 1e-8));
-  EXPECT_TRUE(v.isApprox(variance_expected, 1e-8));
-}
+    for (std::size_t n = 0; n < N; ++n) {
+      acc.observe(ys[n]);
+    }
+    Eigen::VectorXd m = acc.mean();
+    Eigen::VectorXd v = acc.variance();
 
-TEST(Welford, test_ten_observations) {
-  long D = 3;
-  std::size_t N = 10;
-  std::vector<Eigen::VectorXd> ys(N);
-  for (std::size_t n = 0; n < N; ++n) {
-    ys[n] = Eigen::VectorXd::Zero(D);
-  }
-  for (std::size_t n = 0; n < N; ++n) {
-    double x = static_cast<double>(n);
-    ys[n] << x, x * x, std::exp(x);
-  }
+    expect(m.isApprox(mean_expected, 1e-8));
+    expect(v.isApprox(variance_expected, 1e-8));
+  };
 
-  double alpha = 0.95;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+  "ten_observations"_test = [] {
+    long D = 2;
+    std::size_t N = 10;
+    std::vector<Eigen::VectorXd> ys(N);
+    for (std::size_t n = 0; n < N; ++n) {
+      ys[n] = Eigen::VectorXd::Zero(D);
+    }
+    for (std::size_t n = 0; n < N; ++n) {
+      double x = static_cast<double>(n);
+      ys[n] << x, std::sqrt(x);
+    }
 
-  for (std::size_t n = 0; n < N; ++n) {
-    acc.observe(ys[n]);
-  }
-  Eigen::VectorXd m = acc.mean();
-  Eigen::VectorXd v = acc.variance();
+    double alpha = 0.95;
+    nuts::OnlineMoments<double, long> acc(alpha, D);
 
-  Eigen::VectorXd mean_expected = discounted_mean(ys, alpha);
-  EXPECT_TRUE(m.isApprox(mean_expected, 1e-8));
+    for (std::size_t n = 0; n < N; ++n) {
+      acc.observe(ys[n]);
+    }
+    Eigen::VectorXd m = acc.mean();
+    Eigen::VectorXd v = acc.variance();
 
-  Eigen::VectorXd variance_expected = discounted_variance(ys, alpha);
-  EXPECT_TRUE(v.isApprox(variance_expected, 1e-8));
-}
+    Eigen::VectorXd mean_expected = discounted_mean(ys, alpha);
+    expect(m.isApprox(mean_expected, 1e-8));
+
+    Eigen::VectorXd variance_expected = discounted_variance(ys, alpha);
+    expect(v.isApprox(variance_expected, 1e-8));
+  };
+};
+
+}  // namespace online_moments_test

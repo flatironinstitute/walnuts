@@ -18,7 +18,6 @@ static Vec vec(S x1, S x2) {
 }
 
 TEST(Util, Walnuts) {
-  EXPECT_EQ(2 + 2, 4);
   Vec thetabk1 = vec(-3, 0);
   Vec thetafw1 = vec(-1, 0);
   Vec thetabk2 = vec(1, 0);
@@ -50,19 +49,11 @@ TEST(Util, Walnuts) {
 
   Vec inv_mass = vec(1, 1);
 
-  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
-                         std::move(gradbk1), logpbk1);
-  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1),
-                         std::move(gradfw1), logpfw1);
-  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2),
-                         std::move(gradbk2), logpbk2);
-  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2),
-                         std::move(gradfw2), logpfw2);
+  nuts::SpanW<S> span1{thetabk1, rhobk1,  gradbk1, logpbk1, thetafw1, rhofw1,
+                       gradfw1,  logpfw1, theta1,  grad1,   logp1};
 
-  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw),
-                       std::move(theta1), std::move(grad1), logp1);
-  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw),
-                       std::move(theta2), std::move(grad2), logp2);
+  nuts::SpanW<S> span2{thetabk2, rhobk2,  gradbk2, logpbk2, thetafw2, rhofw2,
+                       gradfw2,  logpfw2, theta2,  grad2,   logp2};
 
   EXPECT_TRUE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(
       span1, span2, inv_mass)));
@@ -107,19 +98,11 @@ TEST(Util, WalnutsRegression) {
 
   Vec inv_mass = vec(1, 1);
 
-  nuts::SpanW<S> span1bk(std::move(thetabk1), std::move(rhobk1),
-                         std::move(gradbk1), logpbk1);
-  nuts::SpanW<S> span1fw(std::move(thetafw1), std::move(rhofw1),
-                         std::move(gradfw1), logpfw1);
-  nuts::SpanW<S> span2bk(std::move(thetabk2), std::move(rhobk2),
-                         std::move(gradbk2), logpbk2);
-  nuts::SpanW<S> span2fw(std::move(thetafw2), std::move(rhofw2),
-                         std::move(gradfw2), logpfw2);
+  nuts::SpanW<S> span1{thetabk1, rhobk1,  gradbk1, logpbk1, thetafw1, rhofw1,
+                       gradfw1,  logpfw1, theta1,  grad1,   logp1};
 
-  nuts::SpanW<S> span1(std::move(span1bk), std::move(span1fw),
-                       std::move(theta1), std::move(grad1), logp1);
-  nuts::SpanW<S> span2(std::move(span2bk), std::move(span2fw),
-                       std::move(theta2), std::move(grad2), logp2);
+  nuts::SpanW<S> span2{thetabk2, rhobk2,  gradbk2, logpbk2, thetafw2, rhofw2,
+                       gradfw2,  logpfw2, theta2,  grad2,   logp2};
 
   // following test fails in the original code with buggy uturn condition
   EXPECT_FALSE((nuts::uturn<nuts::Direction::Forward, S, nuts::SpanW<S>>(

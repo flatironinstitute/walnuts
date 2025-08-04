@@ -15,27 +15,18 @@ namespace span_test {
  * to this function will return spans with different forward/backward/selected
  * points.
  */
-nuts::SpanW<double> dummy_span(double logp) {
-  Eigen::VectorXd theta = Eigen::VectorXd::Random(2);
-  Eigen::VectorXd rho = Eigen::VectorXd::Random(2);
-  Eigen::VectorXd grad = Eigen::VectorXd::Random(2);
-
-  nuts::SpanW<double> span(std::move(theta), std::move(rho), std::move(grad),
-                           logp);
-
-  span.logp_bk_ = -logp;
-
-  span.theta_bk_ = Eigen::VectorXd::Random(2);
-  span.rho_bk_ = Eigen::VectorXd::Random(2);
-  span.grad_theta_bk_ = Eigen::VectorXd::Random(2);
-
-  span.logp_fw_ = logp + 10;
-
-  span.theta_fw_ = Eigen::VectorXd::Random(2);
-  span.rho_fw_ = Eigen::VectorXd::Random(2);
-  span.grad_theta_fw_ = Eigen::VectorXd::Random(2);
-
-  return span;
+nuts::SpanW<double> dummy_span(double logp, int size = 2) {
+  return nuts::SpanW<double>{Eigen::VectorXd::Random(size),
+                             Eigen::VectorXd::Random(size),
+                             Eigen::VectorXd::Random(size),
+                             -logp,
+                             Eigen::VectorXd::Random(size),
+                             Eigen::VectorXd::Random(size),
+                             Eigen::VectorXd::Random(size),
+                             logp + 10,
+                             Eigen::VectorXd::Random(size),
+                             Eigen::VectorXd::Random(size),
+                             logp};
 }
 
 /** Mocked nuts::Random that returns a set value deterministically */

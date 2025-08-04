@@ -59,7 +59,7 @@ class DualAverage {
   DualAverage(S step_size_init, S target_accept_rate, S obs_count_offset = 10,
               S learn_rate = 0.05, S decay_rate = 0.75)
       : log_est_(std::log(step_size_init)),
-        log_est_avg_(0),
+        log_est_avg_(log_est_),
         grad_avg_(0),
         obs_count_(1),
         log_step_offset_(std::log(10) + std::log(step_size_init)),

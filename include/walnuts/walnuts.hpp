@@ -411,34 +411,27 @@ Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
   logp += logp_momentum(rho, inv_mass);
   SpanW<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
-    const bool go_forward = rand.uniform_binary();
-    if (go_forward) {
-      constexpr Direction D = Direction::Forward;
+    // helper to turn runtime direction into compile-time template enum
+    auto expand_in_direction = [&](auto direction) -> bool {
+      constexpr Direction D = direction;
       auto maybe_next_span =
           build_span<D>(rand, logp_grad, inv_mass, step, depth, max_error,
                         span_accum, adapt_handler);
       if (!maybe_next_span) {
-        break;
+        return true;
       }
       bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
       span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
                                                   std::move(*maybe_next_span));
-      if (combined_uturn) {
-        break;
-      }
-    } else {
-      constexpr Direction D = Direction::Backward;
-      auto span_next = build_span<D>(rand, logp_grad, inv_mass, step, depth,
-                                     max_error, span_accum, adapt_handler);
-      if (!span_next) {
-        break;
-      }
-      bool combined_uturn = uturn<D>(span_accum, *span_next, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
-                                                  std::move(*span_next));
-      if (combined_uturn) {
-        break;
-      }
+      return combined_uturn;
+    };
+
+    bool go_forward = rand.uniform_binary();
+    bool did_uturn = go_forward ? expand_in_direction(Forward_t{})
+                                : expand_in_direction(Backward_t{});
+
+    if (did_uturn) {
+      break;
     }
   }
   theta_grad = span_accum.grad_select_;

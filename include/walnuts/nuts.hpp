@@ -257,33 +257,26 @@ Vec<S> transition(Random<S, RNG>& rand, const F& logp_grad,
   logp += logp_momentum(rho, inv_mass);
   Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
+    // helper to turn runtime direction into compile-time template enum
+    auto expand_in_direction = [&](auto direction) -> bool {
+      constexpr Direction D = direction;
+      auto maybe_next_span =
+          build_span<D>(rand, logp_grad, inv_mass, step, depth, span_accum);
+      if (!maybe_next_span) {
+        return true;
+      }
+      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
+      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
+                                                  std::move(*maybe_next_span));
+      return combined_uturn;
+    };
+
     bool go_forward = rand.uniform_binary();
-    if (go_forward) {
-      constexpr Direction D = Direction::Forward;
-      auto maybe_next_span =
-          build_span<D>(rand, logp_grad, inv_mass, step, depth, span_accum);
-      if (!maybe_next_span) {
-        break;
-      }
-      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
-                                                  std::move(*maybe_next_span));
-      if (combined_uturn) {
-        break;
-      }
-    } else {
-      constexpr Direction D = Direction::Backward;
-      auto maybe_next_span =
-          build_span<D>(rand, logp_grad, inv_mass, step, depth, span_accum);
-      if (!maybe_next_span) {
-        break;
-      }
-      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
-                                                  std::move(*maybe_next_span));
-      if (combined_uturn) {
-        break;
-      }
+    bool did_uturn = go_forward ? expand_in_direction(Forward_t{})
+                                : expand_in_direction(Backward_t{});
+
+    if (did_uturn) {
+      break;
     }
   }
   return std::move(span_accum.theta_select_);

@@ -26,7 +26,7 @@ if(NOT EXISTS "${TEST_EXECUTABLE}")
   )
 endif()
 execute_process(
-  COMMAND "${TEST_EXECUTABLE}" --list
+  COMMAND "${TEST_EXECUTABLE}" --list-test-names-only --use-colour no
   OUTPUT_VARIABLE output
   RESULT_VARIABLE result
 )
@@ -41,10 +41,15 @@ endif()
 string(REPLACE "\n" ";" output "${output}")
 
 foreach(test ${output})
+  if (test MATCHES "^Suite '")
+    continue()  # Skip suite names
+  endif()
   add_command(add_test
           "${TEST_TARGET}:${test}"
           "${TEST_EXECUTABLE}"
           "${test}"
+          "--success"
+          "--durations"
   )
   message(CONFIGURE_LOG "Discovered test: ${TEST_TARGET}:${test}")
   list(APPEND tests "${test}")

@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <random>
+#include <type_traits>
 
 namespace nuts {
 
@@ -45,6 +46,9 @@ enum class Direction {
   Backward, /**< Step backward in time. */
   Forward   /**< Step forward in time. */
 };
+
+using Backward_t = std::integral_constant<Direction, Direction::Backward>;
+using Forward_t = std::integral_constant<Direction, Direction::Forward>;
 
 /**
  * @brief A class encapsulating the randomizers needed for Hamiltonian Monte

@@ -260,15 +260,14 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step, S max_error,
  * @tparam U The type of update (`Metropolis` or `Barker`).
  * @tparam D The direction of combination in time (`Forward` or `Backward`).
  * @tparam S The type of scalars.
- * @tparam RNG The type of the base random numer generator.
+ * @tparam Rand The type for the source of randomness.
  * @param rng The random number generator used to select a new position.
  * @param span_old The old span.
  * @param span_new The span continuing the old span forward or backward in time.
  * @return The combined span.
  */
-template <Update U, Direction D, typename S, class RNG>
-SpanW<S> combine(Random<S, RNG>& rng, SpanW<S>&& span_old,
-                 SpanW<S>&& span_new) {
+template <Update U, Direction D, typename S, class Rand>
+SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   S log_denominator;
@@ -340,7 +339,7 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * @tparam D The direction in time to extend.
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
- * @tparam RNG The type of the base random number generator.
+ * @tparam Rand The type for the source of randomness.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rng The random number generator.
  * @param[in] logp_grad The log density/gradient function.
@@ -352,8 +351,8 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, typename S, class F, class RNG, class A>
-std::optional<SpanW<S>> build_span(Random<S, RNG>& rng, const F& logp_grad,
+template <Direction D, typename S, class F, class Rand, class A>
+std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
                                    const Vec<S>& inv_mass, S step,
                                    Integer depth, S max_error,
                                    const SpanW<S>& last_span,
@@ -385,7 +384,7 @@ std::optional<SpanW<S>> build_span(Random<S, RNG>& rng, const F& logp_grad,
  *
  * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
- * @tparam RNG The type of the base random number generator.
+ * @tparam Rand The type for the source of randomness.
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rand The random number generator.
  * @param[in] logp_grad The log density/gradient function.
@@ -400,11 +399,11 @@ std::optional<SpanW<S>> build_span(Random<S, RNG>& rng, const F& logp_grad,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <typename S, class F, class RNG, class A>
-Vec<S> transition_w(Random<S, RNG>& rand, const F& logp_grad,
-                    const Vec<S>& inv_mass, const Vec<S>& chol_mass, S step,
-                    Integer max_depth, Vec<S>&& theta, Vec<S>& theta_grad,
-                    S max_error, A& adapt_handler) {
+template <typename S, class F, class Rand, class A>
+Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
+                    const Vec<S>& chol_mass, S step, Integer max_depth,
+                    Vec<S>&& theta, Vec<S>& theta_grad, S max_error,
+                    A& adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
@@ -412,34 +411,27 @@ Vec<S> transition_w(Random<S, RNG>& rand, const F& logp_grad,
   logp += logp_momentum(rho, inv_mass);
   SpanW<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
-    const bool go_forward = rand.uniform_binary();
-    if (go_forward) {
-      constexpr Direction D = Direction::Forward;
+    // helper to turn runtime direction into compile-time template enum
+    auto expand_in_direction = [&](auto direction) -> bool {
+      constexpr Direction D = direction;
       auto maybe_next_span =
           build_span<D>(rand, logp_grad, inv_mass, step, depth, max_error,
                         span_accum, adapt_handler);
       if (!maybe_next_span) {
-        break;
+        return true;
       }
       bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
       span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
                                                   std::move(*maybe_next_span));
-      if (combined_uturn) {
-        break;
-      }
-    } else {
-      constexpr Direction D = Direction::Backward;
-      auto span_next = build_span<D>(rand, logp_grad, inv_mass, step, depth,
-                                     max_error, span_accum, adapt_handler);
-      if (!span_next) {
-        break;
-      }
-      bool combined_uturn = uturn<D>(span_accum, *span_next, inv_mass);
-      span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
-                                                  std::move(*span_next));
-      if (combined_uturn) {
-        break;
-      }
+      return combined_uturn;
+    };
+
+    bool go_forward = rand.uniform_binary();
+    bool did_uturn = go_forward ? expand_in_direction(Forward_t{})
+                                : expand_in_direction(Backward_t{});
+
+    if (did_uturn) {
+      break;
     }
   }
   theta_grad = span_accum.grad_select_;

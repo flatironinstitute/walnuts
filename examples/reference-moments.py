@@ -10,10 +10,6 @@ import cmdstanpy as csp
 
 csp.utils.get_logger().setLevel(logging.ERROR)
 
-import json
-
-import json
-
 
 def dump_json_sci(results: dict, path: str, sig: int = 10):
     keys = ["vars", "vars_sq", "vars_fourth", "ess", "ess_sq", "ess_fourth"]
@@ -58,20 +54,9 @@ def print_summary(results: dict) -> None:
     ess = results["ess"]
     ess_sq = results["ess_sq"]
     ess_4 = results["ess_fourth"]
-
-    assert (
-        len(means)
-        == len(means_sq)
-        == len(means_4)
-        == len(ess)
-        == len(ess_sq)
-        == len(ess_4)
-    )
     D = len(means) - 1  # final variable is lp
-
     header = f"{'X':<11} {'E[X]':>12} {'E[X^2]':>14} {'E[X^4]':>14} {'ESS[X]':>12} {'ESS[X^2]':>12} {'ESS[X^4]':>12}"
     print(header)
-
     for i in range(len(means)):
         name = f"theta[{i}]" if i < D else "lp"
         print(
@@ -199,7 +184,7 @@ if __name__ == "__main__":
     stan_file = "../examples/diag_scale_target.stan"
     data_file = "../examples/diag_scale_target.json"
     out_file = "../examples/diag_scale_target_out.json"
-    min_ess_target = 1e5
+    min_ess_target = 1e6
     block_size = 10_000
     max_blocks = 10_000
     seed = 643889

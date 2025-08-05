@@ -3,8 +3,8 @@ data {
   vector<lower=0>[D] scales;
 }
 parameters {
-  vector[D] x;
+  vector[D] theta;
 }
 model {
-  x ~ normal(0, scales);
+  theta ~ normal(0, scales);
 }

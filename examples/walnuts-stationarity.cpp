@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <random>
 #include <walnuts/adaptive_walnuts.hpp>
 

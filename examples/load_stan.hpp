@@ -64,42 +64,43 @@ inline T dlsym_cast_impl(dynamic_library& library, const char* name) {
 #define dlsym_cast(library, func) \
   dlsym_cast_impl<decltype(&func)>(library, #func)
 
-template <typename T>
-void no_op_deleter(T*) {}
+using unique_bs_model = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>;
+
+inline unique_bs_model make_model(dynamic_library& library, const char* data,
+                                  unsigned int seed) {
+  auto model_construct = dlsym_cast(library, bs_model_construct);
+  auto model_destruct = dlsym_cast(library, bs_model_destruct);
+  char* err = nullptr;
+  auto model_ptr =
+      unique_bs_model(model_construct(data, seed, &err), model_destruct);
+  if (!model_ptr) {
+    if (err) {
+      std::string error_string(err);
+      dlsym_cast(library, bs_free_error_msg)(err);
+      throw std::runtime_error(error_string);
+    }
+    throw std::runtime_error("Failed to construct model");
+  }
+  return model_ptr;
+}
 
 class DynamicStanModel {
  public:
   DynamicStanModel(const char* model_path, const char* data, unsigned int seed)
       : library_(dlopen_safe(model_path)),
-        model_ptr_(nullptr, no_op_deleter<bs_model>),
-        rng_ptr_(nullptr, no_op_deleter<bs_rng>) {
-    auto model_construct = dlsym_cast(library_, bs_model_construct);
-    auto model_destruct = dlsym_cast(library_, bs_model_destruct);
-    auto rng_construct = dlsym_cast(library_, bs_rng_construct);
-    auto rng_destruct = dlsym_cast(library_, bs_rng_destruct);
-
-    free_error_msg_ = dlsym_cast(library_, bs_free_error_msg);
-    param_unc_num_ = dlsym_cast(library_, bs_param_unc_num);
-    param_num_ = dlsym_cast(library_, bs_param_num);
-    log_density_gradient_ = dlsym_cast(library_, bs_log_density_gradient);
-    param_constrain_ = dlsym_cast(library_, bs_param_constrain);
-    param_names_ = dlsym_cast(library_, bs_param_names);
-
-    char* err = nullptr;
-    model_ptr_ = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>(
-        model_construct(data, seed, &err), model_destruct);
-
-    if (!model_ptr_) {
-      if (err) {
-        std::string error_string(err);
-        free_error_msg_(err);
-        throw std::runtime_error(error_string);
-      }
-      throw std::runtime_error("Failed to construct model");
-    }
-
+        model_ptr_(make_model(library_, data, seed)),
+        free_error_msg_(dlsym_cast(library_, bs_free_error_msg)),
+        param_unc_num_(dlsym_cast(library_, bs_param_unc_num)),
+        param_num_(dlsym_cast(library_, bs_param_num)),
+        log_density_gradient_(dlsym_cast(library_, bs_log_density_gradient)),
+        param_constrain_(dlsym_cast(library_, bs_param_constrain)),
+        param_names_(dlsym_cast(library_, bs_param_names)),
+        rng_ptr_(nullptr, [](auto) {}) {
     // temporary: we probably don't want to store the RNG in the model
     // due to thread safety concerns
+    auto rng_construct = dlsym_cast(library_, bs_rng_construct);
+    auto rng_destruct = dlsym_cast(library_, bs_rng_destruct);
+    char* err = nullptr;
     rng_ptr_ = std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)>(
         rng_construct(seed, &err), rng_destruct);
     if (!rng_ptr_) {
@@ -177,15 +178,15 @@ class DynamicStanModel {
   }
 
  private:
-  std::unique_ptr<void, dlclose_deleter> library_;
-  std::unique_ptr<bs_model, decltype(&bs_model_destruct)> model_ptr_;
-  std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)> rng_ptr_;
+  dynamic_library library_;
+  unique_bs_model model_ptr_;
   decltype(&bs_free_error_msg) free_error_msg_;
   decltype(&bs_param_unc_num) param_unc_num_;
   decltype(&bs_param_num) param_num_;
   decltype(&bs_log_density_gradient) log_density_gradient_;
   decltype(&bs_param_constrain) param_constrain_;
   decltype(&bs_param_names) param_names_;
+  std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)> rng_ptr_;
 };
 
 #endif

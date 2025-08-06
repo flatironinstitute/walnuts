@@ -98,7 +98,7 @@ For example, to build and run the example:
 
 ```bash
 cmake --build . --target examples
-./examples
+./examples/examples
 ```
 
 

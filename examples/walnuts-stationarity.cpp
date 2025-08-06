@@ -1,8 +1,8 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <random>
 #include <walnuts/adaptive_walnuts.hpp>
 

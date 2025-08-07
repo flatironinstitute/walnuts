@@ -17,7 +17,7 @@ def compute_thinned_errors(rng, reference_counts, total_draws, log_indices):
 
 
 def main():
-    rng = np.random.default_rng(seed=42)
+    rng = np.random.default_rng(seed=977473)
     reference_counts = [1_000, 10_000, 100_000, 1_000_000]
     log_indices = np.unique(np.logspace(3, 8, num=400, dtype=int))
     total_draws = 100_000_000

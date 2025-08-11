@@ -19,24 +19,6 @@ def compute_stats(ref_size, test_sizes, n_samples=1_000_000):
         })
     return stats
 
-def compute_stats_old(ref_size, test_sizes, n_samples=1_000_000):
-    stats = []
-    for test_size in test_sizes:
-        std_dev = np.sqrt(1 / ref_size + 1 / test_size)
-        samples = np.random.normal(loc=0, scale=std_dev, size=n_samples)
-        abs_samples = np.abs(samples)
-        mean = abs_samples.mean()
-        std_dev = abs_samples.std(ddof=1)
-        stats.append({
-            'test_size': test_size,
-            'ref_size': f'{ref_size:,}',
-            'mean': mean,
-            'lower': mean - 1.96 * std_dev,
-            'upper': mean + 1.96 * std_dev
-        })
-    print(stats)
-    return stats
-
 ref_sizes = [10_000, np.inf]
 test_sizes = np.logspace(np.log10(100), np.log10(1_000_000), 50)
 
@@ -60,4 +42,5 @@ plot = (
     )
     + theme_minimal()
 )
+plot.save('reference-size-error.pdf')
 plot.show()

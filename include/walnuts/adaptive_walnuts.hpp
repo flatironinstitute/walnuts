@@ -340,11 +340,11 @@ class MassEstimator {
       : mass_cfg_(mass_cfg),
         var_estimator_(0, theta.size()),
         inv_var_estimator_(0, theta.size()) {
-    Vec<S> zero = Vec<S>::Zero(theta.size());
     S smoothing = mass_cfg_.additive_smoothing_;
+    Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
-    Vec<S> init_mass = grad.array().abs();
-    Vec<S> init_prec = (1 - smoothing) * init_mass + smooth_vec;
+    Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
+    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
     S dummy_discount = 0.98;  // gets reset before being used
     inv_var_estimator_ = OnlineMoments<S, Integer>(

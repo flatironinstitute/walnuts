@@ -11,7 +11,7 @@ import cmdstanpy as csp
 csp.utils.get_logger().setLevel(logging.ERROR)
 
 
-def dump_json_sci(results: dict, path: str, sig: int = 10):
+def dump_json_sci(results: dict, path: str, sig: int = 5):
     keys = ["vars", "vars_sq", "vars_fourth", "ess", "ess_sq", "ess_fourth"]
     with open(path, "w") as f:
         f.write("{\n")
@@ -45,23 +45,6 @@ def flatten_draws(draws_dict):
         cols.append(flat)
     mat = np.hstack(cols)  # (N, K)
     return names, mat
-
-
-def print_summary(results: dict) -> None:
-    means = results["vars"]
-    means_sq = results["vars_sq"]
-    means_4 = results["vars_fourth"]
-    ess = results["ess"]
-    ess_sq = results["ess_sq"]
-    ess_4 = results["ess_fourth"]
-    D = len(means) - 1  # final variable is lp
-    header = f"{'X':<11} {'E[X]':>12} {'E[X^2]':>14} {'E[X^4]':>14} {'ESS[X]':>12} {'ESS[X^2]':>12} {'ESS[X^4]':>12}"
-    print(header)
-    for i in range(len(means)):
-        name = f"theta[{i}]" if i < D else "lp"
-        print(
-            f"{name:<11} {means[i]:12.5e} {means_sq[i]:14.5e} {means_4[i]:14.5e} {ess[i]:12.5e} {ess_sq[i]:12.5e} {ess_4[i]:12.5e}"
-        )
 
 
 def estimate(
@@ -146,8 +129,7 @@ def estimate(
             sum_ess_4[i] += float(ess[f"{name}_fourth"].values)
 
         min_ess = min(np.min(sum_ess), np.min(sum_ess_sq), np.min(sum_ess_4))
-        if b % 10 == 0:
-            print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
+        print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
         if min_ess > min_ess_target:
             print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
             print("\n***** ACHIEVED MINIMUM ESS TARGET *****\n")
@@ -176,18 +158,18 @@ def estimate(
         "ess_fourth": tolist(sum_ess_4),
     }
 
-    print_summary(out_dict)
     dump_json_sci(out_dict, out_file)
 
 
 if __name__ == "__main__":
-    stan_file = "../examples/diag_scale_target.stan"
-    data_file = "../examples/diag_scale_target.json"
-    out_file = "../examples/diag_scale_target_out.json"
-    min_ess_target = 1e6
+    model = 'ill-normal'
+    stan_file = "models/" + model + "/" + model + ".stan"
+    data_file = "models/" + model + "/" + model + "-data.json"
+    moments_file = "models/" + model + "/" + model + "-moments.json"
+    min_ess_target = 1e5
     block_size = 10_000
-    max_blocks = 10_000
+    max_blocks = 1_000
     seed = 643889
     estimate(
-        stan_file, data_file, out_file, min_ess_target, block_size, max_blocks, seed
+        stan_file, data_file, moments_file, min_ess_target, block_size, max_blocks, seed
     )

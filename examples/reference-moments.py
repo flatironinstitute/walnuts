@@ -83,7 +83,6 @@ def estimate(
     print(f"         {max_blocks = }")
     print(f"         {seed = }\n")
 
-
     model = csp.CmdStanModel(stan_file=stan_file)
     with open(data_file) as f:
         data = json.load(f)
@@ -109,7 +108,7 @@ def estimate(
             data=data,
             chains=1,
             adapt_engaged=0,
-            iter_warmup=0, # 10_000,
+            iter_warmup=2_000,
             iter_sampling=block_size,
             seed=seed + b,
             step_size=step_size,
@@ -120,7 +119,7 @@ def estimate(
         )
         stan_vars = fit.stan_variables()
         lp = fit.method_variables()["lp__"]
-        stan_vars["lp__"] = lp.reshape(lp.shape[0], *())
+        stan_vars["lp__"] = lp
         names, mat = flatten_draws(stan_vars)
         mat_sq = mat**2
         mat_4 = mat**4
@@ -128,15 +127,6 @@ def estimate(
         means = mat.mean(axis=0)
         means_sq = mat_sq.mean(axis=0)
         means_4 = mat_4.mean(axis=0)
-
-        # if sum_means is None:
-        #     K = mat.shape[1]
-        #     sum_means = np.zeros(K)
-        #     sum_means_sq = np.zeros(K)
-        #     sum_means_4 = np.zeros(K)
-        #     sum_ess_first = np.zeros(K)
-        #     sum_ess_second = np.zeros(K)
-        #     sum_ess_fourth = np.zeros(K)
         sum_means += means
         sum_means_sq += means_sq
         sum_means_4 += means_4
@@ -155,9 +145,9 @@ def estimate(
         ess = az.ess(idata)
 
         for i, name in enumerate(names):
-            sum_ess_first[i] += float(ess[f"{name}_first"].values)
-            sum_ess_second[i] += float(ess[f"{name}_second"].values)
-            sum_ess_fourth[i] += float(ess[f"{name}_fourth"].values)
+            sum_ess_first[i] += ess[f"{name}_first"].values
+            sum_ess_second[i] += ess[f"{name}_second"].values
+            sum_ess_fourth[i] += ess[f"{name}_fourth"].values
 
         min_ess = min(np.min(sum_ess_first), np.min(sum_ess_second), np.min(sum_ess_fourth))
         print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
@@ -165,24 +155,13 @@ def estimate(
             print("\n***** ACHIEVED MINIMUM ESS TARGET *****\n")
             break
 
-    num_blocks = b
-    avg_means = sum_means / num_blocks
-    avg_means_sq = sum_means_sq / num_blocks
-    avg_means_4 = sum_means_4 / num_blocks
-
-    ordered = [n for n in names if n != "lp__"] + ["lp__"]
-    fmt = lambda x: float(f"{x:.8g}")
-    first = [fmt(avg_means[names.index(n)]) for n in ordered]
-    second = [fmt(avg_means_sq[names.index(n)]) for n in ordered]
-    fourth = [fmt(avg_means_4[names.index(n)]) for n in ordered]
-
-    def tolist(arr):
-        return [float(arr[names.index(n)]) for n in ordered]
-
+    avg_means = sum_means / b
+    avg_means_sq = sum_means_sq / b
+    avg_means_4 = sum_means_4 / b
     out_dict = {
-        "first": first,
-        "second": second,
-        "fourth": fourth,
+        "first": avg_means,
+        "second": avg_means_sq,
+        "fourth": avg_means_4,
         "ess_first": sum_ess_first,
         "ess_second": sum_ess_second,
         "ess_fourth": sum_ess_fourth

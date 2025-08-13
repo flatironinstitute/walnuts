@@ -13,7 +13,3 @@ parameters {
 model {
   alpha ~ normal(0, sigma);
 }
-generated quantities {
-  vector[N] alpha_sq = alpha^2;
-  vector[N] alpha_fourth = alpha^4;
-}

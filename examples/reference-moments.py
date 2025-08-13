@@ -3,6 +3,7 @@ import logging
 import warnings
 
 import numpy as np
+import xarray as xr
 
 import arviz as az
 import cmdstanpy as csp
@@ -30,6 +31,7 @@ def flatten_draws(draws_dict):
     cols = []
     for var, arr in draws_dict.items():
         # arr.shape = (N, dim1, dim2, ...)
+        print(f"{var=};  {arr.shape=}")
         N = arr.shape[0]
         rest = arr.shape[1:]
         flat = arr.reshape(N, -1)  # shape (N, prod(rest))
@@ -43,6 +45,7 @@ def flatten_draws(draws_dict):
             names.append(name)
         cols.append(flat)
     mat = np.hstack(cols)  # (N, K)
+    print(f"     {mat.shape=}")
     return names, mat
 
 
@@ -72,7 +75,8 @@ def estimate(
     min_ess_target: int,
     block_size: int,
     max_blocks: int,
-    iter_warmup: int,
+    initial_warmup: int,
+    per_block_warmup: int,
     seed: int,
 ):
     print(f"\nSTAN PROGRAM: {stan_file = }")
@@ -88,7 +92,7 @@ def estimate(
         data = json.load(f)
 
     print("ADAPTING")
-    step_size, metric, state = adapt(model, data, iter_warmup, seed)
+    step_size, metric, state = adapt(model, data, initial_warmup, seed)
     norm2_metric = np.linalg.norm(metric)
     print(f"    {step_size = };  ||inv(metric)|| = {norm2_metric}")
 
@@ -108,7 +112,7 @@ def estimate(
             data=data,
             chains=1,
             adapt_engaged=0,
-            iter_warmup=2_000,
+            iter_warmup=per_block_warmup,
             iter_sampling=block_size,
             seed=seed + b,
             step_size=step_size,
@@ -131,23 +135,16 @@ def estimate(
         sum_means_sq += means_sq
         sum_means_4 += means_4
 
-        posterior = {f"{names[i]}_first": mat[np.newaxis, :, i] for i in range(mat.shape[1])}
-        posterior.update(
-            {f"{names[i]}_second": mat_sq[np.newaxis, :, i] for i in range(mat_sq.shape[1])}
-        )
-        posterior.update(
-            {
-                f"{names[i]}_fourth": mat_4[np.newaxis, :, i]
-                for i in range(mat_4.shape[1])
-            }
-        )
-        idata = az.from_dict(posterior=posterior)
-        ess = az.ess(idata)
+        def ess_per_col(a: np.ndarray) -> np.ndarray:
+            da = xr.DataArray(a[np.newaxis, :, :], dims=("chain", "draw", "var"))
+            ds = az.ess(da, method="bulk")
+            data_var = next(iter(ds.data_vars))
+            vec = ds[data_var].values
+            return np.asarray(np.squeeze(vec), dtype=np.float64)        
 
-        for i, name in enumerate(names):
-            sum_ess_first[i] += ess[f"{name}_first"].values
-            sum_ess_second[i] += ess[f"{name}_second"].values
-            sum_ess_fourth[i] += ess[f"{name}_fourth"].values
+        sum_ess_first  += ess_per_col(mat)
+        sum_ess_second += ess_per_col(mat_sq)
+        sum_ess_fourth += ess_per_col(mat_4)            
 
         min_ess = min(np.min(sum_ess_first), np.min(sum_ess_second), np.min(sum_ess_fourth))
         print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
@@ -177,8 +174,9 @@ if __name__ == "__main__":
     min_ess_target = 1e4
     block_size = 10_000
     max_blocks = 1_000
-    iter_warmup=50_000
+    initial_warmup=50_000
+    per_block_warmup=5_000
     seed = 643889
     estimate(stan_file, data_file, moments_file, min_ess_target,
-                 block_size, max_blocks, iter_warmup, seed
+                 block_size, max_blocks, initial_warmup, per_block_warmup, seed
     )

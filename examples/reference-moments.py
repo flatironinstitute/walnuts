@@ -31,7 +31,6 @@ def flatten_draws(draws_dict):
     cols = []
     for var, arr in draws_dict.items():
         # arr.shape = (N, dim1, dim2, ...)
-        print(f"{var=};  {arr.shape=}")
         N = arr.shape[0]
         rest = arr.shape[1:]
         flat = arr.reshape(N, -1)  # shape (N, prod(rest))
@@ -45,7 +44,6 @@ def flatten_draws(draws_dict):
             names.append(name)
         cols.append(flat)
     mat = np.hstack(cols)  # (N, K)
-    print(f"     {mat.shape=}")
     return names, mat
 
 
@@ -167,6 +165,11 @@ def estimate(
 
 
 if __name__ == "__main__":
+    # if len(sys.argv) != 4:
+    #     print("Usage: python run_ref_eval.py model.stan data.json moments.json")
+    #     sys.exit(2)
+    # stan_file, data_file, moments_file = sys.argv[1], sys.argv[2], sys.argv[3]
+
     model = 'ill-normal'
     stan_file = "models/" + model + "/" + model + ".stan"
     data_file = "models/" + model + "/" + model + "-data.json"

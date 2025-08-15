@@ -1,5 +1,3 @@
-import json
-import sys
 import numpy as np
 import cmdstanpy as csp
 from util import *
@@ -29,7 +27,7 @@ def estimate(
     block_size: int,
     max_blocks: int,
     initial_warmup: int,
-    per_block_warmup: int,
+    per_block_burnin: int,
     seed: int,
 ):
     print(f"\nSTAN PROGRAM: {stan_file = }")
@@ -40,9 +38,10 @@ def estimate(
     print(f"         {max_blocks = }")
     print(f"         {seed = }\n")
 
+    print("COMPILING MODEL")
     model = csp.CmdStanModel(stan_file=stan_file)
-    with open(data_file) as f:
-        data = json.load(f)
+    print("LOADING DATA")
+    data = get_model_data(data_file)
 
     print("ADAPTING")
     step_size, metric, state = adapt(model, data, initial_warmup, seed)
@@ -58,13 +57,13 @@ def estimate(
     sum_ess_fourth = np.zeros(K)
 
     print("SAMPLING")
-    print(f"{0:5d}.  min(ESS) = {0:.2e}")
+    print(f"{0:5d}.  min(ESS) = {0:.1e}")
     for b in range(1, max_blocks + 1):
         fit = model.sample(
             data=data,
             chains=1,
             adapt_engaged=0,
-            iter_warmup=per_block_warmup,
+            iter_warmup=per_block_burnin,
             iter_sampling=block_size,
             seed=seed + b,
             step_size=step_size,
@@ -92,7 +91,7 @@ def estimate(
         min_ess = min(
             np.min(sum_ess_first), np.min(sum_ess_second), np.min(sum_ess_fourth)
         )
-        print(f"{b:5d}.  min(ESS) = {min_ess:.2e}")
+        print(f"{b:5d}.  min(ESS) = {min_ess:.1e}")
         if min_ess > min_ess_target:
             print("\n***** ACHIEVED MINIMUM ESS TARGET *****\n")
             break
@@ -112,18 +111,16 @@ def estimate(
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python reference-moments.py model_name")
-        sys.exit(2)
-    model = sys.argv[1]
-    stan_file = "models/" + model + "/" + model + ".stan"
-    data_file = "models/" + model + "/" + model + "-data.json"
-    moments_file = "models/" + model + "/" + model + "-moments.json"
-    min_ess_target = 1e4
+    args = get_args(1, "reference-moments.py model_name")
+    name = args[0]
+    stan_file = "models/" + name + "/" + name + ".stan"
+    data_file = "models/" + name + "/" + name + "-data.json"
+    moments_file = "models/" + name + "/" + name + "-moments.json"
+    min_ess_target = 1e5
     block_size = 10_000
-    max_blocks = 1_000
+    max_blocks = 1_000  # block_size * max_blocks -> 10M iters max
     initial_warmup = 50_000
-    per_block_warmup = 5_000
+    per_block_burnin = 100  # init off, so only burnin
     seed = 643889
     stop_griping()
     estimate(
@@ -134,6 +131,6 @@ if __name__ == "__main__":
         block_size,
         max_blocks,
         initial_warmup,
-        per_block_warmup,
+        per_block_burnin,
         seed,
     )

@@ -25,28 +25,6 @@ def dump_json_sci(results: dict, path: str, sig: int = 5):
             f.write(f"  ]{end_comma}\n")
         f.write("}\n")
         
-
-def flatten_draws(draws_dict):
-    names = []
-    cols = []
-    for var, arr in draws_dict.items():
-        # arr.shape = (N, dim1, dim2, ...)
-        N = arr.shape[0]
-        rest = arr.shape[1:]
-        flat = arr.reshape(N, -1)  # shape (N, prod(rest))
-        for j in range(flat.shape[1]):
-            if rest:
-                idx = np.unravel_index(j, rest)
-                idx_str = ",".join(str(i) for i in idx)
-                name = f"{var}[{idx_str}]"
-            else:
-                name = var
-            names.append(name)
-        cols.append(flat)
-    mat = np.hstack(cols)  # (N, K)
-    return names, mat
-
-
 def adapt(model: csp.CmdStanModel,
               data: dict,
               iter_warmup: int,
@@ -64,6 +42,20 @@ def adapt(model: csp.CmdStanModel,
     vars_dict = fit.stan_variables()
     last_draw = {k: v[-1] for k, v in vars_dict.items()}
     return fit.step_size[0], fit.metric[0], last_draw
+
+
+def lp_params(fit):
+    # retains column 0 (lp__) and columns {7, 8, ... } (stan variables)
+    # deletes NUTS diagnostics columns {1, ..., 6}
+    draws = fit.draws(inc_warmup=False, concat_chains=True)
+    return draws[:, np.r_[0, 7:draws.shape[1]]]
+
+def ess_per_col(a: np.ndarray) -> np.ndarray:
+    da = xr.DataArray(a[np.newaxis, :, :], dims=("chain", "draw", "var"))
+    ds = az.ess(da, method="bulk")
+    data_var = next(iter(ds.data_vars))
+    vec = ds[data_var].values
+    return np.asarray(np.squeeze(vec), dtype=np.float64)        
 
 
 def estimate(
@@ -92,7 +84,7 @@ def estimate(
     print("ADAPTING")
     step_size, metric, state = adapt(model, data, initial_warmup, seed)
     norm2_metric = np.linalg.norm(metric)
-    print(f"    {step_size = };  ||inv(metric)|| = {norm2_metric}")
+    print(f"    {step_size = };  ||inv(mass)|| = {norm2_metric}")
 
     K = metric.size + 1
     sum_means = np.zeros(K)
@@ -101,7 +93,6 @@ def estimate(
     sum_ess_first = np.zeros(K)
     sum_ess_second = np.zeros(K)
     sum_ess_fourth = np.zeros(K)
-    names = None
 
     print("SAMPLING")
     print(f"{0:5d}.  min(ESS) = {0:.2e}")
@@ -119,26 +110,17 @@ def estimate(
             show_progress=False,
             show_console=False,
         )
-        stan_vars = fit.stan_variables()
-        lp = fit.method_variables()["lp__"]
-        stan_vars["lp__"] = lp
-        names, mat = flatten_draws(stan_vars)
+        mat = lp_params(fit)
         mat_sq = mat**2
         mat_4 = mat**4
 
         means = mat.mean(axis=0)
         means_sq = mat_sq.mean(axis=0)
         means_4 = mat_4.mean(axis=0)
+
         sum_means += means
         sum_means_sq += means_sq
         sum_means_4 += means_4
-
-        def ess_per_col(a: np.ndarray) -> np.ndarray:
-            da = xr.DataArray(a[np.newaxis, :, :], dims=("chain", "draw", "var"))
-            ds = az.ess(da, method="bulk")
-            data_var = next(iter(ds.data_vars))
-            vec = ds[data_var].values
-            return np.asarray(np.squeeze(vec), dtype=np.float64)        
 
         sum_ess_first  += ess_per_col(mat)
         sum_ess_second += ess_per_col(mat_sq)

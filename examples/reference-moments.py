@@ -1,30 +1,8 @@
 import json
-import logging
-import warnings
-
+import sys
 import numpy as np
-import xarray as xr
-
-import arviz as az
 import cmdstanpy as csp
-
-# restrict output to errors
-warnings.simplefilter(action="ignore", category=FutureWarning)
-csp.utils.get_logger().setLevel(logging.ERROR)
-
-
-def dump_json_sci(results: dict, path: str, sig: int = 5):
-    with open(path, "w") as f:
-        f.write("{\n")
-        for ki, (key, arr) in enumerate(results.items()):
-            f.write(f'  "{key}": [\n')
-            for i, v in enumerate(arr):
-                comma = "," if i < len(arr) - 1 else ""
-                f.write(f"    {v:.{sig}e}{comma}\n")
-            end_comma = "," if ki < len(results) - 1 else ""
-            f.write(f"  ]{end_comma}\n")
-        f.write("}\n")
-
+from util import *
 
 def adapt(
     model: csp.CmdStanModel, data: dict, iter_warmup: int, seed: int
@@ -42,22 +20,6 @@ def adapt(
     vars_dict = fit.stan_variables()
     last_draw = {k: v[-1] for k, v in vars_dict.items()}
     return fit.step_size[0], fit.metric[0], last_draw
-
-
-def lp_params(fit):
-    # retains column 0 (lp__) and columns {7, 8, ... } (stan variables)
-    # deletes NUTS diagnostics columns {1, ..., 6}
-    draws = fit.draws(inc_warmup=False, concat_chains=True)
-    return draws[:, np.r_[0, 7 : draws.shape[1]]]
-
-
-def ess_per_col(a: np.ndarray) -> np.ndarray:
-    da = xr.DataArray(a[np.newaxis, :, :], dims=("chain", "draw", "var"))
-    ds = az.ess(da, method="bulk")
-    data_var = next(iter(ds.data_vars))
-    vec = ds[data_var].values
-    return np.asarray(np.squeeze(vec), dtype=np.float64)
-
 
 def estimate(
     stan_file: str,
@@ -150,12 +112,10 @@ def estimate(
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) != 4:
-    #     print("Usage: python run_ref_eval.py model.stan data.json moments.json")
-    #     sys.exit(2)
-    # stan_file, data_file, moments_file = sys.argv[1], sys.argv[2], sys.argv[3]
-
-    model = "ill-normal"
+    if len(sys.argv) != 2:
+        print("Usage: python reference-moments.py model_name")
+        sys.exit(2)
+    model = sys.argv[1]
     stan_file = "models/" + model + "/" + model + ".stan"
     data_file = "models/" + model + "/" + model + "-data.json"
     moments_file = "models/" + model + "/" + model + "-moments.json"
@@ -165,6 +125,7 @@ if __name__ == "__main__":
     initial_warmup = 50_000
     per_block_warmup = 5_000
     seed = 643889
+    stop_griping()
     estimate(
         stan_file,
         data_file,

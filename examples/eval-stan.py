@@ -55,12 +55,16 @@ if __name__ == "__main__":
     data_file = "models/" + name + "/" + name + "-data.json"
     moments_file = "models/" + name + "/" + name + "-moments.json"
     print(f"model {name=};  {iter_warmup=}")
-    
+
     ref_first, ref_second, ref_fourth = load_reference_moments(moments_file)
 
     seed = 8474364
     iter_sampling = 5000
     model = csp.CmdStanModel(stan_file=stan_file)
+    b_head = "trial"
+    it_head = "iteration"
+    leap_head = "leapfrog"
+    print(f"{b_head:5s}, {it_head:9s}, {leap_head:8s}")
     for b in range(128):
         fit = model.sample(
             data=data_file,
@@ -82,6 +86,6 @@ if __name__ == "__main__":
             )
         if maybe_idx is not None:
             steps = num_leapfrogs(fit, maybe_idx)
-            print(f"{b=}   {maybe_idx=};  leapfrog {steps=}")
+            print(f"{b:5d}, {maybe_idx:9d}, {steps:8d}")
         else:
-            print("too few iterations; try again")
+            print("{b:5d}, {-1:9d}, {-1:8d}")

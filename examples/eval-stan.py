@@ -46,6 +46,7 @@ def num_leapfrogs(fit, iter_index):
 
 
 if __name__ == "__main__":
+    stop_griping()
     args = get_args(2, "eval-stan.py model_name iter_warmup")
     print(f"{args=}")
     name = args[0]
@@ -57,28 +58,30 @@ if __name__ == "__main__":
     
     ref_first, ref_second, ref_fourth = load_reference_moments(moments_file)
 
+    seed = 8474364
     iter_sampling = 5000
     model = csp.CmdStanModel(stan_file=stan_file)
-    fit = model.sample(
-        data=data_file,
-        chains=1,
-        iter_warmup=iter_warmup,
-        iter_sampling=iter_sampling,
-        sig_figs=10,
-        save_warmup=True,
-        adapt_engaged=True,
-        show_progress=False,
-        show_console=True,
-        refresh=500
-    )
-    draws_first = lp_params(fit)
-    draws_second = draws_first**2
-    draws_fourth = draws_first**4
-    maybe_idx = draw_to_tolerance(
-        ref_first, ref_second, ref_fourth, draws_first, draws_second, draws_fourth
-    )
-    if maybe_idx is not None:
-        steps = num_leapfrogs(fit, maybe_idx)
-        print(f"\n\n{maybe_idx=};  leapfrog {steps=}\n\n")
-    else:
-        print("too few iterations; try again")
+    for b in range(128):
+        fit = model.sample(
+            data=data_file,
+            chains=1,
+            iter_warmup=iter_warmup,
+            iter_sampling=iter_sampling,
+            seed=seed + b,
+            sig_figs=10,
+            save_warmup=True,
+            adapt_engaged=True,
+            show_progress=False,
+            show_console=False
+            )
+        draws_first = lp_params(fit)
+        draws_second = draws_first**2
+        draws_fourth = draws_first**4
+        maybe_idx = draw_to_tolerance(
+            ref_first, ref_second, ref_fourth, draws_first, draws_second, draws_fourth
+            )
+        if maybe_idx is not None:
+            steps = num_leapfrogs(fit, maybe_idx)
+            print(f"{b=}   {maybe_idx=};  leapfrog {steps=}")
+        else:
+            print("too few iterations; try again")

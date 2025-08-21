@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <string>
@@ -25,6 +26,7 @@ static void write_csv(const std::vector<std::string>& names,
   if (!out.is_open()) {
     throw std::runtime_error("Could not open file " + filename);
   }
+  out << std::setprecision(12);
   out << "lp_grad_calls";
   for (std::size_t i = 0; i < names.size(); ++i) {
     out << ',' << names[i];

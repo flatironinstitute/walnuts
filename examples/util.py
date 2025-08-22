@@ -16,7 +16,7 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 np.set_printoptions(threshold=np.inf)  # Show all elements in arrays
 
-def stop_griping():
+def be_quiet():
     """Restrict warnings and logging to errors."""
     warnings.simplefilter(action="ignore", category=FutureWarning)
     csp.utils.get_logger().setLevel(logging.ERROR)

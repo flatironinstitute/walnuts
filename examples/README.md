@@ -76,3 +76,126 @@ The source code for these tests:
 * `examples/stan-warmup.py`
 
 
+## Gradients until within error bound
+
+For Hamiltonian Monte Carlo samples from a target density `p(theta)`
+(e.g., a Bayesian posterior), the evaluation statistic is the number
+of gradient evaluations required before the standardized error for
+estimating the expectation of each component of `X` and `X^2` is below
+a threshold (e.g., 0.1), for `X = theta, log p(theta)`, where `theta`
+is a vector of sampled values.  Here, `theta` contains constrained
+Bayesian model parameters.
+
+Standardized error is scaled as the number of standard devations an  
+estimate is from the mean. If `hatY` is an estimate of the expectation
+of a random variable `Y`, the standardized error is `(hatY - E[Y]) /
+sd[Y]`, where `E[Y]` is the expectation of `Y` and `sd[Y]` is the
+standard deviation of `Y`.
+
+
+### Directory structure
+
+The directory `dir = examples/models` will have a model subdirectory
+`<model>` for each model being evaluated, e.g.,
+`examples/models/ill-cond-normal`.  Each model sudirectory holds two
+user-generated files:
+
+* Stan program: `<model>.stan`
+* Data (JSON format): `<model>-data.json`
+
+
+### Step 1. Generarte reference moments
+
+To estimate the reference first, second, and fourth moments, run:
+
+```bash
+cd examples
+python reference-moments.py <model> [target-ESS]
+```
+
+The arguments are:
+
+* `model`: The name of the model subdirectory. 
+* `target-ESS`: The target effective sample size.
+
+This may take a long time to run for complex models or high effective
+sample sizes.  Reference moments will be generated in:
+
+* Reference moments: `<model>-moments.json`
+
+
+### Step 2.  Measure NUTS gradients to error threshold
+
+To generate the NUTS measurements:
+
+```bash
+python eval-nuts.py <model> <max_error> <trials> <iter_warmup> <iter_sampling>
+```
+
+* `model`: The name of the model subdirectory. 
+* `max_error`: The maximum standardized error allowed in first or 
+  second moments. 
+* `trials`: The number of times to repeat the experiments. 
+* `iter_warmup`: The number of warmup iterations. 
+* `iter_sampling`: The number of sampling iterations. 
+  
+If successful, the result will be generated in:
+
+* NUTS results: `<model>-nuts-gradients.json`
+
+The JSON file defines a single key `gradients` with a sequence of
+integer values of length `trials` for the number of gradients required
+before estimation error in every first and second moment is below
+threshold.
+
+
+### Step 3. Measure WALNUTS gradients to error threshold
+
+*Step 3.1*: To generate the WALNUTS draws:
+
+To compile the model into a shared object using 
+[`bridgestan`](https://github.com/roualdes/bridgestan), which must be
+installed in Python.
+
+```python
+import bridgestan as bs
+bs.compile_model(stan_file="<model>.stan)")
+```
+
+This will compile the Stan program into a binary shared object file:
+
+* `<model>.so`
+
+
+*Step 3.2*: To compile and run the C++ evaluation:
+
+```bash
+cd build
+make eval_stan
+./eval_stan <model> <iter_warmup> <iter_sampling>
+```
+
+* `model`: The name of the model subdirectory. 
+* `iter_warmup`: The number of warmup iterations. 
+* `iter_sampling`: The number of sampling iterations.
+* `num_trials`: The number of repetitions of sampling to run.
+
+The MCMC draws will be generated in:
+
+* WALNUTS draws: `<model>-walnuts-draws.csv`
+
+
+*Step 3.3*: To generate the number of gradients required, run:
+
+```
+cd examples
+python walnuts-gradients.py <model> <max_error>
+```
+
+where
+
+* `model`: The name of the model subdirectory. 
+* `max_error`: The maximum standardized error allowed in first or 
+  second moments. 
+
+### Step 4. Plot NUTS and WALNUTS gradients to error threshold

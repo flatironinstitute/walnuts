@@ -23,7 +23,7 @@ def estimate(
     stan_file: str,
     data_file: str,
     out_file: str,
-    min_ess_target: int,
+    ess_target: int,
     block_size: int,
     max_blocks: int,
     initial_warmup: int,
@@ -33,7 +33,7 @@ def estimate(
     print(f"\nSTAN PROGRAM: {stan_file = }")
     print(f"    DATA FILE: {data_file = }")
     print(f"    OUTPUT FILE: {out_file = }")
-    print(f"         {min_ess_target = }")
+    print(f"         {ess_target = }")
     print(f"         {block_size = }")
     print(f"         {max_blocks = }")
     print(f"         {seed = }\n")
@@ -92,7 +92,7 @@ def estimate(
             np.min(sum_ess_first), np.min(sum_ess_second), np.min(sum_ess_fourth)
         )
         print(f"{b:5d}.  min(ESS) = {min_ess:.1e}")
-        if min_ess > min_ess_target:
+        if min_ess > target_ess:
             print("\n***** ACHIEVED MINIMUM ESS TARGET *****\n")
             break
 
@@ -111,23 +111,23 @@ def estimate(
 
 
 if __name__ == "__main__":
-    args = get_args(1, "reference-moments.py model_name")
+    be_quiet()
+    args = get_args(2, "reference-moments.py model_name target_ess")
     name = args[0]
+    target_ess = int(args[1])
     stan_file = "models/" + name + "/" + name + ".stan"
     data_file = "models/" + name + "/" + name + "-data.json"
     moments_file = "models/" + name + "/" + name + "-moments.json"
-    min_ess_target = 1e5
     block_size = 10_000
-    max_blocks = 1_000  # block_size * max_blocks -> 10M iters max
+    max_blocks = 1_000
     initial_warmup = 50_000
-    per_block_burnin = 100  # init off, so only burnin
+    per_block_burnin = 100
     seed = 643889
-    stop_griping()
     estimate(
         stan_file,
         data_file,
         moments_file,
-        min_ess_target,
+        target_ess,
         block_size,
         max_blocks,
         initial_warmup,

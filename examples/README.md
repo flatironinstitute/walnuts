@@ -139,14 +139,14 @@ python eval-nuts.py <model> <max_error> <trials> <iter_warmup> <iter_sampling>
 * `iter_warmup`: The number of warmup iterations. 
 * `iter_sampling`: The number of sampling iterations. 
   
-If successful, the result will be generated in:
+The result will be generated in:
 
 * NUTS results: `<model>-nuts-gradients.json`
 
 The JSON file defines a single key `gradients` with a sequence of
 integer values of length `trials` for the number of gradients required
 before estimation error in every first and second moment is below
-threshold.
+the specified `max_error`.
 
 
 ### Step 3. Measure WALNUTS gradients to error threshold
@@ -155,7 +155,14 @@ threshold.
 
 To compile the model into a shared object using 
 [`bridgestan`](https://github.com/roualdes/bridgestan), which must be
-installed in Python.
+installed in Python.  From the appropriate directory for the model
+being compiled,
+
+```bash
+cd examples/models/<model>
+```
+
+the model can be generated from Python using BridgeStan:
 
 ```python
 import bridgestan as bs
@@ -164,21 +171,32 @@ bs.compile_model(stan_file="<model>.stan)")
 
 This will compile the Stan program into a binary shared object file:
 
-* `<model>.so`
+* `<model>_model.so`
 
 
 *Step 3.2*: To compile and run the C++ evaluation:
 
+Once only, run the setup for CMake:
+
 ```bash
-cd build
-make eval_stan
-./eval_stan <model> <iter_warmup> <iter_sampling>
+cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
 ```
 
+See the top-level [`README`](../) for more information on configuring CMake.
+
+Then `cd` into the `build` directory and run the evaluation:
+
+```bash
+cd build
+make eval_walnuts
+./eval_walnuts <dir> <model> <seed> <iter_warmup> <iter_sampling>
+```
+
+* `dir`: The name of the directory containing the model subdirectory.
 * `model`: The name of the model subdirectory. 
+* `seed`: Seed for random number generation.
 * `iter_warmup`: The number of warmup iterations. 
-* `iter_sampling`: The number of sampling iterations.
-* `num_trials`: The number of repetitions of sampling to run.
+* `iter_sampling`: The number of sampling iterations. 
 
 The MCMC draws will be generated in:
 

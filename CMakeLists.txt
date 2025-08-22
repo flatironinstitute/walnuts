@@ -107,9 +107,9 @@ if(WALNUTS_BUILD_STAN)
   target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
   target_compile_options(examples_stan PRIVATE -Wall)  
 
-  add_executable(eval_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/eval_stan.cpp)  
-  target_link_libraries(eval_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
-  target_compile_options(eval_stan PRIVATE -O3 -Wall)
+  add_executable(eval_walnuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/eval_walnuts.cpp)  
+  target_link_libraries(eval_walnuts PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
+  target_compile_options(eval_walnuts PRIVATE -O3 -Wall)
 endif()
 
 #############################

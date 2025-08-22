@@ -6,6 +6,7 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -21,20 +22,21 @@ using Integer = long;
 static void write_csv(const std::vector<std::string>& names,
 		      const Eigen::MatrixXd& draws,
 		      const std::vector<Integer> lp_grads,
+		      const std::vector<double> lps,
 		      const std::string& filename) {
   std::ofstream out(filename);
   if (!out.is_open()) {
     throw std::runtime_error("Could not open file " + filename);
   }
   out << std::setprecision(12);
-  out << "lp_grad_calls";
+  out << "lp_grad_calls,logp";
   for (std::size_t i = 0; i < names.size(); ++i) {
     out << ',' << names[i];
   }
   out << '\n';
-
   for (int col = 0; col < draws.cols(); ++col) {
-    out << lp_grads[static_cast<std::size_t>(col)];
+    out << lp_grads[static_cast<std::size_t>(col)]
+	<< ',' << lps[static_cast<std::size_t>(col)];
     for (int row = 0; row < draws.rows(); ++row) {
       out << ',' << draws(row, col);
     }
@@ -44,7 +46,7 @@ static void write_csv(const std::vector<std::string>& names,
 
 
 template <typename RNG>
-static VectorS std_normal(int N, RNG rng) {
+static VectorS std_normal(int N, RNG& rng) {
   std::normal_distribution<S> norm(0.0, 1.0);
   VectorS y(N);
   for (Integer n = 0; n < N; ++n) {
@@ -53,10 +55,14 @@ static VectorS std_normal(int N, RNG rng) {
   return y;
 }
 
-static void test_adaptive_walnuts(const DynamicStanModel& model, unsigned int seed,
-				  const char* out_csv) {
+static void test_adaptive_walnuts(const DynamicStanModel& model,
+				  const std::string& sample_csv_file,
+				  Integer seed,
+				  Integer iter_warmup,
+				  Integer iter_sampling) {
   int D = model.unconstrained_dimensions();
-  std::mt19937 rng(seed);
+
+  std::mt19937 rng(static_cast<unsigned int>(seed));  // TODO: use unsigned long
 
   long logp_grad_calls = 0;
   auto logp = [&](auto&&... args) {
@@ -90,9 +96,6 @@ static void test_adaptive_walnuts(const DynamicStanModel& model, unsigned int se
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init,
 				mass_cfg, step_cfg, walnuts_cfg);
 
-  Integer iter_warmup = 64;
-  Integer iter_sampling = 5000;
-
   for (Integer n = 0; n < iter_warmup; ++n) {
     walnuts();
   }
@@ -101,35 +104,45 @@ static void test_adaptive_walnuts(const DynamicStanModel& model, unsigned int se
   int M = model.constrained_dimensions();
   MatrixS draws(M, iter_sampling);
   std::vector<Integer> lp_grads(static_cast<std::size_t>(iter_sampling));
+  std::vector<double> lps(lp_grads.size());
+  double lp = 0.0;
+  Eigen::VectorXd grad_dummy(D);
+  Eigen::VectorXd constrained_draw(M);
   for (Integer n = 0; n < iter_sampling; ++n) {
-    model.constrain_draw(sampler(), draws.col(n));
+    auto draw = sampler();
+    model.constrain_draw(draw, draws.col(n));
     lp_grads[static_cast<std::size_t>(n)] = logp_grad_calls;
+    model.logp_grad(draw, lp, grad_dummy);  // redundant, but can't easily recover
+    lps[static_cast<std::size_t>(n)] = lp;
   }
-
-  write_csv(model.param_names(), draws, lp_grads, out_csv);
+  
+  write_csv(model.param_names(), draws, lp_grads, lps, sample_csv_file);
 }
 
 int main(int argc, char** argv) {
-  char* lib{nullptr};
-  char* data{nullptr};
-  char* out_csv{nullptr};
-  if (argc <= 1 || argc > 4) {
-    std::cerr << "Usage: " << argv[0] << " <model.so> [data.json] <out.csv>" << std::endl;
+  if (argc != 6) {
+    std::cerr << "Usage: "
+	      << argv[0]
+	      << " <dir> <model> <seed> <iter_warmup> <iter_sampling>"
+	      << std::endl;
     return 1;
   }
-  if (argc == 3) {
-    lib = argv[1];
-    out_csv = argv[2];
-  }
-  if (argc == 4) {
-    lib = argv[1];
-    data = argv[2];
-    out_csv = argv[3];
-  }
+  std::string dir = argv[1];
+  std::string model = argv[2];
+  unsigned int seed = static_cast<unsigned int>(std::stoul(argv[3]));
+  int iter_warmup = std::stoi(argv[4]);
+  int iter_sampling = std::stoi(argv[5]);
+  std::string prefix = dir + "/" + model + "/" + model;
+  std::string model_so_file = prefix + "_model.so";
+  std::string data_json_file = prefix + "-data.json";
+  std::string sample_csv_file = prefix + "-walnuts-draws.csv";
 
-  unsigned int seed = 428763;
-  DynamicStanModel model(lib, data, seed);
-  test_adaptive_walnuts(model, seed, out_csv);
-  
-  return 0;
+  std::cout << "model= " << model << std::endl;
+  std::cout << "seed= " << seed << std::endl;
+  std::cout << "iter_warmup= " << iter_warmup << std::endl;
+  std::cout << "iter_sampling= " << iter_sampling << std::endl;
+
+  DynamicStanModel stan_model(model_so_file.c_str(), data_json_file.c_str(), seed);
+  test_adaptive_walnuts(stan_model, sample_csv_file, seed, iter_warmup, iter_sampling);
+  std::quick_exit(0);  // crashes without this---not stan_model dtor, prob dlclose_deleter
 }

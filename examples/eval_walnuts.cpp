@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
   for (int trial = 0; trial < trials; ++trial) {
     std::cout << "trial = " << trial << std::endl;
     unsigned int trial_seed = seed + static_cast<unsigned int>(17 * (trial + 1));
-    std::string sample_csv_file_numbered = prefix + "-walnuts-draws" + std::to_string(trial) + ".csv";
+    std::string sample_csv_file_numbered = prefix + "-walnuts-draws-" + std::to_string(trial) + ".csv";
     test_adaptive_walnuts(stan_model, sample_csv_file_numbered, trial_seed, iter_warmup, iter_sampling);
   }
   std::quick_exit(0);  // crashes without this---not stan_model dtor, prob dlclose_deleter

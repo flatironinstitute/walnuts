@@ -69,3 +69,33 @@ def load_reference_moments(path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarra
     fourth = np.asarray(ref["fourth"], dtype=np.float64)
     return first, second, fourth
 
+def draw_to_tolerance(
+    ref_first: np.ndarray,
+    ref_second: np.ndarray,
+    ref_fourth: np.ndarray,
+    draws_first: np.ndarray,
+    max_error: float,
+):
+    n_rows = draws_first.shape[0]
+    denom = np.arange(1, n_rows + 1, dtype=float).reshape(-1, 1)
+
+    draws_second = draws_first**2
+    draws_fourth = draws_first**4
+
+    run_first = np.cumsum(draws_first, axis=0) / denom
+    run_second = np.cumsum(draws_second, axis=0) / denom
+
+    err_first = np.abs(run_first - ref_first.reshape(1, -1))
+    err_second = np.abs(run_second - ref_second.reshape(1, -1))
+
+    sd_first = np.sqrt(ref_second - ref_first**2)
+    std_err_first = err_first / sd_first.reshape(1, -1)
+    sd_second = np.sqrt(ref_fourth - ref_second**2)
+    std_err_second = err_second / sd_second.reshape(1, -1)
+
+    ok_rows = (std_err_first < max_error).all(axis=1) & (
+        std_err_second < max_error
+    ).all(axis=1)
+
+    idx = np.flatnonzero(ok_rows)
+    return int(idx[0]) if idx.size else None

@@ -189,30 +189,34 @@ Then `cd` into the `build` directory and run the evaluation:
 ```bash
 cd build
 make eval_walnuts
-./eval_walnuts <dir> <model> <seed> <iter_warmup> <iter_sampling>
+./eval_walnuts <dir> <model> <seed> <iter_warmup> <iter_sampling> <trials>
 ```
 
-* `dir`: The name of the directory containing the model subdirectory.
+* `dir`: The name of the directory containing the model subdirectory. 
 * `model`: The name of the model subdirectory. 
 * `seed`: Seed for random number generation.
 * `iter_warmup`: The number of warmup iterations. 
 * `iter_sampling`: The number of sampling iterations. 
+* `trials`: The number of repetitions to run. 
 
 The MCMC draws will be generated in:
 
-* WALNUTS draws: `<model>-walnuts-draws.csv`
+* WALNUTS draws: `<model>-walnuts-draws-<num>.csv`
 
+for `<num>` in `{0, ..., trials - 1}`.
 
 *Step 3.3*: To generate the number of gradients required, run:
 
 ```
 cd examples
-python walnuts-gradients.py <model> <max_error>
+python walnuts-gradients.py <dir> <model> <trials> <max_error>
 ```
 
 where
 
+* `dir`: The name of the directory containing the model subdirectory. 
 * `model`: The name of the model subdirectory. 
+* `trials`: The number of repetitions that were run with walnuts.
 * `max_error`: The maximum standardized error allowed in first or 
   second moments. 
 

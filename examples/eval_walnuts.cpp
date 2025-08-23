@@ -120,10 +120,10 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
 }
 
 int main(int argc, char** argv) {
-  if (argc != 6) {
+  if (argc != 7) {
     std::cerr << "Usage: "
 	      << argv[0]
-	      << " <dir> <model> <seed> <iter_warmup> <iter_sampling>"
+	      << " <dir> <model> <seed> <iter_warmup> <iter_sampling> <trials>"
 	      << std::endl;
     return 1;
   }
@@ -132,6 +132,7 @@ int main(int argc, char** argv) {
   unsigned int seed = static_cast<unsigned int>(std::stoul(argv[3]));
   int iter_warmup = std::stoi(argv[4]);
   int iter_sampling = std::stoi(argv[5]);
+  int trials = std::stoi(argv[6]);
   std::string prefix = dir + "/" + model + "/" + model;
   std::string model_so_file = prefix + "_model.so";
   std::string data_json_file = prefix + "-data.json";
@@ -142,7 +143,14 @@ int main(int argc, char** argv) {
   std::cout << "iter_warmup= " << iter_warmup << std::endl;
   std::cout << "iter_sampling= " << iter_sampling << std::endl;
 
-  DynamicStanModel stan_model(model_so_file.c_str(), data_json_file.c_str(), seed);
-  test_adaptive_walnuts(stan_model, sample_csv_file, seed, iter_warmup, iter_sampling);
+  auto model_so_file_c_str = model_so_file.c_str();
+  auto data_json_file_c_str = data_json_file.c_str();
+  DynamicStanModel stan_model(model_so_file_c_str, data_json_file_c_str, seed);
+  for (int trial = 0; trial < trials; ++trial) {
+    std::cout << "trial = " << trial << std::endl;
+    unsigned int trial_seed = seed + static_cast<unsigned int>(17 * (trial + 1));
+    std::string sample_csv_file_numbered = prefix + "-walnuts-draws" + std::to_string(trial) + ".csv";
+    test_adaptive_walnuts(stan_model, sample_csv_file_numbered, trial_seed, iter_warmup, iter_sampling);
+  }
   std::quick_exit(0);  // crashes without this---not stan_model dtor, prob dlclose_deleter
 }

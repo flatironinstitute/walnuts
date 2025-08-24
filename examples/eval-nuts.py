@@ -20,12 +20,18 @@ if __name__ == "__main__":
     iter_warmup = int(args[3])
     iter_sampling = int(args[4])
     prefix = "models/" + name + "/" + name
-    print(f"MODEL {name=};  {max_error=};  {num_trials=};  {iter_warmup=};  {iter_sampling=}")
-    print(f"Writing to path: {prefix}")
+    print("")
+    print(f"EVALUATING NUTS")
+    print("")
+    print(f"model={name};  {max_error=};  {num_trials=};  {iter_warmup=};  {iter_sampling=}")
     stan_file = prefix + ".stan"
     data_file = prefix + "-data.json"
     moments_file = prefix + "-moments.json"
     gradients_file = prefix + "-nuts-gradients.csv"
+    print(f"Model Stan file: {stan_file}")
+    print(f"Data JSON file: {data_file}")
+    print(f"Moments JSON file: {moments_file}")
+    print(f"Output CSV file: {gradients_file}")
 
     ref_first, ref_second, ref_fourth = load_reference_moments(moments_file)
 
@@ -34,6 +40,7 @@ if __name__ == "__main__":
     b_head = "trial"
     it_head = "iteration"
     leap_head = "leapfrog"
+    print("")
     print(f"{b_head:5s}, {it_head:9s}, {leap_head:8s}")
     gradients = num_trials * [-1]
     for trial in range(num_trials):
@@ -59,5 +66,8 @@ if __name__ == "__main__":
         print(f"{trial:5d}, {maybe_idx:9d}, {gradients[trial]:8d}")
     with open(gradients_file, "w") as f:
         f.write("gradients\n")
-        f.writelines(f"{g}\n" for g in gradients)        
-    print(f"FINISHED; gradients = {gradients}")
+        f.writelines(f"{g}\n" for g in gradients)
+    print("")
+    print(f"gradients = {gradients}")
+    print("")
+    print(f"Finished.")

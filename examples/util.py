@@ -7,7 +7,7 @@ from typing import Tuple
 import numpy as np
 import xarray as xr
 import pandas as pd
-
+import plotnine as pn
 import arviz as az
 import cmdstanpy as csp
 
@@ -20,8 +20,9 @@ def be_quiet():
     """Restrict warnings and logging to errors."""
     warnings.simplefilter(action="ignore", category=FutureWarning)
     csp.utils.get_logger().setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", category=pn.exceptions.PlotnineWarning)
 
-
+    
 def dump_json_sci(results: dict, path: str, sig: int = 5):
     with open(path, "w") as f:
         f.write("{\n")

@@ -1,6 +1,6 @@
 # BENCHMARKS
 
-## Stationarity of adaptive WALNUTS
+## I.  Stationarity of adaptive WALNUTS
 
 This test ensures that there is no bias in the sampler. It works by
 taking 10M draws from adaptive WALNUTS for a 20-dimensional normal
@@ -28,11 +28,11 @@ The source code for these tests:
 * `examples/walnuts-staionarity.py`
 
 
-## Warmup for adaptive WALNUTS
+## II. Warmup for adaptive WALNUTS
 
 This test visualizes how quickly adaptive WALNUTS is able to adapt the
 inverse mass matrix and step size.  It uses a 200-dimensional normal
-with no correlation and variances equal to the index sqared, i.e., 1,
+with no correlation and variances equal to the index squared, i.e., 1,
 4, 9, ..., 40000.  The following code runs the benchmark.
 
 ```sh 
@@ -76,37 +76,44 @@ The source code for these tests:
 * `examples/stan-warmup.py`
 
 
-## Gradients until within error bound
+## III. Gradients until within error bound
 
 For Hamiltonian Monte Carlo samples from a target density `p(theta)`
-(e.g., a Bayesian posterior), the evaluation statistic is the number
-of gradient evaluations required before the standardized error for
+(e.g., a Bayesian posterior), a natural measurement is the number of
+gradient evaluations required before the standardized error for
 estimating the expectation of each component of `X` and `X^2` is below
-a threshold (e.g., 0.1), for `X = theta, log p(theta)`, where `theta`
-is a vector of sampled values.  Here, `theta` contains constrained
-Bayesian model parameters.
+a threshold (e.g., 0.1).  Throughout, `X = theta, log p(theta)`, where
+`theta` is a vector of sampled parameters and `log p(theta | y)` is the
+posterior log density (up to a fixed constant).
 
-Standardized error is scaled as the number of standard devations an  
-estimate is from the mean. If `hatY` is an estimate of the expectation
+Standardized error is scaled by the standard deviation, giving a
+standardized standard error scaling error as a number of standard
+deviations from the mean (i.e., a *Z*-score).
+If `hatY` is an estimate of the expectation
 of a random variable `Y`, the standardized error is `(hatY - E[Y]) /
 sd[Y]`, where `E[Y]` is the expectation of `Y` and `sd[Y]` is the
 standard deviation of `Y`.
+
+Because `sd[Y] = sqrt(var[Y])` and `var[Y] = E[Y^2] - E[Y]^2`, the
+second moment `Y^2` is required to standardize estimates of `E[Y]` and
+hence the fourth moment `Y^4` is required to standardize estimates of
+`E[Y^2]`.
 
 
 ### Directory structure
 
 The directory `dir = examples/models` will have a model subdirectory
 `<model>` for each model being evaluated, e.g.,
-`examples/models/ill-cond-normal`.  Each model sudirectory holds two
-user-generated files:
+`examples/models/ill-cond-normal`.  Each model subdirectory should
+contain two user-generated files following the naming convention:
 
 * Stan program: `<model>.stan`
-* Data (JSON format): `<model>-data.json`
+* Data for program: `<model>-data.json`
 
 
-### Step 1. Generarte reference moments
+### Step 1. Generate reference moments
 
-To estimate the reference first, second, and fourth moments, run:
+To estimate the reference moments (first, second, and fourth), run:
 
 ```bash
 cd examples
@@ -118,11 +125,25 @@ The arguments are:
 * `model`: The name of the model subdirectory. 
 * `target-ESS`: The target effective sample size.
 
-This may take a long time to run for complex models or high effective
-sample sizes.  Reference moments will be generated in:
+The estimation is done with Stan's implementation of NUTS with default
+tuning settings.  It may take a long time to run for complex models or
+high effective sample sizes.  Reference moments will be generated in:
 
 * Reference moments: `<model>-moments.json`
 
+There are three keys, `first`, `second`, and `fourth`, with array
+values in scientific notation to 16 decimal places.
+
+
+*Example*:
+
+```bash
+python reference-moments.py ill-normal 100_000
+
+head models/ill-normal/ill-normal-moments.json
+```
+
+This takes a minute or two to run (1m on a 2022 M2 Macbook Air).
 
 ### Step 2.  Measure NUTS gradients to error threshold
 
@@ -144,9 +165,34 @@ The result will be generated in:
 * NUTS results: `<model>-nuts-gradients.json`
 
 The JSON file defines a single key `gradients` with a sequence of
-integer values of length `trials` for the number of gradients required
+integer values of size `trials` for the number of gradients required
 before estimation error in every first and second moment is below
-the specified `max_error`.
+the specified `max_error`.  If `iter_sampling` is too low, it can
+be raised until the `max_error` threshold is satisfied.
+
+To plot a histogram of the results, run 
+
+```bash 
+python plot-grads <model>
+```
+
+*Example*:
+
+```bash
+python eval-nuts.py ill-normal 0.1 128 256 5000
+
+head models/ill-normal/ill-normal-nuts-gradients.csv
+```
+
+This takes a few minutes to run (2m on a 2022 M2 Macbook Air). 
+
+```bash
+python plot-grads ill-normal
+```
+
+
+This will display a plot and save it as a JPG: 
+`examples/models/<model>-nuts-grads.jpg`. 
 
 
 ### Step 3. Measure WALNUTS gradients to error threshold
@@ -166,7 +212,7 @@ the model can be generated from Python using BridgeStan:
 
 ```python
 import bridgestan as bs
-bs.compile_model(stan_file="<model>.stan)")
+bs.compile_model("<model>.stan")
 ```
 
 This will compile the Stan program into a binary shared object file:
@@ -176,9 +222,12 @@ This will compile the Stan program into a binary shared object file:
 
 *Step 3.2*: To compile and run the C++ evaluation:
 
-Once only, run the setup for CMake:
+Once only, run the setup for CMake from the top-level repository
+directory `walnuts`:
 
 ```bash
+cd walnuts
+
 cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
 ```
 
@@ -209,7 +258,7 @@ for `<num>` in `{0, ..., trials - 1}`.
 
 ```
 cd examples
-python walnuts-gradients.py <dir> <model> <trials> <max_error>
+python walnuts-gradients-to-error.py <dir> <model> <trials> <max_error>
 ```
 
 where

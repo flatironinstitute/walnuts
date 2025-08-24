@@ -30,20 +30,22 @@ def estimate(
     per_block_burnin: int,
     seed: int,
 ):
-    print(f"\nSTAN PROGRAM: {stan_file = }")
-    print(f"    DATA FILE: {data_file = }")
-    print(f"    OUTPUT FILE: {out_file = }")
-    print(f"         {ess_target = }")
-    print(f"         {block_size = }")
-    print(f"         {max_blocks = }")
-    print(f"         {seed = }\n")
+    print(f"\nGENERATING REFERENCE MOMENTS")
+    print(f"\nStan program: {stan_file = }")
+    print(f"Data file: {data_file = }")
+    print(f"Output file: {out_file = }")
+    print(f"Configuration")
+    print(f"    {ess_target = }")
+    print(f"    {block_size = }")
+    print(f"    {max_blocks = }")
+    print(f"    {seed = }\n")
 
-    print("COMPILING MODEL")
+    print("Compling model")
     model = csp.CmdStanModel(stan_file=stan_file)
-    print("LOADING DATA")
+    print("Loading data")
     data = get_model_data(data_file)
 
-    print("ADAPTING")
+    print("Adapting")
     step_size, metric, state = adapt(model, data, initial_warmup, seed)
     norm2_metric = np.linalg.norm(metric)
     print(f"    {step_size = };  ||inv(mass)|| = {norm2_metric}")
@@ -56,7 +58,7 @@ def estimate(
     sum_ess_second = np.zeros(K)
     sum_ess_fourth = np.zeros(K)
 
-    print("SAMPLING")
+    print("Sampling")
     print(f"{0:5d}.  min(ESS) = {0:.1e}")
     for b in range(1, max_blocks + 1):
         fit = model.sample(
@@ -107,7 +109,8 @@ def estimate(
         "ess_second": sum_ess_second,
         "ess_fourth": sum_ess_fourth,
     }
-    dump_json_sci(out_dict, out_file)
+    decimal_places = 15
+    dump_json_sci(out_dict, out_file, decimal_places)
 
 
 if __name__ == "__main__":

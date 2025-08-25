@@ -197,30 +197,28 @@ This will display a plot and save it as a JPG:
 
 ### Step 3. Measure WALNUTS gradients to error threshold
 
-*Step 3.1*: To generate the WALNUTS draws:
+**Step 3.1**: Compile Stan program.
 
-To compile the model into a shared object using 
-[`bridgestan`](https://github.com/roualdes/bridgestan), which must be
-installed in Python.  From the appropriate directory for the model
-being compiled,
+Start from the directory in which the Stan program resides,
 
 ```bash
 cd examples/models/<model>
 ```
 
-the model can be generated from Python using BridgeStan:
+To compile the model into a shared object using 
+[`bridgestan`](https://github.com/roualdes/bridgestan),
 
 ```python
 import bridgestan as bs
 bs.compile_model("<model>.stan")
 ```
 
-This will compile the Stan program into a binary shared object file:
+The result is a binary shared object file:
 
 * `<model>_model.so`
 
 
-*Step 3.2*: To compile and run the C++ evaluation:
+**Step 3.2**: Make the C++ evaluation.
 
 Once only, run the setup for CMake from the top-level repository
 directory `walnuts`:
@@ -233,10 +231,15 @@ cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
 
 See the top-level [`README`](../) for more information on configuring CMake.
 
-Then `cd` into the `build` directory and run the evaluation:
+Then `cd` into the `build` directory
 
 ```bash
 cd build
+```
+
+and run the evaluation
+
+```bash
 make eval_walnuts
 ./eval_walnuts <dir> <model> <seed> <iter_warmup> <iter_sampling> <trials>
 ```
@@ -254,19 +257,51 @@ The MCMC draws will be generated in:
 
 for `<num>` in `{0, ..., trials - 1}`.
 
-*Step 3.3*: To generate the number of gradients required, run:
 
-```
+**Step 3.3**: Generate gradients CSV
+
+First `cd` into the `examples` directory,
+
+```bash
 cd examples
+```
+
+then run the gradient extractor,
+
+```bash
 python walnuts-gradients-to-error.py <dir> <model> <trials> <max_error>
 ```
-
-where
 
 * `dir`: The name of the directory containing the model subdirectory. 
 * `model`: The name of the model subdirectory. 
 * `trials`: The number of repetitions that were run with walnuts.
 * `max_error`: The maximum standardized error allowed in first or 
   second moments. 
+  
+The number of gradients per trial will be generated in CSV format in
+the file: 
+
+* WALNUTS gradients: `<model>-walnuts-gradients.csv`
+
 
 ### Step 4. Plot NUTS and WALNUTS gradients to error threshold
+
+To plot NUTS vs. WALNUTS performance on a gradients until first 
+and second moments of log density and parameters are below the
+error threshold, first change into the examples directory,
+
+```bash
+cd examples
+```
+
+and then
+
+```bash
+python plot-grads.py <model>
+```
+
+* `model`: The name of the model subdirectory. 
+
+This will produce a JPG plot in
+
+* Performance plot: `examples/<model>/<model>-nuts-vs-walnuts-grads.jpg`

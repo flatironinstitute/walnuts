@@ -190,9 +190,6 @@ else()
   message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()
 
-##########################
-##     Doxygen Docs     ##
-##########################
 #################################
 ##        Documentation        ##
 #################################
@@ -216,3 +213,18 @@ if (WALNUTS_BUILD_DOCS)
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
+
+#############################
+##           CLI           ##
+#############################
+FetchContent_Declare(
+  cxxopts
+  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+  GIT_TAG v3.3.1
+)
+FetchContent_MakeAvailable(cxxopts)
+
+add_executable(walnuts_cli ${CMAKE_CURRENT_SOURCE_DIR}/cli/walnuts.cpp)
+target_link_libraries(walnuts_cli PRIVATE cxxopts::cxxopts)
+target_compile_features(walnuts_cli PRIVATE cxx_std_17)
+

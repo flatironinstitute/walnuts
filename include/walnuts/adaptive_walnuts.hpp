@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <utility>
 
 #include "dual_average.hpp"
@@ -343,10 +344,10 @@ class MassEstimator {
     S smoothing = mass_cfg_.additive_smoothing_;
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
-    Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
-    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
+    Vec<S> abs_grad_init = grad.array().abs(); // .sqrt() to condition further
+    Vec<S> init_prec = (1 - smoothing) * abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
-    S dummy_discount = 0.98;  // gets reset before being used
+    S dummy_discount = 0.5;  // gets reset before being used
     inv_var_estimator_ = OnlineMoments<S, Integer>(
         dummy_discount, mass_cfg.iter_offset_, zero, init_prec);
     var_estimator_ = OnlineMoments<S, Integer>(
@@ -504,6 +505,12 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
+    auto M = mass_estimator_.inv_mass_estimate();
+    auto step_size = step_adapt_handler_.step_size();
+    std::cout << "step_size = " << step_size
+	      << (step_size > 1 ? " ********************" : "")
+	      << std::endl;
+    std::cout << "|| inv(mass) || = " << std::sqrt(M.dot(M)) << std::endl;
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),

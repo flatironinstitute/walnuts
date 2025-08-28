@@ -35,7 +35,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations)
+  -Wno-missing-variable-declarations -Wno-deprecated-copy-with-dtor)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)
@@ -225,6 +225,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cxxopts)
 
 add_executable(walnuts_cli ${CMAKE_CURRENT_SOURCE_DIR}/cli/walnuts.cpp)
-target_link_libraries(walnuts_cli PRIVATE cxxopts::cxxopts)
+target_link_libraries(walnuts_cli PRIVATE cxxopts::cxxopts Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
 target_compile_features(walnuts_cli PRIVATE cxx_std_17)
 

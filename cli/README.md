@@ -41,20 +41,23 @@ Usage:
       --mass_smooth <double>    Additive smoothing to mass matrix (default: 
                                 1e-5)
       --step_init <double>      Initial step size (default: 1.0)
-      --accept_target <double>  Target Metropolis accept probability 
-                                (default: 0.8)
+      --step_accept <double>    Target stepwise Metropolis accept 
+                                probability (default: 0.8)
       --step_offset <double>    Pseudoposition after initial step size 
                                 (default: 5.0)
-      --learning_rate <double>  Step size learning rate, higher is slower 
+      --step_learn <double>     Step size learning rate, higher is slower 
                                 (default: 1.5)
-      --decay_rate <double>     Step size decay of history rate for 
+      --step_decay <double>     Step size decay of history rate for 
                                 averaging (default: 0.05)
-      --max_error <double>      Maximum absolute energy error allowed in 
+      --step_max_error <double>
+                                Maximum absolute energy error allowed in 
                                 leapfrog step (default: 0.5)
-      --max_nuts_depth <int>    Maximum number of trajectory doublings in 
-                                NUTS (default: 8)
-      --max_step_depth <int>    Maximum number of step size halvings in 
+      --step_max_halvings <int>
+                                Maximum number of step size halvings in 
                                 WALNUTS (default: 8)
+      --nuts_max_doublings <int>
+                                Maximum number of trajectory doublings in 
+                                NUTS (default: 8)
 ```
 
 This command requires a path to a compiled Stan shared object (`.so`)

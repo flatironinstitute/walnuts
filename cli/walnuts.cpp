@@ -85,8 +85,8 @@ int main(int argc, char** argv) {
     double learning_rate = 1.5;
     double decay_rate = 0.05;
     double max_error = 0.5;
-    int max_nuts_depth = 10;
-    int max_step_depth = 6;
+    int max_nuts_depth = 8;
+    int max_step_depth = 8;
 
     opts.positional_help("<stan_file> <data_file>");
     opts.add_options()
@@ -104,13 +104,27 @@ int main(int argc, char** argv) {
       ("seed", "Random number generator seed",
        cxxopts::value<int>(n_sample)->default_value("42"), "<uint>")
       ("mass_count", "Pseudocount of initial mass matrix",
-       cxxopts::value<double>(mass_count)->default_value("1.1"), "<float>")
+       cxxopts::value<double>(mass_count)->default_value("1.1"), "<double>")
       ("mass_offset", "Pseudoposition after initial mass matrix",
-       cxxopts::value<double>(mass_offset)->default_value("1.1"), "<float>")
+       cxxopts::value<double>(mass_offset)->default_value("1.1"), "<double>")
       ("mass_smooth", "Additive smoothing to mass matrix",
        cxxopts::value<double>(mass_smooth)->default_value("1e-5"), "<double>")
       ("step_init", "Initial step size",
        cxxopts::value<double>(step_init)->default_value("1.0"), "<double>")
+      ("accept_target", "Target Metropolis accept probability", 
+       cxxopts::value<double>(accept_target)->default_value("0.8"), "<double>")
+      ("step_offset", "Pseudoposition after initial step size", 
+       cxxopts::value<double>(step_offset)->default_value("5.0"), "<double>")
+      ("learning_rate", "Step size learning rate, higher is slower", 
+       cxxopts::value<double>(learning_rate)->default_value("1.5"), "<double>")
+      ("decay_rate", "Step size decay of history rate for averaging", 
+       cxxopts::value<double>(decay_rate)->default_value("0.05"), "<double>")
+      ("max_error", "Maximum absolute energy error allowed in leapfrog step", 
+       cxxopts::value<double>(max_error)->default_value("0.5"), "<double>")
+      ("max_nuts_depth", "Maximum number of trajectory doublings in NUTS",
+       cxxopts::value<int>(max_nuts_depth)->default_value("8"), "<int>")
+      ("max_step_depth", "Maximum number of step size halvings in WALNUTS",
+       cxxopts::value<int>(max_nuts_depth)->default_value("8"), "<int>")
       ;
 
     // Treat first two positionals as stan_file and data_file

@@ -88,7 +88,6 @@ int main(int argc, char** argv) {
     int max_nuts_depth = 8;
     int max_step_depth = 8;
 
-    opts.positional_help("<stan_file> <data_file>");
     opts.add_options()
       ("h,help", "Show help")
       ("stan", "Compiled Stan .so file",
@@ -126,9 +125,6 @@ int main(int argc, char** argv) {
       ("max_step_depth", "Maximum number of step size halvings in WALNUTS",
        cxxopts::value<int>(max_nuts_depth)->default_value("8"), "<int>")
       ;
-
-    // Treat first two positionals as stan_file and data_file
-    // opts.parse_positional({"stan_file", "data_file"});
 
     auto result = opts.parse(argc, argv);
     if (result.count("help") > 0) {

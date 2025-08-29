@@ -60,7 +60,15 @@ Usage:
 This command requires a path to a compiled Stan shared object (`.so`)
 file. The `data` value should be formatted for Stan as a dictionary
 with keys for each data variable (matrices are column major, arrays
-are row major).  The `out` file is written in comma-separated-value format.
+are row major).  The `out` file is written in comma-separated-value
+format.
+
+To simulate vanilla NUTS without WALNUTS-style local stepsize
+adaptation, set max_error to a very high value, e.g., `--max_error
+1000000`. This will typically be faster in situations where the
+curvature is fixed (i.e., the Hessian does not vary across the
+posterior), as in roughly normal target densities.
+
 
 To run a single Markov chain to produce a posterior sample from a
 model coded in a Stan program `foo.stan` with data `foo-data.json`:

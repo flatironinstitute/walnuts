@@ -34,21 +34,23 @@ static char* dlerror() {
 
 struct dlclose_deleter {
   void operator()(void* handle) const {
-    if (handle) {
-      dlclose(handle);
-    }
+    // TODO: Crashes on some systems, see
+    // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
+    // if (handle) {
+    //   dlclose(handle);
+    // }
   }
 };
 
 using dynamic_library = std::unique_ptr<void, dlclose_deleter>;
 
 inline dynamic_library dlopen_safe(const char* path) {
-  auto handle = dlopen(path, RTLD_NOW);
+  auto handle = dlopen(path, RTLD_NOW | RTLD_NODELETE);
   if (!handle) {
     throw std::runtime_error(std::string("Error loading library '") + path +
                              "': " + dlerror());
   }
-  return std::unique_ptr<void, dlclose_deleter>(handle);
+  return dynamic_library(handle);
 }
 
 template <typename T>

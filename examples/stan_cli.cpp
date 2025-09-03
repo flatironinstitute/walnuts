@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <string>
 #include <vector>
@@ -176,19 +177,19 @@ Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
 int main(int argc, char** argv) {
   srand(std::chrono::system_clock::now().time_since_epoch().count());
   unsigned int seed = rand();
-  int64_t warmup = 1000;
-  int64_t samples = 1000;
+  int64_t warmup = 128;
+  int64_t samples = 128;
   int64_t max_nuts_depth = 10;
   int64_t max_step_depth = 8;
   double max_error = 0.5;
   double init = 2.0;
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
-  double additive_smoothing = 0.1;
-  double step_size_init = 0.5;
-  double accept_rate_target = 2.0 / 3.0;
-  double step_iteration_offset = 2.0;
-  double learning_rate = 0.95;
+  double additive_smoothing = 1e-5;
+  double step_size_init = 1.0;
+  double accept_rate_target = 0.8;
+  double step_iteration_offset = 5.0;
+  double learning_rate = 1.5;
   double decay_rate = 0.05;
 
   std::string lib;
@@ -202,58 +203,72 @@ int main(int argc, char** argv) {
     app.add_option("--seed", seed, "Random seed")->default_val(seed);
 
     app.add_option("--warmup", warmup, "Number of warmup iterations")
-        ->default_val(warmup);
+        ->default_val(warmup)
+        ->check(CLI::NonNegativeNumber);
 
     app.add_option("--samples", samples, "Number of samples to draw")
-        ->default_val(samples);
+        ->default_val(samples)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--max-depth", max_nuts_depth,
                    "Maximum depth for NUTS trajectory doublings")
-        ->default_val(max_nuts_depth);
+        ->default_val(max_nuts_depth)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--max-step-depth", max_step_depth,
                    "Maximum depth for the step size adaptation")
-        ->default_val(max_step_depth);
+        ->default_val(max_step_depth)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--max-error", max_error,
                    "Maximum error allowed in joint densities")
-        ->default_val(max_error);
+        ->default_val(max_error)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--init", init,
                    "Range [-init,init] for the parameters initial values")
-        ->default_val(init);
+        ->default_val(init)
+        ->check(CLI::NonNegativeNumber);
 
     app.add_option("--mass-init-count", init_count,
                    "Initial count for the mass matrix adaptation")
-        ->default_val(init_count);
+        ->default_val(init_count)
+        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
 
     app.add_option("--mass-iteration-offset", mass_iteration_offset,
                    "Offset for the mass matrix adaptation iterations")
-        ->default_val(mass_iteration_offset);
+        ->default_val(mass_iteration_offset)
+        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
 
     app.add_option("--mass-additive-smoothing", additive_smoothing,
                    "Additive smoothing for the mass matrix adaptation")
-        ->default_val(additive_smoothing);
+        ->default_val(additive_smoothing)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--step-size-init", step_size_init,
                    "Initial step size for the step size adaptation")
-        ->default_val(step_size_init);
+        ->default_val(step_size_init)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--step-accept-rate-target", accept_rate_target,
                    "Target acceptance rate for the step size adaptation")
-        ->default_val(accept_rate_target);
+        ->default_val(accept_rate_target)
+        ->check(CLI::Range(std::numeric_limits<double>::min(), 1.0));
 
     app.add_option("--step-iteration-offset", step_iteration_offset,
                    "Offset for the step size adaptation iterations")
-        ->default_val(step_iteration_offset);
+        ->default_val(step_iteration_offset)
+        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
 
     app.add_option("--step-learning-rate", learning_rate,
                    "Learning rate for the step size adaptation")
-        ->default_val(learning_rate);
+        ->default_val(learning_rate)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("--step-decay-rate", decay_rate,
                    "Decay rate for the step size adaptation")
-        ->default_val(decay_rate);
+        ->default_val(decay_rate)
+        ->check(CLI::PositiveNumber);
 
     app.add_option("model", lib, "Path to the Stan model library")
         ->required()

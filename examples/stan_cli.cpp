@@ -233,12 +233,12 @@ int main(int argc, char** argv) {
     app.add_option("--mass-init-count", init_count,
                    "Initial count for the mass matrix adaptation")
         ->default_val(init_count)
-        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
+        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
     app.add_option("--mass-iteration-offset", mass_iteration_offset,
                    "Offset for the mass matrix adaptation iterations")
         ->default_val(mass_iteration_offset)
-        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
+        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
     app.add_option("--mass-additive-smoothing", additive_smoothing,
                    "Additive smoothing for the mass matrix adaptation")
@@ -253,12 +253,12 @@ int main(int argc, char** argv) {
     app.add_option("--step-accept-rate-target", accept_rate_target,
                    "Target acceptance rate for the step size adaptation")
         ->default_val(accept_rate_target)
-        ->check(CLI::Range(std::numeric_limits<double>::min(), 1.0));
+        ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
     app.add_option("--step-iteration-offset", step_iteration_offset,
                    "Offset for the step size adaptation iterations")
         ->default_val(step_iteration_offset)
-        ->check(CLI::Range(1.0, std::numeric_limits<double>::max()));
+        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
     app.add_option("--step-learning-rate", learning_rate,
                    "Learning rate for the step size adaptation")

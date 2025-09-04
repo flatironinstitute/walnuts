@@ -61,7 +61,7 @@ class DualAverage {
       : log_est_(std::log(step_size_init)),
         log_est_avg_(log_est_),
         grad_avg_(0),
-        obs_count_(1),
+        obs_count_(0),
         log_step_offset_(std::log(10) + std::log(step_size_init)),
         target_accept_rate_(target_accept_rate),
         obs_count_offset_(obs_count_offset),
@@ -94,14 +94,13 @@ class DualAverage {
    * @pre alpha > 0
    */
   inline void observe(S alpha) noexcept {
+    ++obs_count_;
     S prop = 1 / (obs_count_ + obs_count_offset_);
     grad_avg_ = (1 - prop) * grad_avg_ + prop * (target_accept_rate_ - alpha);
-    S last_log_est = log_est_;
     log_est_ =
         log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
     S prop2 = std::pow(obs_count_, -decay_rate_);
-    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * last_log_est;
-    ++obs_count_;
+    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * log_est_avg_; 
   }
 
   /**
@@ -112,31 +111,37 @@ class DualAverage {
   inline S step_size() const noexcept { return std::exp(log_est_avg_); }
 
  private:
-  /** The local estimate of step size last iteration. */
+  /**
+   * The local estimate of step size last iteration (original notation: 
+   * log epsilon[m]).
+   */
   S log_est_;
 
-  /** The log estimate of step size, a decayed running average of `log_est_`. */
+  /**
+   * The log estimate of step size, a decayed running average of `log_est_`
+   * (original notation: log bar_epsilon[m]).
+   */
   S log_est_avg_;
 
-  /** The average gradient. */
+  /** The average gradient (original notation: bar H_m). */
   S grad_avg_;
 
-  /** The observation count. */
+  /** The observation count (original notation: m). */
   S obs_count_;
 
-  /** The target log-step offset. */
+  /** The target log-step offset (original notation: mu). */
   const S log_step_offset_;
 
-  /** The target acceptance rate. */
+  /** The target acceptance rate (original notation: delta). */
   const S target_accept_rate_;
 
-  /** The observation count offset. */
+  /** The observation count offset (original notation: t_0). */
   const S obs_count_offset_;
 
-  /** The learning rate. */
+  /** The learning rate (original notation: gamma). */
   const S learn_rate_;
 
-  /** The decay rate. */
+  /** The decay rate (original notation: kappa). */
   const S decay_rate_;
 };
 

@@ -15,7 +15,7 @@ namespace span_test {
  * to this function will return spans with different forward/backward/selected
  * points.
  */
-nuts::SpanW<double> dummy_span(double logp) {
+static nuts::SpanW<double> dummy_span(double logp) {
   Eigen::VectorXd theta = Eigen::VectorXd::Random(2);
   Eigen::VectorXd rho = Eigen::VectorXd::Random(2);
   Eigen::VectorXd grad = Eigen::VectorXd::Random(2);

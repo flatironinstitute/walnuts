@@ -2,10 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <optional>
-#include <random>
-#include <tuple>
 #include <utility>
 
 #include <Eigen/Dense>
@@ -31,15 +28,17 @@ class Span {
    * position.
    * @param[in] logp The joint log density of the position and momentum.
    */
-  Span(Vec<S>&& theta, Vec<S>&& rho, Vec<S>&& grad_theta, S logp)
-      : theta_bk_(theta),
-        rho_bk_(rho),
-        grad_theta_bk_(grad_theta),
-        theta_fw_(theta),
-        rho_fw_(std::move(rho)),
-        grad_theta_fw_(std::move(grad_theta)),
-        theta_select_(std::move(theta)),
-        logp_(logp) {}
+  static Span<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
+                                    Vec<S>&& grad_theta, S logp) {
+    return {theta,
+            rho,
+            grad_theta,
+            theta,
+            std::move(rho),
+            std::move(grad_theta),
+            std::move(theta),
+            logp};
+  }
   /**
    * @brief Construct a span by concatenating the specified spans with
    * the specified selected state.
@@ -49,15 +48,13 @@ class Span {
    * @param[in] theta_select The selected position.
    * @param[in] logp The log of the sum of the densities on the trajectory.
    */
-  Span(Span<S>&& span1, Span<S>&& span2, Vec<S>&& theta_select, S logp)
-      : theta_bk_(std::move(span1.theta_bk_)),
-        rho_bk_(std::move(span1.rho_bk_)),
-        grad_theta_bk_(std::move(span1.grad_theta_bk_)),
-        theta_fw_(std::move(span2.theta_fw_)),
-        rho_fw_(std::move(span2.rho_fw_)),
-        grad_theta_fw_(std::move(span2.grad_theta_fw_)),
-        theta_select_(std::move(theta_select)),
-        logp_(logp) {}
+  static Span<S> from_subspans(Span<S>&& span1, Span<S>&& span2,
+                               Vec<S>&& theta_select, S logp) {
+    return {std::move(span1.theta_bk_),      std::move(span1.rho_bk_),
+            std::move(span1.grad_theta_bk_), std::move(span2.theta_fw_),
+            std::move(span2.rho_fw_),        std::move(span2.grad_theta_fw_),
+            std::move(theta_select),         logp};
+  }
 
   /** The earliest position. */
   Vec<S> theta_bk_;
@@ -148,8 +145,8 @@ Span<S> combine(Random<S, RNG>& rand, Span<S>&& span_old, Span<S>&& span_new) {
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
 
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
-  return Span<S>(std::move(span_bk), std::move(span_fw), std::move(selected),
-                 logp_total);
+  return Span<S>::from_subspans(std::move(span_bk), std::move(span_fw),
+                                std::move(selected), logp_total);
 }
 
 /**
@@ -182,8 +179,9 @@ Span<S> build_leaf(const F& logp_grad, const Span<S>& span,
              span.grad_theta_bk_, theta_next, rho_next, grad_theta_next,
              logp_theta_next);
   }
-  return Span<S>(std::move(theta_next), std::move(rho_next),
-                 std::move(grad_theta_next), logp_theta_next);
+  return Span<S>::from_initial_point(std::move(theta_next), std::move(rho_next),
+                                     std::move(grad_theta_next),
+                                     logp_theta_next);
 }
 
 /**
@@ -255,7 +253,8 @@ Vec<S> transition(Random<S, RNG>& rand, const F& logp_grad,
   S logp;
   logp_grad(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
-  Span<S> span_accum(std::move(theta), std::move(rho), std::move(grad), logp);
+  auto span_accum = Span<S>::from_initial_point(
+      std::move(theta), std::move(rho), std::move(grad), logp);
   for (Integer depth = 0; depth < max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
     auto expand_in_direction = [&](auto direction) -> bool {

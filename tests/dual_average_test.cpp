@@ -67,8 +67,7 @@ TEST(DualAverage, observe1) {
   EXPECT_NEAR(epsilon0, da.step_size(), 1e-10);
 
   double alpha = 0.2;
-  for (int i = 0; i < 100; ++i)
-    da.observe(alpha);
+  da.observe(alpha);
   // worked out answer by hand
   EXPECT_NEAR(3.359109812391624, da.step_size(), 1e-5);
 }

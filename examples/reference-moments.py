@@ -27,7 +27,6 @@ def estimate(
     block_size: int,
     max_blocks: int,
     initial_warmup: int,
-    per_block_burnin: int,
     seed: int,
 ):
     print(f"\nGENERATING REFERENCE MOMENTS")
@@ -38,6 +37,7 @@ def estimate(
     print(f"    {ess_target = }")
     print(f"    {block_size = }")
     print(f"    {max_blocks = }")
+    print(f"    {initial_warmup = }")
     print(f"    {seed = }\n")
 
     print("Compling model")
@@ -45,7 +45,7 @@ def estimate(
     print("Loading data")
     data = get_model_data(data_file)
 
-    print("Adapting")
+    print("Adapting") # but ignore output other than print and size
     step_size, metric, state = adapt(model, data, initial_warmup, seed)
     norm2_metric = np.linalg.norm(metric)
     print(f"    {step_size = };  ||inv(mass)|| = {norm2_metric}")
@@ -64,13 +64,10 @@ def estimate(
         fit = model.sample(
             data=data,
             chains=1,
-            adapt_engaged=0,
-            iter_warmup=per_block_burnin,
+            adapt_engaged=1,
+            iter_warmup=initial_warmup,
             iter_sampling=block_size,
             seed=seed + b,
-            step_size=step_size,
-            metric=[{"inv_metric": metric}],
-            inits=state,
             show_progress=False,
             show_console=False,
         )
@@ -123,8 +120,7 @@ if __name__ == "__main__":
     moments_file = "models/" + name + "/" + name + "-moments.json"
     block_size = 10_000
     max_blocks = 1_000
-    initial_warmup = 50_000
-    per_block_burnin = 100
+    initial_warmup = 20_000
     seed = 643889
     estimate(
         stan_file,
@@ -134,6 +130,5 @@ if __name__ == "__main__":
         block_size,
         max_blocks,
         initial_warmup,
-        per_block_burnin,
         seed,
     )

@@ -510,7 +510,12 @@ class AdaptiveWalnuts {
     std::cout << "step_size = " << step_size
 	      << (step_size > 1 ? " ********************" : "")
 	      << std::endl;
-    std::cout << "|| inv(mass) || = " << std::sqrt(M.dot(M)) << std::endl;
+    std::cout << "|| inv(mass) || = "
+              << std::sqrt(M.dot(M))
+              << std::endl;
+    std::cout << "inv(mass) = "
+              << M.transpose()
+              << std::endl;
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),

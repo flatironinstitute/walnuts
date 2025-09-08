@@ -3,7 +3,7 @@ data {
   real<lower=-1, upper=1> rho;
 }
 transformed data {
-  vector[N] mu = rep_vector(0.0, N);
+  vector[N] zero = zeros_vector(N);
   matrix[N, N] Sigma;
   for (m in 1:N) {
     for (n in 1:N) {
@@ -16,5 +16,5 @@ parameters {
   vector[N] alpha;
 }
 model {
-  alpha ~ multi_normal_cholesky(mu, Sigma);
+  alpha ~ multi_normal_cholesky(zero, L_Sigma);
 }

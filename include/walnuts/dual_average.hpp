@@ -62,7 +62,7 @@ class DualAverage {
         log_est_avg_(log_est_),
         grad_avg_(0),
         obs_count_(0),
-        log_step_offset_(std::log(10) + std::log(step_size_init)),
+        log_step_offset_(std::log(step_size_init)),
         target_accept_rate_(target_accept_rate),
         obs_count_offset_(obs_count_offset),
         learn_rate_(learn_rate),
@@ -100,7 +100,7 @@ class DualAverage {
     log_est_ =
         log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
     S prop2 = std::pow(obs_count_, -decay_rate_);
-    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * log_est_avg_; 
+    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * log_est_avg_;
   }
 
   /**
@@ -112,7 +112,7 @@ class DualAverage {
 
  private:
   /**
-   * The local estimate of step size last iteration (original notation: 
+   * The local estimate of step size last iteration (original notation:
    * log epsilon[m]).
    */
   S log_est_;

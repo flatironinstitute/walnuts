@@ -78,11 +78,11 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   double additive_smoothing = 1e-5;  // max init variance is 1 / additive_smoothing
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
-  
-  double step_size_init = 0.1;
+
+  double step_size_init = 0.2;
   double accept_rate_target = 0.8;  // min 2.0 / 3.0
-  double step_iteration_offset = 2.0;
-  double learning_rate = 2.0;
+  double step_iteration_offset = 10.0;
+  double learning_rate = 0.95;
   double decay_rate = 0.05;
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
                                  step_iteration_offset, learning_rate,
@@ -90,7 +90,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
 
   double max_error = 0.5;  // 1000: NUTS; 1.0: 37% accept; 0.5: 62%; 0.2: 82%
   Integer max_nuts_depth = 8;
-  Integer max_step_depth = 6;
+  Integer max_step_depth = 5;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
 
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init,
@@ -115,7 +115,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
     model.logp_grad(draw, lp, grad_dummy);  // redundant, but can't easily recover
     lps[static_cast<std::size_t>(n)] = lp;
   }
-  
+
   write_csv(model.param_names(), draws, lp_grads, lps, sample_csv_file);
 }
 

@@ -2,11 +2,12 @@ import json
 import numpy as np
 from util import *
 
-def num_leapfrogs(fit, iter_index):
+def num_leapfrogs(fit, iter_index, iter_warmup):
     n_leapfrog = fit.method_variables()["n_leapfrog__"]
-    if iter_index < 0 or iter_index >= n_leapfrog.shape[0]:
+    last_index = iter_index + iter_warmup + 1
+    if last_index < 0 or last_index >= n_leapfrog.shape[0]:
         raise IndexError("iter_index out of range.")
-    return int(n_leapfrog[: iter_index + 1].sum())
+    return int(n_leapfrog[ :last_index].sum())
 
 
 if __name__ == "__main__":
@@ -33,9 +34,12 @@ if __name__ == "__main__":
     print(f"Moments JSON file: {moments_file}")
     print(f"Output CSV file: {gradients_file}")
 
+    print(f"\nLoading Reference Moments")
     ref_first, ref_second, ref_fourth = load_reference_moments(moments_file)
 
     seed = 8474364
+
+    print(f"\nCompling Model")
     model = csp.CmdStanModel(stan_file=stan_file)
     b_head = "trial"
     it_head = "iteration"
@@ -49,7 +53,7 @@ if __name__ == "__main__":
             chains=1,
             iter_warmup=iter_warmup,
             iter_sampling=iter_sampling,
-            seed=seed + trial,
+            seed=seed + 17 * trial,
             sig_figs=10,
             save_warmup=True,
             adapt_engaged=True,
@@ -62,7 +66,7 @@ if __name__ == "__main__":
         )
         if maybe_idx is None:
             continue
-        gradients[trial] = num_leapfrogs(fit, maybe_idx)
+        gradients[trial] = num_leapfrogs(fit, maybe_idx, iter_warmup)
         print(f"{trial:5d}, {maybe_idx:9d}, {gradients[trial]:8d}")
     with open(gradients_file, "w") as f:
         f.write("gradients\n")

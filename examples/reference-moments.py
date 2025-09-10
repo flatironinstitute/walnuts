@@ -112,15 +112,15 @@ def estimate(
 
 if __name__ == "__main__":
     be_quiet()
-    args = get_args(2, "reference-moments.py model_name target_ess")
+    args = get_args(3, "reference-moments.py model_name iter_warmup target_ess")
     name = args[0]
-    target_ess = int(args[1])
+    iter_warmup = int(args[1])
+    target_ess = int(args[2])
     stan_file = "models/" + name + "/" + name + ".stan"
     data_file = "models/" + name + "/" + name + "-data.json"
     moments_file = "models/" + name + "/" + name + "-moments.json"
     block_size = 10_000
     max_blocks = 1_000
-    initial_warmup = 20_000
     seed = 643889
     estimate(
         stan_file,
@@ -129,6 +129,6 @@ if __name__ == "__main__":
         target_ess,
         block_size,
         max_blocks,
-        initial_warmup,
+        iter_warmup,
         seed,
     )

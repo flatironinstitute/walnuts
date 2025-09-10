@@ -240,8 +240,11 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step, S max_error,
     // checking only at macro step misses early failures
     // TODO: evaluate if better to do mass density to early stop
     if (std::fabs(logp - logp_next) <= max_error) {
-      return reversible(logp_grad, inv_mass, step, num_steps, max_error,
-                        logp_next, theta_next, rho_next, grad_next);
+      bool is_reversible
+	= reversible(logp_grad, inv_mass, step, num_steps, max_error,
+		     logp_next, theta_next, rho_next, grad_next);
+      // std::cout << "num_steps = " << num_steps << ";  is_reversible = " << is_reversible << std::endl;
+      return is_reversible;
     }
   }
   return false;

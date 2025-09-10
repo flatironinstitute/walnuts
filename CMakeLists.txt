@@ -18,7 +18,7 @@ endif()
 ##########################
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
-option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
+option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" ON)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
 # Build Types
@@ -35,7 +35,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations)
+  -Wno-missing-variable-declarations -Wno-deprecated-copy-with-dtor)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)
@@ -103,9 +103,13 @@ if(WALNUTS_BUILD_STAN)
       "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
     )
 
-  add_executable(examples_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples_stan.cpp)
-  target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
-  target_compile_options(examples_stan PRIVATE -Wall)
+  add_executable(examples_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples_stan.cpp)  
+  target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
+  target_compile_options(examples_stan PRIVATE -Wall)  
+
+  add_executable(eval_walnuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/eval_walnuts.cpp)  
+  target_link_libraries(eval_walnuts PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
+  target_compile_options(eval_walnuts PRIVATE -O3 -Wall)
 endif()
 
 #############################
@@ -132,9 +136,17 @@ add_library(nuts::nuts ALIAS walnuts)
 ##       Examples       ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
-  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp)
-  target_link_libraries(examples PRIVATE nuts::nuts)
-  target_compile_options(examples PRIVATE -O3 -Wall)
+  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp) 
+  target_link_libraries(examples PRIVATE nuts::nuts) 
+  target_compile_options(examples PRIVATE -O3 -Wall) 
+
+  add_executable(walnuts-stationarity ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-stationarity.cpp) 
+  target_link_libraries(walnuts-stationarity PRIVATE nuts::nuts) 
+  target_compile_options(walnuts-stationarity PRIVATE -O3 -Wall)  
+
+  add_executable(walnuts-warmup ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-warmup.cpp) 
+  target_link_libraries(walnuts-warmup PRIVATE nuts::nuts) 
+  target_compile_options(walnuts-warmup PRIVATE -O3 -Wall)  
 endif()
 
 ##########################
@@ -178,9 +190,6 @@ else()
   message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()
 
-##########################
-##     Doxygen Docs     ##
-##########################
 #################################
 ##        Documentation        ##
 #################################
@@ -204,3 +213,27 @@ if (WALNUTS_BUILD_DOCS)
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
+
+#############################
+##           CLI           ##
+#############################
+# include(FetchContent)  
+# FetchContent_Declare(
+#   cxxopts
+#   GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+#   GIT_TAG v3.3.1
+# )
+# FetchContent_MakeAvailable(cxxopts)  
+# FetchContent_Declare(
+#   bridgestan
+#   GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
+#   GIT_TAG main         # or a release tag if available
+# )
+# FetchContent_MakeAvailable(bridgestan)
+# find_package(BridgeStan CONFIG REQUIRED)  # sets BridgeStan::BridgeStan
+# target_link_libraries(walnuts_cli PRIVATE
+#   cxxopts::cxxopts Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
+# add_executable(walnuts_cli ${CMAKE_CURRENT_SOURCE_DIR}/cli/walnuts.cpp)
+# target_link_libraries(walnuts_cli PRIVATE cxxopts::cxxopts Eigen3::Eigen nuts::nuts Bridgestan::Bridgestan)
+# target_compile_features(walnuts_cli PRIVATE cxx_std_17)
+

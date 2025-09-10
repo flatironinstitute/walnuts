@@ -28,8 +28,8 @@ int main() {
   Integer D = 200;
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 1.1;
-  double mass_iteration_offset = 1.1;
-  double additive_smoothing = 1e-12; 
+  double mass_iteration_offset = 4.0;
+  double additive_smoothing = 1e-5;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
 
@@ -47,7 +47,7 @@ int main() {
   Integer max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
 
-  unsigned int seed = 8472222;
+  unsigned int seed = 736549;
   std::mt19937 rng(seed);
 
   std::normal_distribution<S> std_normal(0, 1);
@@ -67,7 +67,7 @@ int main() {
   auto file_name_step = "walnuts-warmup-step.csv";
   std::ofstream out_step(file_name_step);
   out_step << std::fixed << std::setprecision(8);
-  
+
   Integer warmup_iterations = 1000;
   for (Integer n = 0; n < warmup_iterations; ++n) {
     walnuts();

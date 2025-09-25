@@ -84,13 +84,14 @@ template <typename RNG>
 static void test_walnuts(const DynamicStanModel& model,
                          const VectorS& theta_init, RNG& rng, Integer N,
                          S macro_step_size, Integer max_nuts_depth,
+			 Integer min_micro_steps,
                          S log_max_error, VectorS inv_mass) {
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   auto logp = [&model](auto&&... args) { model.logp_grad(args...); };
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
-                              max_nuts_depth, log_max_error);
+                              max_nuts_depth, min_micro_steps, log_max_error);
   int M = model.constrained_dimensions();
 
   MatrixS draws(M, N);
@@ -104,7 +105,7 @@ template <typename RNG>
 static void test_adaptive_walnuts(const DynamicStanModel& model,
                                   const VectorS& theta_init, RNG& rng,
                                   Integer D, Integer N, Integer max_nuts_depth,
-                                  S max_error) {
+                                  Integer min_micro_steps, S max_error) {
   double logp_time = 0.0;
   int logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
@@ -124,7 +125,8 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
+				  min_micro_steps);
   std::cout << "\nTEST ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
@@ -195,6 +197,7 @@ int main(int argc, char** argv) {
   Integer N = 1000;
   S step_size = 0.465;
   Integer max_depth = 10;
+  Integer min_micro_steps = 1;
   S max_error = 0.5;
 
   char* lib{nullptr};
@@ -230,10 +233,11 @@ int main(int argc, char** argv) {
 
   test_nuts(model, theta_init, rng, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(model, theta_init, rng, N, step_size, max_depth, max_error,
-               inv_mass);
+  test_walnuts(model, theta_init, rng, N, step_size, max_depth,
+	       min_micro_steps, max_error, inv_mass);
 
-  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth, max_error);
+  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth,
+			min_micro_steps, max_error);
 
   return 0;
 }

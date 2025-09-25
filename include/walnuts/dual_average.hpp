@@ -94,13 +94,16 @@ class DualAverage {
    * @pre alpha > 0
    */
   inline void observe(S alpha) noexcept {
+    if (!std::isfinite(alpha)) {
+      alpha = 0.0;
+    }
     ++obs_count_;
     S prop = 1 / (obs_count_ + obs_count_offset_);
     grad_avg_ = (1 - prop) * grad_avg_ + prop * (target_accept_rate_ - alpha);
     log_est_ =
         log_step_offset_ - std::sqrt(obs_count_) / learn_rate_ * grad_avg_;
     S prop2 = std::pow(obs_count_, -decay_rate_);
-    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * log_est_avg_; 
+    log_est_avg_ = prop2 * log_est_ + (1 - prop2) * log_est_avg_;
   }
 
   /**
@@ -112,7 +115,7 @@ class DualAverage {
 
  private:
   /**
-   * The local estimate of step size last iteration (original notation: 
+   * The local estimate of step size last iteration (original notation:
    * log epsilon[m]).
    */
   S log_est_;

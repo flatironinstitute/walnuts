@@ -193,24 +193,31 @@ struct WalnutsConfig {
    * doublings for NUTS.
    * @param[in] max_step_depth The maximum number of step doublings
    * per macro step.
+   * @param[in] min_micro_steps The minimum number of micro steps per macro
+   *  step.
    * @throw std::invalid_argument If the log max error is not finite and
    * positive.
    * @throw std::invalid_argument If the maximum tree depth is not positive.
    * @throw std::invalid_argument If the maximum step depth is negative.
    */
-  WalnutsConfig(S log_max_error, Integer max_nuts_depth, Integer max_step_depth)
+  WalnutsConfig(S log_max_error, Integer max_nuts_depth, Integer max_step_depth,
+		Integer min_micro_steps)
       : log_max_error_(log_max_error),
         max_nuts_depth_(max_nuts_depth),
-        max_step_depth_(max_step_depth) {
+        max_step_depth_(max_step_depth),
+	min_micro_steps_(min_micro_steps) {
     if (!(log_max_error > 0) || std::isinf(log_max_error)) {
       throw std::invalid_argument(
           "Log maximum error must be positive and finite.");
     }
-    if (max_nuts_depth < 1) {
+    if (max_nuts_depth <= 0) {
       throw std::invalid_argument("Maximum NUTS depth must be positive.");
     }
     if (max_step_depth < 0) {
       throw std::invalid_argument("Maximum step depth must be non-negative.");
+    }
+    if (min_micro_steps <= 0) {
+      throw std::invalid_argument("Minimum micro steps must be positive.");
     }
   }
 
@@ -222,6 +229,9 @@ struct WalnutsConfig {
 
   /** The maximum number of step doublings per macro step. */
   const Integer max_step_depth_;
+
+  /** The minimum number of micro steps per macro step. */
+  const Integer min_micro_steps_;
 };
 
 /**
@@ -486,7 +496,8 @@ class AdaptiveWalnuts {
     Vec<S> grad_select;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, std::move(theta_), grad_select,
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.min_micro_steps_,
+	std::move(theta_), grad_select,
         walnuts_cfg_.log_max_error_, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
@@ -507,7 +518,8 @@ class AdaptiveWalnuts {
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_);
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.min_micro_steps_,
+	walnuts_cfg_.log_max_error_);
   }
 
   /**

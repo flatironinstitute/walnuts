@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
 
     app.add_option("--min-micro-steps", min_micro_steps,
                    "Minimum micro steps per macro step")
-        ->default_val(num_micro_steps)
+        ->default_val(min_micro_steps)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--max-error", max_error,

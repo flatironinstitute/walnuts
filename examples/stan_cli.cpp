@@ -70,7 +70,7 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
                    double step_size_init, double accept_rate_target,
                    double step_iteration_offset, double learning_rate,
                    double decay_rate, double max_error, int64_t max_nuts_depth,
-                   int64_t max_step_depth) {
+                   int64_t max_step_depth, int64_t min_micro_steps) {
   double logp_time = 0.0;
   int logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
@@ -97,7 +97,8 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
+				  min_micro_steps);
 
   std::cout << "Running Adaptive WALNUTS"
             << ";  D = " << theta_init.size() << "; W = " << warmup
@@ -181,6 +182,7 @@ int main(int argc, char** argv) {
   int64_t samples = 128;
   int64_t max_nuts_depth = 10;
   int64_t max_step_depth = 8;
+  int64_t min_micro_steps = 1;
   double max_error = 0.5;
   double init = 2.0;
   double init_count = 1.1;
@@ -218,6 +220,11 @@ int main(int argc, char** argv) {
     app.add_option("--max-step-depth", max_step_depth,
                    "Maximum depth for the step size adaptation")
         ->default_val(max_step_depth)
+        ->check(CLI::PositiveNumber);
+
+    app.add_option("--min-micro-steps", min_micro_steps,
+                   "Minimum micro steps per macro step")
+        ->default_val(num_micro_steps)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--max-error", max_error,
@@ -293,7 +300,8 @@ int main(int argc, char** argv) {
       run_walnuts(model, rng, theta_init, warmup, samples, init_count,
                   mass_iteration_offset, additive_smoothing, step_size_init,
                   accept_rate_target, step_iteration_offset, learning_rate,
-                  decay_rate, max_error, max_nuts_depth, max_step_depth);
+                  decay_rate, max_error, max_nuts_depth, max_step_depth,
+		  min_micro_steps);
 
   auto names = model.param_names();
   summarize(names, draws);

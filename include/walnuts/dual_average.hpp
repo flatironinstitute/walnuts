@@ -94,7 +94,7 @@ class DualAverage {
    * @pre alpha > 0
    */
   inline void observe(S alpha) noexcept {
-    if (std::isnan(alpha)) {
+    if (!std::isfinite(alpha)) {
       alpha = 0.0;
     }
     ++obs_count_;

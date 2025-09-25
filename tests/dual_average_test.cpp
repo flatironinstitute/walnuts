@@ -36,8 +36,8 @@ TEST(DualAverage, Metropolis1D) {
   double gamma = 0.1;  // equal to default from Stan's NUTS
   double kappa = 0.9;  // higher than default from Stan's NUTS
   nuts::DualAverage<double> da(init, delta, t0, gamma, kappa);
-  int N = 100000;  // large N to account for different random behavior on
-                   // different OSes
+  int N = 1000000;  // large N to account for different random behavior on
+                    // different OSes
   double total = 0;
   double count = 0;
   for (int n = 0; n < N; ++n) {
@@ -51,4 +51,23 @@ TEST(DualAverage, Metropolis1D) {
   EXPECT_NEAR(2.4, step_size_hat, 0.2);  // step size not so accurate
   double accept_hat = total / count;
   EXPECT_NEAR(delta, accept_hat, 0.01);  // achieved acceptance very accurate
+}
+
+TEST(DualAverage, observe1) {
+  unsigned int seed = 7635445;
+  std::mt19937 rng(seed);
+
+  double epsilon0 = 1.0;
+  double delta = 0.8;
+  double t0 = 10.0;
+  double gamma = 0.05;
+  double kappa = 1.5;
+  nuts::DualAverage<double> da(epsilon0, delta, t0, gamma, kappa);
+
+  EXPECT_NEAR(epsilon0, da.step_size(), 1e-10);
+
+  double alpha = 0.2;
+  da.observe(alpha);
+  // worked out answer by hand
+  EXPECT_NEAR(3.359109812391624, da.step_size(), 1e-5);
 }

@@ -199,10 +199,12 @@ struct WalnutsConfig {
    * @throw std::invalid_argument If the maximum tree depth is not positive.
    * @throw std::invalid_argument If the maximum step depth is negative.
    */
-  WalnutsConfig(S log_max_error, Integer max_nuts_depth, Integer max_step_depth)
+  WalnutsConfig(S log_max_error, Integer max_nuts_depth,
+		Integer max_step_depth, Integer min_micro_steps)
       : log_max_error_(log_max_error),
         max_nuts_depth_(max_nuts_depth),
-        max_step_depth_(max_step_depth) {
+        max_step_depth_(max_step_depth),
+	min_micro_steps_(min_micro_steps) {
     if (!(log_max_error > 0) || std::isinf(log_max_error)) {
       throw std::invalid_argument(
           "Log maximum error must be positive and finite.");
@@ -223,6 +225,9 @@ struct WalnutsConfig {
 
   /** The maximum number of step doublings per macro step. */
   const Integer max_step_depth_;
+
+  /** The minimum number of micro steps per macro step. */
+  const Integer min_micro_steps_;
 };
 
 /**
@@ -488,7 +493,8 @@ class AdaptiveWalnuts {
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, std::move(theta_), grad_select,
-        walnuts_cfg_.log_max_error_, step_adapt_handler_);
+        walnuts_cfg_.log_max_error_, walnuts_cfg_.min_micro_steps_,
+	step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
     return theta_;
@@ -519,7 +525,8 @@ class AdaptiveWalnuts {
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_);
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_,
+	walnuts_cfg_.min_micro_steps_);
   }
 
   /**

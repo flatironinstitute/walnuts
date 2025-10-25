@@ -26,7 +26,7 @@ plot = (
     + pn.labs(x="iteration", y="inverse mass", color="Index")
     + pn.theme_minimal()
 )
-plot.save("walnuts-warmup-inv-mass.jpg", dpi=300, width=6, height=4)
+plot.save("walnuts-warmup-inv-mass.jpg", dpi=300, width=4, height=3)
 
 
 # STEP SIZE
@@ -43,4 +43,4 @@ plot = (
     + pn.labs(x="iteration", y="step size")
     + pn.theme_minimal()
 )
-plot.save("walnuts-warmup-step.jpg", dpi=300, width=6, height=4)
+plot.save("walnuts-warmup-step.jpg", dpi=300,  width=4, height=3)

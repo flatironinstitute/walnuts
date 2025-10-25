@@ -88,7 +88,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
 
-5  double max_error = 0.5;  // 1000: NUTS; 1.0: 37% accept; 0.5: 62%; 0.2: 82%
+  double max_error = 1000;  // 1000: NUTS; 1.0: 37% accept; 0.5: 62%; 0.2: 82%
   Integer max_nuts_depth = 8;
   Integer max_step_depth = 5;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);

@@ -207,27 +207,3 @@ if (WALNUTS_BUILD_DOCS)
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
-
-#############################
-##           CLI           ##
-#############################
-# include(FetchContent)  
-# FetchContent_Declare(
-#   cxxopts
-#   GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
-#   GIT_TAG v3.3.1
-# )
-# FetchContent_MakeAvailable(cxxopts)  
-# FetchContent_Declare(
-#   bridgestan
-#   GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
-#   GIT_TAG main         # or a release tag if available
-# )
-# FetchContent_MakeAvailable(bridgestan)
-# find_package(BridgeStan CONFIG REQUIRED)  # sets BridgeStan::BridgeStan
-# target_link_libraries(walnuts_cli PRIVATE
-#   cxxopts::cxxopts Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
-# add_executable(walnuts_cli ${CMAKE_CURRENT_SOURCE_DIR}/cli/walnuts.cpp)
-# target_link_libraries(walnuts_cli PRIVATE cxxopts::cxxopts Eigen3::Eigen nuts::nuts Bridgestan::Bridgestan)
-# target_compile_features(walnuts_cli PRIVATE cxx_std_17)
-

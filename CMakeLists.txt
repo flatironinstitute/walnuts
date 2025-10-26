@@ -102,7 +102,6 @@ if(WALNUTS_BUILD_STAN)
     target_include_directories(BridgeStan::BridgeStan INTERFACE
       "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
     )
-
   add_executable(examples_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples_stan.cpp)  
   target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
   target_compile_options(examples_stan PRIVATE -Wall)  
@@ -147,14 +146,9 @@ if (WALNUTS_BUILD_EXAMPLES)
   add_executable(walnuts-warmup ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-warmup.cpp) 
   target_link_libraries(walnuts-warmup PRIVATE nuts::nuts) 
   target_compile_options(walnuts-warmup PRIVATE -O3 -Wall)  
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
 endif()
 
-##########################
-##       Extras         ##
-##########################
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extras/CMakeLists.txt")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/extras")
-endif()
 
 ##########################
 ##       Tests         ##

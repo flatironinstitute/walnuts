@@ -95,6 +95,9 @@ class DualAverage {
    * @pre alpha > 0
    */
   inline void observe(S alpha) noexcept {
+    if (!std::isfinite(alpha)) {
+      alpha = 0.0;
+    }
     ++obs_count_;
     S prop = 1 / (obs_count_ + obs_count_offset_);
     grad_avg_ = (1 - prop) * grad_avg_ + prop * (target_accept_rate_ - alpha);

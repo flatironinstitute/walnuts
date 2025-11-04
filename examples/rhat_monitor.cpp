@@ -75,8 +75,7 @@ public:
     }
   }
 
-  void append_draw(std::size_t iteration, std::size_t chain_id, double logp,
-                   std::vector<double> &&draw) {
+  void append_draw(double logp, std::vector<double> &&draw) {
     logp_.emplace_back(logp);
     theta_.insert(theta_.end(), draw.begin(), draw.end());
   }
@@ -137,7 +136,7 @@ private:
       std::atomic<std::size_t> write_idx_{0};
 };
 
-constexpr std::size_t RING_CAPACITY = 8;
+constexpr std::size_t RING_CAPACITY = 64;
 
 using Queue = RingBuffer<SampleStats, RING_CAPACITY>;
 
@@ -205,7 +204,7 @@ public:
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
       auto [logp, theta] = sampler_();
       logp_stats_.push(logp);
-      sample_.append_draw(iter, chain_id_, logp, std::move(theta));
+      sample_.append_draw(logp, std::move(theta));
       q_.emplace(logp_stats_.count(), logp_stats_.mean(),
                  logp_stats_.sample_variance());
       if (st.stop_requested())

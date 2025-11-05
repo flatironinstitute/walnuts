@@ -219,6 +219,9 @@ class ChainTask {
     initiated_qos();
     start_gate_.arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
+      if ((iter + 1) % 100 == 0) {
+	std::this_thread::yield();
+      }
       auto [logp, theta] = sampler_();
       logp_stats_.push(logp);
       sample_.append_draw(logp, theta);
@@ -327,6 +330,7 @@ class StandardNormalSampler {
       : dim_(dim), engine_(seed), normal_dist_(0.0, 1.0) {}
 
   std::tuple<double, std::vector<double>> operator()() noexcept {
+    std::this_thread::sleep_for(std::chrono::nanoseconds{1});
     std::vector<double> draws(dim_);
     double log_density = 0.0;
     for (std::size_t i = 0; i < dim_; ++i) {

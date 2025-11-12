@@ -1,4 +1,3 @@
-// TO RUN
 // clang++ -std=c++20 -O3 rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
@@ -34,6 +33,11 @@ double sum(const std::vector<double>& xs) noexcept {
                                std::identity());
 }
 
+double sum(const std::vector<std::size_t>& xs) noexcept {
+  return std::transform_reduce(xs.begin(), xs.end(), 0, std::plus<>{},
+                               std::identity());
+}
+
 double mean(const std::vector<double>& xs) noexcept {
   return sum(xs) / xs.size();
 }
@@ -66,6 +70,8 @@ class Sample {
     logp_.reserve(Nmax);
   }
 
+  std::vector<double>& draws() noexcept { return theta_; }
+
   std::size_t dims() const noexcept { return D_; }
 
   std::size_t num_draws() const noexcept { return logp_.size(); }
@@ -76,7 +82,8 @@ class Sample {
     return theta_[n * D_ + d];
   }
 
-  void write_csv(std::ostream& out, std::size_t dim) const {
+  void write_csv(std::ostream& out) const {
+    auto dim = dims();
     for (std::size_t n = 0; n < num_draws(); ++n) {
       out << chain_id_ << ',' << n << ',' << logp_[n];
       for (std::size_t d = 0; d < dim; ++d) {
@@ -91,6 +98,8 @@ class Sample {
     theta_.insert(theta_.end(), draw.begin(), draw.end());
   }
 
+  void append_logp(double logp) { logp_.push_back(logp); }
+
  private:
   std::size_t chain_id_;
   std::size_t D_;
@@ -99,7 +108,7 @@ class Sample {
   std::vector<double> logp_;
 };
 
-// see https://rigtorp.se/ringbuffer/
+// placeholder ring buffer; see https://rigtorp.se/ringbuffer/
 template <class T, std::size_t Capacity>
 class alignas(std::hardware_destructive_interference_size) RingBuffer {
  public:
@@ -164,7 +173,7 @@ static void write_csv(const std::string& path, std::size_t dim,
   }
   write_csv_header(out, dim);
   for (const auto& sample : samples) {
-    sample.write_csv(out, dim);
+    sample.write_csv(out);
   }
 }
 
@@ -220,29 +229,24 @@ class ChainTask {
     start_gate_.arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
       if ((iter + 1) % 100 == 0) {
-	std::this_thread::yield();
+        std::this_thread::yield();
       }
-      auto [logp, theta] = sampler_();
+      double logp;
+      sampler_.sample(sample_.draws(), logp);
+      sample_.append_logp(logp);
       logp_stats_.push(logp);
-      sample_.append_draw(logp, theta);
       q_.emplace(logp_stats_.sample_stats());
       if (st.stop_requested()) {
         break;
       }
     }
+    // make sure final update sticks
+    while (!st.stop_requested() && !q_.emplace(logp_stats_.sample_stats()));
   }
 
   const Sample& sample() const { return sample_; }
 
   Sample&& take_sample() { return std::move(sample_); }
-
-  double mean_logp() const { return logp_stats_.mean(); }
-
-  double sample_variance_logp() const { return logp_stats_.sample_variance(); }
-
-  std::size_t count_logp() const { return logp_stats_.count(); }
-
-  const WelfordAccumulator& logp_stats() const { return logp_stats_; }
 
  private:
   std::size_t chain_id_;
@@ -254,30 +258,52 @@ class ChainTask {
   std::latch& start_gate_;
 };
 
-static void controller_loop(std::stop_token st, std::vector<Queue>& queues,
+void debug_print(double variance_of_means, double mean_of_variances,
+                 double num_draws, double r_hat,
+                 const std::vector<std::size_t>& counts) {
+  auto M = counts.size();
+  std::cout << "variance of means=" << variance_of_means
+            << "; mean of variances=" << mean_of_variances
+            << "; num draws=" << num_draws << "; r_hat = " << r_hat << '\n';
+  std::cout << "COUNTS: ";
+  for (std::size_t m = 0; m < M; ++m) {
+    if (m > 0) {
+      std::cout << ", ";
+    }
+    std::cout << counts[m];
+  }
+  std::cout << std::endl;
+}
+
+static void controller_loop(std::vector<Queue>& queues,
                             std::vector<std::jthread>& workers,
-                            double rhat_threshold, std::latch& start_gate) {
+                            double rhat_threshold, std::latch& start_gate,
+                            std::size_t max_draws_per_chain) {
+  interactive_qos();
   start_gate.wait();
-  const std::size_t M = static_cast<std::size_t>(queues.size());
+  const std::size_t M = queues.size();
   std::vector<double> chain_means(M, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> chain_variances(M,
                                       std::numeric_limits<double>::quiet_NaN());
+  std::vector<std::size_t> counts(M, 0);
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
+      bool popped = false;
       SampleStats u;
       while (queues[m].pop(u)) {
         chain_means[m] = u.sample_mean;
         chain_variances[m] = u.sample_var;
+        counts[m] = u.count;
       }
     }
     double variance_of_means = variance(chain_means);
     double mean_of_variances = mean(chain_variances);
     double r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
-    // print is just for debugging/demonstrating runs
-    std::cout << "variance of means=" << variance_of_means
-              << "; mean of variances=" << mean_of_variances
-              << "; r_hat = " << r_hat << '\n';
-    if (r_hat <= rhat_threshold) {
+    std::size_t num_draws = sum(counts);
+
+    debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
+
+    if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
       for (auto& w : workers) {
         w.request_stop();
       }
@@ -286,33 +312,28 @@ static void controller_loop(std::stop_token st, std::vector<Queue>& queues,
   }
 }
 
+// Sampler { void sample(vector<double>& draw, double& lp);  size_t dim(); }
 template <typename Sampler>
 std::vector<Sample> sample(std::vector<Sampler>& samplers,
                            double rhat_threshold,
                            std::size_t max_draws_per_chain) {
-  using namespace std::chrono_literals;
-  using Task = ChainTask<Sampler>;
-
-  const std::size_t M = samplers.size();
+  std::size_t M = samplers.size();
   std::vector<Queue> queues(M);
   std::latch start_gate(M);
-  std::vector<Task> tasks;
+  std::vector<ChainTask<Sampler>> tasks;
   tasks.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     tasks.emplace_back(m, max_draws_per_chain, samplers[m], queues[m],
                        start_gate);
   }
-  {  // scope for jthread RAII control
-    std::vector<std::jthread> workers;
-    workers.reserve(M);
-    for (std::size_t m = 0; m < M; ++m) {
-      workers.emplace_back(std::ref(tasks[m]));
-    }
-    std::jthread controller([&](std::stop_token st) {
-      interactive_qos();
-      controller_loop(st, queues, workers, rhat_threshold, start_gate);
-    });
+  std::vector<std::jthread> workers;
+  workers.reserve(M);
+  for (std::size_t m = 0; m < M; ++m) {
+    workers.emplace_back(std::ref(tasks[m]));
   }
+  controller_loop(queues, workers, rhat_threshold, start_gate,
+                  max_draws_per_chain);
+
   std::vector<Sample> samples;
   samples.reserve(M);
   for (auto& task : tasks) {
@@ -323,22 +344,18 @@ std::vector<Sample> sample(std::vector<Sampler>& samplers,
 
 // ****************** EXAMPLE USAGE AFTER HERE ************************
 
-// a simple example---not part of API
 class StandardNormalSampler {
  public:
   explicit StandardNormalSampler(unsigned int seed, std::size_t dim)
-      : dim_(dim), engine_(seed), normal_dist_(0.0, 1.0) {}
+      : dim_(dim), engine_(seed), normal_dist_(0, 1) {}
 
-  std::tuple<double, std::vector<double>> operator()() noexcept {
-    std::this_thread::sleep_for(std::chrono::nanoseconds{1});
-    std::vector<double> draws(dim_);
-    double log_density = 0.0;
+  void sample(std::vector<double>& draw, double& lp) noexcept {
+    lp = 0;
     for (std::size_t i = 0; i < dim_; ++i) {
       double x = normal_dist_(engine_);
-      draws[i] = x;
-      log_density += -0.5 * x * x;  // unnormalized
+      draw.push_back(x);
+      lp += -0.5 * x * x;  // unnomalized
     }
-    return {log_density, std::move(draws)};
   }
 
   std::size_t dim() const noexcept { return dim_; }
@@ -351,16 +368,16 @@ class StandardNormalSampler {
 
 int main() {
   const std::string csv_path = "samples.csv";
-  const std::size_t D = 8;
+  const std::size_t D = 16;
   std::size_t M = 16;
-  const std::size_t N = 50000;
+  const std::size_t N = 1000;
   double rhat_threshold = 1.001;
 
   std::random_device rd;
   std::vector<StandardNormalSampler> samplers;
   samplers.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    unsigned int seed = rd();
+    auto seed = rd();
     samplers.emplace_back(seed, D);
   }
 
@@ -378,7 +395,7 @@ int main() {
               << "  Final: mean(logp)=" << mean(lps)
               << "  var(logp) [sample]=" << variance(lps) << '\n';
   }
-  std::cout << "Total rows: " << rows << '\n';
+  std::cout << "Number of draws: " << rows << '\n';
 
   write_csv(csv_path, D, samples);
   std::cout << "Wrote draws to " << csv_path << '\n';

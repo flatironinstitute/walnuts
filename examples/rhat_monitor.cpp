@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -O3 rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -O3 -pthreads rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <atomic>
@@ -226,22 +226,23 @@ class ChainTask {
 
   void operator()(std::stop_token st) {
     initiated_qos();
-    start_gate_.arrive_and_wait();
+    start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
       if ((iter + 1) % 100 == 0) {
         std::this_thread::yield();
       }
       double logp;
-      sampler_.sample(sample_.draws(), logp);
+      sampler_.get().sample(sample_.draws(), logp);
       sample_.append_logp(logp);
       logp_stats_.push(logp);
-      q_.emplace(logp_stats_.sample_stats());
+      q_.get().emplace(logp_stats_.sample_stats());
       if (st.stop_requested()) {
         break;
       }
     }
     // make sure final update sticks
-    while (!st.stop_requested() && !q_.emplace(logp_stats_.sample_stats()));
+    while (!st.stop_requested()
+	   && !q_.get().emplace(logp_stats_.sample_stats()));
   }
 
   const Sample& sample() const { return sample_; }
@@ -251,11 +252,11 @@ class ChainTask {
  private:
   std::size_t chain_id_;
   std::size_t draws_per_chain_;
-  Sampler& sampler_;
+  std::reference_wrapper<Sampler> sampler_;
   Sample sample_;
   WelfordAccumulator logp_stats_;
-  Queue& q_;
-  std::latch& start_gate_;
+  std::reference_wrapper<Queue> q_;
+  std::reference_wrapper<std::latch> start_gate_;
 };
 
 void debug_print(double variance_of_means, double mean_of_variances,

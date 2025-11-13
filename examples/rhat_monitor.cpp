@@ -231,8 +231,7 @@ class ChainTask {
       if ((iter + 1) % 100 == 0) {
         std::this_thread::yield();
       }
-      double logp;
-      sampler_.get().sample(sample_.draws(), logp);
+      double logp = sampler_.get().sample(sample_.draws());
       sample_.append_logp(logp);
       logp_stats_.push(logp);
       q_.get().emplace(logp_stats_.sample_stats());
@@ -313,7 +312,7 @@ static void controller_loop(std::vector<Queue>& queues,
   }
 }
 
-// Sampler { void sample(vector<double>& draw, double& lp);  size_t dim(); }
+// Sampler { double sample(vector<double>& draw);  size_t dim(); }
 template <typename Sampler>
 std::vector<Sample> sample(std::vector<Sampler>& samplers,
                            double rhat_threshold,
@@ -350,13 +349,14 @@ class StandardNormalSampler {
   explicit StandardNormalSampler(unsigned int seed, std::size_t dim)
       : dim_(dim), engine_(seed), normal_dist_(0, 1) {}
 
-  void sample(std::vector<double>& draw, double& lp) noexcept {
-    lp = 0;
+  double sample(std::vector<double>& draw) noexcept {
+    double lp = 0;
     for (std::size_t i = 0; i < dim_; ++i) {
       double x = normal_dist_(engine_);
       draw.push_back(x);
       lp += -0.5 * x * x;  // unnomalized
     }
+    return lp;
   }
 
   std::size_t dim() const noexcept { return dim_; }

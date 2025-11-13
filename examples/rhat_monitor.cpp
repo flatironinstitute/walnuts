@@ -181,7 +181,7 @@ class WelfordAccumulator {
  public:
   WelfordAccumulator() : n_(0), mean_(0.0), M2_(0.0) {}
 
-  void push(double x) {
+  void observe(double x) {
     ++n_;
     const double delta = x - mean_;
     mean_ += delta / static_cast<double>(n_);
@@ -233,7 +233,8 @@ class ChainTask {
       }
       double logp = sampler_.get().sample(sample_.draws());
       sample_.append_logp(logp);
-      logp_stats_.push(logp);
+      logp_stats_.observe(logp);
+      // busy spin hangs here with busy spin on controller
       q_.get().emplace(logp_stats_.sample_stats());
       if (st.stop_requested()) {
         break;

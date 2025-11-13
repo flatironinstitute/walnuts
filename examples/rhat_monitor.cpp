@@ -278,7 +278,8 @@ void debug_print(double variance_of_means, double mean_of_variances,
 static void controller_loop(std::vector<Queue>& queues,
                             std::vector<std::jthread>& workers,
                             double rhat_threshold, std::latch& start_gate,
-                            std::size_t max_draws_per_chain) {
+                            std::size_t max_draws_per_chain,
+			    std::stop_source& stopper) {
   interactive_qos();
   start_gate.wait();
   const std::size_t M = queues.size();
@@ -304,9 +305,7 @@ static void controller_loop(std::vector<Queue>& queues,
     debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
 
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-      for (auto& w : workers) {
-        w.request_stop();
-      }
+      stopper.request_stop();
       break;
     }
   }
@@ -326,17 +325,18 @@ std::vector<Sample> sample(std::vector<Sampler>& samplers,
     tasks.emplace_back(m, max_draws_per_chain, samplers[m], queues[m],
                        start_gate);
   }
+  std::stop_source stopper;
   std::vector<std::jthread> workers;
   workers.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    workers.emplace_back(std::ref(tasks[m]));
+    workers.emplace_back(std::ref(tasks[m]), stopper.get_token());
   }
   controller_loop(queues, workers, rhat_threshold, start_gate,
-                  max_draws_per_chain);
+                  max_draws_per_chain, stopper);
 
   std::vector<Sample> samples;
   samples.reserve(M);
-  for (auto& task : tasks) {
+  for (auto& task : tasks) { 
     samples.emplace_back(task.take_sample());
   }
   return samples;

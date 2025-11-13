@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -O3 -pthreads rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -O3 -pthread rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <atomic>
@@ -8,11 +8,11 @@
 #include <functional>
 #include <iostream>
 #include <latch>
+#include <numeric>
 #include <random>
 #include <stop_token>
 #include <string>
 #include <thread>
-#include <tuple>
 #include <vector>
 
 #ifdef __APPLE__

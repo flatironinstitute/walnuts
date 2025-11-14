@@ -33,7 +33,7 @@ double sum(const std::vector<double>& xs) noexcept {
                                std::identity());
 }
 
-double sum(const std::vector<std::size_t>& xs) noexcept {
+std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
   return std::transform_reduce(xs.begin(), xs.end(), 0, std::plus<>{},
                                std::identity());
 }
@@ -56,15 +56,15 @@ double variance(const std::vector<double>& xs) noexcept {
   return sum / (N - 1);
 }
 
-struct SampleStats {
+struct ChainStats {
   std::size_t count;
   double sample_mean;
   double sample_var;
 };
 
-class Sample {
+class ChainRecord {
  public:
-  Sample(std::size_t chain_id, std::size_t D, std::size_t Nmax)
+  ChainRecord(std::size_t chain_id, std::size_t D, std::size_t Nmax)
       : chain_id_(chain_id), D_(D), Nmax_(Nmax) {
     theta_.reserve(Nmax * D);
     logp_.reserve(Nmax);
@@ -93,11 +93,6 @@ class Sample {
     }
   }
 
-  void append_draw(double logp, std::vector<double>& draw) {
-    logp_.emplace_back(logp);
-    theta_.insert(theta_.end(), draw.begin(), draw.end());
-  }
-
   void append_logp(double logp) { logp_.push_back(logp); }
 
  private:
@@ -113,6 +108,10 @@ template <class T, std::size_t Capacity>
 class alignas(std::hardware_destructive_interference_size) RingBuffer {
  public:
   explicit RingBuffer() : data_(Capacity) {}
+  RingBuffer(const RingBuffer&) = delete;
+  RingBuffer& operator=(const RingBuffer&) = delete;
+  RingBuffer(RingBuffer&&) = delete;
+  RingBuffer& operator=(RingBuffer&&) = delete;
 
   template <class... Args>
   bool emplace(Args&&... args) noexcept {
@@ -155,7 +154,7 @@ class alignas(std::hardware_destructive_interference_size) RingBuffer {
 
 constexpr std::size_t RING_CAPACITY = 64;
 
-using Queue = RingBuffer<SampleStats, RING_CAPACITY>;
+using Queue = RingBuffer<ChainStats, RING_CAPACITY>;
 
 static void write_csv_header(std::ofstream& out, std::size_t dim) {
   out << "chain,iteration,log_density";
@@ -166,14 +165,14 @@ static void write_csv_header(std::ofstream& out, std::size_t dim) {
 }
 
 static void write_csv(const std::string& path, std::size_t dim,
-                      const std::vector<Sample>& samples) {
+                      const std::vector<ChainRecord>& chain_records) {
   std::ofstream out(path, std::ios::binary);  // binary for Windows consistency
   if (!out) {
     throw std::runtime_error("could not open file: " + path);
   }
   write_csv_header(out, dim);
-  for (const auto& sample : samples) {
-    sample.write_csv(out);
+  for (const auto& chain_record : chain_records) {
+    chain_record.write_csv(out);
   }
 }
 
@@ -198,7 +197,7 @@ class WelfordAccumulator {
                   : std::numeric_limits<double>::quiet_NaN();
   }
 
-  SampleStats sample_stats() { return {count(), mean(), sample_variance()}; }
+  ChainStats sample_stats() { return {count(), mean(), sample_variance()}; }
 
   void reset() {
     n_ = 0;
@@ -213,14 +212,14 @@ class WelfordAccumulator {
 };
 
 template <class Sampler>
-class ChainTask {
+class ChainWorker {
  public:
-  ChainTask(std::size_t chain_id, std::size_t draws_per_chain, Sampler& sampler,
+  ChainWorker(std::size_t chain_id, std::size_t draws_per_chain, Sampler& sampler,
             Queue& q, std::latch& start_gate)
       : chain_id_(chain_id),
         draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        sample_(chain_id, sampler.dim(), draws_per_chain),
+        chain_record_(chain_id, sampler.dim(), draws_per_chain),
         q_(q),
         start_gate_(start_gate) {}
 
@@ -231,8 +230,8 @@ class ChainTask {
       if ((iter + 1) % 100 == 0) {
         std::this_thread::yield();
       }
-      double logp = sampler_.get().sample(sample_.draws());
-      sample_.append_logp(logp);
+      double logp = sampler_.get().sample(chain_record_.draws());
+      chain_record_.append_logp(logp);
       logp_stats_.observe(logp);
       // busy spin hangs here with busy spin on controller
       q_.get().emplace(logp_stats_.sample_stats());
@@ -245,15 +244,15 @@ class ChainTask {
 	   && !q_.get().emplace(logp_stats_.sample_stats()));
   }
 
-  const Sample& sample() const { return sample_; }
+  // const ChainRecord& chain_record() const { return chain_record_; }
 
-  Sample&& take_sample() { return std::move(sample_); }
+  ChainRecord&& take_chain_record() { return std::move(chain_record_); }
 
  private:
   std::size_t chain_id_;
   std::size_t draws_per_chain_;
   std::reference_wrapper<Sampler> sampler_;
-  Sample sample_;
+  ChainRecord chain_record_;
   WelfordAccumulator logp_stats_;
   std::reference_wrapper<Queue> q_;
   std::reference_wrapper<std::latch> start_gate_;
@@ -291,7 +290,7 @@ static void controller_loop(std::vector<Queue>& queues,
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
       bool popped = false;
-      SampleStats u;
+      ChainStats u;
       while (queues[m].pop(u)) {
         chain_means[m] = u.sample_mean;
         chain_variances[m] = u.sample_var;
@@ -314,13 +313,13 @@ static void controller_loop(std::vector<Queue>& queues,
 
 // Sampler { double sample(vector<double>& draw);  size_t dim(); }
 template <typename Sampler>
-std::vector<Sample> sample(std::vector<Sampler>& samplers,
-                           double rhat_threshold,
-                           std::size_t max_draws_per_chain) {
+std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
+				double rhat_threshold,
+				std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
   std::vector<Queue> queues(M);
   std::latch start_gate(M);
-  std::vector<ChainTask<Sampler>> tasks;
+  std::vector<ChainWorker<Sampler>> tasks;
   tasks.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     tasks.emplace_back(m, max_draws_per_chain, samplers[m], queues[m],
@@ -335,12 +334,12 @@ std::vector<Sample> sample(std::vector<Sampler>& samplers,
   controller_loop(queues, workers, rhat_threshold, start_gate,
                   max_draws_per_chain, stopper);
 
-  std::vector<Sample> samples;
-  samples.reserve(M);
+  std::vector<ChainRecord> chain_records;
+  chain_records.reserve(M);
   for (auto& task : tasks) { 
-    samples.emplace_back(task.take_sample());
+    chain_records.emplace_back(task.take_chain_record());
   }
-  return samples;
+  return chain_records;
 }
 
 // ****************** EXAMPLE USAGE AFTER HERE ************************
@@ -383,14 +382,14 @@ int main() {
     samplers.emplace_back(seed, D);
   }
 
-  std::vector<Sample> samples = sample(samplers, rhat_threshold, N);
+  std::vector<ChainRecord> chain_records = sample(samplers, rhat_threshold, N);
   std::size_t rows = 0;
-  for (std::size_t m = 0; m < samples.size(); ++m) {
-    const auto& sample = samples[m];
-    std::size_t N_m = sample.num_draws();
+  for (std::size_t m = 0; m < chain_records.size(); ++m) {
+    const auto& chain_record = chain_records[m];
+    std::size_t N_m = chain_record.num_draws();
     std::vector<double> lps(N_m);
     for (std::size_t n = 0; n < N_m; ++n) {
-      lps[n] = sample.logp(n);
+      lps[n] = chain_record.logp(n);
     }
     rows += N_m;
     std::cout << "Chain " << m << "  count=" << N_m
@@ -399,7 +398,7 @@ int main() {
   }
   std::cout << "Number of draws: " << rows << '\n';
 
-  write_csv(csv_path, D, samples);
+  write_csv(csv_path, D, chain_records);
   std::cout << "Wrote draws to " << csv_path << '\n';
 
   return 0;

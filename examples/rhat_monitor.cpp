@@ -227,13 +227,13 @@ class ChainWorker {
     initiated_qos();
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
-      if ((iter + 1) % 100 == 0) {
+      if ((iter + 1) % 10 == 0) {
         std::this_thread::yield();
       }
       double logp = sampler_.get().sample(chain_record_.draws());
       chain_record_.append_logp(logp);
       logp_stats_.observe(logp);
-      // busy spin hangs here with busy spin on controller
+      // adding busy spin here on controller hangs
       q_.get().emplace(logp_stats_.sample_stats());
       if (st.stop_requested()) {
         break;
@@ -243,8 +243,6 @@ class ChainWorker {
     while (!st.stop_requested()
 	   && !q_.get().emplace(logp_stats_.sample_stats()));
   }
-
-  // const ChainRecord& chain_record() const { return chain_record_; }
 
   ChainRecord&& take_chain_record() { return std::move(chain_record_); }
 
@@ -262,10 +260,9 @@ void debug_print(double variance_of_means, double mean_of_variances,
                  double num_draws, double r_hat,
                  const std::vector<std::size_t>& counts) {
   auto M = counts.size();
-  std::cout << "variance of means=" << variance_of_means
-            << "; mean of variances=" << mean_of_variances
-            << "; num draws=" << num_draws << "; r_hat = " << r_hat << '\n';
-  std::cout << "COUNTS: ";
+  std::cout << "RHAT: " << r_hat
+	    << "  NUM_DRAWS: " << num_draws
+	    << "  COUNTS: ";
   for (std::size_t m = 0; m < M; ++m) {
     if (m > 0) {
       std::cout << ", ";
@@ -289,7 +286,6 @@ static void controller_loop(std::vector<Queue>& queues,
   std::vector<std::size_t> counts(M, 0);
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
-      bool popped = false;
       ChainStats u;
       while (queues[m].pop(u)) {
         chain_means[m] = u.sample_mean;
@@ -319,25 +315,27 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   std::size_t M = samplers.size();
   std::vector<Queue> queues(M);
   std::latch start_gate(M);
-  std::vector<ChainWorker<Sampler>> tasks;
-  tasks.reserve(M);
-  for (std::size_t m = 0; m < M; ++m) {
-    tasks.emplace_back(m, max_draws_per_chain, samplers[m], queues[m],
-                       start_gate);
-  }
-  std::stop_source stopper;
-  std::vector<std::jthread> workers;
+  std::vector<ChainWorker<Sampler>> workers;
   workers.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    workers.emplace_back(std::ref(tasks[m]), stopper.get_token());
+    workers.emplace_back(m, max_draws_per_chain, samplers[m], queues[m],
+			 start_gate);
   }
-  controller_loop(queues, workers, rhat_threshold, start_gate,
-                  max_draws_per_chain, stopper);
-
+  { 
+    std::stop_source stopper;
+    std::vector<std::jthread> threads;
+    threads.reserve(M);
+    for (std::size_t m = 0; m < M; ++m) {
+      threads.emplace_back(std::ref(workers[m]), stopper.get_token());
+    }
+    controller_loop(queues, threads, rhat_threshold, start_gate,
+		    max_draws_per_chain, stopper);
+  }
+  
   std::vector<ChainRecord> chain_records;
   chain_records.reserve(M);
-  for (auto& task : tasks) { 
-    chain_records.emplace_back(task.take_chain_record());
+  for (auto& worker : workers) {
+    chain_records.emplace_back(worker.take_chain_record()); 
   }
   return chain_records;
 }
@@ -399,7 +397,7 @@ int main() {
   std::cout << "Number of draws: " << rows << '\n';
 
   write_csv(csv_path, D, chain_records);
-  std::cout << "Wrote draws to " << csv_path << '\n';
+   std::cout << "Wrote draws to " << csv_path << '\n';
 
   return 0;
 }

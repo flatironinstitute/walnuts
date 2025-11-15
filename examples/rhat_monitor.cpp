@@ -114,7 +114,7 @@ class alignas(std::hardware_destructive_interference_size) RingBuffer {
   RingBuffer& operator=(RingBuffer&&) = delete;
 
   template <class... Args>
-  bool emplace(Args&&... args) noexcept {
+  bool try_emplace(Args&&... args) noexcept {
     auto write_idx = write_idx_.load(std::memory_order_relaxed);
     auto next = write_idx + 1;
     if (next == Capacity) {
@@ -141,8 +141,6 @@ class alignas(std::hardware_destructive_interference_size) RingBuffer {
     read_idx_.store(next, std::memory_order_release);
     return true;
   }
-
-  std::size_t capacity() const noexcept { return Capacity; }
 
  private:
   std::vector<T> data_;
@@ -215,7 +213,7 @@ template <class Sampler>
 class ChainWorker {
  public:
   ChainWorker(std::size_t chain_id, std::size_t draws_per_chain, Sampler& sampler,
-            Queue& q, std::latch& start_gate)
+	      Queue& q, std::latch& start_gate)
       : chain_id_(chain_id),
         draws_per_chain_(draws_per_chain),
         sampler_(sampler),
@@ -227,21 +225,21 @@ class ChainWorker {
     initiated_qos();
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
-      if ((iter + 1) % 10 == 0) {
+      if ((iter + 1) % 16 == 0) {
         std::this_thread::yield();
       }
       double logp = sampler_.get().sample(chain_record_.draws());
       chain_record_.append_logp(logp);
       logp_stats_.observe(logp);
-      // adding busy spin here on controller hangs
-      q_.get().emplace(logp_stats_.sample_stats());
+      // ignore return of emplace
+      q_.get().try_emplace(logp_stats_.sample_stats());
       if (st.stop_requested()) {
         break;
       }
     }
     // make sure final update sticks
     while (!st.stop_requested()
-	   && !q_.get().emplace(logp_stats_.sample_stats()));
+	   && !q_.get().try_emplace(logp_stats_.sample_stats()));
   }
 
   ChainRecord&& take_chain_record() { return std::move(chain_record_); }
@@ -307,7 +305,7 @@ static void controller_loop(std::vector<Queue>& queues,
   }
 }
 
-// Sampler { double sample(vector<double>& draw);  size_t dim(); }
+// Sampler requires: { double sample(vector<double>& draw);  size_t dim(); }
 template <typename Sampler>
 std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
 				double rhat_threshold,

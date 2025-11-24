@@ -180,26 +180,25 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
 
 int main() {
   unsigned int seed = 83435638;
-  Integer D = 200;
+  Integer D = 100;
   Integer N = 1000;
-  S step_size = 0.4;
-  Integer max_depth = 10;
-  Integer min_micro_steps = 4;
+  S step_size = 0.5;
+  Integer max_depth = 8;
+  Integer min_micro_steps = 3;
   S max_error = 1;  // 61% Metropolis
   VectorS inv_mass = VectorS::Ones(D);
   std::mt19937 rng(seed);
 
-  std::normal_distribution<S> std_normal(0, 1);
   VectorS theta_init(D);
+  std::normal_distribution<S> std_normal(0, 1);
   for (Integer i = 0; i < D; ++i) {
     theta_init(i) = std_normal(rng);
   }
+  // uncomment following to init at bottleneck
+  // theta_init = VectorS::Zero(D);
 
-  // alternatively, uncomment following to init at bottleneck
-  // VectorS theta_init = VectorS::Zero(D);
-
-  auto target_logp_grad = ill_cond_normal_logp_grad;
   // auto target_logp_grad = std_normal_logp_grad;
+  auto target_logp_grad = ill_cond_normal_logp_grad;
 
   run_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
            inv_mass);

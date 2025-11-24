@@ -153,7 +153,8 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
- * @param[in] num_steps The number of micro steps to take.
+ * @param[in] num_steps The number of micro steps proposed forward.
+ * @param[in] min_micro_steps The minimum number of micro steps to take.
  * @param[in] max_error The maximum error tolerance in Hessians.
  * @param[in] logp_next The log density of the starting position.
  * @param[in] theta The final position from which to reverse.
@@ -163,7 +164,7 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
  */
 template <typename S, typename F>
 bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
-                Integer num_steps, S max_error, S logp_next,
+                Integer num_steps, Integer min_micro_steps, S max_error, S logp_next,
                 const Vec<S>& theta, const Vec<S>& rho, const Vec<S>& grad) {
   if (num_steps == 1) {
     return true;
@@ -171,7 +172,7 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
   Vec<S> theta_next(grad.size());
   Vec<S> rho_next(rho.size());
   Vec<S> grad_next(grad.size());
-  while (num_steps >= 2) {
+  while (num_steps > 2 * min_micro_steps) {
     theta_next = theta;
     rho_next = -rho;
     grad_next = grad;
@@ -239,8 +240,8 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
       adapt_handler(min_accept);
     }
     if (std::fabs(logp - logp_next) <= max_error) {
-      return reversible(logp_grad, inv_mass, step, num_steps, max_error,
-                        logp_next, theta_next, rho_next, grad_next);
+      return reversible(logp_grad, inv_mass, step, num_steps, min_micro_steps,
+			max_error, logp_next, theta_next, rho_next, grad_next);
     }
   }
   return false;

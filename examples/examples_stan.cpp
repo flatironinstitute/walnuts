@@ -86,12 +86,14 @@ static void test_walnuts(const DynamicStanModel& model,
                          S macro_step_size, Integer max_nuts_depth,
 			 Integer min_micro_steps,
                          S log_max_error, VectorS inv_mass) {
+  Integer max_step_halvings = 2;
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   auto logp = [&model](auto&&... args) { model.logp_grad(args...); };
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
-                              max_nuts_depth, min_micro_steps, log_max_error);
+                              max_nuts_depth, max_step_halvings,
+			      min_micro_steps, log_max_error);
   int M = model.constrained_dimensions();
 
   MatrixS draws(M, N);

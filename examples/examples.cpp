@@ -108,16 +108,20 @@ static void run_nuts(const F& target_logp_grad, const VectorS& theta_init,
 template <typename F, typename RNG>
 static void run_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng,
                         Integer D, Integer N, S macro_step_size,
-                        Integer max_nuts_depth, S max_error, VectorS inv_mass) {
+                        Integer max_nuts_depth, Integer max_step_halvings,
+			Integer min_micro_steps,
+			S max_error, VectorS inv_mass) {
   std::cout << "\nRUN WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << ";  macro_step_size = " << macro_step_size
             << ";  max_nuts_depth = " << max_nuts_depth
+	    << ";  min_micro_steps = " << min_micro_steps
             << ";  max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
   nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
-                              macro_step_size, max_nuts_depth, max_error);
+                              macro_step_size, max_nuts_depth, max_step_halvings,
+			      min_micro_steps, max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
@@ -129,7 +133,9 @@ static void run_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng,
 template <typename F, typename RNG>
 static void run_adaptive_walnuts(const F& target_logp_grad,
                                  const VectorS& theta_init, RNG& rng, Integer D,
-                                 Integer N, Integer max_nuts_depth,
+                                 Integer N, double step_size_init,
+				 Integer max_nuts_depth,
+				 Integer min_micro_steps,
                                  S max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
   double init_count = 1.1;
@@ -137,7 +143,6 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
   double additive_smoothing = 0.1;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
-  double step_size_init = 0.5;
   double accept_rate_target = 2.0 / 3.0;
   double step_iteration_offset = 2.0;
   double learning_rate = 0.95;
@@ -146,11 +151,13 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
+				  min_micro_steps);
   std::cout << "\nRUN ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
             << "; max_nuts_depth = " << max_nuts_depth
+	    << "; min_micro_steps = " << min_micro_steps
             << "; max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
@@ -166,42 +173,43 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
   global_end_timer();
   summarize(draws);
   std::cout << std::endl;
-  std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
+  std::cout << "Initial micro step size = " << sampler.macro_step_size() << std::endl;
   std::cout << "Max error = " << sampler.max_error() << std::endl;
   std::cout << "Inverse mass matrix = "
             << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
 }
 
 int main() {
-  unsigned int seed = 428763;
-  Integer D = 200;
+  unsigned int seed = 83435638;
+  Integer D = 100;
   Integer N = 1000;
   S step_size = 0.5;
-  Integer max_depth = 10;
-  S max_error = 1.0;  // 61% Metropolis
+  Integer max_depth = 8;
+  Integer max_step_halvings = 5;
+  Integer min_micro_steps = 3;
+  S max_error = 1;  // 61% Metropolis
   VectorS inv_mass = VectorS::Ones(D);
   std::mt19937 rng(seed);
 
-  std::normal_distribution<S> std_normal(0, 1);
   VectorS theta_init(D);
+  std::normal_distribution<S> std_normal(0, 1);
   for (Integer i = 0; i < D; ++i) {
     theta_init(i) = std_normal(rng);
   }
+  // uncomment following to init at bottleneck
+  // theta_init = VectorS::Zero(D);
 
-  // alternatively, uncomment following to init at bottleneck
-  // VectorS theta_init = VectorS::Zero(D);
-
-  auto target_logp_grad = ill_cond_normal_logp_grad;
   // auto target_logp_grad = std_normal_logp_grad;
+  auto target_logp_grad = ill_cond_normal_logp_grad;
 
   run_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
            inv_mass);
 
   run_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
-              max_error, inv_mass);
+              max_step_halvings, min_micro_steps, max_error, inv_mass);
 
-  run_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, max_depth,
-                       max_error);
+  run_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, step_size,
+		       max_depth, min_micro_steps, max_error);
 
   return 0;
 }

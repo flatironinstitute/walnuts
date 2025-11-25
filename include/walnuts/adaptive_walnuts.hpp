@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <utility>
 
 #include "dual_average.hpp"
@@ -188,43 +187,48 @@ struct WalnutsConfig {
    * @brief Construct a WALNUTS configuration with the specified
    * tuning parameters.
    *
-   * @param[in] log_max_error The maximum Hamiltonian error per
+   * @param[in] max_error The maximum Hamiltonian error per
    * macro leapfrog step.
    * @param[in] max_nuts_depth The maximum number of trajectory
    * doublings for NUTS.
-   * @param[in] max_step_depth The maximum number of step doublings
+   * @param[in] max_step_halvings The maximum number of step halvings
    * per macro step.
+   * @param[in] min_micro_steps The minimum number of micro steps per macro
+   *  step.
    * @throw std::invalid_argument If the log max error is not finite and
    * positive.
    * @throw std::invalid_argument If the maximum tree depth is not positive.
    * @throw std::invalid_argument If the maximum step depth is negative.
    */
-  WalnutsConfig(S log_max_error, Integer max_nuts_depth,
-		Integer max_step_depth, Integer min_micro_steps)
-      : log_max_error_(log_max_error),
+  WalnutsConfig(S max_error, Integer max_nuts_depth, Integer max_step_halvings,
+		Integer min_micro_steps)
+      : max_error_(max_error),
         max_nuts_depth_(max_nuts_depth),
-        max_step_depth_(max_step_depth),
+        max_step_halvings_(max_step_halvings),
 	min_micro_steps_(min_micro_steps) {
-    if (!(log_max_error > 0) || std::isinf(log_max_error)) {
+    if (!(max_error > 0) || std::isinf(max_error)) {
       throw std::invalid_argument(
           "Log maximum error must be positive and finite.");
     }
-    if (max_nuts_depth < 1) {
+    if (max_nuts_depth <= 0) {
       throw std::invalid_argument("Maximum NUTS depth must be positive.");
     }
-    if (max_step_depth < 0) {
-      throw std::invalid_argument("Maximum step depth must be non-negative.");
+    if (max_step_halvings < 0) {
+      throw std::invalid_argument("Maximum step halvings must be non-negative.");
+    }
+    if (min_micro_steps <= 0) {
+      throw std::invalid_argument("Minimum micro steps must be positive.");
     }
   }
 
   /** The maximum error in Hamiltonian in macro steps. */
-  const S log_max_error_;
+  const S max_error_;
 
   /** The maximum number of trajectory doublings in NUTS. */
   const Integer max_nuts_depth_;
 
   /** The maximum number of step doublings per macro step. */
-  const Integer max_step_depth_;
+  const Integer max_step_halvings_;
 
   /** The minimum number of micro steps per macro step. */
   const Integer min_micro_steps_;
@@ -349,10 +353,10 @@ class MassEstimator {
     S smoothing = mass_cfg_.additive_smoothing_;
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
-    Vec<S> abs_grad_init = grad.array().abs(); // .sqrt() to condition further
-    Vec<S> init_prec = (1 - smoothing) * abs_grad_init + smooth_vec;
+    Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
+    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
-    S dummy_discount = 0.5;  // gets reset before being used
+    S dummy_discount = 0.98;  // gets reset before being used
     inv_var_estimator_ = OnlineMoments<S, Integer>(
         dummy_discount, mass_cfg.iter_offset_, zero, init_prec);
     var_estimator_ = OnlineMoments<S, Integer>(
@@ -492,9 +496,9 @@ class AdaptiveWalnuts {
     Vec<S> grad_select;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, std::move(theta_), grad_select,
-        walnuts_cfg_.log_max_error_, walnuts_cfg_.min_micro_steps_,
-	step_adapt_handler_);
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
+	walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_,
+	std::move(theta_), grad_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
     return theta_;
@@ -511,22 +515,11 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
-    auto M = mass_estimator_.inv_mass_estimate();
-    auto step_size = step_adapt_handler_.step_size();
-    std::cout << "step_size = " << step_size
-	      << (step_size > 1 ? " ********************" : "")
-	      << std::endl;
-    std::cout << "|| inv(mass) || = "
-              << std::sqrt(M.dot(M))
-              << std::endl;
-    std::cout << "inv(mass) = "
-              << M.transpose()
-              << std::endl;
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.log_max_error_,
-	walnuts_cfg_.min_micro_steps_);
+        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
+	walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_);
   }
 
   /**

@@ -315,9 +315,9 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] span The span to extend.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The macro step size.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
- * @param[in] step The macro step size.
  * @param[in] max_error The maximum error allowed in the Hamiltonian.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The span resulting from extending the specified span or
@@ -325,8 +325,9 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
  */
 template <Direction D, typename S, class F, class A>
 std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
-                                   const Vec<S>& inv_mass, Integer max_step_halvings,
-				   Integer min_micro_steps, S step,
+                                   const Vec<S>& inv_mass, S step,
+				   Integer max_step_halvings,
+				   Integer min_micro_steps,
 				   S max_error, A& adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
@@ -372,8 +373,8 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
 				   S max_error, const SpanW<S>& last_span,
                                    A& adapt_handler) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad, last_span, inv_mass, max_step_halvings,
-			 min_micro_steps, step, max_error, adapt_handler);
+    return build_leaf<D>(logp_grad, last_span, inv_mass, step, max_step_halvings,
+			 min_micro_steps, max_error, adapt_handler);
   }
   auto maybe_subspan1 = build_span<D>(rng, logp_grad, inv_mass, step, depth - 1,
                                       max_step_halvings, min_micro_steps, max_error,
@@ -410,9 +411,9 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
  * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
+ * @param[in] max_error The maximum difference in Hamiltonians.
  * @param[in] theta The previous state.
  * @param[out] theta_grad The gradient of the log density at the previous state.
- * @param[in] max_error The maximum difference in Hamiltonians.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
@@ -420,7 +421,7 @@ template <typename S, class F, class Rand, class A>
 Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
                     const Vec<S>& chol_mass, S step, Integer max_depth,
 		    Integer max_step_halvings, Integer min_micro_steps,
-                    Vec<S>&& theta, Vec<S>& theta_grad, S max_error,
+                    S max_error, Vec<S>&& theta, Vec<S>& theta_grad, 
                     A& adapt_handler) {
   Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
@@ -516,13 +517,13 @@ class WalnutsSampler {
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for NUTS.
    * @param[in] max_step_halvings The maximum number of times the step size is halved.
    * @param[in] min_micro_steps The minimum number of micro steps per macro step.
-   * @param[in] log_max_error The log of the maximum error in joint densities
+   * @param[in] max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    */
   WalnutsSampler(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta,
                  const Vec<S>& inv_mass, S macro_step_size,
                  Integer max_nuts_depth, Integer max_step_halvings,
-		 Integer min_micro_steps, S log_max_error)
+		 Integer min_micro_steps, S max_error)
       : rand_(rand),
         logp_grad_(logp_grad),
         theta_(theta),
@@ -532,7 +533,7 @@ class WalnutsSampler {
         max_nuts_depth_(max_nuts_depth),
 	max_step_halvings_(max_step_halvings),
 	min_micro_steps_(min_micro_steps),
-        log_max_error_(log_max_error),
+        max_error_(max_error),
         no_op_adapt_handler_() {}
 
   /**
@@ -544,8 +545,8 @@ class WalnutsSampler {
     Vec<S> grad_next;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
-			  min_micro_steps_, std::move(theta_),
-                          grad_next, log_max_error_,
+			  min_micro_steps_, max_error_,
+			  std::move(theta_), grad_next, 
 			  no_op_adapt_handler_);
     return theta_;
   }
@@ -569,7 +570,7 @@ class WalnutsSampler {
    *
    * @return The maximum error allowed among Hamiltonians.
    */
-  S max_error() const { return log_max_error_; }
+  S max_error() const { return max_error_; }
 
  private:
   /** The underlying randomizer. */
@@ -600,7 +601,7 @@ class WalnutsSampler {
   const Integer min_micro_steps_;
 
   /** The max difference of Hamiltonians along a macro step. */
-  const S log_max_error_;
+  const S max_error_;
 
   /** A handler for adaptation which does nothing. */
   const NoOpHandler no_op_adapt_handler_;

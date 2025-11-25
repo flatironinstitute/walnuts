@@ -108,7 +108,8 @@ static void run_nuts(const F& target_logp_grad, const VectorS& theta_init,
 template <typename F, typename RNG>
 static void run_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng,
                         Integer D, Integer N, S macro_step_size,
-                        Integer max_nuts_depth, Integer min_micro_steps,
+                        Integer max_nuts_depth, Integer max_step_halvings,
+			Integer min_micro_steps,
 			S max_error, VectorS inv_mass) {
   std::cout << "\nRUN WALNUTS"
             << ";  D = " << D << ";  N = " << N
@@ -119,8 +120,8 @@ static void run_walnuts(const F& target_logp_grad, VectorS theta_init, RNG& rng,
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
   nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
-                              macro_step_size, max_nuts_depth, min_micro_steps,
-			      max_error);
+                              macro_step_size, max_nuts_depth, max_step_halvings,
+			      min_micro_steps, max_error);
   MatrixS draws(D, N);
   for (Integer n = 0; n < N; ++n) {
     draws.col(n) = sample();
@@ -184,6 +185,7 @@ int main() {
   Integer N = 1000;
   S step_size = 0.5;
   Integer max_depth = 8;
+  Integer max_step_halvings = 5;
   Integer min_micro_steps = 3;
   S max_error = 1;  // 61% Metropolis
   VectorS inv_mass = VectorS::Ones(D);
@@ -204,7 +206,7 @@ int main() {
            inv_mass);
 
   run_walnuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
-              min_micro_steps, max_error, inv_mass);
+              max_step_halvings, min_micro_steps, max_error, inv_mass);
 
   run_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, step_size,
 		       max_depth, min_micro_steps, max_error);

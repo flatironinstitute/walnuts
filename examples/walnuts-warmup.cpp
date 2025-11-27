@@ -34,10 +34,10 @@ int main() {
                                  additive_smoothing);
 
   double step_size_init = 0.5;
-  double accept_rate_target = 0.8; // 2.0 / 3.0;
-  double step_iteration_offset = 1;  // stan default: 10.0
-  double learning_rate = 1.25;  // stan default: 0.75
-  double decay_rate = 0.05;  // stan default: 0.05
+  double accept_rate_target = 0.75; // 2/3
+  double step_iteration_offset = 1.0;  // stan default: 10.0
+  double learning_rate = 0.5;  // stan default: 0.75
+  double decay_rate = 0.5;  // stan default: 0.05
   nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
                                  step_iteration_offset, learning_rate,
                                  decay_rate);
@@ -45,9 +45,10 @@ int main() {
   S max_error = 1.0;  // 61% Metropolis
   Integer max_nuts_depth = 10;
   Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  Integer min_micro_steps = 2;
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth, min_micro_steps);
 
-  unsigned int seed = 736549;
+  unsigned int seed = 8735487;
   std::mt19937 rng(seed);
 
   std::normal_distribution<S> std_normal(0, 1);
@@ -68,7 +69,7 @@ int main() {
   std::ofstream out_step(file_name_step);
   out_step << std::fixed << std::setprecision(8);
 
-  Integer warmup_iterations = 1000;
+  Integer warmup_iterations = 10000;
   for (Integer n = 0; n < warmup_iterations; ++n) {
     walnuts();
 

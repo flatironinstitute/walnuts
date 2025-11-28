@@ -238,8 +238,10 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
     }
     logp_next += logp_momentum(rho_next, inv_mass);
     if (num_steps == min_micro_steps) {
-      S min_accept = std::exp(-std::fabs(logp - logp_next));
-      adapt_handler(min_accept);
+      // S min_accept = std::exp(-std::fabs(logp - logp_next));
+      // adapt_handler(min_accept);
+      auto accept = std::fmin(1.0, std::exp(logp_next - logp));
+      adapt_handler(accept);
     }
     if (std::fabs(logp - logp_next) <= max_error) {
       return reversible(logp_grad, inv_mass, step, num_steps,

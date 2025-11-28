@@ -310,6 +310,58 @@ class StepAdaptHandler {
 };
 
 /**
+ * @brief The adaptation handler for the minimum number of micro steps per macro step.  
+ *
+ * After being constructed with a target number of macro steps, this class observes
+ * the number of micro steps taken and adjusts the minimum number of micro steps per
+ * macro step in order to achieve the target expected number of macro steps.  There is
+ * slight regularization toward one, but otherwise it just uses the floor of an average
+ * and thus rounds down.
+ */
+class MinMicroStepsAdaptHandler {
+public: 
+  /**
+   * Construct a minimum number of micro steps per macro step handler.
+   *
+   * @param[in] Expected number of macro steps.  
+   */
+  MinMicroStepAdaptHandler(double expected_macro_steps) :
+    expected_macro_steps_(expected_macro_steps),
+    total_(2.0),
+    count_(2.0) {
+  }
+
+  /**
+   * @brief Observe the specifed number of micro steps in a NUTS trajectory.
+   *
+   * @param[in] num_micro_steps The number of micro steps used in a trajectory.
+   */
+  void observe(std::size_t num_micro_steps) {
+    total_ += static_cast<double>(num_micro_steps);
+    ++count_;
+  }
+
+  /**
+   * @brief Return the estimated minimum number of micro steps.
+   *
+   * This estimate is designed to achieve the expected number of macro steps
+   * per iteration.
+   *
+   * @return The minimum number of micro steps to use per macro step. 
+   */
+  std::size_t min_micro_steps() {
+    double mean_micro = total_ / count;
+    double min_micro_per_macro = mean_micro / expected_macro_steps_;
+    return static_cast<std::size_t>(min_micro_per_macro);
+  }
+  
+private:
+  const double expected_macro_steps_;
+  double total_;
+  double count_;
+};
+
+/**
  * @brief A mass matrix estimator based on exponentially discounted draws
  * and scores (gradients of log densities).
  *

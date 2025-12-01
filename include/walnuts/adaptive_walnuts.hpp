@@ -323,12 +323,12 @@ public:
   /**
    * Construct a minimum number of micro steps per macro step handler.
    *
-   * @param[in] Expected number of macro steps.  
+   * @param[in] expected_macro_steps Expected number of macro steps.  
    */
-  MinMicroStepAdaptHandler(double expected_macro_steps) :
+  MinMicroStepsAdaptHandler(double expected_macro_steps) :
     expected_macro_steps_(expected_macro_steps),
-    total_(2.0),
-    count_(2.0) {
+    total_observed_macro_steps_(2.0),
+    observations_(2.0) {
   }
 
   /**
@@ -336,9 +336,9 @@ public:
    *
    * @param[in] num_micro_steps The number of micro steps used in a trajectory.
    */
-  void observe(std::size_t num_micro_steps) {
-    total_ += static_cast<double>(num_micro_steps);
-    ++count_;
+  void observe(std::size_t num_macro_steps) {
+    total_observed_macro_steps_ += static_cast<double>(num_macro_steps);
+    ++observations_;
   }
 
   /**
@@ -349,15 +349,20 @@ public:
    *
    * @return The minimum number of micro steps to use per macro step. 
    */
-  std::size_t min_micro_steps() {
-    double mean_micro = total_ / count;
-    double min_micro_per_macro = mean_micro / expected_macro_steps_;
-    return static_cast<std::size_t>(min_micro_per_macro);
+  Integer min_micro_steps() {
+    double mean_micro = total_ / count_;
+    double min_micro_per_macro
+      = std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
+    Integer steps = static_cast<Integer>(min_micro_per_macro);
+    if (steps != 1) {
+      std::cout << "***** STEPS = " << steps << std::endl;
+    }
+    return steps;
   }
   
 private:
   const double expected_macro_steps_;
-  double total_;
+  double total_macro_steps_;
   double count_;
 };
 
@@ -526,6 +531,7 @@ class AdaptiveWalnuts {
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
+	min_micro_estimator_(8.0),
         step_adapt_handler_(step_cfg.step_size_init_,
                             step_cfg.accept_rate_target_, step_cfg.iter_offset_,
                             step_cfg.learning_rate_, step_cfg.decay_rate_),
@@ -543,14 +549,18 @@ class AdaptiveWalnuts {
    * @return The next warmup state.
    */
   const Vec<S> operator()() {
+    std::cout << "";
     Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
     Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
+    Integer num_macro_steps;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-	walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_,
+	min_micro_estimator_.min_micro_steps(), num_macro_steps,
+	walnuts_cfg_.max_error_,
 	std::move(theta_), grad_select, step_adapt_handler_);
+    min_micro_estimator_.observe(num_macro_steps);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
     return theta_;
@@ -610,6 +620,9 @@ class AdaptiveWalnuts {
 
   /** The current iteration. */
   Integer iteration_;
+
+  /** */
+  MinMicroStepsAdaptHandler min_micro_estimator_;
 
   /** The handler for WALNUTS for step size adaptation. */
   StepAdaptHandler<S> step_adapt_handler_;

@@ -34,7 +34,7 @@ static char* dlerror() {
 #endif
 
 struct dlclose_deleter {
-  void operator()(void* handle) const {
+  void operator()(void*) const {
     // TODO: Crashes on some systems, see
     // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
     // if (handle) {

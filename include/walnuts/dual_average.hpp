@@ -85,7 +85,6 @@ class DualAverage {
     if (!(decay_rate > 0 && std::isfinite(decay_rate))) {
       throw std::invalid_argument("Decay rate must be positive and finite.");
     }
-    std::cout << "OKl*****************************" << std::endl << std::endl;
   }
 
   /**

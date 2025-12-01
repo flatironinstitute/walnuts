@@ -10,7 +10,7 @@ i.e., 1, 4, 9, ..., 400. The following code runs the benchmark.
 ```sh 
 cd build 
 make walnuts-stationarity 
-./walnuts-stationarity 
+./examples/walnuts-stationarity 
 python ../examples/walnuts-stationarity.py 
 open walnuts-stationarity.jpg 
 ```
@@ -38,7 +38,7 @@ with no correlation and variances equal to the index squared, i.e., 1,
 ```sh 
 cd build 
 make walnuts-warmup
-./walnuts-warmup
+./examples/walnuts-warmup
 python ../examples/walnuts-warmup.py 
 open walnuts-warmup-inv-mass.jpg 
 ```

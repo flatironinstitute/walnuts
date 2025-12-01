@@ -18,7 +18,7 @@ endif()
 ##########################
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
-option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
+option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" ON)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
 # Build Types
@@ -35,7 +35,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations)
+  -Wno-missing-variable-declarations -Wno-deprecated-copy-with-dtor)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)
@@ -102,6 +102,14 @@ if(WALNUTS_BUILD_STAN)
     target_include_directories(BridgeStan::BridgeStan INTERFACE
       "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
     )
+
+   add_executable(examples_stan ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples_stan.cpp)  
+   target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
+   target_compile_options(examples_stan PRIVATE -Wall)  
+
+  add_executable(eval_walnuts ${CMAKE_CURRENT_SOURCE_DIR}/examples/eval_walnuts.cpp)  
+  target_link_libraries(eval_walnuts PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)  
+  target_compile_options(eval_walnuts PRIVATE -O3 -Wall)
 endif()
 
 #############################
@@ -166,9 +174,6 @@ else()
   message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()
 
-##########################
-##     Doxygen Docs     ##
-##########################
 #################################
 ##        Documentation        ##
 #################################

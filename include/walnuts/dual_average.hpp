@@ -62,7 +62,7 @@ class DualAverage {
         log_est_avg_(log_est_),
         grad_avg_(0),
         obs_count_(0),
-        log_step_offset_(std::log(10) + std::log(step_size_init)),
+        log_step_offset_(std::log(4) + std::log(step_size_init)),
         target_accept_rate_(target_accept_rate),
         obs_count_offset_(obs_count_offset),
         learn_rate_(learn_rate),

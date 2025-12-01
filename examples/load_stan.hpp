@@ -3,6 +3,7 @@
 
 #include <bridgestan.h>
 
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -33,7 +34,7 @@ static char* dlerror() {
 #endif
 
 struct dlclose_deleter {
-  void operator()(void* handle) const {
+  void operator()(void*) const {
     // TODO: Crashes on some systems, see
     // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
     // if (handle) {
@@ -164,7 +165,7 @@ class DynamicStanModel {
 
   std::vector<std::string> param_names() const {
     std::vector<std::string> names;
-    names.reserve(constrained_dimensions());
+    names.reserve(static_cast<std::size_t>(constrained_dimensions()));
 
     const char* csv_names = param_names_(model_ptr_.get(), true, true);
     const char* p;

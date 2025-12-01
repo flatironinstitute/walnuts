@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "adam.hpp"
 #include "dual_average.hpp"
 #include "online_moments.hpp"
 #include "util.hpp"
@@ -265,9 +266,11 @@ class StepAdaptHandler {
    * @throw std::invalid_argument If the decay rate is not in (0, 1).
    */
   StepAdaptHandler(S step_size_init, S target_accept_rate, S iter_offset,
-                   S learning_rate, S decay_rate)
-      : dual_average_(step_size_init, target_accept_rate, iter_offset,
-                      learning_rate, decay_rate) {
+                   S learning_rate, S decay_rate):
+    // eventually settle on one of these
+    adam_(step_size_init, target_accept_rate),
+    dual_avg_(step_size_init, target_accept_rate, iter_offset,
+	      learning_rate, decay_rate) {
     if (!(step_size_init > 0) || std::isinf(step_size_init)) {
       throw std::invalid_argument("Initial count must be positive finite.");
     }
@@ -295,18 +298,21 @@ class StepAdaptHandler {
    *
    * @param[in] accept_prob The observed acceptance probability.
    */
-  void operator()(S accept_prob) { dual_average_.observe(accept_prob); }
+  void operator()(S accept_prob) { dual_avg_.observe(accept_prob); }
 
   /**
    * @brief Return the estimated step size.
    *
    * @return The estimated step size.
    */
-  S step_size() const noexcept { return dual_average_.step_size(); }
+  S step_size() const noexcept { return dual_avg_.step_size(); }
 
  private:
-  /** The dual averaging object used for adaptation. */
-  DualAverage<S> dual_average_;
+  /** The Adam instance for step size adaptation. */
+  Adam<S> adam_;
+
+  /** The dual averaging instance for step size adaptation. */
+  DualAverage<S> dual_avg_;
 };
 
 /**

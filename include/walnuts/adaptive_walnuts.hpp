@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "adam.hpp"
 #include "dual_average.hpp"
 #include "online_moments.hpp"
 #include "util.hpp"
@@ -252,40 +253,41 @@ class StepAdaptHandler {
    *
    * @param[in] step_size_init The initial step size.
    * @param[in] target_accept_rate The target acceptance rate.
-   * @param[in] iter_offset The iteration offset.
    * @param[in] learning_rate The learning rate.
-   * @param[in] decay_rate The decay rate.
+   * @param[in] beta1 The beta1 tuning parameter for Adam.
+   * @param[in] beta2 The beta2 tuning parameter for Adam.
+   * @param[in] epsilon The epsilon tuning parameter for Adam.
    * @throw std::invalid_argument If the initial step size is not positive and
    * finite.
    * @throw std::invalid_argument If the target acceptance rate is not in (0,
    * 1).
-   * @throw std::invalid_argument If the iteration offset is negative.
    * @throw std::invalid_argument If the learning rate is not positive and
-   * finite.
-   * @throw std::invalid_argument If the decay rate is not in (0, 1).
+   * finite. 
+   * @throw std::invalid_argument If `beta1` is not in (0, 1).
+   * @throw std::invalid_argument If `beta2` is not in (0, 1).
+   * @throw std::invalid_argument If `epsilon" is not positive and finite.
    */
-  StepAdaptHandler(S step_size_init, S target_accept_rate, S iter_offset,
-                   S learning_rate, S decay_rate)
-      : dual_average_(step_size_init, target_accept_rate, iter_offset,
-                      learning_rate, decay_rate) {
+  StepAdaptHandler(S step_size_init, S target_accept_rate, S learning_rate,
+		   S beta1, S beta2, S epsilon):
+    adam_(step_size_init, target_accept_rate, learning_rate,
+	  beta1, beta2, epsilon) {
     if (!(step_size_init > 0) || std::isinf(step_size_init)) {
-      throw std::invalid_argument("Initial count must be positive finite.");
+      throw std::invalid_argument("step_size_init must be positive and finite.");
     }
     if (!(target_accept_rate > 0) || !(target_accept_rate < 1)) {
-      throw std::invalid_argument("Target accept rate must be in (0, 1)");
-    }
-    if (!(decay_rate > 0) || !(decay_rate < 1)) {
-      throw std::invalid_argument("Decay rate must be in (0, 1)");
-    }
-    if (!(iter_offset > 0) || std::isinf(iter_offset)) {
-      throw std::invalid_argument(
-          "Iteration offset must be positive and finite.");
+      throw std::invalid_argument("target_accept_rate must be in (0, 1).");
     }
     if (!(learning_rate > 0) || std::isinf(learning_rate)) {
-      throw std::invalid_argument("Learning rate must be positive and finite.");
+      throw std::invalid_argument("learning_rate must be positive and finite");
     }
-    if (!(decay_rate > 0) || !(decay_rate < 1)) {
-      throw std::invalid_argument("Decay rate must be in (0, 1)");
+    if (!(beta1 > 0) || !(beta1 < 1)) {
+      throw std::invalid_argument("beta1 must be in (0, 1).");
+    }
+    if (!(beta2 > 0) || !(beta2 < 1)) {
+      throw std::invalid_argument("beta2 must be in (0, 1).");
+    }
+    if (!(epsilon > 0) || std::isinf(epsilon)) {
+      throw std::invalid_argument("epsilon must be positive and finite.");
     }
   }
 
@@ -295,18 +297,18 @@ class StepAdaptHandler {
    *
    * @param[in] accept_prob The observed acceptance probability.
    */
-  void operator()(S accept_prob) { dual_average_.observe(accept_prob); }
+  void operator()(S accept_prob) { adam_.observe(accept_prob); }
 
   /**
    * @brief Return the estimated step size.
    *
    * @return The estimated step size.
    */
-  S step_size() const noexcept { return dual_average_.step_size(); }
+  S step_size() const noexcept { return adam_.step_size(); }
 
  private:
-  /** The dual averaging object used for adaptation. */
-  DualAverage<S> dual_average_;
+  /** The Adam instance for step size adaptation. */
+  Adam<S> adam_;
 };
 
 /**

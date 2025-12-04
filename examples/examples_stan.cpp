@@ -58,7 +58,7 @@ static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
 
   nuts::Nuts sample(rand, logp, theta_init, inv_mass, step_size, max_depth);
 
-  int M = model.constrained_dimensions();
+  std::size_t M = model.constrained_dimensions();
 
   MatrixS draws(M, N);
   for (Integer n = 0; n < N; ++n) {
@@ -120,12 +120,8 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
                                  additive_smoothing);
   double step_size_init = 0.5;
   double accept_rate_target = 2.0 / 3.0;
-  double step_iteration_offset = 2.0;
-  double learning_rate = 0.95;
-  double decay_rate = 0.05;
-  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-                                 step_iteration_offset, learning_rate,
-                                 decay_rate);
+  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target);  // uses defaults for others
+
   Integer max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
 				  min_micro_steps);

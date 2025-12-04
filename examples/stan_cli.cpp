@@ -68,8 +68,8 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
                    int64_t warmup, int64_t samples, double init_count,
                    double mass_iteration_offset, double additive_smoothing,
                    double step_size_init, double accept_rate_target,
-                   double step_iteration_offset, double learning_rate,
-                   double decay_rate, double max_error, int64_t max_nuts_depth,
+		   double learn_rate, double beta1, double beta2, double epsilon,
+                   double max_error, int64_t max_nuts_depth,
                    int64_t max_step_depth, int64_t min_micro_steps) {
   double logp_time = 0.0;
   int logp_count = 0;
@@ -94,9 +94,7 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
 
-  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-                                 step_iteration_offset, learning_rate,
-                                 decay_rate);
+  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate, beta1, beta2, epsilon);
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
 				  min_micro_steps);
 
@@ -190,10 +188,11 @@ int main(int argc, char** argv) {
   double additive_smoothing = 1e-5;
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
-  double step_iteration_offset = 5.0;
-  double learning_rate = 1.5;
-  double decay_rate = 0.05;
-
+  double learning_rate = 0.2;
+  double beta1 = 0.3;
+  double beta2 = 0.99;
+  double epsilon = 1e-4;
+    
   std::string lib;
   std::string data;
   std::string output_file;
@@ -262,19 +261,24 @@ int main(int argc, char** argv) {
         ->default_val(accept_rate_target)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-iteration-offset", step_iteration_offset,
-                   "Offset for the step size adaptation iterations")
-        ->default_val(step_iteration_offset)
-        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
-
     app.add_option("--step-learning-rate", learning_rate,
                    "Learning rate for the step size adaptation")
         ->default_val(learning_rate)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("--step-decay-rate", decay_rate,
-                   "Decay rate for the step size adaptation")
-        ->default_val(decay_rate)
+    app.add_option("--step-beta1", beta1,
+                   "The beta1 parameter for Adam for step size adaptation")
+      ->default_val(beta1)
+      ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+
+    app.add_option("--step-beta2", beta1,
+                   "The beta2 parameter for Adam for step size adaptation")
+      ->default_val(beta2)
+      ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+
+    app.add_option("--step-epsilon", epsilon,
+                   "The epsilon parameter for Adam for step size adaptation")
+        ->default_val(epsilon)
         ->check(CLI::PositiveNumber);
 
     app.add_option("model", lib, "Path to the Stan model library")
@@ -299,8 +303,8 @@ int main(int argc, char** argv) {
   Matrix draws =
       run_walnuts(model, rng, theta_init, warmup, samples, init_count,
                   mass_iteration_offset, additive_smoothing, step_size_init,
-                  accept_rate_target, step_iteration_offset, learning_rate,
-                  decay_rate, max_error, max_nuts_depth, max_step_depth,
+                  accept_rate_target, learning_rate, beta1, beta2, epsilon,
+                  max_error, max_nuts_depth, max_step_depth,
 		  min_micro_steps);
 
   auto names = model.param_names();

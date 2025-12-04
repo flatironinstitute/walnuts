@@ -3,7 +3,6 @@
 #include <utility>
 
 #include "adam.hpp"
-#include "dual_average.hpp"
 #include "online_moments.hpp"
 #include "util.hpp"
 #include "walnuts.hpp"
@@ -96,77 +95,7 @@ struct MassAdaptConfig {
   const S additive_smoothing_;
 };
 
-/**
- * @brief The immutable configuration for step-size adaptation.
- *
- * The tuning parameters include a step size initialization, a target
- * macro step size bidirectional minimum acceptance rate of the macro step,
- * an iteration offset for smoothing updates (higher is slower to move
- * away from initialization), a learning rate, and decay rate.
- *
- * @tparam S The type of scalars.
- */
-template <typename S>
-struct StepAdaptConfig {
-  /**
-   * @brief Construct a step-size adaptation configuration given the
-   * tuning parameters.
-   *
-   * @param[in] step_size_init The initial step size.
-   * @param[in] accept_rate_target The target bidirectional accept rate.
-   * @param[in] iter_offset The relative postion of the first observation.
-   * @param[in] learning_rate The learning rate for dual averaging.
-   * @param[in] decay_rate The decay rate of older observations.
-   * @throw std::invalid_argument If the initial step size is not finite and
-   * positive.
-   * @throw std::invalid_argument If the acceptance rate target is not in (0,
-   * 1).
-   * @throw std::invalid_argument If the iteration offset is not finite and
-   * positive.
-   * @throw std::invalid_argument If the learning rate is not finite and
-   * positive.
-   * @throw std::invalid_argument If the decay rate is not in (0, 1).
-   */
-  StepAdaptConfig(S step_size_init, S accept_rate_target, S iter_offset,
-                  S learning_rate, S decay_rate)
-      : step_size_init_(step_size_init),
-        accept_rate_target_(accept_rate_target),
-        iter_offset_(iter_offset),
-        learning_rate_(learning_rate),
-        decay_rate_(decay_rate) {
-    if (!(step_size_init > 0) || std::isinf(step_size_init)) {
-      throw std::invalid_argument("Initial count must be positive and finite.");
-    }
-    if (!(accept_rate_target > 0) || !(accept_rate_target < 1)) {
-      throw std::invalid_argument("Acceptance rate target must be in (0, 1)");
-    }
-    if (!(iter_offset > 0) || std::isinf(iter_offset)) {
-      throw std::invalid_argument(
-          "Iteration offset must be positive and finite.");
-    }
-    if (!(learning_rate > 0) || std::isinf(learning_rate)) {
-      throw std::invalid_argument("Learning rate must be positive and finite.");
-    }
-    if (!(decay_rate > 0) || !(decay_rate < 1)) {
-      throw std::invalid_argument("Decay rate must be in (0, 1)");
-    }
-  }
 
-  /** The initial macro step size. */
-  const S step_size_init_;
-
-  /** The target minimum bidirectional acceptance rate of macro steps. */
-  const S accept_rate_target_;
-
-  /** Offset count for initial observation. */
-  const S iter_offset_;
-
-  /** Learning rate for dual averaging. */
-  const S learning_rate_;
-
-  /** Decay rate for dual averaging. */
-  const S decay_rate_;
-};
 
 /**
  * @brief The immutable top-level configuration for WALNUTS.
@@ -238,11 +167,6 @@ struct WalnutsConfig {
 /**
  * @brief The step-size adaptation handler for WALNUTS.
  *
- * WALNUTS works through callbacks to an adaptation handler, implemented
- * as a functor through the method `operator()(S)`.  This handler maintains
- * the dual averaging adaptation and also returns the current step size
- * estimate through the method `step_size()`.
- *
  * @tparam S The type of scalars.
  */
 template <typename S>
@@ -251,45 +175,11 @@ class StepAdaptHandler {
   /**
    * Construct a step-size adaptation handler for WALNUTS.
    *
-   * @param[in] step_size_init The initial step size.
-   * @param[in] target_accept_rate The target acceptance rate.
-   * @param[in] learning_rate The learning rate.
-   * @param[in] beta1 The beta1 tuning parameter for Adam.
-   * @param[in] beta2 The beta2 tuning parameter for Adam.
-   * @param[in] epsilon The epsilon tuning parameter for Adam.
-   * @throw std::invalid_argument If the initial step size is not positive and
-   * finite.
-   * @throw std::invalid_argument If the target acceptance rate is not in (0,
-   * 1).
-   * @throw std::invalid_argument If the learning rate is not positive and
-   * finite. 
-   * @throw std::invalid_argument If `beta1` is not in (0, 1).
-   * @throw std::invalid_argument If `beta2` is not in (0, 1).
-   * @throw std::invalid_argument If `epsilon" is not positive and finite.
+   * @param[in] cfg The stepsize adaptation tuning parameters.
    */
-  StepAdaptHandler(S step_size_init, S target_accept_rate, S learning_rate,
-		   S beta1, S beta2, S epsilon):
-    adam_(step_size_init, target_accept_rate, learning_rate,
-	  beta1, beta2, epsilon) {
-    if (!(step_size_init > 0) || std::isinf(step_size_init)) {
-      throw std::invalid_argument("step_size_init must be positive and finite.");
-    }
-    if (!(target_accept_rate > 0) || !(target_accept_rate < 1)) {
-      throw std::invalid_argument("target_accept_rate must be in (0, 1).");
-    }
-    if (!(learning_rate > 0) || std::isinf(learning_rate)) {
-      throw std::invalid_argument("learning_rate must be positive and finite");
-    }
-    if (!(beta1 > 0) || !(beta1 < 1)) {
-      throw std::invalid_argument("beta1 must be in (0, 1).");
-    }
-    if (!(beta2 > 0) || !(beta2 < 1)) {
-      throw std::invalid_argument("beta2 must be in (0, 1).");
-    }
-    if (!(epsilon > 0) || std::isinf(epsilon)) {
-      throw std::invalid_argument("epsilon must be positive and finite.");
-    }
-  }
+  StepAdaptHandler(const AdamConfig<S>& cfg):
+    adam_(cfg) {
+  } 
 
   /**
    * @brief Update with the estimate of step size given the specified
@@ -467,7 +357,7 @@ class AdaptiveWalnuts {
    */
   AdaptiveWalnuts(RNG& rng, const F& logp_grad, const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
-                  const StepAdaptConfig<S>& step_cfg,
+                  const AdamConfig<S>& step_cfg,
                   const WalnutsConfig<S>& walnuts_cfg)
       : mass_cfg_(mass_cfg),
         step_cfg_(step_cfg),
@@ -476,10 +366,9 @@ class AdaptiveWalnuts {
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
-        step_adapt_handler_(step_cfg.step_size_init_,
-                            step_cfg.accept_rate_target_, step_cfg.iter_offset_,
-                            step_cfg.learning_rate_, step_cfg.decay_rate_),
-        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {}
+        step_adapt_handler_(step_cfg),
+        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {
+  }
 
   /**
    * @brief Return the next state from warmup.
@@ -544,7 +433,7 @@ class AdaptiveWalnuts {
   const MassAdaptConfig<S> mass_cfg_;
 
   /** The step-size adaptation configuration. */
-  const StepAdaptConfig<S> step_cfg_;
+  const AdamConfig<S> step_cfg_;
 
   /** The WALNUTS sampler configuration. */
   const WalnutsConfig<S> walnuts_cfg_;
@@ -561,7 +450,7 @@ class AdaptiveWalnuts {
   /** The current iteration. */
   Integer iteration_;
 
-  /** The handler for WALNUTS for step size adaptation. */
+  /** The handler receiving observations from WALNUTS for step size adaptation. */
   StepAdaptHandler<S> step_adapt_handler_;
 
   /** The estimat for mass matrices. */

@@ -5,6 +5,18 @@
 
 namespace nuts {
 
+/**
+ * Return the rectified linear unit (relu) of the argument.
+ *
+ * relu(x) = x if x > 0 and relu(x) = 0 if x <= 0`
+ *
+ * @param[in] x The argument.
+ * @return The relu of the argument.
+ */
+template <typename S>
+S relu(S x) {
+  return x < 0 ? 0 : x;
+}
 
 /**
  * @brief The immutable configuration for step-size adaptation.
@@ -82,10 +94,18 @@ struct AdamConfig {
   /** The epsilon parameter for Adam. */
   const S epsilon_;
 };
-  
+
+/**
+ * The Adam stochastic gradient optimizer specialized for step-size adaptation.
+ */  
 template <typename S>
 class Adam {
  public:
+  /**
+   * Construct an Adam optimizer from a configuration.
+   *
+   * @param[in] cfg The configuration for the optimizer.
+   */
   Adam(const AdamConfig<S>& cfg) :
     theta_(std::log(cfg.step_size_init_)),
     m_(0),
@@ -100,6 +120,13 @@ class Adam {
     eps_(cfg.epsilon_) {
   }
 
+
+  
+  /**
+   * Observe an acceptance probabilty in (0, 1).
+   *
+   * @param[in] alpha The acceptance probability.
+   */
   inline void observe(S alpha) noexcept {
     ++t_;
     beta1_pow_ *= beta1_;
@@ -111,17 +138,18 @@ class Adam {
     v_ = beta2_ * v_ + (1 - beta2_) * grad * grad;
 
     const S m_hat = m_ / (1 - beta1_pow_);
-    S v_hat = v_ / (1 - beta2_pow_);
-
-    if (v_hat < 0) {
-      v_hat = 0;
-    }
+    S v_hat = relu(v_ / (1 - beta2_pow_));
 
     const S denom = std::sqrt(v_hat) + eps_;
     const S effective_lr = learn_rate_ / std::sqrt(static_cast<S>(t_));
     theta_ -= effective_lr * m_hat / denom;
   }
 
+  /**
+   * Return the current step size estimate.
+   *
+   * @return The step size.
+   */
   inline S step_size() const noexcept { return std::exp(theta_); }
 
  private:

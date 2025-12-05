@@ -44,9 +44,8 @@ namespace nuts {
  * ```
  *
  * @tparam S The type of scalars.
- * @tparam Integer The type of integers.
  */
-template <typename S, typename Integer>
+template <typename S>
 class OnlineMoments {
  public:
   /**
@@ -66,16 +65,12 @@ class OnlineMoments {
    * @param[in] dim Number of dimensions in observation vectors
    * (non-negative integer).
    * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
-   * @throw std::invalid_argument If `dim` is negative.
    */
-  OnlineMoments(S discount_factor, Integer dim)
+  OnlineMoments(S discount_factor, std::size_t dim)
       : discount_factor_(discount_factor),
         weight_(0),
-        mean_(VecS::Zero(dim)),
-        sum_sq_dev_(VecS::Zero(dim)) {
-    if (dim < 0) {
-      throw std::invalid_argument("dim must be non-negative");
-    }
+        mean_(VecS::Zero(static_cast<long>(dim))),
+        sum_sq_dev_(VecS::Zero(static_cast<long>(dim))) {
     if (!(discount_factor >= 0 && discount_factor <= 1)) {
       throw std::invalid_argument("discount_factor must be in [0, 1]");
     }

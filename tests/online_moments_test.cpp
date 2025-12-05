@@ -12,7 +12,7 @@
 
 static Eigen::VectorXd discounted_mean(const std::vector<Eigen::VectorXd>& ys,
                                        double alpha) {
-  std::size_t N = ys.size();
+  const auto N = ys.size();
   const auto D = ys[0].size();
   double weight_sum = 0;
   Eigen::VectorXd weighted_value_sum = Eigen::VectorXd::Zero(D);
@@ -28,7 +28,7 @@ static Eigen::VectorXd discounted_variance(
     const std::vector<Eigen::VectorXd>& ys, double alpha) {
   Eigen::VectorXd mu = discounted_mean(ys, alpha);
   std::size_t N = ys.size();
-  long D = ys[0].size();
+  auto D = ys[0].size();
   double weight_sum = 0;
   Eigen::VectorXd weighted_sq_diff_sum = Eigen::VectorXd::Zero(D);
   for (std::size_t n = 0; n < N; ++n) {
@@ -42,8 +42,8 @@ static Eigen::VectorXd discounted_variance(
 
 TEST(Welford, test_zero_observations) {
   double alpha = 0.95;
-  long D = 2;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+  std::size_t D = 2;
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   Eigen::VectorXd m = acc.mean();
   Eigen::VectorXd v = acc.variance();
@@ -57,8 +57,8 @@ TEST(Welford, test_zero_observations) {
 
 TEST(Welford, test_one_observation) {
   double alpha = 0.95;
-  long D = 2;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+  std::size_t D = 2;
+  nuts::OnlineMoments<double> acc(alpha, D);
 
   Eigen::VectorXd y(2);
   y << 0.2, -1.3;
@@ -101,7 +101,7 @@ TEST(Welford, test_no_discounting) {
   Eigen::VectorXd variance_expected = sum_sq_diffs / N;
 
   double alpha = 1.0;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+  nuts::OnlineMoments<double> acc(alpha, static_cast<std::size_t>(D));
 
   for (std::size_t n = 0; n < N; ++n) {
     acc.observe(ys[n]);
@@ -126,7 +126,7 @@ TEST(Welford, test_ten_observations) {
   }
 
   double alpha = 0.95;
-  nuts::OnlineMoments<double, long> acc(alpha, D);
+  nuts::OnlineMoments<double> acc(alpha, static_cast<std::size_t>(D));
 
   for (std::size_t n = 0; n < N; ++n) {
     acc.observe(ys[n]);

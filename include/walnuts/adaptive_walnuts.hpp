@@ -249,9 +249,9 @@ class MassEstimator {
     Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
     S dummy_discount = 0.98;  // gets reset before being used
-    inv_var_estimator_ = OnlineMoments<S, Integer>(
+    inv_var_estimator_ = OnlineMoments<S>(
         dummy_discount, mass_cfg.iter_offset_, zero, init_prec);
-    var_estimator_ = OnlineMoments<S, Integer>(
+    var_estimator_ = OnlineMoments<S>(
         dummy_discount, mass_cfg.iter_offset_, zero, init_var);
     if (theta.size() != grad.size()) {
       throw std::invalid_argument(
@@ -299,10 +299,10 @@ class MassEstimator {
   MassAdaptConfig<S> mass_cfg_;
 
   /** The online variance estimator for draws. */
-  OnlineMoments<S, Integer> var_estimator_;
+  OnlineMoments<S> var_estimator_;
 
   /** The online inverse variance estimator for scores. */
-  OnlineMoments<S, Integer> inv_var_estimator_;
+  OnlineMoments<S> inv_var_estimator_;
 };
 
 /**

@@ -129,11 +129,11 @@ class SpanW {
  */
 template <typename S, typename F>
 bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
-                      Integer num_steps, S max_error, S logp_next,
+                      std::size_t num_steps, S max_error, S logp_next,
                       Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next) {
   S half_step = 0.5 * step;
   S logp = logp_next;
-  for (int n = 0; n < num_steps; ++n) {
+  for (std::size_t n = 0; n < num_steps; ++n) {
     rho_next.noalias() = rho_next + half_step * grad_next;
     theta_next.noalias() +=
         step * (inv_mass.array() * rho_next.array()).matrix();
@@ -164,7 +164,7 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
  */
 template <typename S, typename F>
 bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
-                Integer num_steps, Integer min_micro_steps, S max_error, S logp_next,
+                std::size_t num_steps, std::size_t min_micro_steps, S max_error, S logp_next,
                 const Vec<S>& theta, const Vec<S>& rho, const Vec<S>& grad) {
   if (num_steps == 1) {
     return true;
@@ -212,10 +212,10 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  */
 template <Direction D, typename S, typename F, class A>
 bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
-		Integer max_step_halvings, 
-		Integer min_micro_steps, S max_error,
-                const SpanW<S>& span, Vec<S>& theta_next, Vec<S>& rho_next,
-                Vec<S>& grad_next, S& logp_next, A& adapt_handler) {
+		std::size_t max_step_halvings, std::size_t min_micro_steps,
+		S max_error, const SpanW<S>& span, Vec<S>& theta_next,
+		Vec<S>& rho_next, Vec<S>& grad_next, S& logp_next,
+		A& adapt_handler) {
   using std::fmax, std::fmin;
   constexpr bool is_forward = (D == Direction::Forward);
   const Vec<S>& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
@@ -223,13 +223,13 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
   const Vec<S>& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
   S logp = is_forward ? span.logp_fw_ : span.logp_bk_;
   step = is_forward ? step : -step;
-  for (Integer num_steps = min_micro_steps, halvings = 0; halvings < max_step_halvings;
+  for (std::size_t num_steps = min_micro_steps, halvings = 0; halvings < max_step_halvings;
        ++halvings, num_steps *= 2, step *= 0.5) {
     theta_next = theta;
     rho_next = rho;
     grad_next = grad;
     S half_step = 0.5 * step;
-    for (Integer n = 0; n < num_steps; ++n) {
+    for (std::size_t n = 0; n < num_steps; ++n) {
       rho_next.noalias() += half_step * grad_next;
       theta_next.noalias() +=
           step * (inv_mass.array() * rho_next.array()).matrix();
@@ -326,8 +326,8 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
 template <Direction D, typename S, class F, class A>
 std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
                                    const Vec<S>& inv_mass, S step,
-				   Integer max_step_halvings,
-				   Integer min_micro_steps,
+				   std::size_t max_step_halvings,
+				   std::size_t min_micro_steps,
 				   S max_error, A& adapt_handler) {
   Vec<S> theta_next;
   Vec<S> rho_next;
@@ -368,8 +368,8 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
 template <Direction D, typename S, class F, class Rand, class A>
 std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
                                    const Vec<S>& inv_mass, S step,
-                                   Integer depth, Integer max_step_halvings,
-				   Integer min_micro_steps,
+                                   std::size_t depth, std::size_t max_step_halvings,
+				   std::size_t min_micro_steps,
 				   S max_error, const SpanW<S>& last_span,
                                    A& adapt_handler) {
   if (depth == 0) {
@@ -419,18 +419,19 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
  */
 template <typename S, class F, class Rand, class A>
 Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
-                    const Vec<S>& chol_mass, S step, Integer max_depth,
-		    Integer max_step_halvings, Integer min_micro_steps,
+                    const Vec<S>& chol_mass, S step, std::size_t max_depth,
+		    std::size_t max_step_halvings, std::size_t min_micro_steps,
                     S max_error, Vec<S>&& theta, Vec<S>& theta_grad, 
                     A& adapt_handler) {
-  Vec<S> rho = rand.standard_normal(theta.size()).cwiseProduct(chol_mass);
+   std::size_t dims = static_cast<std::size_t>(theta.size());
+  Vec<S> rho = rand.standard_normal(dims).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad(theta, logp, grad);
   logp += logp_momentum(rho, inv_mass);
   auto span_accum = SpanW<S>::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp);
-  for (Integer depth = 0; depth < max_depth; ++depth) {
+  for (std::size_t depth = 0; depth < max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
     auto expand_in_direction = [&](auto direction) -> bool {
       constexpr Direction D = direction;
@@ -519,11 +520,15 @@ class WalnutsSampler {
    * @param[in] min_micro_steps The minimum number of micro steps per macro step.
    * @param[in] max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
+   * @throw std::invalid_argument If the max error is not finite and
+   * positive.
+   * @throw std::invalid_argument If the maximum NUTS depth is zero.
+   * @throw std::invalid_argument If the minimum number of micro steps is zero.
    */
   WalnutsSampler(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta,
                  const Vec<S>& inv_mass, S macro_step_size,
-                 Integer max_nuts_depth, Integer max_step_halvings,
-		 Integer min_micro_steps, S max_error)
+                 std::size_t max_nuts_depth, std::size_t max_step_halvings,
+		 std::size_t min_micro_steps, S max_error)
       : rand_(rand),
         logp_grad_(logp_grad),
         theta_(theta),
@@ -534,7 +539,18 @@ class WalnutsSampler {
 	max_step_halvings_(max_step_halvings),
 	min_micro_steps_(min_micro_steps),
         max_error_(max_error),
-        no_op_adapt_handler_() {}
+        no_op_adapt_handler_() {
+    if (!(max_error > 0) || std::isinf(max_error)) {
+      throw std::invalid_argument(
+          "Log maximum error must be positive and finite.");
+    }
+    if (max_nuts_depth == 0) {
+      throw std::invalid_argument("Maximum NUTS depth must be positive.");
+    }
+    if (min_micro_steps == 0) {
+      throw std::invalid_argument("Minimum micro steps must be positive.");
+    }
+  }
 
   /**
    * @brief Return the next draw from the sampler.
@@ -592,13 +608,13 @@ class WalnutsSampler {
   const S macro_step_size_;
 
   /** The maximum number of doublings in NUTS trajectories. */
-  const Integer max_nuts_depth_;
+  const std::size_t max_nuts_depth_;
 
   /** The maximum number of halvings of the step size. */
-  const Integer max_step_halvings_;
+  const std::size_t max_step_halvings_;
   
   /** The minimum number of micro steps per macro step. */
-  const Integer min_micro_steps_;
+  const std::size_t min_micro_steps_;
 
   /** The max difference of Hamiltonians along a macro step. */
   const S max_error_;

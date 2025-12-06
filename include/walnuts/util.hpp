@@ -13,7 +13,7 @@ namespace nuts {
  * @tparam S Type of scalars.
  */
 template <typename S>
-using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
+using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>; 
 
 /**
  * @brief The type of matrices.
@@ -24,12 +24,6 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
 
-/**
- * @brief The type of integers.
- *
- * Integers are signed and 64 bits.
- */
-using Integer = std::int64_t;
 
 /**
  * @brief Proposal update schemes for MCMC transitions.
@@ -103,8 +97,9 @@ class Random {
    * @param n The size of the vector generated.
    * @return A vector generated according to a standard normal distribution.
    */
-  inline Vec<S> standard_normal(Integer n) {
-    return Vec<S>::NullaryExpr(n, [&](Integer) { return normal_(rng_); });
+  inline Vec<S> standard_normal(std::size_t n) {
+    long n_signed = static_cast<long>(n);
+    return Vec<S>::NullaryExpr(n_signed, [&](std::size_t) { return normal_(rng_); });
   }
 
  private:

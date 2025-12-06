@@ -4,7 +4,6 @@
 
 #include "adam.hpp"
 #include "online_moments.hpp"
-#include "util.hpp"
 #include "walnuts.hpp"
 
 namespace nuts {
@@ -125,13 +124,13 @@ struct WalnutsConfig {
    * per macro step.
    * @param[in] min_micro_steps The minimum number of micro steps per macro
    *  step.
-   * @throw std::invalid_argument If the log max error is not finite and
+   * @throw std::invalid_argument If the max error is not finite and
    * positive.
-   * @throw std::invalid_argument If the maximum tree depth is not positive.
-   * @throw std::invalid_argument If the maximum step depth is negative.
+   * @throw std::invalid_argument If the maximum NUTS depth is zero.
+   * @throw std::invalid_argument If the minimum number of micro steps is zero.
    */
-  WalnutsConfig(S max_error, Integer max_nuts_depth, Integer max_step_halvings,
-		Integer min_micro_steps)
+  WalnutsConfig(S max_error, std::size_t max_nuts_depth, std::size_t max_step_halvings,
+		std::size_t min_micro_steps)
       : max_error_(max_error),
         max_nuts_depth_(max_nuts_depth),
         max_step_halvings_(max_step_halvings),
@@ -140,13 +139,10 @@ struct WalnutsConfig {
       throw std::invalid_argument(
           "Log maximum error must be positive and finite.");
     }
-    if (max_nuts_depth <= 0) {
+    if (max_nuts_depth == 0) {
       throw std::invalid_argument("Maximum NUTS depth must be positive.");
     }
-    if (max_step_halvings < 0) {
-      throw std::invalid_argument("Maximum step halvings must be non-negative.");
-    }
-    if (min_micro_steps <= 0) {
+    if (min_micro_steps == 0) {
       throw std::invalid_argument("Minimum micro steps must be positive.");
     }
   }
@@ -155,13 +151,13 @@ struct WalnutsConfig {
   const S max_error_;
 
   /** The maximum number of trajectory doublings in NUTS. */
-  const Integer max_nuts_depth_;
+  const std::size_t max_nuts_depth_;
 
   /** The maximum number of step doublings per macro step. */
-  const Integer max_step_halvings_;
+  const std::size_t max_step_halvings_;
 
   /** The minimum number of micro steps per macro step. */
-  const Integer min_micro_steps_;
+  const std::size_t min_micro_steps_;
 };
 
 /**
@@ -240,8 +236,8 @@ class MassEstimator {
   MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
       : mass_cfg_(mass_cfg),
-        var_estimator_(0, theta.size()),
-        inv_var_estimator_(0, theta.size()) {
+        var_estimator_(0, static_cast<std::size_t>(theta.size())),
+        inv_var_estimator_(0, static_cast<std::size_t>(theta.size())) {
     S smoothing = mass_cfg_.additive_smoothing_;
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
@@ -265,11 +261,11 @@ class MassEstimator {
    *
    * @param[in] theta The position observed.
    * @param[in] grad The gradient of the log density at the position.
-   * @param[in] iteration The iteration number (non-negative integer).
+   * @param[in] iteration The iteration number.
    * @pre theta.size() = grad.size()
    * @pre iteration >= 0
    */
-  void observe(const Vec<S>& theta, const Vec<S>& grad, Integer iteration) {
+  void observe(const Vec<S>& theta, const Vec<S>& grad, std::size_t iteration) {
     double discount_factor = 1.0 - 1.0 / (mass_cfg_.iter_offset_ + iteration);
     var_estimator_.set_discount_factor(
         discount_factor);  // TODO: one encapsulated function
@@ -448,7 +444,7 @@ class AdaptiveWalnuts {
   Vec<S> theta_;
 
   /** The current iteration. */
-  Integer iteration_;
+  std::size_t iteration_;
 
   /** The handler receiving observations from WALNUTS for step size adaptation. */
   StepAdaptHandler<S> step_adapt_handler_;

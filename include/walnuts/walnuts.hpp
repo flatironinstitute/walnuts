@@ -200,6 +200,7 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The initial micro step size.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
+ * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum difference in Hamiltonians allowed in macro
  * steps.
  * @param[in] span The span to extend.

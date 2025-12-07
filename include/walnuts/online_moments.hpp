@@ -58,6 +58,23 @@ class OnlineMoments {
       sum_sq_dev_(Vec<S>::Zero(0)) { }
 
   /**
+   * @brief Construct online moments with a given discount factor and size.
+   *
+   * @param[in] discount_factor The past discount factor (between 0 and 1,
+   * inclusive).
+   * @param[in] dims The number of dimensions.
+   * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
+   */
+  OnlineMoments(double discount_factor, std::size_t dims)
+    : discount_factor_(discount_factor),
+      weight_(0),
+      mean_(Vec<S>::Zero(static_cast<long>(dims))),
+      sum_sq_dev_(Vec<S>::Zero(static_cast<long>(dims))) {
+  }
+    
+
+  
+  /**
    * @brief Construct an online estimator of moments with the
    * specified discount factor and initialization.
    *

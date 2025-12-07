@@ -347,6 +347,23 @@ void validate_probability(S x, const std::string& name) {
 }
 
 /**
+ * @brief Throw an exception if the value is not in [0, 1].
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not in [0, 1].
+ */
+template <typename S>
+void validate_probability_inclusive(S x, const std::string& name) {
+  if (x >= 0 && x <= 1) {
+    return;
+  }
+  std::string msg = name + " must be in (0, 1)";
+  throw std::invalid_argument(msg);
+}
+
+/**
  * @brief Throw an exception if the containers do not have the same size.
  *
  * @tparam T1 Type of first container.

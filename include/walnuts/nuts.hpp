@@ -322,8 +322,9 @@ class Nuts {
    * @param [in] step_size The step size (finite positive floating point).
    * @param [in] max_nuts_depth The maximum number of trajectory doublings
    * in NUTS (positive integer).
-   * @throw std::invalid_argument If `theta_init` is not positive.
-   * @throw std::invalid_argument If `step_size` is not positive.
+   * @throw std::invalid_argument If `inv_mass" does not have positive, finite
+   * entries.
+   * @throw std::invalid_argument If `step_size` is not positive and finite.
    * @throw std::invalid_argument If `theta_init` and `inv_mass` are not the
    *  same size.
    */
@@ -336,7 +337,7 @@ class Nuts {
         cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
         step_size_(step_size),
         max_nuts_depth_(max_nuts_depth) {
-    validate_positive(theta_init, "theta_init");
+    validate_positive(inv_mass, "inv_mass");
     validate_positive(step_size, "step_size");
     validate_same_size(theta_init, inv_mass, "theta_init", "inv_mass");
   }

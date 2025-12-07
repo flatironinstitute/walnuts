@@ -49,25 +49,13 @@ template <typename S>
 class OnlineMoments {
  public:
   /**
-   * @brief Construct an online estimator of moments of the given
-   * dimensionality that discounts the past by a factor of
-   * `discount_factor` before each observation.
-   *
-   * Setting `discount_factor` to 1 does no discounting.
-   *
-   * @param[in] discount_factor The past discount factor (floating
-   * point in [0, 1]).
-   * @param[in] dim Number of dimensions in observation vectors
-   * (non-negative integer).
-   * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
+   * @brief Construct a default online estimator of size zero.
    */
-  OnlineMoments(S discount_factor, std::size_t dim)
-      : discount_factor_(discount_factor),
-        weight_(0),
-        mean_(Vec<S>::Zero(static_cast<long>(dim))),
-        sum_sq_dev_(Vec<S>::Zero(static_cast<long>(dim))) {
-    validate_probability(discount_factor, "discount_factor");
-  }
+  OnlineMoments()
+    : discount_factor_(0.98),  // dummy valid inits
+      weight_(0),
+      mean_(Vec<S>::Zero(0)),
+      sum_sq_dev_(Vec<S>::Zero(0)) { }
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -96,7 +84,7 @@ class OnlineMoments {
         weight_(init_weight),
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
-    validate_probability(discount_factor, "discount_factor");
+    validate_probability_inclusive(discount_factor, "discount_factor");
     validate_positive(init_weight, "init_weight");
     validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
   }
@@ -105,10 +93,11 @@ class OnlineMoments {
    * @brief Set the discount factor for previous observations to the specified
    * value.
    *
-   * @param discount_factor The discount factor (scalar in (0, 1]).
-   * @pre discount_factor > 0 && discount_factor <= 1
+   * @param discount_factor The discount factor.
+   * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
-  inline void set_discount_factor(S discount_factor) noexcept {
+  inline void set_discount_factor(S discount_factor) {
+    validate_probability_inclusive(discount_factor, "set_discount_factor(discount_factror)");
     discount_factor_ = discount_factor;
   }
 

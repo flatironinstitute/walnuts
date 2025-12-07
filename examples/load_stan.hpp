@@ -33,7 +33,7 @@ static char* dlerror() {
 #endif
 
 struct dlclose_deleter {
-  void operator()(void* handle) const {
+  void operator()(void*) const {
     // TODO: Crashes on some systems, see
     // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
     // if (handle) {
@@ -115,11 +115,11 @@ class DynamicStanModel {
     }
   }
 
-  int unconstrained_dimensions() const {
-    return param_unc_num_(model_ptr_.get());
+  std::size_t unconstrained_dimensions() const {
+    return static_cast<std::size_t>(param_unc_num_(model_ptr_.get()));
   }
-  int constrained_dimensions() const {
-    return param_num_(model_ptr_.get(), true, true);
+  std::size_t constrained_dimensions() const {
+    return static_cast<std::size_t>(param_num_(model_ptr_.get(), true, true));
   }
 
   template <typename M>

@@ -35,7 +35,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations)
+  -Wno-missing-variable-declarations
+  -Wno-variadic-macro-arguments-omitted
+  -Wno-reserved-identifier -Wno-unused-function
+  -Wno-missing-prototypes)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)

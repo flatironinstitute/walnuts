@@ -52,10 +52,10 @@ class OnlineMoments {
    * @brief Construct a default online estimator of size zero.
    */
   OnlineMoments()
-    : discount_factor_(0.98),  // dummy valid inits
-      weight_(0),
-      mean_(Vec<S>::Zero(0)),
-      sum_sq_dev_(Vec<S>::Zero(0)) { }
+      : discount_factor_(0.98),  // dummy valid inits
+        weight_(0),
+        mean_(Vec<S>::Zero(0)),
+        sum_sq_dev_(Vec<S>::Zero(0)) {}
 
   /**
    * @brief Construct online moments with a given discount factor and size.
@@ -66,14 +66,11 @@ class OnlineMoments {
    * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
    */
   OnlineMoments(double discount_factor, std::size_t dims)
-    : discount_factor_(discount_factor),
-      weight_(0),
-      mean_(Vec<S>::Zero(static_cast<long>(dims))),
-      sum_sq_dev_(Vec<S>::Zero(static_cast<long>(dims))) {
-  }
-    
+      : discount_factor_(discount_factor),
+        weight_(0),
+        mean_(Vec<S>::Zero(static_cast<long>(dims))),
+        sum_sq_dev_(Vec<S>::Zero(static_cast<long>(dims))) {}
 
-  
   /**
    * @brief Construct an online estimator of moments with the
    * specified discount factor and initialization.
@@ -114,7 +111,8 @@ class OnlineMoments {
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
   inline void set_discount_factor(S discount_factor) {
-    validate_probability_inclusive(discount_factor, "set_discount_factor(discount_factror)");
+    validate_probability_inclusive(discount_factor,
+                                   "set_discount_factor(discount_factror)");
     discount_factor_ = discount_factor;
   }
 

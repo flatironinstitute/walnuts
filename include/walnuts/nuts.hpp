@@ -205,8 +205,8 @@ Span<S> build_leaf(const F& logp_grad, const Span<S>& span,
  */
 template <Direction D, typename S, class F, class RNG>
 std::optional<Span<S>> build_span(Random<S, RNG>& rand, const F& logp_grad,
-                                  const Vec<S>& inv_mass, S step, std::size_t depth,
-                                  const Span<S>& last_span) {
+                                  const Vec<S>& inv_mass, S step,
+                                  std::size_t depth, const Span<S>& last_span) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step);
   }
@@ -248,7 +248,8 @@ template <typename S, class F, class RNG>
 Vec<S> transition(Random<S, RNG>& rand, const F& logp_grad,
                   const Vec<S>& inv_mass, const Vec<S>& chol_mass, S step,
                   std::size_t max_depth, Vec<S>&& theta) {
-  Vec<S> rho = rand.standard_normal(static_cast<std::size_t>(theta.size())).cwiseProduct(chol_mass);
+  Vec<S> rho = rand.standard_normal(static_cast<std::size_t>(theta.size()))
+                   .cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad(theta, logp, grad);
@@ -321,8 +322,10 @@ class Nuts {
    * @param [in] step_size The step size (finite positive floating point).
    * @param [in] max_nuts_depth The maximum number of trajectory doublings
    * in NUTS (positive integer).
-   * @pre step_size > 0
-   * @pre theta_init.size() == inv_mass.size()
+   * @throw std::invalid_argument If `theta_init` is not positive.
+   * @throw std::invalid_argument If `step_size` is not positive.
+   * @throw std::invalid_argument If `theta_init` and `inv_mass` are not the
+   *  same size.
    */
   Nuts(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta_init,
        const Vec<S>& inv_mass, S step_size, std::size_t max_nuts_depth)
@@ -332,7 +335,11 @@ class Nuts {
         inv_mass_(inv_mass),
         cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
         step_size_(step_size),
-        max_nuts_depth_(max_nuts_depth) {}
+        max_nuts_depth_(max_nuts_depth) {
+    validate_positive(theta_init, "theta_init");
+    validate_positive(step_size, "step_size");
+    validate_same_size(theta_init, inv_mass, "theta_init", "inv_mass");
+  }
 
   /**
    * @brief Return the next draw from the sampler.

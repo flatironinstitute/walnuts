@@ -13,7 +13,7 @@ namespace nuts {
  * @tparam S Type of scalars.
  */
 template <typename S>
-using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>; 
+using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
 
 /**
  * @brief The type of matrices.
@@ -23,7 +23,6 @@ using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
  */
 template <typename S>
 using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
-
 
 /**
  * @brief Proposal update schemes for MCMC transitions.
@@ -99,7 +98,8 @@ class Random {
    */
   inline Vec<S> standard_normal(std::size_t n) {
     long n_signed = static_cast<long>(n);
-    return Vec<S>::NullaryExpr(n_signed, [&](std::size_t) { return normal_(rng_); });
+    return Vec<S>::NullaryExpr(n_signed,
+                               [&](std::size_t) { return normal_(rng_); });
   }
 
  private:
@@ -277,5 +277,94 @@ class NoExceptLogpGrad {
 
   const F& logp_grad_;
 };
+
+/**
+ * @brief Throw an exception if the value is not positive and finite.
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not positive and finite.
+ */
+template <typename S>
+void validate_positive(S x, const std::string& name) {
+  if (x > 0 && !std::isinf(x)) {
+    return;
+  }
+  std::string msg = name + " must be in (0, inf).";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the value is not positive.
+ *
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not positive.
+ */
+void validate_positive(std::size_t x, const std::string& name) {
+  if (x > 0) {
+    return;
+  }
+  std::string msg = name + " must be in {1, 2, ... }";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the vector's components are not positive
+ * and finite.
+ *
+ * @tparam S Type of vector variable's components.
+ * @param[in] x The vector value.
+ * @param[in] name The vector's name.
+ * @throw std::invalid_argument If the elements of the vector are not all
+ * positive and finite.
+ */
+template <typename S>
+void validate_positive(const Vec<S>& x, const std::string& name) {
+  if ((x.array() > 0.0).all() && x.allFinite()) {
+    return;
+  }
+  std::string msg = name + " must be in (0, inf).";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the value is not in (0, 1).
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not in (0, 1).
+ */
+template <typename S>
+void validate_probability(S x, const std::string& name) {
+  if (x > 0 && x < 1) {
+    return;
+  }
+  std::string msg = name + " must be in (0, 1)";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the containers do not have the same size.
+ *
+ * @tparam T1 Type of first container.
+ * @tparam T2 Type of second container.
+ * @param[in] x1 The first container.
+ * @param[in] x2 The second container.
+ * @param[in] name1 The first container's name.
+ * @param[in] name2 The second container's name.
+ * @throw std::invalid_argument If the containers are not the same size.
+ */
+template <typename T1, typename T2>
+void validate_same_size(const T1& x1, const T2& x2, const std::string& name1,
+                        const std::string& name2) {
+  if (x1.size() == x2.size()) {
+    return;
+  }
+  std::string msg = name1 + " and " + name2 + " must be the same size.";
+  throw std::invalid_argument(msg);
+}
 
 }  // namespace nuts

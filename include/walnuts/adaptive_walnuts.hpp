@@ -4,6 +4,7 @@
 
 #include "adam.hpp"
 #include "online_moments.hpp"
+#include "util.hpp"
 #include "walnuts.hpp"
 
 namespace nuts {
@@ -63,22 +64,10 @@ struct MassAdaptConfig {
         init_count_(init_count),
         iter_offset_(iter_offset),
         additive_smoothing_(additive_smoothing) {
-    if (!(mass_init.array() > 0.0).all() && mass_init.allFinite()) {
-      throw std::invalid_argument(
-          "Mass matrix entries must be positive finite.");
-    }
-    if (!(init_count > 0) || std::isinf(init_count)) {
-      throw std::invalid_argument("Initial count must be positive finite.");
-    }
-    if (!(iter_offset > 0) || std::isinf(iter_offset)) {
-      throw std::invalid_argument("Iteration offset must be positive finite.");
-    }
-    if (!(iter_offset > 0) || std::isinf(iter_offset)) {
-      throw std::invalid_argument("Iteration offset must be positive finite.");
-    }
-    if (!(additive_smoothing > 0 && additive_smoothing < 1)) {
-      throw std::invalid_argument("Additive smoothing must be in (0, 1).");
-    }
+    validate_positive(mass_init, "mass_init entries");
+    validate_positive(init_count, "init_count");
+    validate_positive(iter_offset, "iter_offset");
+    validate_probability(additive_smoothing, "additive_smoothing");
   }
 
   /** The diagonal of the diagonal initial mass matrix. */
@@ -93,8 +82,6 @@ struct MassAdaptConfig {
   /** The additive smoothing. */
   const S additive_smoothing_;
 };
-
-
 
 /**
  * @brief The immutable top-level configuration for WALNUTS.
@@ -127,24 +114,20 @@ struct WalnutsConfig {
    * @throw std::invalid_argument If the max error is not finite and
    * positive.
    * @throw std::invalid_argument If the maximum NUTS depth is zero.
+   * @throw std::invalid_argument If the maximum number of step halvings is
+   * zero.
    * @throw std::invalid_argument If the minimum number of micro steps is zero.
    */
-  WalnutsConfig(S max_error, std::size_t max_nuts_depth, std::size_t max_step_halvings,
-		std::size_t min_micro_steps)
+  WalnutsConfig(S max_error, std::size_t max_nuts_depth,
+                std::size_t max_step_halvings, std::size_t min_micro_steps)
       : max_error_(max_error),
         max_nuts_depth_(max_nuts_depth),
         max_step_halvings_(max_step_halvings),
-	min_micro_steps_(min_micro_steps) {
-    if (!(max_error > 0) || std::isinf(max_error)) {
-      throw std::invalid_argument(
-          "Log maximum error must be positive and finite.");
-    }
-    if (max_nuts_depth == 0) {
-      throw std::invalid_argument("Maximum NUTS depth must be positive.");
-    }
-    if (min_micro_steps == 0) {
-      throw std::invalid_argument("Minimum micro steps must be positive.");
-    }
+        min_micro_steps_(min_micro_steps) {
+    validate_positive(max_error, "max_error");
+    validate_positive(max_nuts_depth, "max_nuts_depth");
+    validate_positive(max_step_halvings, "max_step_halvings");
+    validate_positive(min_micro_steps, "min_micro_steps");
   }
 
   /** The maximum error in Hamiltonian in macro steps. */
@@ -173,9 +156,7 @@ class StepAdaptHandler {
    *
    * @param[in] cfg The stepsize adaptation tuning parameters.
    */
-  StepAdaptHandler(const AdamConfig<S>& cfg):
-    adam_(cfg) {
-  } 
+  StepAdaptHandler(const AdamConfig<S>& cfg) : adam_(cfg) {}
 
   /**
    * @brief Update with the estimate of step size given the specified
@@ -238,6 +219,8 @@ class MassEstimator {
       : mass_cfg_(mass_cfg),
         var_estimator_(0, static_cast<std::size_t>(theta.size())),
         inv_var_estimator_(0, static_cast<std::size_t>(theta.size())) {
+    validate_same_size(theta, grad, "theta", "grad");
+
     S smoothing = mass_cfg_.additive_smoothing_;
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
@@ -245,14 +228,10 @@ class MassEstimator {
     Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
     S dummy_discount = 0.98;  // gets reset before being used
-    inv_var_estimator_ = OnlineMoments<S>(
-        dummy_discount, mass_cfg.iter_offset_, zero, init_prec);
-    var_estimator_ = OnlineMoments<S>(
-        dummy_discount, mass_cfg.iter_offset_, zero, init_var);
-    if (theta.size() != grad.size()) {
-      throw std::invalid_argument(
-          "Position and gradient must be the same size.");
-    }
+    inv_var_estimator_ = OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_,
+                                          zero, init_prec);
+    var_estimator_ =
+        OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_, zero, init_var);
   }
 
   /**
@@ -267,11 +246,8 @@ class MassEstimator {
    */
   void observe(const Vec<S>& theta, const Vec<S>& grad, std::size_t iteration) {
     double discount_factor = 1.0 - 1.0 / (mass_cfg_.iter_offset_ + iteration);
-    var_estimator_.set_discount_factor(
-        discount_factor);  // TODO: one encapsulated function
-    var_estimator_.observe(theta);
-    inv_var_estimator_.set_discount_factor(discount_factor);
-    inv_var_estimator_.observe(grad);
+    var_estimator_.discount_observe(discount_factor, theta);
+    inv_var_estimator_.discount_observe(discount_factor, grad);
   }
 
   /**
@@ -280,14 +256,10 @@ class MassEstimator {
    * @return The inverse mass matrix estimate.
    */
   Vec<S> inv_mass_estimate() const {
-    Vec<S> inv_mass_est_var = var_estimator_.variance().array();
-    Vec<S> inv_mass_est_inv_var =
-        inv_var_estimator_.variance().array().inverse().matrix();
-    Vec<S> inv_mass_est =
-        (inv_mass_est_var.array() * inv_mass_est_inv_var.array())
-            .sqrt()
-            .matrix();
-    return inv_mass_est;
+    return (var_estimator_.variance().array() *
+            inv_var_estimator_.variance().array().inverse())
+        .sqrt()
+        .matrix();
   }
 
  private:
@@ -363,8 +335,7 @@ class AdaptiveWalnuts {
         theta_(theta_init),
         iteration_(0),
         step_adapt_handler_(step_cfg),
-        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {
-  }
+        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {}
 
   /**
    * @brief Return the next state from warmup.
@@ -384,8 +355,8 @@ class AdaptiveWalnuts {
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-	walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_,
-	std::move(theta_), grad_select, step_adapt_handler_);
+        walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_,
+        std::move(theta_), grad_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     ++iteration_;
     return theta_;
@@ -406,7 +377,7 @@ class AdaptiveWalnuts {
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-	walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_);
+        walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_);
   }
 
   /**
@@ -446,7 +417,8 @@ class AdaptiveWalnuts {
   /** The current iteration. */
   std::size_t iteration_;
 
-  /** The handler receiving observations from WALNUTS for step size adaptation. */
+  /** The handler receiving observations from WALNUTS for step size adaptation.
+   */
   StepAdaptHandler<S> step_adapt_handler_;
 
   /** The estimat for mass matrices. */

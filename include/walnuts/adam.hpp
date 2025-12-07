@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include <stdexcept>
+
+#include "util.hpp"
 
 namespace nuts {
 
@@ -19,12 +20,7 @@ S relu(S x) {
 }
 
 /**
- * @brief The immutable configuration for step-size adaptation.
- *
- * The tuning parameters include a step size initialization, a target
- * macro step size bidirectional minimum acceptance rate of the macro step,
- * an iteration offset for smoothing updates (higher is slower to move
- * away from initialization), a learning rate, and decay rate.
+ * @brief The immutable configuration for Adam-based step-size adaptation.
  *
  * @tparam S The type of scalars.
  */
@@ -36,44 +32,34 @@ struct AdamConfig {
    *
    * @param[in] step_size_init The initial step size.
    * @param[in] target_accept_rate The target acceptance rate.
-   * @param[in] learn_rate The learning rate for Adam.
-   * @param[in] beta1 The beta1 tuning parameter for Adam.
-   * @param[in] beta2 The beta2 tuning parameter for Adam.
-   * @param[in] epsilon The epsilon tuning parameter for Adam.
+   * @param[in] learn_rate The learning rate.
+   * @param[in] beta1 The decay rate of the moving average for gradients.
+   * @param[in] beta2 The decay rate of the moving average for squared
+   * gradients.
+   * @param[in] epsilon The stabilization constant added to the denominator of
+   * updates.
    * @throw std::invalid_argument If the initial step size is not finite and
    * positive.
    * @throw std::invalid_argument If the learning rate is not positive and
-   * finite. 
+   * finite.
    * @throw std::invalid_argument If `beta1` is not in (0, 1).
    * @throw std::invalid_argument If `beta2` is not in (0, 1).
    * @throw std::invalid_argument If `epsilon" is not positive and finite.
    */
-  AdamConfig(S step_size_init, S target_accept_rate,
-	     S learn_rate = 0.2, S beta1 = 0.3, S beta2 = 0.99, S epsilon = 1e-4)
+  AdamConfig(S step_size_init, S target_accept_rate, S learn_rate = 0.2,
+             S beta1 = 0.3, S beta2 = 0.99, S epsilon = 1e-4)
       : step_size_init_(step_size_init),
         target_accept_rate_(target_accept_rate),
-	learn_rate_(learn_rate),
-	beta1_(beta1),
-	beta2_(beta2),
-	epsilon_(epsilon) {
-    if (!(step_size_init > 0) || std::isinf(step_size_init)) {
-      throw std::invalid_argument("Initial count must be positive and finite.");
-    }
-    if (!(target_accept_rate > 0) || !(target_accept_rate < 1)) {
-      throw std::invalid_argument("Acceptance rate target must be in (0, 1)");
-    }
-    if (!(learn_rate > 0) || std::isinf(learn_rate)) {
-      throw std::invalid_argument("Learning rate must be positive and finite.");
-    }
-    if (!(beta1 > 0) || !(beta1 < 1)) {
-      throw std::invalid_argument("beta1 must be in (0, 1)");
-    }
-    if (!(beta2 > 0) || !(beta2 < 1)) {
-      throw std::invalid_argument("beta2 must be in (0, 1)");
-    }
-    if (!(epsilon > 0) || std::isinf(epsilon)) {
-      throw std::invalid_argument("epsilon must be positive and finite.");
-    }
+        learn_rate_(learn_rate),
+        beta1_(beta1),
+        beta2_(beta2),
+        epsilon_(epsilon) {
+    validate_positive(step_size_init, "step_size_init");
+    validate_probability(target_accept_rate, "target_accept_rate");
+    validate_positive(learn_rate, "learn_rate");
+    validate_probability(beta1, "beta1");
+    validate_probability(beta2, "beta2");
+    validate_positive(epsilon, "epsilon");
   }
 
   /** The initial macro step size. */
@@ -85,19 +71,19 @@ struct AdamConfig {
   /** The learning rate for Adam. */
   const S learn_rate_;
 
-  /** The beta1 parameter for Adam */
+  /** The decay rate of the moving average for gradients */
   const S beta1_;
 
-  /** The beta2 parameter for Adam. */
+  /** The decay rate of the moving average for squared gradients. */
   const S beta2_;
 
-  /** The epsilon parameter for Adam. */
+  /** The additive stabiliziation constant for the denominator of updates. */
   const S epsilon_;
 };
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size adaptation.
- */  
+ */
 template <typename S>
 class Adam {
  public:
@@ -106,22 +92,19 @@ class Adam {
    *
    * @param[in] cfg The configuration for the optimizer.
    */
-  Adam(const AdamConfig<S>& cfg) :
-    theta_(std::log(cfg.step_size_init_)),
-    m_(0),
-    v_(0),
-    t_(0),
-    beta1_pow_(1),
-    beta2_pow_(1),
-    target_accept_rate_(cfg.target_accept_rate_),
-    learn_rate_(cfg.learn_rate_),
-    beta1_(cfg.beta1_),
-    beta2_(cfg.beta2_),
-    eps_(cfg.epsilon_) {
-  }
+  Adam(const AdamConfig<S>& cfg)
+      : theta_(std::log(cfg.step_size_init_)),
+        m_(0),
+        v_(0),
+        t_(0),
+        beta1_pow_(1),
+        beta2_pow_(1),
+        target_accept_rate_(cfg.target_accept_rate_),
+        learn_rate_(cfg.learn_rate_),
+        beta1_(cfg.beta1_),
+        beta2_(cfg.beta2_),
+        eps_(cfg.epsilon_) {}
 
-
-  
   /**
    * Observe an acceptance probabilty in (0, 1).
    *
@@ -146,7 +129,7 @@ class Adam {
   }
 
   /**
-   * Return the current step size estimate.
+   * Return the step size estimate.
    *
    * @return The step size.
    */

@@ -31,8 +31,8 @@ static void summarize(const std::vector<std::string> names,
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean << ", stddev = " << stddev
-              << "\n";
+    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean
+              << ", stddev = " << stddev << "\n";
   }
 }
 
@@ -68,8 +68,8 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
                    std::size_t warmup, std::size_t samples, double init_count,
                    double mass_iteration_offset, double additive_smoothing,
                    double step_size_init, double accept_rate_target,
-		   double learn_rate, double beta1, double beta2, double epsilon,
-                   double max_error, std::size_t max_nuts_depth,
+                   double learn_rate, double beta1, double beta2,
+                   double epsilon, double max_error, std::size_t max_nuts_depth,
                    std::size_t max_step_depth, std::size_t min_micro_steps) {
   double logp_time = 0.0;
   std::size_t logp_count = 0;
@@ -94,9 +94,10 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
 
-  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate, beta1, beta2, epsilon);
+  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate,
+                            beta1, beta2, epsilon);
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
-				  min_micro_steps);
+                                  min_micro_steps);
 
   std::cout << "Running Adaptive WALNUTS"
             << ";  D = " << theta_init.size() << "; W = " << warmup
@@ -174,8 +175,8 @@ Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
 }
 
 int main(int argc, char** argv) {
-  unsigned int time_seed
-    = static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count());
+  unsigned int time_seed = static_cast<unsigned int>(
+      std::chrono::system_clock::now().time_since_epoch().count());
   srand(time_seed);
   unsigned int seed = static_cast<unsigned int>(rand());
   std::size_t warmup = 128;
@@ -194,7 +195,7 @@ int main(int argc, char** argv) {
   double beta1 = 0.3;
   double beta2 = 0.99;
   double epsilon = 1e-4;
-    
+
   std::string lib;
   std::string data;
   std::string output_file;
@@ -270,13 +271,13 @@ int main(int argc, char** argv) {
 
     app.add_option("--step-beta1", beta1,
                    "The beta1 parameter for Adam for step size adaptation")
-      ->default_val(beta1)
-      ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+        ->default_val(beta1)
+        ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
     app.add_option("--step-beta2", beta1,
                    "The beta2 parameter for Adam for step size adaptation")
-      ->default_val(beta2)
-      ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+        ->default_val(beta2)
+        ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
     app.add_option("--step-epsilon", epsilon,
                    "The epsilon parameter for Adam for step size adaptation")
@@ -302,12 +303,11 @@ int main(int argc, char** argv) {
 
   Vector theta_init = initialize(model, rng, init);
 
-  Matrix draws
-    = run_walnuts(model, rng, theta_init, warmup, samples, init_count,
-		  mass_iteration_offset, additive_smoothing, step_size_init,
-		  accept_rate_target, learning_rate, beta1, beta2, epsilon,
-                  max_error, max_nuts_depth, max_step_depth,
-		  min_micro_steps);
+  Matrix draws =
+      run_walnuts(model, rng, theta_init, warmup, samples, init_count,
+                  mass_iteration_offset, additive_smoothing, step_size_init,
+                  accept_rate_target, learning_rate, beta1, beta2, epsilon,
+                  max_error, max_nuts_depth, max_step_depth, min_micro_steps);
 
   auto names = model.param_names();
   summarize(names, draws);

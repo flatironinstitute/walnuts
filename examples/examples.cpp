@@ -6,7 +6,6 @@
 #include <walnuts/nuts.hpp>
 #include <walnuts/walnuts.hpp>
 
-
 static double total_time = 0.0;
 static std::size_t count = 0;
 static auto global_start = std::chrono::high_resolution_clock::now();
@@ -56,7 +55,8 @@ static void ill_cond_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
   block_end_timer();
 }
 
-static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp, Eigen::VectorXd& grad) {
+static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
+                                 Eigen::VectorXd& grad) {
   block_start_timer();
   logp = -0.5 * x.dot(x);
   grad = -x;
@@ -82,9 +82,10 @@ static void summarize(const Eigen::MatrixXd& draws) {
 }
 
 template <typename F, typename RNG>
-static void run_nuts(const F& target_logp_grad, const Eigen::VectorXd& theta_init,
-                     RNG& rng, std::size_t D, std::size_t N, double step_size,
-                     std::size_t max_depth, const Eigen::VectorXd& inv_mass) {
+static void run_nuts(const F& target_logp_grad,
+                     const Eigen::VectorXd& theta_init, RNG& rng, std::size_t D,
+                     std::size_t N, double step_size, std::size_t max_depth,
+                     const Eigen::VectorXd& inv_mass) {
   std::cout << "\nRUN NUTS"
             << ";  D = " << D << ";  N = " << N
             << ";  step_size = " << step_size << ";  max_depth = " << max_depth
@@ -102,22 +103,23 @@ static void run_nuts(const F& target_logp_grad, const Eigen::VectorXd& theta_ini
 }
 
 template <typename F, typename RNG>
-static void run_walnuts(const F& target_logp_grad, Eigen::VectorXd theta_init, RNG& rng,
-                        std::size_t D, std::size_t N, double macro_step_size,
-                        std::size_t max_nuts_depth, std::size_t max_step_halvings,
-			std::size_t min_micro_steps,
-			double max_error, Eigen::VectorXd inv_mass) {
+static void run_walnuts(const F& target_logp_grad, Eigen::VectorXd theta_init,
+                        RNG& rng, std::size_t D, std::size_t N,
+                        double macro_step_size, std::size_t max_nuts_depth,
+                        std::size_t max_step_halvings,
+                        std::size_t min_micro_steps, double max_error,
+                        Eigen::VectorXd inv_mass) {
   std::cout << "\nRUN WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << ";  macro_step_size = " << macro_step_size
             << ";  max_nuts_depth = " << max_nuts_depth
-	    << ";  min_micro_steps = " << min_micro_steps
+            << ";  min_micro_steps = " << min_micro_steps
             << ";  max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::Random<double, RNG> rand(rng);
   nuts::WalnutsSampler sample(rand, target_logp_grad, theta_init, inv_mass,
-                              macro_step_size, max_nuts_depth, max_step_halvings,
-			      min_micro_steps, max_error);
+                              macro_step_size, max_nuts_depth,
+                              max_step_halvings, min_micro_steps, max_error);
   Eigen::MatrixXd draws(D, N);
   for (std::size_t n = 0; n < N; ++n) {
     draws.col(static_cast<long>(n)) = sample();
@@ -127,12 +129,10 @@ static void run_walnuts(const F& target_logp_grad, Eigen::VectorXd theta_init, R
 }
 
 template <typename F, typename RNG>
-static void run_adaptive_walnuts(const F& target_logp_grad,
-                                 const Eigen::VectorXd& theta_init, RNG& rng, std::size_t D,
-                                 std::size_t N, double step_size_init,
-				 std::size_t max_nuts_depth,
-				 std::size_t min_micro_steps,
-                                 double max_error) {
+static void run_adaptive_walnuts(
+    const F& target_logp_grad, const Eigen::VectorXd& theta_init, RNG& rng,
+    std::size_t D, std::size_t N, double step_size_init,
+    std::size_t max_nuts_depth, std::size_t min_micro_steps, double max_error) {
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<long>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
@@ -142,16 +142,16 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
 
   double accept_rate_target = 0.8;
   // TODO: more Adam Config beyond defaults
-  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target); 
+  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target);
 
   std::size_t max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
-				  min_micro_steps);
+                                  min_micro_steps);
   std::cout << "\nRUN ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
             << "; max_nuts_depth = " << max_nuts_depth
-	    << "; min_micro_steps = " << min_micro_steps
+            << "; min_micro_steps = " << min_micro_steps
             << "; max_error = " << max_error << std::endl;
   global_start_timer();
   nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
@@ -167,7 +167,8 @@ static void run_adaptive_walnuts(const F& target_logp_grad,
   global_end_timer();
   summarize(draws);
   std::cout << std::endl;
-  std::cout << "Initial micro step size = " << sampler.macro_step_size() << std::endl;
+  std::cout << "Initial micro step size = " << sampler.macro_step_size()
+            << std::endl;
   std::cout << "Max error = " << sampler.max_error() << std::endl;
   std::cout << "Inverse mass matrix = "
             << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
@@ -203,7 +204,7 @@ int main() {
               max_step_halvings, min_micro_steps, max_error, inv_mass);
 
   run_adaptive_walnuts(target_logp_grad, theta_init, rng, D, N, step_size,
-		       max_depth, min_micro_steps, max_error);
+                       max_depth, min_micro_steps, max_error);
 
   return 0;
 }

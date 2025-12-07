@@ -29,15 +29,15 @@ static void summarize(const std::vector<std::string> names,
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean << ", stddev = " << stddev
-              << "\n";
+    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean
+              << ", stddev = " << stddev << "\n";
   }
 }
 
 template <typename RNG>
 static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
-                      RNG& rng, std::size_t N, S step_size, std::size_t max_depth,
-                      const VectorS& inv_mass) {
+                      RNG& rng, std::size_t N, S step_size,
+                      std::size_t max_depth, const VectorS& inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
   double logp_time = 0.0;
   int logp_count = 0;
@@ -83,8 +83,8 @@ template <typename RNG>
 static void test_walnuts(const DynamicStanModel& model,
                          const VectorS& theta_init, RNG& rng, std::size_t N,
                          S macro_step_size, std::size_t max_nuts_depth,
-			 std::size_t min_micro_steps,
-                         S log_max_error, VectorS inv_mass) {
+                         std::size_t min_micro_steps, S log_max_error,
+                         VectorS inv_mass) {
   std::size_t max_step_halvings = 2;
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
@@ -92,7 +92,7 @@ static void test_walnuts(const DynamicStanModel& model,
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
                               max_nuts_depth, max_step_halvings,
-			      min_micro_steps, log_max_error);
+                              min_micro_steps, log_max_error);
   std::size_t M = model.constrained_dimensions();
 
   MatrixS draws(static_cast<long>(M), static_cast<long>(N));
@@ -105,7 +105,8 @@ static void test_walnuts(const DynamicStanModel& model,
 template <typename RNG>
 static void test_adaptive_walnuts(const DynamicStanModel& model,
                                   const VectorS& theta_init, RNG& rng,
-                                  std::size_t D, std::size_t N, std::size_t max_nuts_depth,
+                                  std::size_t D, std::size_t N,
+                                  std::size_t max_nuts_depth,
                                   std::size_t min_micro_steps, S max_error) {
   double logp_time = 0.0;
   std::size_t logp_count = 0;
@@ -119,11 +120,12 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
                                  additive_smoothing);
   double step_size_init = 0.5;
   double accept_rate_target = 2.0 / 3.0;
-  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target);  // uses defaults for others
+  nuts::AdamConfig step_cfg(step_size_init,
+                            accept_rate_target);  // uses defaults for others
 
   std::size_t max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
-				  min_micro_steps);
+                                  min_micro_steps);
   std::cout << "\nTEST ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
@@ -230,11 +232,11 @@ int main(int argc, char** argv) {
 
   test_nuts(model, theta_init, rng, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(model, theta_init, rng, N, step_size, max_depth,
-	       min_micro_steps, max_error, inv_mass);
+  test_walnuts(model, theta_init, rng, N, step_size, max_depth, min_micro_steps,
+               max_error, inv_mass);
 
   test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth,
-			min_micro_steps, max_error);
+                        min_micro_steps, max_error);
 
   return 0;
 }

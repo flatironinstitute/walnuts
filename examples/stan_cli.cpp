@@ -186,15 +186,15 @@ int main(int argc, char** argv) {
   std::size_t min_micro_steps = 1;
   double max_error = 0.5;
   double init = 2.0;
-  double init_count = 1.1;
+  double mass_init_count = 1.1;
   double mass_iteration_offset = 1.1;
-  double additive_smoothing = 1e-5;
+  double mass_additive_smoothing = 1e-5;
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
-  double learning_rate = 0.2;
-  double beta1 = 0.3;
-  double beta2 = 0.99;
-  double epsilon = 1e-4;
+  double step_learn_rate = 0.2;
+  double step_beta1 = 0.3;
+  double step_beta2 = 0.99;
+  double step_epsilon = 1e-4;
 
   std::string lib;
   std::string data;
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
   {
     CLI::App app{"Run WALNUTs on a Stan model"};
 
-    app.add_option("--seed", seed, "Random seed")->default_val(seed);
+    app.add_option("--seed", seed, "Random seed (default randomize with clock)")->default_val(seed);
 
     app.add_option("--warmup", warmup, "Number of warmup iterations")
         ->default_val(warmup)
@@ -235,13 +235,13 @@ int main(int argc, char** argv) {
         ->check(CLI::PositiveNumber);
 
     app.add_option("--init", init,
-                   "Range [-init,init] for the parameters initial values")
+                   "Range [-init,init] for uniform parameter initial values")
         ->default_val(init)
         ->check(CLI::NonNegativeNumber);
 
-    app.add_option("--mass-init-count", init_count,
+    app.add_option("--mass-init-count", mass_init_count,
                    "Initial count for the mass matrix adaptation")
-        ->default_val(init_count)
+        ->default_val(mass_init_count)
         ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
     app.add_option("--mass-iteration-offset", mass_iteration_offset,
@@ -249,9 +249,9 @@ int main(int argc, char** argv) {
         ->default_val(mass_iteration_offset)
         ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
-    app.add_option("--mass-additive-smoothing", additive_smoothing,
+    app.add_option("--mass-additive-smoothing", mass_additive_smoothing,
                    "Additive smoothing for the mass matrix adaptation")
-        ->default_val(additive_smoothing)
+        ->default_val(mass_additive_smoothing)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--step-size-init", step_size_init,
@@ -264,31 +264,31 @@ int main(int argc, char** argv) {
         ->default_val(accept_rate_target)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-learning-rate", learning_rate,
-                   "Learning rate for the step size adaptation")
-        ->default_val(learning_rate)
+    app.add_option("--step-learning-rate", step_learn_rate,
+                   "Learning rates for step adaptation")
+        ->default_val(step_learn_rate)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("--step-beta1", beta1,
-                   "The beta1 parameter for Adam for step size adaptation")
-        ->default_val(beta1)
+    app.add_option("--step-beta1", step_beta1,
+                   "Decay rate of gradient moving average for step adaptation")
+        ->default_val(step_beta1)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-beta2", beta1,
-                   "The beta2 parameter for Adam for step size adaptation")
-        ->default_val(beta2)
+    app.add_option("--step-beta2", step_beta1,
+                   "Decay rate of squared gradient moving average for step adaptation")
+        ->default_val(step_beta2)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-epsilon", epsilon,
-                   "The epsilon parameter for Adam for step size adaptation")
-        ->default_val(epsilon)
+    app.add_option("--step-epsilon", step_epsilon,
+                   "Update stabilization term for step size adaptation")
+        ->default_val(step_epsilon)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("model", lib, "Path to the Stan model library")
+    app.add_option("model", lib, "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()
         ->check(CLI::ExistingFile);
 
-    app.add_option("data", data, "Path to the Stan model data (optional)")
+    app.add_option("data", data, "Path to the Stan model data (.json, optional)")
         ->check(CLI::ExistingFile);
 
     app.add_option("--output", output_file, "Output file for the draws")
@@ -304,9 +304,9 @@ int main(int argc, char** argv) {
   Vector theta_init = initialize(model, rng, init);
 
   Matrix draws =
-      run_walnuts(model, rng, theta_init, warmup, samples, init_count,
-                  mass_iteration_offset, additive_smoothing, step_size_init,
-                  accept_rate_target, learning_rate, beta1, beta2, epsilon,
+      run_walnuts(model, rng, theta_init, warmup, samples, mass_init_count,
+                  mass_iteration_offset, mass_additive_smoothing, step_size_init,
+                  accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
                   max_error, max_nuts_depth, max_step_depth, min_micro_steps);
 
   auto names = model.param_names();

@@ -216,10 +216,10 @@ class MassEstimator {
    */
   MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
-    : mass_cfg_(mass_cfg) {
-      // 0.98 is dummy that will get overwritten
-      // var_estimator_(0.98, static_cast<std::size_t>(theta.size())),
-      // inv_var_estimator_(0.98, static_cast<std::size_t>(theta.size())) {
+      : mass_cfg_(mass_cfg) {
+    // 0.98 is dummy that will get overwritten
+    // var_estimator_(0.98, static_cast<std::size_t>(theta.size())),
+    // inv_var_estimator_(0.98, static_cast<std::size_t>(theta.size())) {
     validate_same_size(theta, grad, "theta", "grad");
 
     S smoothing = mass_cfg_.additive_smoothing_;

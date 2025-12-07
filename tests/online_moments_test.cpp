@@ -30,7 +30,8 @@ static Eigen::VectorXd discounted_variance(
   std::size_t N = ys.size();
   std::size_t D = static_cast<std::size_t>(ys[0].size());
   double weight_sum = 0;
-  Eigen::VectorXd weighted_sq_diff_sum = Eigen::VectorXd::Zero(static_cast<long>(D));
+  Eigen::VectorXd weighted_sq_diff_sum =
+      Eigen::VectorXd::Zero(static_cast<long>(D));
   for (std::size_t n = 0; n < N; ++n) {
     double weight = std::pow(alpha, N - n - 1);
     weight_sum += weight;

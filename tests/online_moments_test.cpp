@@ -31,7 +31,7 @@ static Eigen::VectorXd discounted_variance(
   std::size_t D = static_cast<std::size_t>(ys[0].size());
   double weight_sum = 0;
   Eigen::VectorXd weighted_sq_diff_sum =
-      Eigen::VectorXd::Zero(static_cast<long>(D));
+      Eigen::VectorXd::Zero(static_cast<Eigen::Index>(D));
   for (std::size_t n = 0; n < N; ++n) {
     double weight = std::pow(alpha, N - n - 1);
     weight_sum += weight;
@@ -81,20 +81,21 @@ TEST(Welford, test_no_discounting) {
   std::size_t N = 100;
   std::vector<Eigen::VectorXd> ys(N);
   for (std::size_t n = 0; n < N; ++n) {
-    ys[n] = Eigen::VectorXd::Zero(static_cast<long>(D));
+    ys[n] = Eigen::VectorXd::Zero(static_cast<Eigen::Index>(D));
   }
   for (std::size_t n = 0; n < N; ++n) {
     double x = static_cast<double>(n);
     ys[n] << x, std::sqrt(x);
   }
 
-  Eigen::VectorXd sum = Eigen::VectorXd::Zero(static_cast<long>(D));
+  Eigen::VectorXd sum = Eigen::VectorXd::Zero(static_cast<Eigen::Index>(D));
   for (auto y : ys) {
     sum += y;
   }
   Eigen::VectorXd mean_expected = sum / N;
 
-  Eigen::VectorXd sum_sq_diffs = Eigen::VectorXd::Zero(static_cast<long>(D));
+  Eigen::VectorXd sum_sq_diffs =
+      Eigen::VectorXd::Zero(static_cast<Eigen::Index>(D));
   for (auto y : ys) {
     sum_sq_diffs +=
         ((y - mean_expected).array() * (y - mean_expected).array()).matrix();
@@ -119,7 +120,7 @@ TEST(Welford, test_ten_observations) {
   std::size_t N = 10;
   std::vector<Eigen::VectorXd> ys(N);
   for (std::size_t n = 0; n < N; ++n) {
-    ys[n] = Eigen::VectorXd::Zero(static_cast<long>(D));
+    ys[n] = Eigen::VectorXd::Zero(static_cast<Eigen::Index>(D));
   }
   for (std::size_t n = 0; n < N; ++n) {
     double x = static_cast<double>(n);

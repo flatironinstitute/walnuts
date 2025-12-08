@@ -68,8 +68,8 @@ class OnlineMoments {
   OnlineMoments(double discount_factor, std::size_t dims)
       : discount_factor_(discount_factor),
         weight_(0),
-        mean_(Vec<S>::Zero(static_cast<long>(dims))),
-        sum_sq_dev_(Vec<S>::Zero(static_cast<long>(dims))) {}
+        mean_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))),
+        sum_sq_dev_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))) {}
 
   /**
    * @brief Construct an online estimator of moments with the

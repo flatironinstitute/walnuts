@@ -17,9 +17,9 @@ using MatrixS = Eigen::Matrix<S, -1, -1>;
 
 static void summarize(const std::vector<std::string> names,
                       const MatrixS& draws) {
-  long N = draws.cols();
-  long D = draws.rows();
-  for (long d = 0; d < D; ++d) {
+  auto N = draws.cols();
+  auto D = draws.rows();
+  for (auto d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
         std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
@@ -61,7 +61,7 @@ static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
 
   MatrixS draws(M, N);
   for (std::size_t n = 0; n < N; ++n) {
-    model.constrain_draw(sample(), draws.col(static_cast<long>(n)));
+    model.constrain_draw(sample(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   auto global_end = std::chrono::high_resolution_clock::now();
@@ -95,9 +95,9 @@ static void test_walnuts(const DynamicStanModel& model,
                               min_micro_steps, log_max_error);
   std::size_t M = model.constrained_dimensions();
 
-  MatrixS draws(static_cast<long>(M), static_cast<long>(N));
+  MatrixS draws(static_cast<Eigen::Index>(M), static_cast<Eigen::Index>(N));
   for (std::size_t n = 0; n < N; ++n) {
-    model.constrain_draw(sample(), draws.col(static_cast<long>(n)));
+    model.constrain_draw(sample(), draws.col(static_cast<Eigen::Index>(n)));
   }
   summarize(model.param_names(), draws);
 }
@@ -112,7 +112,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   std::size_t logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
 
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<long>(D));
+  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
   double additive_smoothing = 0.1;
@@ -173,7 +173,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
 
   MatrixS draws(M, N);
   for (std::size_t n = 0; n < N; ++n) {
-    model.constrain_draw(sampler(), draws.col(static_cast<long>(n)));
+    model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   global_end = std::chrono::high_resolution_clock::now();
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
   DynamicStanModel model(lib, data, seed);
 
   std::size_t D = model.unconstrained_dimensions();
-  VectorS inv_mass = VectorS::Ones(static_cast<long>(D));
+  VectorS inv_mass = VectorS::Ones(static_cast<Eigen::Index>(D));
 
   std::cout << "SHARED CONSTANTS:" << std::endl;
   std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
   std::normal_distribution<S> std_normal(0.0, 1.0);
   VectorS theta_init(D);
   for (std::size_t i = 0; i < D; ++i) {
-    theta_init(static_cast<long>(i)) = std_normal(rng);
+    theta_init(static_cast<Eigen::Index>(i)) = std_normal(rng);
   }
 
   test_nuts(model, theta_init, rng, N, step_size, max_depth, inv_mass);

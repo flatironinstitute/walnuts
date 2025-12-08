@@ -64,9 +64,9 @@ static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
 }
 
 static void summarize(const Eigen::MatrixXd& draws) {
-  long N = draws.cols();
-  long D = draws.rows();
-  for (long d = 0; d < D; ++d) {
+  auto N = draws.cols();
+  auto D = draws.rows();
+  for (auto d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
         std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
@@ -94,9 +94,10 @@ static void run_nuts(const F& target_logp_grad,
   nuts::Random<double, RNG> rand(rng);
   nuts::Nuts sample(rand, target_logp_grad, theta_init, inv_mass, step_size,
                     max_depth);
-  Eigen::MatrixXd draws(static_cast<long>(D), static_cast<long>(N));
+  Eigen::MatrixXd draws(static_cast<Eigen::Index>(D),
+                        static_cast<Eigen::Index>(N));
   for (std::size_t n = 0; n < N; ++n) {
-    draws.col(static_cast<long>(n)) = sample();
+    draws.col(static_cast<Eigen::Index>(n)) = sample();
   }
   global_end_timer();
   summarize(draws);
@@ -122,7 +123,7 @@ static void run_walnuts(const F& target_logp_grad, Eigen::VectorXd theta_init,
                               max_step_halvings, min_micro_steps, max_error);
   Eigen::MatrixXd draws(D, N);
   for (std::size_t n = 0; n < N; ++n) {
-    draws.col(static_cast<long>(n)) = sample();
+    draws.col(static_cast<Eigen::Index>(n)) = sample();
   }
   global_end_timer();
   summarize(draws);
@@ -133,7 +134,8 @@ static void run_adaptive_walnuts(
     const F& target_logp_grad, const Eigen::VectorXd& theta_init, RNG& rng,
     std::size_t D, std::size_t N, double step_size_init,
     std::size_t max_nuts_depth, std::size_t min_micro_steps, double max_error) {
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<long>(D));
+  Eigen::VectorXd mass_init =
+      Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
   double additive_smoothing = 0.1;
@@ -164,9 +166,10 @@ static void run_adaptive_walnuts(
     walnuts();
   }
   auto sampler = walnuts.sampler();
-  Eigen::MatrixXd draws(static_cast<long>(D), static_cast<long>(N));
+  Eigen::MatrixXd draws(static_cast<Eigen::Index>(D),
+                        static_cast<Eigen::Index>(N));
   for (std::size_t n = 0; n < N; ++n) {
-    draws.col(static_cast<long>(n)) = sampler();
+    draws.col(static_cast<Eigen::Index>(n)) = sampler();
   }
   global_end_timer();
   summarize(draws);
@@ -187,13 +190,14 @@ int main() {
   std::size_t max_step_halvings = 5;
   std::size_t min_micro_steps = 3;
   double max_error = 1;  // 61% Metropolis
-  Eigen::VectorXd inv_mass = Eigen::VectorXd::Ones(static_cast<long>(D));
+  Eigen::VectorXd inv_mass =
+      Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   std::mt19937 rng(seed);
 
   Eigen::VectorXd theta_init(D);
   std::normal_distribution<double> std_normal(0, 1);
   for (std::size_t i = 0; i < D; ++i) {
-    theta_init(static_cast<long>(i)) = std_normal(rng);
+    theta_init(static_cast<Eigen::Index>(i)) = std_normal(rng);
   }
   // uncomment following to init at bottleneck
   // theta_init = ::Zero(D);

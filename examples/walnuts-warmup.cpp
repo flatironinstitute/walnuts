@@ -6,15 +6,10 @@
 #include <random>
 #include <walnuts/adaptive_walnuts.hpp>
 
-using S = double;
-using VectorS = Eigen::Matrix<S, -1, 1>;
-using MatrixS = Eigen::Matrix<S, -1, -1>;
-using Integer = int64_t;
-
-static void normal_logp_grad(const VectorS& x, S& logp,
-			     VectorS& grad) {
+static void normal_logp_grad(const Eigen::VectorXd& x, double& logp,
+			     Eigen::VectorXd& grad) {
   const auto D = x.size();
-  grad = VectorS::Zero(D);
+  grad = Eigen::VectorXd::Zero(D);
   logp = 0;
   for (auto d = 0; d < D; ++d) {
     double sigma = d + 1;
@@ -25,36 +20,36 @@ static void normal_logp_grad(const VectorS& x, S& logp,
 }
 
 int main() {
-  Integer D = 200;
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
+  std::size_t D = 200;
+  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
   double additive_smoothing = 1e-5;
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
 
-  double step_size_init = 0.5;
-  double accept_rate_target = 0.75; // 2/3
-  double step_iteration_offset = 1.0;  // stan default: 10.0
-  double learning_rate = 0.5;  // stan default: 0.75
-  double decay_rate = 0.5;  // stan default: 0.05
-  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-                                 step_iteration_offset, learning_rate,
-                                 decay_rate);
+ double step_size_init = 0.5;
+  double target_accept_rate = 0.8;  // min 2.0 / 3.0
+  double learn_rate = 0.2;
+  double beta1 = 0.3;
+  double beta2 = 0.99;
+  double epsilon = 1e-4;
+  nuts::AdamConfig<double> step_cfg(step_size_init, target_accept_rate, learn_rate,
+				    beta1, beta2, epsilon);
 
-  S max_error = 1.0;  // 61% Metropolis
-  Integer max_nuts_depth = 10;
-  Integer max_step_depth = 8;
-  Integer min_micro_steps = 2;
+  double max_error = 1.0;  // 61% Metropolis
+  std::size_t max_nuts_depth = 10;
+  std::size_t max_step_depth = 8;
+  std::size_t min_micro_steps = 1;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth, min_micro_steps);
-
+  
   unsigned int seed = 8735487;
   std::mt19937 rng(seed);
 
-  std::normal_distribution<S> std_normal(0, 1);
-  VectorS theta_init(D);
-  for (Integer i = 0; i < D; ++i) {
-    theta_init(i) = std_normal(rng);
+  std::normal_distribution std_normal(0.0, 1.0);
+  Eigen::VectorXd theta_init(D);
+  for (std::size_t i = 0; i < D; ++i) {
+    theta_init(static_cast<Eigen::Index>(i)) = std_normal(rng);
   }
 
   std::cout << "\nADAPTIVE WALNUTS" << std::endl;
@@ -69,20 +64,20 @@ int main() {
   std::ofstream out_step(file_name_step);
   out_step << std::fixed << std::setprecision(8);
 
-  Integer warmup_iterations = 10000;
-  for (Integer n = 0; n < warmup_iterations; ++n) {
+  std::size_t warmup_iterations = 10000;
+  for (std::size_t n = 0; n < warmup_iterations; ++n) {
     walnuts();
 
-    VectorS inv_mass_diag = walnuts.inv_mass();
-    for (int d = 0; d < D; ++d) {
+    Eigen::VectorXd inv_mass_diag = walnuts.inv_mass();
+    for (std::size_t d = 0; d < D; ++d) {
       if (d > 0) {
 	out_inv_mass << ',';
       }
-      out_inv_mass << inv_mass_diag(d);
+      out_inv_mass << inv_mass_diag(static_cast<Eigen::Index>(d));
     }
     out_inv_mass << '\n';
 
-    S step_size = walnuts.step_size();
+    double step_size = walnuts.step_size();
     out_step << step_size << "\n";
   }
   out_inv_mass.close();

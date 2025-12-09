@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include <stdexcept>
+
+#include "util.hpp"
 
 namespace nuts {
 
@@ -62,30 +63,16 @@ class DualAverage {
         log_est_avg_(log_est_),
         grad_avg_(0),
         obs_count_(0),
-        log_step_offset_(std::log(2) + std::log(step_size_init)),
+        log_step_offset_(std::log(10) + std::log(step_size_init)),
         target_accept_rate_(target_accept_rate),
         obs_count_offset_(obs_count_offset),
         learn_rate_(learn_rate),
         decay_rate_(decay_rate) {
-    if (!(step_size_init > 0 && std::isfinite(step_size_init))) {
-      throw std::invalid_argument(
-          "Initial step_size must be positive and finite.");
-    }
-    if (!(target_accept_rate > 0 && std::isfinite(target_accept_rate))) {
-      throw std::invalid_argument(
-          "Target acceptance rate must be positive and finite.");
-    }
-    if (!(obs_count_offset > 0 && std::isfinite(obs_count_offset))) {
-      throw std::invalid_argument(
-          "Iteration offset must be positive and finite.");
-    }
-    if (!(learn_rate > 0 && std::isfinite(learn_rate))) {
-      throw std::invalid_argument("Learning rate must be positive and finite.");
-    }
-    if (!(decay_rate > 0 && std::isfinite(decay_rate))) {
-      throw std::invalid_argument("Decay rate must be positive and finite.");
-    }
-    std::cout << "OKl*****************************" << std::endl << std::endl;
+    validate_positive(step_size_init, "step_size_init");
+    validate_positive(target_accept_rate, "target_accept_rate");
+    validate_positive(obs_count_offset, "obs_count_offset");
+    validate_positive(learn_rate, "learn_rate");
+    validate_positive(decay_rate, "decay_rate");
   }
 
   /**
@@ -96,7 +83,7 @@ class DualAverage {
    */
   inline void observe(S alpha) noexcept {
     if (!std::isfinite(alpha)) {
-      alpha = 0.0;
+      alpha = target_accept_rate_ - grad_avg_;  // grad_avg_ update -> no op
     }
     ++obs_count_;
     S prop = 1 / (obs_count_ + obs_count_offset_);

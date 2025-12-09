@@ -35,7 +35,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-global-constructors -Wno-exit-time-destructors
   -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
   -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations -Wno-deprecated-copy-with-dtor)
+  -Wno-missing-variable-declarations -Wno-deprecated-copy-with-dtor
+  -Wno-variadic-macro-arguments-omitted
+  -Wno-reserved-identifier -Wno-unused-function
+  -Wno-missing-prototypes)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)
@@ -132,23 +135,27 @@ endif()
 # 2) Create the “namespace” alias
 add_library(nuts::nuts ALIAS walnuts)
 
+
 ##########################
 ##       Examples       ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
-  add_executable(examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cpp) 
-  target_link_libraries(examples PRIVATE nuts::nuts) 
-  target_compile_options(examples PRIVATE -O3 -Wall) 
+  add_executable(walnuts_examples ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts_examples.cpp)
+  target_link_libraries(walnuts_examples PRIVATE nuts::nuts)
+  target_compile_options(walnuts_examples PRIVATE -O3 -Wall)
 
-  add_executable(walnuts-stationarity ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-stationarity.cpp) 
-  target_link_libraries(walnuts-stationarity PRIVATE nuts::nuts) 
-  target_compile_options(walnuts-stationarity PRIVATE -O3 -Wall)  
+  add_executable(walnuts-stationarity ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-stationarity.cpp)
+  target_link_libraries(walnuts-stationarity PRIVATE nuts::nuts)
+  target_compile_options(walnuts-stationarity PRIVATE -O3 -Wall)
 
-  add_executable(walnuts-warmup ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-warmup.cpp) 
-  target_link_libraries(walnuts-warmup PRIVATE nuts::nuts) 
-  target_compile_options(walnuts-warmup PRIVATE -O3 -Wall)  
+  add_executable(walnuts-warmup ${CMAKE_CURRENT_SOURCE_DIR}/examples/walnuts-warmup.cpp)
+  target_link_libraries(walnuts-warmup PRIVATE nuts::nuts)
+  target_compile_options(walnuts-warmup PRIVATE -O3 -Wall)
+
+  # Only needed if you want stan_cli, etc.
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
 endif()
+
 
 
 ##########################

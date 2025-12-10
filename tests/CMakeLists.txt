@@ -2,6 +2,7 @@ if(MSVC)
   set(gtest_force_shared_crt on)
 endif()
 
+set(BUILD_GMOCK OFF CACHE BOOL "Disable building Google Mock" FORCE)
 FetchContent_Declare(googletest
         DOWNLOAD_EXTRACT_TIMESTAMP ON
         GIT_REPOSITORY https://github.com/google/googletest.git

@@ -207,6 +207,7 @@ public:
    * @param[in] macro_steps The number of macro steps used in a trajectory.
    */
   void observe(std::size_t macro_steps) {
+    std::cout << "macro_steps = " << macro_steps << std::endl;
     total_macro_steps_ += static_cast<double>(macro_steps);
     ++count_;
   }
@@ -394,7 +395,7 @@ class AdaptiveWalnuts {
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
-	min_micro_estimator_(8.0),
+	min_micro_estimator_(1.0),
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {}
 
@@ -410,7 +411,6 @@ class AdaptiveWalnuts {
    * @return The next warmup state.
    */
   const Vec<S> operator()() {
-    std::cout << "";
     Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
     Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
@@ -437,11 +437,12 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
+    std::cout << "***** min_micro_steps = " <<  min_micro_estimator_.min_micro_steps() << "\n";
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_);
+        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_);
   }
 
   /**
@@ -481,8 +482,7 @@ class AdaptiveWalnuts {
   /** The current iteration. */
   std::size_t iteration_;
 
-  // UNIFY NAMING! type is handler, variable is estimator, and simplify, e.g., 
-  // MinMicroHandler min_micro_estimator_;
+  // UNIFY NAMING! type is handler, variable is estimator
 
   /** The estimator for the minimum number of micro steps per macro step. */
   MinMicroStepsAdaptHandler min_micro_estimator_;

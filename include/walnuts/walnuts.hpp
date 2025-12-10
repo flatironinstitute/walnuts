@@ -436,12 +436,12 @@ Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
   logp += logp_momentum(rho, inv_mass);
   auto span_accum = SpanW<S>::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp);
-  for (depth = 0; depth < max_depth; ++depth) {
+  for (depth = 1; depth <= max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
     auto expand_in_direction = [&](auto direction) -> bool {
       constexpr Direction D = direction;
       auto maybe_next_span = build_span<D>(
-          rand, logp_grad, inv_mass, step, depth, max_step_halvings,
+          rand, logp_grad, inv_mass, step, depth - 1, max_step_halvings,
           min_micro_steps, max_error, span_accum, adapt_handler);
       if (!maybe_next_span) {
         return true;

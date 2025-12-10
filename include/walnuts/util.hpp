@@ -97,7 +97,7 @@ class Random {
    * @return A vector generated according to a standard normal distribution.
    */
   inline Vec<S> standard_normal(std::size_t n) {
-    long n_signed = static_cast<long>(n);
+    auto n_signed = static_cast<Eigen::Index>(n);
     return Vec<S>::NullaryExpr(n_signed,
                                [&](std::size_t) { return normal_(rng_); });
   }

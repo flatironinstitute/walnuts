@@ -179,11 +179,11 @@ directory you specified as the build directory (e.g., `./build` in the above com
 The easiest way to build the project is with the `cmake --build`
 command. This will build all available executable targets by default.
 
-For example, to build and run the example:
+For example, to build and run the basic hello-world examples (from `examples/walnuts_examples.cpp`):
 
 ```bash
-cmake --build . --target examples
-./examples/examples
+cmake --build . --target walnuts_examples
+./walnuts_examples
 ```
 
 
@@ -210,9 +210,7 @@ The root of the generated doc will be found in
 * `./html/index.html`.
 
 
-## Project overview
-
-The project directory structure is as follows.
+## Project directory structure
 
 
 ```
@@ -220,8 +218,9 @@ The project directory structure is as follows.
 ├── examples
 │   └── .cpp files, one per example
 ├── include
-│   └── walnuts
+│   └── walnuts 
 │       └── .hpp files containing the library source code
+│   └── CMakeLists.txt
 ├── tests
 │   ├── .cpp files, one per test
 │   └── CMakeLists.txt

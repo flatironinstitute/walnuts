@@ -21,7 +21,7 @@ static void summarize(const std::vector<std::string> names,
                       const Matrix& draws) {
   auto N = draws.cols();
   auto D = draws.rows();
-  for (long d = 0; d < D; ++d) {
+  for (auto d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
         std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
@@ -137,7 +137,7 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   global_start = std::chrono::high_resolution_clock::now();
 
   for (std::size_t n = 0; n < samples; ++n) {
-    model.constrain_draw(sampler(), draws.col(static_cast<long>(n)));
+    model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   end_timing();
@@ -157,7 +157,7 @@ Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
 
   for (std::size_t _ = 0; _ < max_tries; ++_) {
     for (std::size_t i = 0; i < D; ++i) {
-      theta_init(static_cast<long>(i)) = initial(rng);
+      theta_init(static_cast<Eigen::Index>(i)) = initial(rng);
     }
 
     model.logp_grad(theta_init, logp, grad);
@@ -204,7 +204,8 @@ int main(int argc, char** argv) {
   {
     CLI::App app{"Run WALNUTs on a Stan model"};
 
-    app.add_option("--seed", seed, "Random seed (default randomize with clock)")->default_val(seed);
+    app.add_option("--seed", seed, "Random seed (default randomize with clock)")
+        ->default_val(seed);
 
     app.add_option("--warmup", warmup, "Number of warmup iterations")
         ->default_val(warmup)
@@ -274,8 +275,9 @@ int main(int argc, char** argv) {
         ->default_val(step_beta1)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-beta2", step_beta1,
-                   "Decay rate of squared gradient moving average for step adaptation")
+    app.add_option(
+           "--step-beta2", step_beta1,
+           "Decay rate of squared gradient moving average for step adaptation")
         ->default_val(step_beta2)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
@@ -284,11 +286,13 @@ int main(int argc, char** argv) {
         ->default_val(step_epsilon)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("model", lib, "Path to the Stan model library (.so from CmdStan{,Py,R})")
+    app.add_option("model", lib,
+                   "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()
         ->check(CLI::ExistingFile);
 
-    app.add_option("data", data, "Path to the Stan model data (.json, optional)")
+    app.add_option("data", data,
+                   "Path to the Stan model data (.json, optional)")
         ->check(CLI::ExistingFile);
 
     app.add_option("--output", output_file, "Output file for the draws")
@@ -303,11 +307,11 @@ int main(int argc, char** argv) {
 
   Vector theta_init = initialize(model, rng, init);
 
-  Matrix draws =
-      run_walnuts(model, rng, theta_init, warmup, samples, mass_init_count,
-                  mass_iteration_offset, mass_additive_smoothing, step_size_init,
-                  accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
-                  max_error, max_nuts_depth, max_step_depth, min_micro_steps);
+  Matrix draws = run_walnuts(
+      model, rng, theta_init, warmup, samples, mass_init_count,
+      mass_iteration_offset, mass_additive_smoothing, step_size_init,
+      accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
+      max_error, max_nuts_depth, max_step_depth, min_micro_steps);
 
   auto names = model.param_names();
   summarize(names, draws);

@@ -40,6 +40,16 @@ static void block_end_timer() {
   ++count;
 }
 
+// p(y) = normal(y | 0, I)
+static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
+                                 Eigen::VectorXd& grad) {
+  block_start_timer();
+  logp = -0.5 * x.dot(x);
+  grad = -x;
+  block_end_timer();
+}
+
+// p(y) = normal(0, diag(sigma)), sigma[d] = d
 static void ill_cond_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
                                       Eigen::VectorXd& grad) {
   block_start_timer();
@@ -55,13 +65,27 @@ static void ill_cond_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
   block_end_timer();
 }
 
-static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
-                                 Eigen::VectorXd& grad) {
+// p(y) = normal(y | 0, Sigma), with Sigma[i, j] = rho^abs(i - j)
+static void rw1_logp_grad(const Eigen::VectorXd& y,
+			  double& logp, Eigen::VectorXd& grad) {
   block_start_timer();
-  logp = -0.5 * x.dot(x);
-  grad = -x;
+  double rho = 0.99;
+  Eigen::Index D = y.size();
+  double sigma_sq = 1.0 - rho * rho;
+  double inv_sigma_sq = 1.0 / sigma_sq;
+  grad.setZero(D);
+  logp = -0.5 * y[0] * y[0];
+  grad[0] -= y[0];
+  for (Eigen::Index n = 1; n < D; ++n) {
+    double r = y[n] - rho * y[n - 1];
+    double w = r * inv_sigma_sq;
+    logp -= 0.5 * r * w;
+    grad[n]   -= w;
+    grad[n-1] += rho * w;
+  }
   block_end_timer();
 }
+
 
 static void summarize(const Eigen::MatrixXd& draws) {
   auto N = draws.cols();

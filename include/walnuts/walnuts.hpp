@@ -414,7 +414,8 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum difference in Hamiltonians.
- * @param[in] theta The previous state.
+ * @param[in] theta The current state.
+ * @param[out] depth The tree depth used by the transition.
  * @param[out] theta_grad The gradient of the log density at the previous state.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
@@ -423,7 +424,7 @@ template <typename S, class F, class Rand, class A>
 Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
                     const Vec<S>& chol_mass, S step, std::size_t max_depth,
                     std::size_t max_step_halvings, std::size_t min_micro_steps,
-                    S max_error, Vec<S>&& theta, Vec<S>& theta_grad,
+                    S max_error, Vec<S>&& theta, std::size_t& depth, Vec<S>& theta_grad,
                     A& adapt_handler) {
   std::size_t dims = static_cast<std::size_t>(theta.size());
   Vec<S> rho = rand.standard_normal(dims).cwiseProduct(chol_mass);
@@ -433,12 +434,12 @@ Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
   logp += logp_momentum(rho, inv_mass);
   auto span_accum = SpanW<S>::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp);
-  for (std::size_t depth = 0; depth < max_depth; ++depth) {
+  for (depth = 1; depth <= max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
     auto expand_in_direction = [&](auto direction) -> bool {
       constexpr Direction D = direction;
       auto maybe_next_span = build_span<D>(
-          rand, logp_grad, inv_mass, step, depth, max_step_halvings,
+          rand, logp_grad, inv_mass, step, depth - 1, max_step_halvings,
           min_micro_steps, max_error, span_accum, adapt_handler);
       if (!maybe_next_span) {
         return true;
@@ -564,11 +565,12 @@ class WalnutsSampler {
    * @return The next draw.
    */
   Vec<S> operator()() {
+    std::size_t depth;
     Vec<S> grad_next;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
-                          grad_next, no_op_adapt_handler_);
+                          depth, grad_next, no_op_adapt_handler_);
     return theta_;
   }
 

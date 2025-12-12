@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <utility>
 
 #include "adam.hpp"
@@ -275,6 +276,65 @@ class MassEstimator {
 };
 
 /**
+ * @brief The adaptation handler for the minimum number of micro steps per macro step.  
+ *
+ * After being constructed with a target number of macro steps, this class observes
+ * the number of micro steps taken and adjusts the minimum number of micro steps per
+ * macro step in order to achieve the target expected number of macro steps.  There is
+ * slight regularization toward one, but otherwise it just uses the floor of an average
+ * and thus rounds down.
+ */
+class MinMicroStepsAdaptHandler {
+public: 
+  /**
+   * Construct a minimum number of micro steps per macro step handler.
+   *
+   * @param[in] expected_macro_steps Expected number of macro steps.  
+   */
+  MinMicroStepsAdaptHandler(double expected_macro_steps) :
+    expected_macro_steps_(expected_macro_steps),
+    total_macro_steps_(2.0),
+    count_(1.0) {
+  }
+
+  /**
+   * @brief Observe the specifed number of macro steps in a NUTS trajectory.
+   *
+   * @param[in] macro_steps The number of macro steps used in a trajectory.
+   */
+  void observe(std::size_t macro_steps) {
+    std::cout << "macro_steps = " << macro_steps << std::endl;
+    total_macro_steps_ += static_cast<double>(macro_steps);
+    ++count_;
+  }
+
+  /**
+   * @brief Return the estimated minimum number of micro steps.
+   *
+   * This estimate is designed to achieve the expected number of macro steps
+   * per iteration.
+   *
+   * @return The minimum number of micro steps to use per macro step. 
+   */
+  std::size_t min_micro_steps() {
+    double mean_micro = total_macro_steps_ / count_;
+    double min_micro_per_macro
+      = std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
+    std::size_t steps
+      = static_cast<std::size_t>(std::round(min_micro_per_macro));
+    if (steps != 1) {
+      std::cout << "***** STEPS = " << steps << std::endl;
+    }
+    return steps;
+  }
+  
+private:
+  const double expected_macro_steps_;
+  double total_macro_steps_;
+  double count_;
+};  
+
+/**
  * @brief The adaptive WALNUTS sampler.
  *
  * The adaptive WALNUTS sampler is configured in the constructor, then
@@ -336,7 +396,9 @@ class AdaptiveWalnuts {
         theta_(theta_init),
         iteration_(0),
         step_adapt_handler_(step_cfg),
-        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)) {}
+        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
+	min_micro_estimator_(4.0) {
+  }
 
   /**
    * @brief Return the next state from warmup.
@@ -353,12 +415,14 @@ class AdaptiveWalnuts {
     Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
     Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
+    std::size_t tree_depth = 0;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_,
+        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_,
         std::move(theta_), grad_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
+    min_micro_estimator_.observe(tree_depth);
     ++iteration_;
     return theta_;
   }
@@ -374,11 +438,13 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
+    std::cout << "***** min_micro_steps = "
+	      <<  min_micro_estimator_.min_micro_steps() << "\n";
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        walnuts_cfg_.min_micro_steps_, walnuts_cfg_.max_error_);
+        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_);
   }
 
   /**
@@ -424,6 +490,9 @@ class AdaptiveWalnuts {
 
   /** The estimat for mass matrices. */
   MassEstimator<S> mass_estimator_;
+
+  /** The estimator for the minimum number of micro steps per macro step. */
+  MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
 }  // namespace nuts

@@ -70,7 +70,8 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
                    double step_size_init, double accept_rate_target,
                    double learn_rate, double beta1, double beta2,
                    double epsilon, double max_error, std::size_t max_nuts_depth,
-                   std::size_t max_step_depth, std::size_t min_micro_steps) {
+                   std::size_t max_step_depth, std::size_t min_micro_steps,
+		   double target_depth) {
   double logp_time = 0.0;
   std::size_t logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
@@ -115,7 +116,7 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
     ++logp_count;
   };
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
-                                walnuts_cfg);
+                                walnuts_cfg, target_depth);
 
   for (std::size_t w = 0; w < warmup; ++w) {
     walnuts();
@@ -195,6 +196,7 @@ int main(int argc, char** argv) {
   double step_beta1 = 0.3;
   double step_beta2 = 0.99;
   double step_epsilon = 1e-4;
+  double target_depth = 3.5;
 
   std::string lib;
   std::string data;
@@ -276,7 +278,7 @@ int main(int argc, char** argv) {
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
     app.add_option(
-           "--step-beta2", step_beta1,
+           "--step-beta2", step_beta2,
            "Decay rate of squared gradient moving average for step adaptation")
         ->default_val(step_beta2)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
@@ -286,6 +288,11 @@ int main(int argc, char** argv) {
         ->default_val(step_epsilon)
         ->check(CLI::PositiveNumber);
 
+    app.add_option("--target-depth", target_depth,
+                   "Target number of trajectory doublings in NUTS.")
+        ->default_val(target_depth)
+        ->check(CLI::PositiveNumber);
+    
     app.add_option("model", lib,
                    "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()
@@ -311,7 +318,7 @@ int main(int argc, char** argv) {
       model, rng, theta_init, warmup, samples, mass_init_count,
       mass_iteration_offset, mass_additive_smoothing, step_size_init,
       accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
-      max_error, max_nuts_depth, max_step_depth, min_micro_steps);
+      max_error, max_nuts_depth, max_step_depth, min_micro_steps, target_depth);
 
   auto names = model.param_names();
   summarize(names, draws);

@@ -303,7 +303,7 @@ public:
    * @param[in] macro_steps The number of macro steps used in a trajectory.
    */
   void observe(std::size_t macro_steps) {
-    std::cout << "macro_steps = " << macro_steps << std::endl;
+    std::cout << "observe macro_steps = " << macro_steps << std::endl;
     total_macro_steps_ += static_cast<double>(macro_steps);
     ++count_;
   }
@@ -374,8 +374,10 @@ class AdaptiveWalnuts {
    * density/gradient function are held by reference.  The RNG is
    * changes every time a random number is generated.  The target log
    * density can be non-constant to allow for implementations that,
-   * for example, track number of gradient evaluations, but nothing
-   * is done by WALNUTS to mutate it.
+   * for example, track number of gradient evaluations.  The target depth
+   * specifies the expected NUTS tree depth, which is controlled through
+   * the minimum number of micro steps per macro step and adjusted with
+   * a mean estimator to achieve this average.
    *
    * @param[in,out] rng The base random number generator.
    * @param[in] logp_grad The target log density and gradient function.
@@ -383,11 +385,13 @@ class AdaptiveWalnuts {
    * @param[in] mass_cfg The mass-matrix adaptation configuration.
    * @param[in] step_cfg The step-size adaptation configuration.
    * @param[in] walnuts_cfg The WALNUTS configuration.
+   * @param[in] target_depth The target expected NUTS tree depth.
    */
   AdaptiveWalnuts(RNG& rng, const F& logp_grad, const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
                   const AdamConfig<S>& step_cfg,
-                  const WalnutsConfig<S>& walnuts_cfg)
+                  const WalnutsConfig<S>& walnuts_cfg,
+		  double target_depth = 4.0)
       : mass_cfg_(mass_cfg),
         step_cfg_(step_cfg),
         walnuts_cfg_(walnuts_cfg),
@@ -397,7 +401,7 @@ class AdaptiveWalnuts {
         iteration_(0),
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
-	min_micro_estimator_(4.0) {
+	min_micro_estimator_(target_depth) {
   }
 
   /**

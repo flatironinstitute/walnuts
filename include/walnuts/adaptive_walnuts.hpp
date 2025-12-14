@@ -275,26 +275,26 @@ class MassEstimator {
 };
 
 /**
- * @brief The adaptation handler for the minimum number of micro steps per macro step.  
+ * @brief The adaptation handler for the minimum number of micro steps per macro
+ * step.
  *
- * After being constructed with a target number of macro steps, this class observes
- * the number of micro steps taken and adjusts the minimum number of micro steps per
- * macro step in order to achieve the target expected number of macro steps.  There is
- * slight regularization toward one, but otherwise it just uses the floor of an average
- * and thus rounds down.
+ * After being constructed with a target number of macro steps, this class
+ * observes the number of micro steps taken and adjusts the minimum number of
+ * micro steps per macro step in order to achieve the target expected number of
+ * macro steps.  There is slight regularization toward one, but otherwise it
+ * just uses the floor of an average and thus rounds down.
  */
 class MinMicroStepsAdaptHandler {
-public: 
+ public:
   /**
    * Construct a minimum number of micro steps per macro step handler.
    *
-   * @param[in] expected_macro_steps Expected number of macro steps.  
+   * @param[in] expected_macro_steps Expected number of macro steps.
    */
-  MinMicroStepsAdaptHandler(double expected_macro_steps) :
-    expected_macro_steps_(expected_macro_steps),
-    total_macro_steps_(2.0),
-    count_(1.0) {
-  }
+  MinMicroStepsAdaptHandler(double expected_macro_steps)
+      : expected_macro_steps_(expected_macro_steps),
+        total_macro_steps_(2.0),
+        count_(1.0) {}
 
   /**
    * @brief Observe the specifed number of macro steps in a NUTS trajectory.
@@ -312,22 +312,22 @@ public:
    * This estimate is designed to achieve the expected number of macro steps
    * per iteration.
    *
-   * @return The minimum number of micro steps to use per macro step. 
+   * @return The minimum number of micro steps to use per macro step.
    */
   std::size_t min_micro_steps() const noexcept {
     double mean_micro = total_macro_steps_ / count_;
-    double min_micro_per_macro
-      = std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
-    std::size_t steps
-      = static_cast<std::size_t>(std::round(min_micro_per_macro));
+    double min_micro_per_macro =
+        std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
+    std::size_t steps =
+        static_cast<std::size_t>(std::round(min_micro_per_macro));
     return steps;
   }
-  
-private:
+
+ private:
   const double expected_macro_steps_;
   double total_macro_steps_;
   double count_;
-};  
+};
 
 /**
  * @brief The adaptive WALNUTS sampler.
@@ -386,7 +386,7 @@ class AdaptiveWalnuts {
                   const MassAdaptConfig<S>& mass_cfg,
                   const AdamConfig<S>& step_cfg,
                   const WalnutsConfig<S>& walnuts_cfg,
-		  double target_depth = 4.0)
+                  double target_depth = 4.0)
       : mass_cfg_(mass_cfg),
         step_cfg_(step_cfg),
         walnuts_cfg_(walnuts_cfg),
@@ -396,8 +396,7 @@ class AdaptiveWalnuts {
         iteration_(0),
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
-	min_micro_estimator_(target_depth) {
-  }
+        min_micro_estimator_(target_depth) {}
 
   /**
    * @brief Return the next state from warmup.
@@ -464,9 +463,9 @@ class AdaptiveWalnuts {
    * @return The minimum number of micro steps per macro step.
    */
   std::size_t min_micro_steps() const {
-    return  min_micro_estimator_.min_micro_steps();
+    return min_micro_estimator_.min_micro_steps();
   }
-  
+
  private:
   /** The mass adaptation configuration. */
   const MassAdaptConfig<S> mass_cfg_;

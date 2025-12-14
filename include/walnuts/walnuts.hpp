@@ -424,8 +424,8 @@ template <typename S, class F, class Rand, class A>
 Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
                     const Vec<S>& chol_mass, S step, std::size_t max_depth,
                     std::size_t max_step_halvings, std::size_t min_micro_steps,
-                    S max_error, Vec<S>&& theta, std::size_t& depth, Vec<S>& theta_grad,
-                    A& adapt_handler) {
+                    S max_error, Vec<S>&& theta, std::size_t& depth,
+                    Vec<S>& theta_grad, A& adapt_handler) {
   std::size_t dims = static_cast<std::size_t>(theta.size());
   Vec<S> rho = rand.standard_normal(dims).cwiseProduct(chol_mass);
   Vec<S> grad(theta.size());

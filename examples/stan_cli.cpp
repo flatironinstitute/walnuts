@@ -61,14 +61,16 @@ static void write_draws(const std::string& filename,
 }
 
 template <typename RNG>
-Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng, const Eigen::VectorXd& theta_init,
-                   std::size_t num_warmup, std::size_t num_draws, double init_count,
-                   double mass_iteration_offset, double additive_smoothing,
-                   double step_size_init, double accept_rate_target,
-                   double learn_rate, double beta1, double beta2,
-                   double epsilon, double max_error, std::size_t max_nuts_depth,
-                   std::size_t max_step_depth, std::size_t min_micro_steps,
-		   double target_depth) {
+Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
+                            const Eigen::VectorXd& theta_init,
+                            std::size_t num_warmup, std::size_t num_draws,
+                            double init_count, double mass_iteration_offset,
+                            double additive_smoothing, double step_size_init,
+                            double accept_rate_target, double learn_rate,
+                            double beta1, double beta2, double epsilon,
+                            double max_error, std::size_t max_nuts_depth,
+                            std::size_t max_step_depth,
+                            std::size_t min_micro_steps, double target_depth) {
   using Clock = std::chrono::high_resolution_clock;
   auto elapsed_seconds = [](auto t) {
     return std::chrono::duration<double>(Clock::now() - t).count();
@@ -76,7 +78,7 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng, const Eigen::Vect
   double logp_time = 0.0;
   std::size_t logp_count = 0;
   auto global_start = Clock::now();
-  
+
   auto end_timing = [&]() {
     auto global_total_time = elapsed_seconds(global_start);
     std::cout << "    total time: " << global_total_time << "s" << std::endl;
@@ -140,7 +142,7 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng, const Eigen::Vect
 
 template <typename RNG>
 Eigen::VectorXd initialize(DynamicStanModel& model, RNG& rng, double init_range,
-                  std::size_t max_tries = 100) {
+                           std::size_t max_tries = 100) {
   std::size_t D = model.unconstrained_dimensions();
   std::uniform_real_distribution<double> initial(-init_range, init_range);
   Eigen::VectorXd theta_init(D);
@@ -168,7 +170,8 @@ Eigen::VectorXd initialize(DynamicStanModel& model, RNG& rng, double init_range,
 }
 
 int main(int argc, char** argv) {
-  auto clock_count = std::chrono::system_clock::now().time_since_epoch().count();
+  auto clock_count =
+      std::chrono::system_clock::now().time_since_epoch().count();
   auto clock_seed = static_cast<unsigned int>(clock_count);
   srand(clock_seed);
   auto seed = static_cast<unsigned int>(rand());
@@ -284,7 +287,7 @@ int main(int argc, char** argv) {
                    "Target number of trajectory doublings in NUTS.")
         ->default_val(target_depth)
         ->check(CLI::PositiveNumber);
-    
+
     app.add_option("model", lib,
                    "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()

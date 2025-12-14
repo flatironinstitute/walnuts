@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <utility>
 
 #include "adam.hpp"
@@ -303,7 +302,6 @@ public:
    * @param[in] macro_steps The number of macro steps used in a trajectory.
    */
   void observe(std::size_t macro_steps) {
-    std::cout << "observe macro_steps = " << macro_steps << std::endl;
     total_macro_steps_ += static_cast<double>(macro_steps);
     ++count_;
   }
@@ -316,15 +314,12 @@ public:
    *
    * @return The minimum number of micro steps to use per macro step. 
    */
-  std::size_t min_micro_steps() {
+  std::size_t min_micro_steps() const noexcept {
     double mean_micro = total_macro_steps_ / count_;
     double min_micro_per_macro
       = std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
     std::size_t steps
       = static_cast<std::size_t>(std::round(min_micro_per_macro));
-    if (steps != 1) {
-      std::cout << "***** STEPS = " << steps << std::endl;
-    }
     return steps;
   }
   
@@ -442,8 +437,6 @@ class AdaptiveWalnuts {
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, S, RNG> sampler() {
-    std::cout << "***** min_micro_steps = "
-	      <<  min_micro_estimator_.min_micro_steps() << "\n";
     return WalnutsSampler<F, S, RNG>(
         rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
@@ -452,20 +445,28 @@ class AdaptiveWalnuts {
   }
 
   /**
-   * @brief Return the diagonal of the current diagonal inverse mass
-   * matrix.
+   * @brief Return the diagonal of the diagonal inverse mass matrix.
    *
    * @return The diagonal of the inverse mass matrix.
    */
   Vec<S> inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
 
   /**
-   * @brief Return the current step size.
+   * @brief Return the step size.
    *
-   * @return The current step size.
+   * @return The step size.
    */
   S step_size() const { return step_adapt_handler_.step_size(); }
 
+  /**
+   * @brief Return the minimum number of micro steps per macro step.
+   *
+   * @return The minimum number of micro steps per macro step.
+   */
+  std::size_t min_micro_steps() const {
+    return  min_micro_estimator_.min_micro_steps();
+  }
+  
  private:
   /** The mass adaptation configuration. */
   const MassAdaptConfig<S> mass_cfg_;

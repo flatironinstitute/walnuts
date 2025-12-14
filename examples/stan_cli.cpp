@@ -14,11 +14,8 @@
 #include <string>
 #include <vector>
 
-using Vector = Eigen::Matrix<double, -1, 1>;
-using Matrix = Eigen::Matrix<double, -1, -1>;
-
 static void summarize(const std::vector<std::string> names,
-                      const Matrix& draws) {
+                      const Eigen::MatrixXd& draws) {
   auto N = draws.cols();
   auto D = draws.rows();
   for (auto d = 0; d < D; ++d) {
@@ -38,7 +35,7 @@ static void summarize(const std::vector<std::string> names,
 
 static void write_draws(const std::string& filename,
                         const std::vector<std::string>& names,
-                        const Matrix& draws) {
+                        const Eigen::MatrixXd& draws) {
   if (filename.empty()) {
     return;
   }
@@ -64,22 +61,24 @@ static void write_draws(const std::string& filename,
 }
 
 template <typename RNG>
-Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
-                   std::size_t warmup, std::size_t samples, double init_count,
+Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng, const Eigen::VectorXd& theta_init,
+                   std::size_t num_warmup, std::size_t num_draws, double init_count,
                    double mass_iteration_offset, double additive_smoothing,
                    double step_size_init, double accept_rate_target,
                    double learn_rate, double beta1, double beta2,
                    double epsilon, double max_error, std::size_t max_nuts_depth,
                    std::size_t max_step_depth, std::size_t min_micro_steps,
 		   double target_depth) {
+  using Clock = std::chrono::high_resolution_clock;
+  auto elapsed_seconds = [](auto t) {
+    return std::chrono::duration<double>(Clock::now() - t).count();
+  };
   double logp_time = 0.0;
   std::size_t logp_count = 0;
-  auto global_start = std::chrono::high_resolution_clock::now();
-
+  auto global_start = Clock::now();
+  
   auto end_timing = [&]() {
-    auto global_end = std::chrono::high_resolution_clock::now();
-    auto global_total_time =
-        std::chrono::duration<double>(global_end - global_start).count();
+    auto global_total_time = elapsed_seconds(global_start);
     std::cout << "    total time: " << global_total_time << "s" << std::endl;
     std::cout << "logp_grad time: " << logp_time << "s" << std::endl;
     std::cout << "logp_grad fraction: " << logp_time / global_total_time
@@ -91,37 +90,30 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   };
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(theta_init.size());
-
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
-
   nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate,
                             beta1, beta2, epsilon);
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
                                   min_micro_steps);
-
   std::cout << "Running Adaptive WALNUTS"
-            << ";  D = " << theta_init.size() << "; W = " << warmup
-            << ";  N = " << samples << "; step_size_init = " << step_size_init
+            << ";  D = " << theta_init.size() << "; W = " << num_warmup
+            << ";  N = " << num_draws << "; step_size_init = " << step_size_init
             << "; max_nuts_depth = " << max_nuts_depth
             << "; max_error = " << max_error << std::endl;
 
   auto logp = [&](auto&&... args) {
-    auto start = std::chrono::high_resolution_clock::now();
-
+    auto start = Clock::now();
     model.logp_grad(args...);
-
-    auto end = std::chrono::high_resolution_clock::now();
-    logp_time += std::chrono::duration<double>(end - start).count();
+    logp_time += elapsed_seconds(start);
     ++logp_count;
   };
+
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
                                 walnuts_cfg, target_depth);
-
-  for (std::size_t w = 0; w < warmup; ++w) {
+  for (std::size_t w = 0; w < num_warmup; ++w) {
     walnuts();
   }
-
   end_timing();
 
   // N post-warmup draws
@@ -131,13 +123,13 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   std::cout << "Mass matrix diagonal = ["
             << sampler.inverse_mass_matrix_diagonal() << "]" << std::endl;
 
-  Matrix draws(model.constrained_dimensions(), samples);
+  Eigen::MatrixXd draws(model.constrained_dimensions(), num_draws);
 
   logp_time = 0.0;
   logp_count = 0;
-  global_start = std::chrono::high_resolution_clock::now();
+  global_start = Clock::now();
 
-  for (std::size_t n = 0; n < samples; ++n) {
+  for (std::size_t n = 0; n < num_draws; ++n) {
     model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
@@ -147,13 +139,13 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
 }
 
 template <typename RNG>
-Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
+Eigen::VectorXd initialize(DynamicStanModel& model, RNG& rng, double init_range,
                   std::size_t max_tries = 100) {
   std::size_t D = model.unconstrained_dimensions();
   std::uniform_real_distribution<double> initial(-init_range, init_range);
-  Vector theta_init(D);
+  Eigen::VectorXd theta_init(D);
 
-  Vector grad(D);
+  Eigen::VectorXd grad(D);
   double logp = 0.0;
 
   for (std::size_t _ = 0; _ < max_tries; ++_) {
@@ -176,12 +168,12 @@ Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
 }
 
 int main(int argc, char** argv) {
-  unsigned int time_seed = static_cast<unsigned int>(
-      std::chrono::system_clock::now().time_since_epoch().count());
-  srand(time_seed);
-  unsigned int seed = static_cast<unsigned int>(rand());
-  std::size_t warmup = 128;
-  std::size_t samples = 128;
+  auto clock_count = std::chrono::system_clock::now().time_since_epoch().count();
+  auto clock_seed = static_cast<unsigned int>(clock_count);
+  srand(clock_seed);
+  auto seed = static_cast<unsigned int>(rand());
+  std::size_t num_warmup = 128;
+  std::size_t num_draws = 128;
   std::size_t max_nuts_depth = 10;
   std::size_t max_step_depth = 8;
   std::size_t min_micro_steps = 1;
@@ -209,12 +201,12 @@ int main(int argc, char** argv) {
     app.add_option("--seed", seed, "Random seed (default randomize with clock)")
         ->default_val(seed);
 
-    app.add_option("--warmup", warmup, "Number of warmup iterations")
-        ->default_val(warmup)
+    app.add_option("--warmup", num_warmup, "Number of warmup iterations")
+        ->default_val(num_warmup)
         ->check(CLI::NonNegativeNumber);
 
-    app.add_option("--samples", samples, "Number of samples to draw")
-        ->default_val(samples)
+    app.add_option("--samples", num_draws, "Number of samples to draw")
+        ->default_val(num_draws)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--max-depth", max_nuts_depth,
@@ -312,10 +304,10 @@ int main(int argc, char** argv) {
 
   std::mt19937 rng(seed);
 
-  Vector theta_init = initialize(model, rng, init);
+  Eigen::VectorXd theta_init = initialize(model, rng, init);
 
-  Matrix draws = run_walnuts(
-      model, rng, theta_init, warmup, samples, mass_init_count,
+  Eigen::MatrixXd draws = run_walnuts(
+      model, rng, theta_init, num_warmup, num_draws, mass_init_count,
       mass_iteration_offset, mass_additive_smoothing, step_size_init,
       accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
       max_error, max_nuts_depth, max_step_depth, min_micro_steps, target_depth);

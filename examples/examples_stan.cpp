@@ -112,7 +112,8 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   std::size_t logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
 
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
+  Eigen::VectorXd mass_init =
+      Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
   double additive_smoothing = 0.1;

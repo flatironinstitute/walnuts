@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <walnuts/adaptive_walnuts.hpp>
@@ -40,6 +41,16 @@ static void block_end_timer() {
   ++count;
 }
 
+// p(y) = normal(y | 0, I)
+static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
+                                 Eigen::VectorXd& grad) {
+  block_start_timer();
+  logp = -0.5 * x.dot(x);
+  grad = -x;
+  block_end_timer();
+}
+
+// p(y) = normal(0, diag(sigma)), sigma[d] = d
 static void ill_cond_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
                                       Eigen::VectorXd& grad) {
   block_start_timer();
@@ -55,11 +66,24 @@ static void ill_cond_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
   block_end_timer();
 }
 
-static void std_normal_logp_grad(const Eigen::VectorXd& x, double& logp,
-                                 Eigen::VectorXd& grad) {
+// p(y) = normal(y | 0, Sigma), with Sigma[i, j] = rho^abs(i - j)
+static void rw1_logp_grad(const Eigen::VectorXd& y, double& logp,
+                          Eigen::VectorXd& grad) {
   block_start_timer();
-  logp = -0.5 * x.dot(x);
-  grad = -x;
+  double rho = 0.99;
+  Eigen::Index D = y.size();
+  double sigma_sq = 1.0 - rho * rho;
+  double inv_sigma_sq = 1.0 / sigma_sq;
+  grad.setZero(D);
+  logp = -0.5 * y[0] * y[0];
+  grad[0] -= y[0];
+  for (Eigen::Index n = 1; n < D; ++n) {
+    double r = y[n] - rho * y[n - 1];
+    double w = r * inv_sigma_sq;
+    logp -= 0.5 * r * w;
+    grad[n] -= w;
+    grad[n - 1] += rho * w;
+  }
   block_end_timer();
 }
 
@@ -153,6 +177,8 @@ static void run_adaptive_walnuts(
   std::size_t max_step_depth = 8;
   nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
                                   min_micro_steps);
+  double target_depth =
+      1.5;  // keeping thislow encourages min micro per macro > 2
   std::cout << "\nRUN ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
@@ -160,25 +186,25 @@ static void run_adaptive_walnuts(
             << "; min_micro_steps = " << min_micro_steps
             << "; max_error = " << max_error << std::endl;
   global_start_timer();
-  nuts::AdaptiveWalnuts walnuts(rng, target_logp_grad, theta_init, mass_cfg,
-                                step_cfg, walnuts_cfg);
+  nuts::AdaptiveWalnuts adapt(rng, target_logp_grad, theta_init, mass_cfg,
+                              step_cfg, walnuts_cfg, target_depth);
   for (std::size_t n = 0; n < N; ++n) {
-    walnuts();
+    adapt();
   }
-  auto sampler = walnuts.sampler();
+  auto sample = adapt.sampler();
   Eigen::MatrixXd draws(static_cast<Eigen::Index>(D),
                         static_cast<Eigen::Index>(N));
   for (std::size_t n = 0; n < N; ++n) {
-    draws.col(static_cast<Eigen::Index>(n)) = sampler();
+    draws.col(static_cast<Eigen::Index>(n)) = sample();
   }
   global_end_timer();
   summarize(draws);
   std::cout << std::endl;
-  std::cout << "Initial micro step size = " << sampler.macro_step_size()
+  std::cout << "Micro step size = " << adapt.step_size() << std::endl;
+  std::cout << "Min micro steps per macro step = " << adapt.min_micro_steps()
             << std::endl;
-  std::cout << "Max error = " << sampler.max_error() << std::endl;
-  std::cout << "Inverse mass matrix = "
-            << sampler.inverse_mass_matrix_diagonal().transpose() << std::endl;
+  std::cout << "Inverse mass matrix = " << std::fixed << std::setprecision(2)
+            << adapt.inv_mass().transpose() << std::endl;
 }
 
 int main() {
@@ -194,16 +220,18 @@ int main() {
       Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   std::mt19937 rng(seed);
 
+  // use this for random standard normal init
   Eigen::VectorXd theta_init(D);
   std::normal_distribution<double> std_normal(0, 1);
   for (std::size_t i = 0; i < D; ++i) {
     theta_init(static_cast<Eigen::Index>(i)) = std_normal(rng);
   }
-  // uncomment following to init at bottleneck
+  // or the following to init at bottleneck
   // theta_init = ::Zero(D);
 
   // auto target_logp_grad = std_normal_logp_grad;
-  auto target_logp_grad = ill_cond_normal_logp_grad;
+  // auto target_logp_grad = ill_cond_normal_logp_grad;
+  auto target_logp_grad = rw1_logp_grad;
 
   run_nuts(target_logp_grad, theta_init, rng, D, N, step_size, max_depth,
            inv_mass);

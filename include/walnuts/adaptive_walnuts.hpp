@@ -278,11 +278,13 @@ class MassEstimator {
  * @brief The adaptation handler for the minimum number of micro steps per macro
  * step.
  *
- * After being constructed with a target number of macro steps, this class
- * observes the number of micro steps taken and adjusts the minimum number of
- * micro steps per macro step in order to achieve the target expected number of
- * macro steps.  There is slight regularization toward one, but otherwise it
- * just uses the floor of an average and thus rounds down.
+ * After being constructed with a target number of macro steps, this
+ * class is given observeations of the number of micro steps taken and
+ * adjusts the minimum number of micro steps per macro step in order
+ * to achieve the target expected number of macro steps historically.
+ * There is slight regularization of a single observation at depth 2,
+ * but otherwise it just uses the floor of an average and thus rounds
+ * down.
  */
 class MinMicroStepsAdaptHandler {
  public:

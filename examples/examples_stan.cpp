@@ -14,13 +14,12 @@
 using S = double;
 using VectorS = Eigen::Matrix<S, -1, 1>;
 using MatrixS = Eigen::Matrix<S, -1, -1>;
-using Integer = long;
 
 static void summarize(const std::vector<std::string> names,
                       const MatrixS& draws) {
-  Integer N = draws.cols();
-  Integer D = draws.rows();
-  for (Integer d = 0; d < D; ++d) {
+  auto N = draws.cols();
+  auto D = draws.rows();
+  for (auto d = 0; d < D; ++d) {
     if (d > 3 && d < D - 3) {
       if (d == 4) {
         std::cout << "... elided " << (D - 6) << " rows ..." << std::endl;
@@ -30,15 +29,15 @@ static void summarize(const std::vector<std::string> names,
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << names[d] << ": mean = " << mean << ", stddev = " << stddev
-              << "\n";
+    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean
+              << ", stddev = " << stddev << "\n";
   }
 }
 
 template <typename RNG>
 static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
-                      RNG& rng, Integer N, S step_size, Integer max_depth,
-                      const VectorS& inv_mass) {
+                      RNG& rng, std::size_t N, S step_size,
+                      std::size_t max_depth, const VectorS& inv_mass) {
   std::cout << "\nTEST NUTS" << std::endl;
   double logp_time = 0.0;
   int logp_count = 0;
@@ -58,11 +57,11 @@ static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
 
   nuts::Nuts sample(rand, logp, theta_init, inv_mass, step_size, max_depth);
 
-  int M = model.constrained_dimensions();
+  std::size_t M = model.constrained_dimensions();
 
   MatrixS draws(M, N);
-  for (Integer n = 0; n < N; ++n) {
-    model.constrain_draw(sample(), draws.col(n));
+  for (std::size_t n = 0; n < N; ++n) {
+    model.constrain_draw(sample(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   auto global_end = std::chrono::high_resolution_clock::now();
@@ -82,20 +81,23 @@ static void test_nuts(const DynamicStanModel& model, const VectorS& theta_init,
 
 template <typename RNG>
 static void test_walnuts(const DynamicStanModel& model,
-                         const VectorS& theta_init, RNG& rng, Integer N,
-                         S macro_step_size, Integer max_nuts_depth,
-                         S log_max_error, VectorS inv_mass) {
+                         const VectorS& theta_init, RNG& rng, std::size_t N,
+                         S macro_step_size, std::size_t max_nuts_depth,
+                         std::size_t min_micro_steps, S log_max_error,
+                         VectorS inv_mass) {
+  std::size_t max_step_halvings = 2;
   std::cout << "\nTEST WALNUTS" << std::endl;
   nuts::Random<double, RNG> rand(rng);
   auto logp = [&model](auto&&... args) { model.logp_grad(args...); };
 
   nuts::WalnutsSampler sample(rand, logp, theta_init, inv_mass, macro_step_size,
-                              max_nuts_depth, log_max_error);
-  int M = model.constrained_dimensions();
+                              max_nuts_depth, max_step_halvings,
+                              min_micro_steps, log_max_error);
+  std::size_t M = model.constrained_dimensions();
 
-  MatrixS draws(M, N);
-  for (Integer n = 0; n < N; ++n) {
-    model.constrain_draw(sample(), draws.col(n));
+  MatrixS draws(static_cast<Eigen::Index>(M), static_cast<Eigen::Index>(N));
+  for (std::size_t n = 0; n < N; ++n) {
+    model.constrain_draw(sample(), draws.col(static_cast<Eigen::Index>(n)));
   }
   summarize(model.param_names(), draws);
 }
@@ -103,13 +105,15 @@ static void test_walnuts(const DynamicStanModel& model,
 template <typename RNG>
 static void test_adaptive_walnuts(const DynamicStanModel& model,
                                   const VectorS& theta_init, RNG& rng,
-                                  Integer D, Integer N, Integer max_nuts_depth,
-                                  S max_error) {
+                                  std::size_t D, std::size_t N,
+                                  std::size_t max_nuts_depth,
+                                  std::size_t min_micro_steps, S max_error) {
   double logp_time = 0.0;
-  int logp_count = 0;
+  std::size_t logp_count = 0;
   auto global_start = std::chrono::high_resolution_clock::now();
 
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(D);
+  Eigen::VectorXd mass_init =
+      Eigen::VectorXd::Ones(static_cast<Eigen::Index>(D));
   double init_count = 1.1;
   double mass_iteration_offset = 1.1;
   double additive_smoothing = 0.1;
@@ -117,14 +121,12 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
                                  additive_smoothing);
   double step_size_init = 0.5;
   double accept_rate_target = 2.0 / 3.0;
-  double step_iteration_offset = 2.0;
-  double learning_rate = 0.95;
-  double decay_rate = 0.05;
-  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-                                 step_iteration_offset, learning_rate,
-                                 decay_rate);
-  Integer max_step_depth = 8;
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
+  nuts::AdamConfig step_cfg(step_size_init,
+                            accept_rate_target);  // uses defaults for others
+
+  std::size_t max_step_depth = 8;
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
+                                  min_micro_steps);
   std::cout << "\nTEST ADAPTIVE WALNUTS"
             << ";  D = " << D << ";  N = " << N
             << "; step_size_init = " << step_size_init
@@ -142,7 +144,7 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
                                 walnuts_cfg);
 
-  for (Integer n = 0; n < N; ++n) {
+  for (std::size_t n = 0; n < N; ++n) {
     walnuts();
   }
 
@@ -168,11 +170,11 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
   logp_count = 0;
   global_start = std::chrono::high_resolution_clock::now();
 
-  int M = model.constrained_dimensions();
+  std::size_t M = model.constrained_dimensions();
 
   MatrixS draws(M, N);
-  for (Integer n = 0; n < N; ++n) {
-    model.constrain_draw(sampler(), draws.col(n));
+  for (std::size_t n = 0; n < N; ++n) {
+    model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   global_end = std::chrono::high_resolution_clock::now();
@@ -192,9 +194,10 @@ static void test_adaptive_walnuts(const DynamicStanModel& model,
 
 int main(int argc, char** argv) {
   unsigned int seed = 428763;
-  Integer N = 1000;
+  std::size_t N = 1000;
   S step_size = 0.465;
-  Integer max_depth = 10;
+  std::size_t max_depth = 10;
+  std::size_t min_micro_steps = 1;
   S max_error = 0.5;
 
   char* lib{nullptr};
@@ -213,8 +216,8 @@ int main(int argc, char** argv) {
 
   DynamicStanModel model(lib, data, seed);
 
-  int D = model.unconstrained_dimensions();
-  VectorS inv_mass = VectorS::Ones(D);
+  std::size_t D = model.unconstrained_dimensions();
+  VectorS inv_mass = VectorS::Ones(static_cast<Eigen::Index>(D));
 
   std::cout << "SHARED CONSTANTS:" << std::endl;
   std::cout << "D = " << D << ";  N = " << N << ";  step_size = " << step_size
@@ -224,16 +227,17 @@ int main(int argc, char** argv) {
   std::mt19937 rng(seed);
   std::normal_distribution<S> std_normal(0.0, 1.0);
   VectorS theta_init(D);
-  for (Integer i = 0; i < D; ++i) {
-    theta_init(i) = std_normal(rng);
+  for (std::size_t i = 0; i < D; ++i) {
+    theta_init(static_cast<Eigen::Index>(i)) = std_normal(rng);
   }
 
   test_nuts(model, theta_init, rng, N, step_size, max_depth, inv_mass);
 
-  test_walnuts(model, theta_init, rng, N, step_size, max_depth, max_error,
-               inv_mass);
+  test_walnuts(model, theta_init, rng, N, step_size, max_depth, min_micro_steps,
+               max_error, inv_mass);
 
-  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth, max_error);
+  test_adaptive_walnuts(model, theta_init, rng, D, N, max_depth,
+                        min_micro_steps, max_error);
 
   return 0;
 }

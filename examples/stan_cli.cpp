@@ -14,11 +14,8 @@
 #include <string>
 #include <vector>
 
-using Vector = Eigen::Matrix<double, -1, 1>;
-using Matrix = Eigen::Matrix<double, -1, -1>;
-
 static void summarize(const std::vector<std::string> names,
-                      const Matrix& draws) {
+                      const Eigen::MatrixXd& draws) {
   auto N = draws.cols();
   auto D = draws.rows();
   for (auto d = 0; d < D; ++d) {
@@ -31,14 +28,14 @@ static void summarize(const std::vector<std::string> names,
     auto mean = draws.row(d).mean();
     auto var = (draws.row(d).array() - mean).square().sum() / (N - 1);
     auto stddev = std::sqrt(var);
-    std::cout << names[d] << ": mean = " << mean << ", stddev = " << stddev
-              << "\n";
+    std::cout << names[static_cast<std::size_t>(d)] << ": mean = " << mean
+              << ", stddev = " << stddev << "\n";
   }
 }
 
 static void write_draws(const std::string& filename,
                         const std::vector<std::string>& names,
-                        const Matrix& draws) {
+                        const Eigen::MatrixXd& draws) {
   if (filename.empty()) {
     return;
   }
@@ -64,21 +61,26 @@ static void write_draws(const std::string& filename,
 }
 
 template <typename RNG>
-Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
-                   int64_t warmup, int64_t samples, double init_count,
-                   double mass_iteration_offset, double additive_smoothing,
-                   double step_size_init, double accept_rate_target,
-                   double step_iteration_offset, double learning_rate,
-                   double decay_rate, double max_error, int64_t max_nuts_depth,
-                   int64_t max_step_depth) {
+Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
+                            const Eigen::VectorXd& theta_init,
+                            std::size_t num_warmup, std::size_t num_draws,
+                            double init_count, double mass_iteration_offset,
+                            double additive_smoothing, double step_size_init,
+                            double accept_rate_target, double learn_rate,
+                            double beta1, double beta2, double epsilon,
+                            double max_error, std::size_t max_nuts_depth,
+                            std::size_t max_step_depth,
+                            std::size_t min_micro_steps, double target_depth) {
+  using Clock = std::chrono::high_resolution_clock;
+  auto elapsed_seconds = [](auto t) {
+    return std::chrono::duration<double>(Clock::now() - t).count();
+  };
   double logp_time = 0.0;
-  int logp_count = 0;
-  auto global_start = std::chrono::high_resolution_clock::now();
+  std::size_t logp_count = 0;
+  auto global_start = Clock::now();
 
   auto end_timing = [&]() {
-    auto global_end = std::chrono::high_resolution_clock::now();
-    auto global_total_time =
-        std::chrono::duration<double>(global_end - global_start).count();
+    auto global_total_time = elapsed_seconds(global_start);
     std::cout << "    total time: " << global_total_time << "s" << std::endl;
     std::cout << "logp_grad time: " << logp_time << "s" << std::endl;
     std::cout << "logp_grad fraction: " << logp_time / global_total_time
@@ -90,37 +92,30 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   };
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(theta_init.size());
-
   nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
                                  additive_smoothing);
-
-  nuts::StepAdaptConfig step_cfg(step_size_init, accept_rate_target,
-                                 step_iteration_offset, learning_rate,
-                                 decay_rate);
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth);
-
+  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate,
+                            beta1, beta2, epsilon);
+  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
+                                  min_micro_steps);
   std::cout << "Running Adaptive WALNUTS"
-            << ";  D = " << theta_init.size() << "; W = " << warmup
-            << ";  N = " << samples << "; step_size_init = " << step_size_init
+            << ";  D = " << theta_init.size() << "; W = " << num_warmup
+            << ";  N = " << num_draws << "; step_size_init = " << step_size_init
             << "; max_nuts_depth = " << max_nuts_depth
             << "; max_error = " << max_error << std::endl;
 
   auto logp = [&](auto&&... args) {
-    auto start = std::chrono::high_resolution_clock::now();
-
+    auto start = Clock::now();
     model.logp_grad(args...);
-
-    auto end = std::chrono::high_resolution_clock::now();
-    logp_time += std::chrono::duration<double>(end - start).count();
+    logp_time += elapsed_seconds(start);
     ++logp_count;
   };
-  nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
-                                walnuts_cfg);
 
-  for (auto w = 0; w < warmup; ++w) {
+  nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
+                                walnuts_cfg, target_depth);
+  for (std::size_t w = 0; w < num_warmup; ++w) {
     walnuts();
   }
-
   end_timing();
 
   // N post-warmup draws
@@ -130,14 +125,14 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
   std::cout << "Mass matrix diagonal = ["
             << sampler.inverse_mass_matrix_diagonal() << "]" << std::endl;
 
-  Matrix draws(model.constrained_dimensions(), samples);
+  Eigen::MatrixXd draws(model.constrained_dimensions(), num_draws);
 
   logp_time = 0.0;
   logp_count = 0;
-  global_start = std::chrono::high_resolution_clock::now();
+  global_start = Clock::now();
 
-  for (auto n = 0; n < samples; ++n) {
-    model.constrain_draw(sampler(), draws.col(n));
+  for (std::size_t n = 0; n < num_draws; ++n) {
+    model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
   }
 
   end_timing();
@@ -146,18 +141,18 @@ Matrix run_walnuts(DynamicStanModel& model, RNG& rng, const Vector& theta_init,
 }
 
 template <typename RNG>
-Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
-                  int64_t max_tries = 100) {
-  int D = model.unconstrained_dimensions();
+Eigen::VectorXd initialize(DynamicStanModel& model, RNG& rng, double init_range,
+                           std::size_t max_tries = 100) {
+  std::size_t D = model.unconstrained_dimensions();
   std::uniform_real_distribution<double> initial(-init_range, init_range);
-  Vector theta_init(D);
+  Eigen::VectorXd theta_init(D);
 
-  Vector grad(D);
+  Eigen::VectorXd grad(D);
   double logp = 0.0;
 
-  for (auto _ = 0; _ < max_tries; ++_) {
-    for (auto i = 0; i < D; ++i) {
-      theta_init(i) = initial(rng);
+  for (std::size_t _ = 0; _ < max_tries; ++_) {
+    for (std::size_t i = 0; i < D; ++i) {
+      theta_init(static_cast<Eigen::Index>(i)) = initial(rng);
     }
 
     model.logp_grad(theta_init, logp, grad);
@@ -175,22 +170,28 @@ Vector initialize(DynamicStanModel& model, RNG& rng, double init_range,
 }
 
 int main(int argc, char** argv) {
-  srand(std::chrono::system_clock::now().time_since_epoch().count());
-  unsigned int seed = rand();
-  int64_t warmup = 128;
-  int64_t samples = 128;
-  int64_t max_nuts_depth = 10;
-  int64_t max_step_depth = 8;
+  auto clock_count =
+      std::chrono::system_clock::now().time_since_epoch().count();
+  auto clock_seed = static_cast<unsigned int>(clock_count);
+  srand(clock_seed);
+  auto seed = static_cast<unsigned int>(rand());
+  std::size_t num_warmup = 128;
+  std::size_t num_draws = 128;
+  std::size_t max_nuts_depth = 10;
+  std::size_t max_step_depth = 8;
+  std::size_t min_micro_steps = 1;
   double max_error = 0.5;
   double init = 2.0;
-  double init_count = 1.1;
+  double mass_init_count = 1.1;
   double mass_iteration_offset = 1.1;
-  double additive_smoothing = 1e-5;
+  double mass_additive_smoothing = 1e-5;
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
-  double step_iteration_offset = 5.0;
-  double learning_rate = 1.5;
-  double decay_rate = 0.05;
+  double step_learn_rate = 0.2;
+  double step_beta1 = 0.3;
+  double step_beta2 = 0.99;
+  double step_epsilon = 1e-4;
+  double target_depth = 3.5;
 
   std::string lib;
   std::string data;
@@ -200,14 +201,15 @@ int main(int argc, char** argv) {
   {
     CLI::App app{"Run WALNUTs on a Stan model"};
 
-    app.add_option("--seed", seed, "Random seed")->default_val(seed);
+    app.add_option("--seed", seed, "Random seed (default randomize with clock)")
+        ->default_val(seed);
 
-    app.add_option("--warmup", warmup, "Number of warmup iterations")
-        ->default_val(warmup)
+    app.add_option("--warmup", num_warmup, "Number of warmup iterations")
+        ->default_val(num_warmup)
         ->check(CLI::NonNegativeNumber);
 
-    app.add_option("--samples", samples, "Number of samples to draw")
-        ->default_val(samples)
+    app.add_option("--samples", num_draws, "Number of samples to draw")
+        ->default_val(num_draws)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--max-depth", max_nuts_depth,
@@ -220,19 +222,24 @@ int main(int argc, char** argv) {
         ->default_val(max_step_depth)
         ->check(CLI::PositiveNumber);
 
+    app.add_option("--min-micro-steps", min_micro_steps,
+                   "Minimum micro steps per macro step")
+        ->default_val(min_micro_steps)
+        ->check(CLI::PositiveNumber);
+
     app.add_option("--max-error", max_error,
                    "Maximum error allowed in joint densities")
         ->default_val(max_error)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--init", init,
-                   "Range [-init,init] for the parameters initial values")
+                   "Range [-init,init] for uniform parameter initial values")
         ->default_val(init)
         ->check(CLI::NonNegativeNumber);
 
-    app.add_option("--mass-init-count", init_count,
+    app.add_option("--mass-init-count", mass_init_count,
                    "Initial count for the mass matrix adaptation")
-        ->default_val(init_count)
+        ->default_val(mass_init_count)
         ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
     app.add_option("--mass-iteration-offset", mass_iteration_offset,
@@ -240,9 +247,9 @@ int main(int argc, char** argv) {
         ->default_val(mass_iteration_offset)
         ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
-    app.add_option("--mass-additive-smoothing", additive_smoothing,
+    app.add_option("--mass-additive-smoothing", mass_additive_smoothing,
                    "Additive smoothing for the mass matrix adaptation")
-        ->default_val(additive_smoothing)
+        ->default_val(mass_additive_smoothing)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--step-size-init", step_size_init,
@@ -255,26 +262,39 @@ int main(int argc, char** argv) {
         ->default_val(accept_rate_target)
         ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
 
-    app.add_option("--step-iteration-offset", step_iteration_offset,
-                   "Offset for the step size adaptation iterations")
-        ->default_val(step_iteration_offset)
-        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
-
-    app.add_option("--step-learning-rate", learning_rate,
-                   "Learning rate for the step size adaptation")
-        ->default_val(learning_rate)
+    app.add_option("--step-learning-rate", step_learn_rate,
+                   "Learning rates for step adaptation")
+        ->default_val(step_learn_rate)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("--step-decay-rate", decay_rate,
-                   "Decay rate for the step size adaptation")
-        ->default_val(decay_rate)
+    app.add_option("--step-beta1", step_beta1,
+                   "Decay rate of gradient moving average for step adaptation")
+        ->default_val(step_beta1)
+        ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+
+    app.add_option(
+           "--step-beta2", step_beta2,
+           "Decay rate of squared gradient moving average for step adaptation")
+        ->default_val(step_beta2)
+        ->check(CLI::Range((std::numeric_limits<double>::min)(), 1.0));
+
+    app.add_option("--step-epsilon", step_epsilon,
+                   "Update stabilization term for step size adaptation")
+        ->default_val(step_epsilon)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("model", lib, "Path to the Stan model library")
+    app.add_option("--target-depth", target_depth,
+                   "Target number of trajectory doublings in NUTS.")
+        ->default_val(target_depth)
+        ->check(CLI::PositiveNumber);
+
+    app.add_option("model", lib,
+                   "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()
         ->check(CLI::ExistingFile);
 
-    app.add_option("data", data, "Path to the Stan model data (optional)")
+    app.add_option("data", data,
+                   "Path to the Stan model data (.json, optional)")
         ->check(CLI::ExistingFile);
 
     app.add_option("--output", output_file, "Output file for the draws")
@@ -287,13 +307,13 @@ int main(int argc, char** argv) {
 
   std::mt19937 rng(seed);
 
-  Vector theta_init = initialize(model, rng, init);
+  Eigen::VectorXd theta_init = initialize(model, rng, init);
 
-  Matrix draws =
-      run_walnuts(model, rng, theta_init, warmup, samples, init_count,
-                  mass_iteration_offset, additive_smoothing, step_size_init,
-                  accept_rate_target, step_iteration_offset, learning_rate,
-                  decay_rate, max_error, max_nuts_depth, max_step_depth);
+  Eigen::MatrixXd draws = run_walnuts(
+      model, rng, theta_init, num_warmup, num_draws, mass_init_count,
+      mass_iteration_offset, mass_additive_smoothing, step_size_init,
+      accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
+      max_error, max_nuts_depth, max_step_depth, min_micro_steps, target_depth);
 
   auto names = model.param_names();
   summarize(names, draws);

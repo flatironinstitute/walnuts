@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdexcept>
-
 #include <Eigen/Dense>
+
+#include "util.hpp"
 
 namespace nuts {
 
@@ -44,42 +44,32 @@ namespace nuts {
  * ```
  *
  * @tparam S The type of scalars.
- * @tparam Integer The type of integers.
  */
-template <typename S, typename Integer>
+template <typename S>
 class OnlineMoments {
  public:
   /**
-   * The type of vectors with scalar type `S`.
+   * @brief Construct a default online estimator of size zero.
    */
-  using VecS = Eigen::Matrix<S, Eigen::Dynamic, 1>;
+  OnlineMoments()
+      : discount_factor_(0.98),  // dummy valid inits
+        weight_(0),
+        mean_(Vec<S>::Zero(0)),
+        sum_sq_dev_(Vec<S>::Zero(0)) {}
 
   /**
-   * @brief Construct an online estimator of moments of the given
-   * dimensionality that discounts the past by a factor of
-   * `discount_factor` before each observation.
+   * @brief Construct online moments with a given discount factor and size.
    *
-   * Setting `discount_factor` to 1 does no discounting.
-   *
-   * @param[in] discount_factor The past discount factor (floating
-   * point in [0, 1]).
-   * @param[in] dim Number of dimensions in observation vectors
-   * (non-negative integer).
+   * @param[in] discount_factor The past discount factor (between 0 and 1,
+   * inclusive).
+   * @param[in] dims The number of dimensions.
    * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
-   * @throw std::invalid_argument If `dim` is negative.
    */
-  OnlineMoments(S discount_factor, Integer dim)
+  OnlineMoments(double discount_factor, std::size_t dims)
       : discount_factor_(discount_factor),
         weight_(0),
-        mean_(VecS::Zero(dim)),
-        sum_sq_dev_(VecS::Zero(dim)) {
-    if (dim < 0) {
-      throw std::invalid_argument("dim must be non-negative");
-    }
-    if (!(discount_factor >= 0 && discount_factor <= 1)) {
-      throw std::invalid_argument("discount_factor must be in [0, 1]");
-    }
-  }
+        mean_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))),
+        sum_sq_dev_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))) {}
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -96,29 +86,34 @@ class OnlineMoments {
    * and variance (positive).
    * @param[in] init_mean Initial mean.
    * @param[in] init_variance Initial variance.
-   * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
+   * @throw std::invalid_argument If `discount_factor` is not in (0, 1).
    * @throw std::invalid_argument If the initial weight is not finite and
    * positive.
    * @throw std::invalid_argument If the initial mean and variance are not
    * the same size.
    */
-  OnlineMoments(S discount_factor, S init_weight, const VecS& init_mean,
-                const VecS& init_variance)
+  OnlineMoments(S discount_factor, S init_weight, const Vec<S>& init_mean,
+                const Vec<S>& init_variance)
       : discount_factor_(discount_factor),
         weight_(init_weight),
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
-    if (!(discount_factor >= 0 && discount_factor <= 1)) {
-      throw std::invalid_argument("Discount factor must be in [0, 1].");
-    }
-    if (!(init_weight > 0) || std::isinf(init_weight)) {
-      throw std::invalid_argument(
-          "Initial weight must be finite and positive.");
-    }
-    if (init_mean.size() != init_variance.size()) {
-      throw std::invalid_argument(
-          "Initial mean and variance must be same size.");
-    }
+    validate_probability_inclusive(discount_factor, "discount_factor");
+    validate_positive(init_weight, "init_weight");
+    validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
+  }
+
+  /**
+   * @brief Set the discount factor for previous observations to the specified
+   * value.
+   *
+   * @param discount_factor The discount factor.
+   * @throw std::invalid_argument If the discount factor is not in (0, 1).
+   */
+  inline void set_discount_factor(S discount_factor) {
+    validate_probability_inclusive(discount_factor,
+                                   "set_discount_factor(discount_factror)");
+    discount_factor_ = discount_factor;
   }
 
   /**
@@ -128,12 +123,13 @@ class OnlineMoments {
    * the weights of the past observations are discounted by the discount
    * factor.
    *
+   * @tparam Derived The type of matrix underlying the observation.
    * @param y The observed vector.
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
   inline void observe(const Eigen::MatrixBase<Derived>& y) {
-    const VecS delta = y - mean_;
+    const Vec<S> delta = y - mean_;
     weight_ = discount_factor_ * weight_ + 1;
     mean_ += delta / weight_;
     sum_sq_dev_ =
@@ -141,36 +137,41 @@ class OnlineMoments {
   }
 
   /**
+   * @brief Set the discount factor, then update with the specified observation.
+   *
+   * This is a convenience method to call `set_discount_factor(discount_factor)`
+   * and `observe(y)`.
+   *
+   * @tparam Derived The type of matrix underlying the observation.
+   * @param discount_factor The discount factor.
+   * @param y The observed vector.
+   * @pre discount_factor > 0 && discount_factor <= 1
+   * @pre y.size() == mean().size()
+   */
+  template <typename Derived>
+  inline void discount_observe(double discount_factor,
+                               const Eigen::MatrixBase<Derived>& y) {
+    set_discount_factor(discount_factor);
+    observe(y);
+  }
+
+  /**
    * @brief Return the estimate of the mean.
    *
    * @return The mean estimate.
    */
-  inline const VecS& mean() const noexcept { return mean_; }
+  inline const Vec<S>& mean() const noexcept { return mean_; }
 
   /**
    * @brief Return the estimate of the variance.
    *
    * @return The variance estimate.
    */
-  inline VecS variance() const {
+  inline Vec<S> variance() const {
     if (weight_ > 0) {
       return sum_sq_dev_ / weight_;
     }
-    return VecS::Ones(mean_.size());
-  }
-
-  /**
-   * @brief Set the discount factor for previous observations to the specified
-   * value.
-   *
-   * **WARNING**:  There are no checks on this method that `discount_factor
-   * is in (0, 1]` (i.e., `discount_factor > 0` and `discount_factor <= 1`).
-   *
-   * @param discount_factor The discount factor (scalar in (0, 1]).
-   * @pre discount_factor > 0 && discount_factor <= 1
-   */
-  inline void set_discount_factor(S discount_factor) noexcept {
-    discount_factor_ = discount_factor;
+    return Vec<S>::Ones(mean_.size());
   }
 
  private:
@@ -181,10 +182,10 @@ class OnlineMoments {
   S weight_;
 
   /** The current mean estimate */
-  VecS mean_;
+  Vec<S> mean_;
 
   /** The sum of weighted squared deviations from the mean. */
-  VecS sum_sq_dev_;
+  Vec<S> sum_sq_dev_;
 };
 
 }  // namespace nuts

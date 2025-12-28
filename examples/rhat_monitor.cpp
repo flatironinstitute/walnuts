@@ -192,19 +192,17 @@ class ChainWorker {
         start_gate_(start_gate) {}
 
   void operator()(std::stop_token st) {
+    static constexpr std::size_t YIELD_PERIOD = 64;
     interactive_qos();
     start_gate_.get().arrive_and_wait();
-    for (std::size_t iter = 0; iter < draws_per_chain_; ++iter) {
-      if ((iter + 1) % 64 == 0) {
+    for (std::size_t iter = 0; iter < draws_per_chain_ && !st.stop_requested(); ++iter) {
+      if (iter % YIELD_PERIOD == 0) {
         std::this_thread::yield();
       }
       double logp = sampler_.get().sample(chain_record_.draws());
       chain_record_.append_logp(logp);
       logp_stats_.observe(logp);
       acs_.store(logp_stats_.sample_stats());
-      if (st.stop_requested()) {
-        break;
-      }
     }
   }
 
@@ -240,6 +238,7 @@ static void controller_loop(std::vector<AtomicChainStats>& chain_statses,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             std::stop_source& stopper) {
+  static constexpr std::size_t SLEEP_MICROSECONDS = 16;
   interactive_qos();
   start_gate.wait();
   const std::size_t M = chain_statses.size();
@@ -266,9 +265,16 @@ static void controller_loop(std::vector<AtomicChainStats>& chain_statses,
       break;
     }
 
-    std::this_thread::sleep_for(std::chrono::microseconds{16});
+    std::this_thread::sleep_for(std::chrono::microseconds{SLEEP_MICROSECONDS});
   }
 }
+
+// TODO: refactor to sample(std::vector<ChainRecord>& records)
+//    std::vector<ChainRecord> records(M);
+//    Workers workers(samplers, records, max_draws_per_chain);
+//    run_to_threshold(workers, rhat_threshdold);
+//    return records;
+
 
 // Sampler requires: { double sample(vector<double>& draw);  size_t dim(); }
 template <typename Sampler>
@@ -284,6 +290,7 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
     workers.emplace_back(m, max_draws_per_chain, samplers[m], chain_statses[m],
                          start_gate);
   }
+  
   {
     std::stop_source stopper;
     std::vector<std::jthread> threads;

@@ -15,7 +15,12 @@
 #include <thread>
 #include <vector>
 
-#define VERY_INLINE [[gnu::always_inline]] inline
+#if defined(__clang__) || defined(__GNUC__)
+#define VERY_INLINE __attribute__((always_inline)) inline
+#else
+#define VERY_INLINE inline
+#endif
+
 #ifdef __APPLE__
 #include <pthread.h>
 VERY_INLINE void interactive_qos() {
@@ -29,13 +34,15 @@ VERY_INLINE void interactive_qos() {}
 VERY_INLINE void initiated_qos() {}
 #endif
 
+constexpr std::size_t DI_SIZE = std::hardware_destructive_interference_size;
+
 double sum(const std::vector<double>& xs) noexcept {
   return std::transform_reduce(xs.begin(), xs.end(), 0.0, std::plus<>{},
                                std::identity());
 }
 
 std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
-  return std::transform_reduce(xs.begin(), xs.end(), 0, std::plus<>{},
+  return std::transform_reduce(xs.begin(), xs.end(), std::size_t(0), std::plus<>{},
                                std::identity());
 }
 
@@ -58,9 +65,10 @@ double variance(const std::vector<double>& xs) noexcept {
 }
 
 struct ChainStats {
-  double sample_mean;
-  double sample_var;
-  std::size_t count;
+  // downsized to ensure atomic<ChainStats> is lock free
+  float sample_mean;
+  float sample_var;
+  unsigned int count;
 };
 
 class AtomicChainStats {
@@ -72,16 +80,25 @@ class AtomicChainStats {
   }
 
   void store(const ChainStats& p) noexcept {
-    data_.store(p, std::memory_order_release);
+    data_.store(p, std::memory_order_relaxed); //  // release);
   }
 
   ChainStats load() const noexcept {
-    return data_.load(std::memory_order_acquire);
+    return data_.load(std::memory_order_relaxed); // acquire);
   }
 
  private:
   std::atomic<ChainStats> data_;
 };
+
+struct alignas(DI_SIZE) PaddedChainStats {
+  static constexpr std::size_t PAD_SIZE =
+    sizeof(AtomicChainStats) < DI_SIZE ? DI_SIZE - sizeof(AtomicChainStats) : 0;
+
+  AtomicChainStats val;
+  std::array<std::byte, PAD_SIZE> pad{};
+};
+
 
 class ChainRecord {
  public:
@@ -164,7 +181,13 @@ class WelfordAccumulator {
                   : std::numeric_limits<double>::quiet_NaN();
   }
 
-  ChainStats sample_stats() { return {mean(), sample_variance(), count()}; }
+  ChainStats sample_stats() {
+    return {
+        static_cast<float>(mean()),
+	static_cast<float>(sample_variance()),
+	static_cast<unsigned int>(count())
+    };
+  }
 
   void reset() {
     n_ = 0;
@@ -192,27 +215,27 @@ class ChainWorker {
   void operator()(std::stop_token st) {
     static constexpr std::size_t YIELD_PERIOD = 64;
     interactive_qos();
-    start_gate_.get().arrive_and_wait();
+    start_gate_.arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_ && !st.stop_requested(); ++iter) {
       if (iter % YIELD_PERIOD == 0) {
         std::this_thread::yield();
       }
-      double logp = sampler_.get().sample(chain_record_.draws());
+      double logp = sampler_.sample(chain_record_.draws());
       chain_record_.append_logp(logp);
       logp_stats_.observe(logp);
       acs_.store(logp_stats_.sample_stats());
     }
   }
 
-  ChainRecord&& take_chain_record() { return std::move(chain_record_); }
+  ChainRecord take_record() && { return std::move(chain_record_); }
 
  private:
   std::size_t draws_per_chain_;
-  std::reference_wrapper<Sampler> sampler_;
+  Sampler& sampler_;
   ChainRecord chain_record_;
   WelfordAccumulator logp_stats_;
   AtomicChainStats& acs_;
-  std::reference_wrapper<std::latch> start_gate_;
+  std::latch& start_gate_;
 };
 
 template <class Sampler>
@@ -232,7 +255,11 @@ class ChainRunner {
 
   void request_stop() { thread_.request_stop(); }
 
-  ChainRecord take_chain_record() { return std::move(worker_).take_chain_record(); }
+  void join() { thread_.join(); }
+	   
+  ChainRecord take_record() {
+    return std::move(worker_).take_record();
+  }
 
  private:
   ChainWorker<Sampler> worker_;
@@ -256,21 +283,21 @@ void debug_print(double variance_of_means, double mean_of_variances,
 }
 
 template <typename Stopper>
-static void controller_loop(std::vector<AtomicChainStats>& chain_statses,
+static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             Stopper stop_chains) {
   static constexpr std::size_t SLEEP_MICROSECONDS = 16;
   interactive_qos();
   start_gate.wait();
-  const std::size_t M = chain_statses.size();
+  const std::size_t M = stats_by_chain.size();
   std::vector<double> chain_means(M, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> chain_variances(M,
                                       std::numeric_limits<double>::quiet_NaN());
   std::vector<std::size_t> counts(M, 0);
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
-      ChainStats u = chain_statses[m].load();
+      ChainStats u = stats_by_chain[m].val.load();
       chain_means[m] = u.sample_mean;
       chain_variances[m] = u.sample_var;
       counts[m] = u.count;
@@ -296,28 +323,22 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 double rhat_threshold,
                                 std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<AtomicChainStats> chain_statses(M);
+  std::vector<PaddedChainStats> stats_by_chain(M);
   std::latch start_gate(M);
-
-  std::vector<ChainWorker<Sampler>> workers;
-  workers.reserve(M);
-  for (std::size_t m = 0; m < M; ++m) {
-    workers.emplace_back(max_draws_per_chain, samplers[m], chain_statses[m],
-                         start_gate);
-  }
 
   std::vector<ChainRunner<Sampler>> runners;
   runners.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    runners.emplace_back(max_draws_per_chain, samplers[m], chain_statses[m], start_gate);
+    runners.emplace_back(max_draws_per_chain, samplers[m], stats_by_chain[m].val, start_gate);
   }
 
   auto stop_all = [&] { for (auto& r : runners) r.request_stop(); };
-  controller_loop(chain_statses, rhat_threshold, start_gate, max_draws_per_chain, stop_all);
-
+  controller_loop(stats_by_chain, rhat_threshold, start_gate, max_draws_per_chain, stop_all);
+  for (auto& r : runners) r.join(); // avoid race before taking records
+  
   std::vector<ChainRecord> chain_records;
   chain_records.reserve(M);
-  for (auto& r : runners) chain_records.emplace_back(r.take_chain_record());
+  for (auto& r : runners) chain_records.emplace_back(r.take_record());
   return chain_records;
 }
 
@@ -347,6 +368,10 @@ class StandardNormalSampler {
 };
 
 int main() {
+  std::atomic<ChainStats> test_chain_stats;
+  std::cout << "atomic<ChainStats>().is_lock_free() = " << test_chain_stats.is_lock_free() << std::endl; 
+
+  
   const std::string csv_path = "samples.csv";
   const std::size_t D = 4;
   std::size_t M = 16;

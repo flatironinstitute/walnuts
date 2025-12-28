@@ -85,8 +85,8 @@ class AtomicChainStats {
 
 class ChainRecord {
  public:
-  ChainRecord(std::size_t chain_id, std::size_t D, std::size_t Nmax)
-      : chain_id_(chain_id), D_(D), Nmax_(Nmax) {
+  ChainRecord(std::size_t D, std::size_t Nmax)
+      : D_(D), Nmax_(Nmax) {
     theta_.reserve(Nmax * D);
     logp_.reserve(Nmax);
   }
@@ -103,10 +103,10 @@ class ChainRecord {
     return theta_[n * D_ + d];
   }
 
-  void write_csv(std::ostream& out) const {
+  void write_csv(std::ostream& out, std::size_t chain_id) const {
     auto dim = dims();
     for (std::size_t n = 0; n < num_draws(); ++n) {
-      out << chain_id_ << ',' << n << ',' << logp_[n];
+      out << chain_id << ',' << n << ',' << logp_[n];
       for (std::size_t d = 0; d < dim; ++d) {
         out << ',' << operator()(n, d);
       }
@@ -117,7 +117,6 @@ class ChainRecord {
   void append_logp(double logp) { logp_.push_back(logp); }
 
  private:
-  std::size_t chain_id_;
   std::size_t D_;
   std::size_t Nmax_;
   std::vector<double> theta_;
@@ -139,8 +138,8 @@ static void write_csv(const std::string& path, std::size_t dim,
     throw std::runtime_error("could not open file: " + path);
   }
   write_csv_header(out, dim);
-  for (const auto& chain_record : chain_records) {
-    chain_record.write_csv(out);
+  for (std::size_t i = 0; i < chain_records.size(); ++i) {
+    chain_records[i].write_csv(out, i);
   }
 }
 
@@ -182,12 +181,11 @@ class WelfordAccumulator {
 template <class Sampler>
 class ChainWorker {
  public:
-  ChainWorker(std::size_t chain_id, std::size_t draws_per_chain,
+  ChainWorker(std::size_t draws_per_chain,
               Sampler& sampler, AtomicChainStats& acs, std::latch& start_gate)
-      : chain_id_(chain_id),
-        draws_per_chain_(draws_per_chain),
+      : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        chain_record_(chain_id, sampler.dim(), draws_per_chain),
+        chain_record_(sampler.dim(), draws_per_chain),
         acs_(acs),
         start_gate_(start_gate) {}
 
@@ -209,7 +207,6 @@ class ChainWorker {
   ChainRecord&& take_chain_record() { return std::move(chain_record_); }
 
  private:
-  std::size_t chain_id_;
   std::size_t draws_per_chain_;
   std::reference_wrapper<Sampler> sampler_;
   ChainRecord chain_record_;
@@ -217,6 +214,31 @@ class ChainWorker {
   AtomicChainStats& acs_;
   std::reference_wrapper<std::latch> start_gate_;
 };
+
+template <class Sampler>
+class ChainRunner {
+ public:
+  ChainRunner(std::size_t draws_per_chain,
+              Sampler& sampler,
+              AtomicChainStats& acs,
+              std::latch& start_gate)
+      : worker_(draws_per_chain, sampler, acs, start_gate),
+        thread_(std::ref(worker_)) {}
+
+  ChainRunner(const ChainRunner&) = delete;
+  ChainRunner& operator=(const ChainRunner&) = delete;
+  ChainRunner(ChainRunner&&) noexcept = default;
+  ChainRunner& operator=(ChainRunner&&) noexcept = default;
+
+  void request_stop() { thread_.request_stop(); }
+
+  ChainRecord take_chain_record() { return std::move(worker_).take_chain_record(); }
+
+ private:
+  ChainWorker<Sampler> worker_;
+  std::jthread thread_;
+};
+
 
 void debug_print(double variance_of_means, double mean_of_variances,
                  double num_draws, double r_hat,
@@ -233,11 +255,11 @@ void debug_print(double variance_of_means, double mean_of_variances,
   std::cout << std::endl;
 }
 
+template <typename Stopper>
 static void controller_loop(std::vector<AtomicChainStats>& chain_statses,
-                            std::vector<std::jthread>& workers,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
-                            std::stop_source& stopper) {
+                            Stopper stop_chains) {
   static constexpr std::size_t SLEEP_MICROSECONDS = 16;
   interactive_qos();
   start_gate.wait();
@@ -261,20 +283,12 @@ static void controller_loop(std::vector<AtomicChainStats>& chain_statses,
     debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
 
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-      stopper.request_stop();
       break;
     }
-
     std::this_thread::sleep_for(std::chrono::microseconds{SLEEP_MICROSECONDS});
   }
+  stop_chains();
 }
-
-// TODO: refactor to sample(std::vector<ChainRecord>& records)
-//    std::vector<ChainRecord> records(M);
-//    Workers workers(samplers, records, max_draws_per_chain);
-//    run_to_threshold(workers, rhat_threshdold);
-//    return records;
-
 
 // Sampler requires: { double sample(vector<double>& draw);  size_t dim(); }
 template <typename Sampler>
@@ -284,29 +298,26 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   std::size_t M = samplers.size();
   std::vector<AtomicChainStats> chain_statses(M);
   std::latch start_gate(M);
+
   std::vector<ChainWorker<Sampler>> workers;
   workers.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    workers.emplace_back(m, max_draws_per_chain, samplers[m], chain_statses[m],
+    workers.emplace_back(max_draws_per_chain, samplers[m], chain_statses[m],
                          start_gate);
   }
-  
-  {
-    std::stop_source stopper;
-    std::vector<std::jthread> threads;
-    threads.reserve(M);
-    for (std::size_t m = 0; m < M; ++m) {
-      threads.emplace_back(std::ref(workers[m]), stopper.get_token());
-    }
-    controller_loop(chain_statses, threads, rhat_threshold, start_gate,
-                    max_draws_per_chain, stopper);
+
+  std::vector<ChainRunner<Sampler>> runners;
+  runners.reserve(M);
+  for (std::size_t m = 0; m < M; ++m) {
+    runners.emplace_back(max_draws_per_chain, samplers[m], chain_statses[m], start_gate);
   }
+
+  auto stop_all = [&] { for (auto& r : runners) r.request_stop(); };
+  controller_loop(chain_statses, rhat_threshold, start_gate, max_draws_per_chain, stop_all);
 
   std::vector<ChainRecord> chain_records;
   chain_records.reserve(M);
-  for (auto& worker : workers) {
-    chain_records.emplace_back(worker.take_chain_record());
-  }
+  for (auto& r : runners) chain_records.emplace_back(r.take_chain_record());
   return chain_records;
 }
 
@@ -367,8 +378,8 @@ int main() {
   std::cout << "Number of draws: " << rows << '\n';
 
   // UNCOMMENT TO DUMP CSV
-  // write_csv(csv_path, D, chain_records);
-  // std::cout << "Wrote draws to " << csv_path << '\n';
+  write_csv(csv_path, D, chain_records);
+  std::cout << "Wrote draws to " << csv_path << '\n';
 
   return 0;
 }

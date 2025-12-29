@@ -1,13 +1,17 @@
 // clang++ -std=c++20 -O3 -pthread rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <latch>
+#include <limits>
+#include <new>
 #include <numeric>
 #include <random>
 #include <stop_token>
@@ -34,7 +38,10 @@ VERY_INLINE void interactive_qos() {}
 VERY_INLINE void initiated_qos() {}
 #endif
 
-constexpr std::size_t DI_SIZE = std::hardware_destructive_interference_size;
+constexpr std::size_t DI_SIZE =
+  std::hardware_destructive_interference_size > 0
+  ? std::hardware_destructive_interference_size
+  : 128;
 
 double sum(const std::vector<double>& xs) noexcept {
   return std::transform_reduce(xs.begin(), xs.end(), 0.0, std::plus<>{},
@@ -287,14 +294,16 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             Stopper stop_chains) {
-  static constexpr std::size_t SLEEP_MICROSECONDS = 16;
-  interactive_qos();
+  static constexpr auto PERIOD = std::chrono::milliseconds{10};
+  
+  initiated_qos();
   start_gate.wait();
   const std::size_t M = stats_by_chain.size();
   std::vector<double> chain_means(M, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> chain_variances(M,
                                       std::numeric_limits<double>::quiet_NaN());
   std::vector<std::size_t> counts(M, 0);
+  auto next = std::chrono::steady_clock::now() + PERIOD;
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
@@ -312,7 +321,8 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
       break;
     }
-    std::this_thread::sleep_for(std::chrono::microseconds{SLEEP_MICROSECONDS});
+    std::this_thread::sleep_until(next);
+    next += PERIOD;
   }
   stop_chains();
 }
@@ -373,10 +383,10 @@ int main() {
 
   
   const std::string csv_path = "samples.csv";
-  const std::size_t D = 4;
-  std::size_t M = 16;
-  const std::size_t N = 1000;
-  double rhat_threshold = 1.001;
+  const std::size_t D = 100;
+  std::size_t M = 64;
+  const std::size_t N = 100000;
+  double rhat_threshold = 1.00001;
 
   std::random_device rd;
   std::vector<StandardNormalSampler> samplers;
@@ -403,8 +413,8 @@ int main() {
   std::cout << "Number of draws: " << rows << '\n';
 
   // UNCOMMENT TO DUMP CSV
-  write_csv(csv_path, D, chain_records);
-  std::cout << "Wrote draws to " << csv_path << '\n';
+  // write_csv(csv_path, D, chain_records);
+  // std::cout << "Wrote draws to " << csv_path << '\n';
 
   return 0;
 }

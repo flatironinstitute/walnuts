@@ -14,6 +14,7 @@
 #include <new>
 #include <numeric>
 #include <random>
+#include <span>
 #include <stop_token>
 #include <string>
 #include <thread>
@@ -110,20 +111,27 @@ struct alignas(DI_SIZE) PaddedChainStats {
 class ChainRecord {
  public:
   ChainRecord(std::size_t D, std::size_t Nmax)
-      : D_(D), Nmax_(Nmax) {
-    theta_.reserve(Nmax * D);
-    logp_.reserve(Nmax);
+    : D_(D),
+      Nmax_(Nmax),
+      n_(0),
+      theta_(Nmax * D),
+      logp_(Nmax) {
   }
 
-  std::vector<double>& draws() noexcept { return theta_; }
+  std::span<double> draw(std::size_t n) noexcept {
+    return {&theta_[n * D_], D_};
+  }
+
+  double& logp(std::size_t n) noexcept { return logp_[n]; }
+  const double& logp(std::size_t n) const noexcept { return logp_[n]; }
+
+  void commit() noexcept { ++n_; }
 
   std::size_t dims() const noexcept { return D_; }
 
-  std::size_t num_draws() const noexcept { return logp_.size(); }
+  std::size_t num_draws() const noexcept { return n_; }
 
-  inline double logp(std::size_t n) const { return logp_[n]; }
-
-  inline double operator()(std::size_t n, std::size_t d) const {
+  double operator()(std::size_t n, std::size_t d) const noexcept {
     return theta_[n * D_ + d];
   }
 
@@ -138,11 +146,10 @@ class ChainRecord {
     }
   }
 
-  void append_logp(double logp) { logp_.push_back(logp); }
-
  private:
-  std::size_t D_;
-  std::size_t Nmax_;
+  const std::size_t D_;
+  const std::size_t Nmax_;
+  std::size_t n_;
   std::vector<double> theta_;
   std::vector<double> logp_;
 };
@@ -227,9 +234,11 @@ class ChainWorker {
       if (iter % YIELD_PERIOD == 0) {
         std::this_thread::yield();
       }
-      double logp = sampler_.sample(chain_record_.draws());
-      chain_record_.append_logp(logp);
-      logp_stats_.observe(logp);
+      auto draw = chain_record_.draw(iter);
+      auto& lp = chain_record_.logp(iter);
+      lp = sampler_.sample(draw);
+      chain_record_.commit();
+      logp_stats_.observe(lp);
       acs_.store(logp_stats_.sample_stats());
     }
   }
@@ -294,8 +303,8 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             Stopper stop_chains) {
-  static constexpr auto PERIOD = std::chrono::milliseconds{10};
-  
+  static constexpr auto PERIOD = std::chrono::milliseconds{1};
+
   initiated_qos();
   start_gate.wait();
   const std::size_t M = stats_by_chain.size();
@@ -327,7 +336,7 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
   stop_chains();
 }
 
-// Sampler requires: { double sample(vector<double>& draw);  size_t dim(); }
+// Sampler requires: { double sample(span<double> draw);  size_t dim(); }
 template <typename Sampler>
 std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 double rhat_threshold,
@@ -359,11 +368,10 @@ class StandardNormalSampler {
   explicit StandardNormalSampler(unsigned int seed, std::size_t dim)
       : dim_(dim), engine_(seed), normal_dist_(0, 1) {}
 
-  double sample(std::vector<double>& draw) noexcept {
+  double sample(std::span<double> draw) noexcept {
     double lp = 0;
-    for (std::size_t i = 0; i < dim_; ++i) {
-      double x = normal_dist_(engine_);
-      draw.push_back(x);
+    for (double& x : draw) {
+      x = normal_dist_(engine_);
       lp += -0.5 * x * x;  // unnomalized
     }
     return lp;
@@ -377,6 +385,7 @@ class StandardNormalSampler {
   std::normal_distribution<double> normal_dist_;
 };
 
+
 int main() {
   std::atomic<ChainStats> test_chain_stats;
   std::cout << "atomic<ChainStats>().is_lock_free() = " << test_chain_stats.is_lock_free() << std::endl; 
@@ -385,10 +394,11 @@ int main() {
   const std::string csv_path = "samples.csv";
   const std::size_t D = 100;
   std::size_t M = 64;
-  const std::size_t N = 100000;
-  double rhat_threshold = 1.00001;
-
-  std::random_device rd;
+  const std::size_t N = 10000;
+  double rhat_threshold = 1.001;
+  unsigned int seed = 1234;  // not reproducible because of threading!
+  
+  std::mt19937 rd(seed);
   std::vector<StandardNormalSampler> samplers;
   samplers.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
@@ -413,8 +423,8 @@ int main() {
   std::cout << "Number of draws: " << rows << '\n';
 
   // UNCOMMENT TO DUMP CSV
-  // write_csv(csv_path, D, chain_records);
-  // std::cout << "Wrote draws to " << csv_path << '\n';
+  write_csv(csv_path, D, chain_records);
+  std::cout << "Wrote draws to " << csv_path << '\n';
 
   return 0;
 }

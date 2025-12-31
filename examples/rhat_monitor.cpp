@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -O3 -pthread rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <array>
@@ -298,15 +298,17 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             Stopper stop_chains) {
-  static constexpr auto PERIOD = std::chrono::milliseconds{1};
+  static constexpr auto PERIOD = std::chrono::milliseconds{10};
 
   initiated_qos();
-  start_gate.wait();
+  std::size_t num_rhat_evals = 0;
   const std::size_t M = stats_by_chain.size();
   std::vector<double> chain_means(M, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> chain_variances(M,
                                       std::numeric_limits<double>::quiet_NaN());
   std::vector<std::size_t> counts(M, 0);
+
+  start_gate.wait();
   auto next = std::chrono::steady_clock::now() + PERIOD;
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
@@ -320,14 +322,23 @@ static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
     double r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
     std::size_t num_draws = sum(counts);
 
-    debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
+    ++num_rhat_evals;
+    // debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
 
+    std::cout << std::setprecision(6) << std::fixed
+	      << std::setw(8) << std::setfill(' ')
+	      << '\r' // begin of currnet line
+	      << "R hat " << r_hat
+	      << "  #draws " << num_draws
+	      << std::flush;
+    
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
       break;
     }
     std::this_thread::sleep_until(next);
     next += PERIOD;
   }
+  std::cout << "\n# Rhat evals by controller: " << num_rhat_evals << std::endl;
   stop_chains();
 }
 
@@ -452,6 +463,7 @@ class StandardNormalSampler {
       x = normal_dist_(engine_);
       lp += -0.5 * x * x;  // unnomalized
     }
+    std::this_thread::sleep_for(std::chrono::microseconds{500}); // sim Stan
     return lp;
   }
 
@@ -465,14 +477,15 @@ class StandardNormalSampler {
 
 int main() {
   std::atomic<ChainStats> test_chain_stats;
-  std::cout << "atomic<ChainStats>().is_lock_free() = "
-            << test_chain_stats.is_lock_free() << std::endl;
+  std::cout << "LOCK FREE: "
+	    << ( std::atomic<ChainStats>().is_lock_free() ? "yes" : "***NO***")
+	    << std::endl;
 
   const std::string out_path = "sample.mcmc";
   const std::size_t D = 100;
   std::size_t M = 64;
-  const std::size_t N = 10000;
-  double rhat_threshold = 1.001;
+  const std::size_t N = 100000;
+  double rhat_threshold = 1.0001;
   unsigned int seed = 1234;  // not reproducible because of threading!
 
   std::mt19937 rd(seed);
@@ -493,16 +506,16 @@ int main() {
       lps[n] = chain_record.logp(n);
     }
     rows += N_m;
-    std::cout << "Chain " << m << "  count=" << N_m
-              << "  Final: mean(logp)=" << mean(lps)
-              << "  var(logp) [sample]=" << variance(lps) << '\n';
+    std::cout << "Chain " << m << "  count " << N_m
+              << "  mean(logp) " << mean(lps)
+              << "  sd(logp) [sample] " << std::sqrt(variance(lps)) << '\n';
   }
   std::cout << "Number of draws: " << rows << '\n';
 
   // uncomment to dump csv or binary .mcmc formats
-  write_binary(out_path, D, chain_records);
-  // write_csv(out_path, D, chain_records);
-  std::cout << "Wrote draws to " << out_path << '\n';
+  // write_binary(out_path, D, chain_records); // WARNING: up to N * D * 8 bytes
+  // write_csv(out_path, D, chain_records);  // WARNING: even bigger
+  // std::cout << "Wrote draws to " << out_path << '\n';
 
   return 0;
 }

@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -march=native -O3 -pthread rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include/walnuts rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <array>
@@ -23,6 +23,8 @@
 #include <thread>
 #include <vector>
 
+#include "walnuts/padded.hpp"
+
 #if defined(__clang__) || defined(__GNUC__)
 #define VERY_INLINE __attribute__((always_inline)) inline
 #else
@@ -41,11 +43,6 @@ VERY_INLINE void initiated_qos() {
 VERY_INLINE void interactive_qos() {}
 VERY_INLINE void initiated_qos() {}
 #endif
-
-constexpr std::size_t DI_SIZE =
-    std::hardware_destructive_interference_size > 0
-        ? std::hardware_destructive_interference_size
-        : 128;
 
 double sum(const std::vector<double>& xs) noexcept {
   return std::transform_reduce(xs.begin(), xs.end(), 0.0, std::plus<>{},
@@ -100,15 +97,6 @@ class AtomicChainStats {
 
  private:
   std::atomic<ChainStats> data_;
-};
-
-struct alignas(DI_SIZE) PaddedChainStats {
-  static constexpr std::size_t PAD_SIZE =
-      sizeof(AtomicChainStats) < DI_SIZE ? DI_SIZE - sizeof(AtomicChainStats)
-                                         : 0;
-
-  AtomicChainStats val;
-  std::array<std::byte, PAD_SIZE> pad{};
 };
 
 class ChainRecord {
@@ -294,7 +282,7 @@ void debug_print(double variance_of_means, double mean_of_variances,
 }
 
 template <typename Stopper>
-static void controller_loop(std::vector<PaddedChainStats>& stats_by_chain,
+static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
                             Stopper stop_chains) {
@@ -348,7 +336,7 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 double rhat_threshold,
                                 std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<PaddedChainStats> stats_by_chain(M);
+  std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(M);
 
   std::vector<ChainRunner<Sampler>> runners;

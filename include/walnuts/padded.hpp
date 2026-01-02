@@ -1,3 +1,5 @@
+// include/walnuts/padded.hpp
+
 #pragma once
 
 #include <array>
@@ -9,25 +11,25 @@ namespace walnuts {
 /**
  * @brief The destructive interference size, if non-zero, else 128.
  */
-static constexpr std::size_t DI_SIZE =
+inline constexpr std::size_t DI_SIZE =
     std::hardware_destructive_interference_size > 0
         ? std::hardware_destructive_interference_size
         : 128;
 
 /**
- * @brief A wrapper of `T` aligned to `DI_SIZE` and padded to multiple
- * of `DI_SIZE`.
+ * @brief A wrapper of `T` aligned to `DI_SIZE` and padded to minimum
+ * multiple of `DI_SIZE` big enough to hold value.
  *
  * @tparam T The type of value.
  */
-template <class T>
-struct alignas(DI_SIZE) Padded {
+template <class T, std::size_t Align = DI_SIZE>
+struct alignas(Align) Padded {
   /**
-   * @brief Padding bytes required to make sizeof(Padded<T>) at least
-   * DI_SIZE and a multiple of DI_SIZE.
+   * @brief Padding bytes required to make `sizeof(Padded<T>)` at least
+   * `Align` and a multiple of `Align`.
    */
   static constexpr std::size_t PADDING_BYTES =
-    (DI_SIZE - (sizeof(T) % DI_SIZE)) % DI_SIZE;
+    (Align - (sizeof(T) % Align)) % Align;
 
   /**
    * @brief The value.

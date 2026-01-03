@@ -185,13 +185,15 @@ static void elementwise_scale(float a, std::span<float> x) noexcept {
   }
 }
 
-static float l2_diff(std::span<const float> a,
-                     std::span<const float> b) noexcept {
+static float l2_rel_diff(std::span<const float> a,
+			 std::span<const float> b) noexcept {
   double sum_sq = 0.0;
   const std::size_t n = a.size();
   for (std::size_t i = 0; i < n; ++i) {
-    const double diff = static_cast<double>(a[i]) - static_cast<double>(b[i]);
-    sum_sq += diff * diff;
+    double ad = static_cast<double>(a[i]);
+    double bd = static_cast<double>(b[i]);
+    double rel_diff = (ad - bd) / bd;
+    sum_sq += rel_diff * rel_diff;
   }
   return static_cast<float>(std::sqrt(sum_sq));
 }
@@ -217,8 +219,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0f);
     mean_log_step = 0.0f;
     min_iter = std::numeric_limits<std::uint32_t>::max();
-
-    // Read latest snapshots (asynchronously).
     for (std::size_t m = 0; m < M; ++m) {
       latest[m] = &buffers[m].val.read_latest();
       const AdaptSnapshot& s = *latest[m];
@@ -232,24 +232,20 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     elementwise_exp(std::span<const float>(mean_log_mass),
                     std::span<float>(mean_mass));
 
-    const float mean_mass_norm = l2_norm(std::span<const float>(mean_mass));
-
     float max_rel_mass = 0.0f;
     float max_rel_step = 0.0f;
 
-    // Compute max relative errors.
     for (std::size_t m = 0; m < M; ++m) {
-      const AdaptSnapshot& s =*latest[m]; //  buffers[m].val.read_latest();
+      const AdaptSnapshot& s = *latest[m]; //  buffers[m].val.read_latest();
 
-      // Mass comparison on linear scale: ||mass_m - mean_mass|| / ||mean_mass||
       const float diff_mass =
-          l2_diff(std::span<const float>(s.mass), std::span<const float>(mean_mass));
-      const float rel_mass = diff_mass / mean_mass_norm;
-      max_rel_mass = std::max(max_rel_mass, rel_mass);
+          l2_rel_diff(std::span<const float>(s.mass), std::span<const float>(mean_mass));
+      max_rel_mass = std::max(max_rel_mass, diff_mass);
 
       // Step comparison on log scale: |log_step_m - mean_log_step| / |mean_log_step|
-      const float rel_step =
-          std::abs(s.log_step - mean_log_step) / std::abs(mean_log_step);
+      double s_step = std::exp(s.log_step);
+      double m_step = std::exp(mean_log_step);
+      const float rel_step = (s_step - m_step) / m_step;
       max_rel_step = std::max(max_rel_step, rel_step);
     }
 
@@ -380,8 +376,8 @@ int main() {
     const AdaptSnapshot& s = buffers[m].val.read_latest();
     const float step = std::exp(s.log_step);
     const float mass_norm = l2_norm(std::span<const float>(s.mass));
-    const float rel_mass = l2_diff(std::span<const float>(s.mass),
-				   std::span<const float>(res.mass_bar)) / mass_bar_norm;
+    const float rel_mass = l2_rel_diff(std::span<const float>(s.mass),
+				       std::span<const float>(res.mass_bar));
     const float rel_step = std::abs(s.log_step - log_step_bar) / std::abs(log_step_bar);
     std::cout << "  chain " << m
 	      << "  iter=" << s.iter

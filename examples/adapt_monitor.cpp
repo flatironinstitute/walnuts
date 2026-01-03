@@ -21,48 +21,6 @@
 #include "walnuts/padded.hpp"
 #include "walnuts/triple_buffer.hpp"
 
-// this is a stub that will get replaced with WALNUTS
-class ExampleSampler {
- public:
-  ExampleSampler(std::size_t dim, std::uint64_t seed)
-      : dim_(dim),
-        rng_(seed),
-        z_(0.0f, 1.0f),
-        log_mass_means_(means(dim)),
-        log_mass_(dim),
-        log_step_(std::log(0.1f)) {}
-
-  std::size_t dim() const noexcept { return dim_; }
-
-  void step(std::uint32_t iter) {
-    const float sd = 1.0f / std::sqrt(static_cast<float>(iter));
-    log_step_ = std::log(0.1f) + sd * z_(rng_);
-    for (std::size_t d = 0; d < dim_; ++d) {
-      log_mass_[d] = log_mass_means_[d] + sd * z_(rng_);
-    }
-  }
-
-  float log_step() const noexcept { return log_step_; }
-
-  std::span<const float> log_mass() const noexcept { return log_mass_; }
-
- private:
-  static std::vector<float> means(std::size_t dim) {
-    std::vector<float> m(dim);
-    for (std::size_t d = 0; d < dim; ++d) {
-      const float x = static_cast<float>(d + 1);
-      m[d] = std::log(x * x);
-    }
-    return m;
-  }
-
-  std::size_t dim_;
-  std::mt19937_64 rng_;
-  std::normal_distribution<float> z_;
-  std::vector<float> log_mass_means_;
-  std::vector<float> log_mass_;
-  float log_step_;
-};
 
 struct AdaptSnapshot {
   std::uint32_t iter = 0;
@@ -323,6 +281,52 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     next += cfg.probe_period;
   }
 }
+
+// ********** EXAMPLE AFTER HERE **************
+
+// this is a stub that will get replaced with WALNUTS
+class ExampleSampler {
+ public:
+  ExampleSampler(std::size_t dim, std::uint64_t seed)
+      : dim_(dim),
+        rng_(seed),
+        z_(0.0f, 1.0f),
+        log_mass_means_(means(dim)),
+        log_mass_(dim),
+        log_step_(std::log(0.1f)) {}
+
+  std::size_t dim() const noexcept { return dim_; }
+
+  void step(std::uint32_t iter) {
+    const float sd = 1.0f / std::sqrt(static_cast<float>(iter));
+    log_step_ = std::log(0.1f) + sd * z_(rng_);
+    for (std::size_t d = 0; d < dim_; ++d) {
+      log_mass_[d] = log_mass_means_[d] + sd * z_(rng_);
+    }
+  }
+
+  float log_step() const noexcept { return log_step_; }
+
+  std::span<const float> log_mass() const noexcept { return log_mass_; }
+
+ private:
+  static std::vector<float> means(std::size_t dim) {
+    std::vector<float> m(dim);
+    for (std::size_t d = 0; d < dim; ++d) {
+      const float x = static_cast<float>(d + 1);
+      m[d] = std::log(x * x);
+    }
+    return m;
+  }
+
+  std::size_t dim_;
+  std::mt19937_64 rng_;
+  std::normal_distribution<float> z_;
+  std::vector<float> log_mass_means_;
+  std::vector<float> log_mass_;
+  float log_step_;
+};
+
 
 int main() {
   std::cout << "Adaptation Monitoring Demo" << std::endl;

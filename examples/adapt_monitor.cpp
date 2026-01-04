@@ -73,12 +73,12 @@ class AdaptWorker {
               const AdaptConfig& cfg,
               PaddedBuffer& buffer,
               std::latch& start_gate,
-              AdaptiveSampler adapter)
+              AdaptiveSampler& adapter)
       : chain_id_(chain_id),
         cfg_(cfg),
         buffer_(buffer.val),
         start_gate_(start_gate),
-        adapter_(std::move(adapter)) {}
+        adapter_(adapter) {}
 
   void operator()(std::stop_token st) {
     start_gate_.arrive_and_wait();
@@ -120,7 +120,7 @@ class AdaptWorker {
   AdaptConfig cfg_;
   Buffer& buffer_;
   std::latch& start_gate_;
-  AdaptiveSampler adapter_;
+  AdaptiveSampler& adapter_;
 };
 
 template <class AdaptiveSampler>
@@ -130,8 +130,8 @@ class AdaptRunner {
               const AdaptConfig& cfg,
               PaddedBuffer& buffer,
               std::latch& start_gate,
-              AdaptiveSampler adapter)
-      : worker_(chain_id, cfg, buffer, start_gate, std::move(adapter)),
+              AdaptiveSampler& adapter)
+      : worker_(chain_id, cfg, buffer, start_gate, adapter),
         thread_(std::ref(worker_)) {}
 
   AdaptRunner(const AdaptRunner&) = delete;
@@ -278,6 +278,38 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
   }
 }
 
+
+template <typename Sampler>
+AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
+  std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
+
+  std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
+  std::stop_source stop_source;
+
+  std::vector<std::unique_ptr<AdaptRunner<Sampler>>> runners;
+  runners.reserve(cfg.num_chains);
+
+  for (std::size_t m = 0; m < cfg.num_chains; ++m) {
+    runners.emplace_back(std::make_unique<AdaptRunner<Sampler>>(
+      static_cast<std::uint32_t>(m), cfg, buffers[m], start_gate,
+      samplers[m]));
+  }
+  auto stop_all = [&] {
+    for (auto& r : runners) {
+      r->request_stop();
+    }
+  };
+  
+  AdaptResult res = controller_loop(buffers, cfg, stop_all);
+
+  for (auto& r : runners) {
+    r->join();
+  }
+
+  return res;
+}
+
+
 // ********** EXAMPLE AFTER HERE **************
 
 // this is a stub that will get replaced with WALNUTS
@@ -299,12 +331,15 @@ class ExampleSampler {
     for (std::size_t d = 0; d < dim_; ++d) {
       log_mass_[d] = log_mass_means_[d] + sd * z_(rng_);
     }
+    ++iter_;
   }
 
   float log_step() const noexcept { return log_step_; }
 
   std::span<const float> log_mass() const noexcept { return log_mass_; }
 
+  std::size_t iter() const noexcept { return iter_; }
+  
  private:
   static std::vector<float> means(std::size_t dim) {
     std::vector<float> m(dim);
@@ -315,6 +350,7 @@ class ExampleSampler {
     return m;
   }
 
+  std::size_t iter_ = 0;
   std::size_t dim_;
   std::mt19937_64 rng_;
   std::normal_distribution<float> z_;
@@ -334,58 +370,35 @@ int main() {
   cfg.min_iters = 20;
   cfg.publish_stride = 5;
   cfg.probe_period = std::chrono::milliseconds{1};
-  cfg.tau_mass = 1e1f;
-  cfg.tau_step = 1e1f;
+  cfg.tau_mass = 1e0f;
+  cfg.tau_step = 8e-2f;
 
-  std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
-
-  std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
-  std::stop_source stop_source;
-
-  std::vector<std::unique_ptr<AdaptRunner<ExampleSampler>>> runners;
-  runners.reserve(cfg.num_chains);
-
-  std::mt19937_64 seeder(1234);
+  std::mt19937_64 rng(1234);
+  std::vector<ExampleSampler> samplers;
+  samplers.reserve(cfg.num_chains);
   for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    runners.emplace_back(std::make_unique<AdaptRunner<ExampleSampler>>(
-      static_cast<std::uint32_t>(m), cfg, buffers[m], start_gate,
-      ExampleSampler(cfg.dim, seeder())));
+    samplers.emplace_back(ExampleSampler(cfg.dim, rng()));
   }
-  auto stop_all = [&] {
-    for (auto& r : runners) {
-      r->request_stop();
-    }
-  };
   
-  AdaptResult res = controller_loop(buffers, cfg, stop_all);
-
-  for (auto& r : runners) {
-    r->join();
-  }
-
-  std::cout << "stop_iter_min=" << res.stop_iter_min
-            << "  step_bar=" << res.step_bar
-            << "  ||mass_bar||=" << l2_norm(std::span<const float>(res.mass_bar))
-            << '\n';
+  AdaptResult res = sample<ExampleSampler>(cfg, samplers);
 
   const float mass_bar_norm = l2_norm(std::span<const float>(res.mass_bar));
-  const float log_step_bar = std::log(res.step_bar);
+  
+  std::cout << "\nSHARED ADAPTED RESULT:  "
+	    << "stop_iter_min=" << res.stop_iter_min
+            << "  step_bar=" << res.step_bar
+            << "  ||mass_bar||=" << mass_bar_norm
+            << '\n';
 
-  std::cout << "Per-chain final state:\n";
-  for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    const AdaptSnapshot& s = buffers[m].val.read_latest();
-    const float step = std::exp(s.log_step);
-    const float mass_norm = l2_norm(std::span<const float>(s.mass));
-    const float rel_mass = l2_rel_diff(std::span<const float>(s.mass),
-				       std::span<const float>(res.mass_bar));
-    const float rel_step = std::abs(s.log_step - log_step_bar) / std::abs(log_step_bar);
-    std::cout << "  chain " << m
-	      << "  iter=" << s.iter
-	      << "  step=" << step
-	      << "  ||mass||=" << mass_norm
-	      << "  mass_norm=" << mass_norm
-	      << "  rel_mass=" << rel_mass
-	      << '\n';
-  }  
+  std::cout << "\nPER CHAIN FINAL STATES:\n";
+  for (std::size_t m = 0; m < samplers.size(); ++m) {
+    std::cout << m << ")"
+	      << " iter = " << samplers[m].iter()
+	      << "  step = " << std::exp(samplers[m].log_step())
+	      << "  ||log_mass|| = " << l2_norm(std::span<const float>(samplers[m].log_mass()))
+	      << std::endl;
+  }
+
   return 0;
 }
+

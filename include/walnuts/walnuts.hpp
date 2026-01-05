@@ -334,8 +334,8 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
   Vec<S> rho_next;
   Vec<S> grad_theta_next;
   S logp_theta_next;
-  if (!macro_step<D>(logp_grad, inv_mass, step, min_micro_steps,
-                     max_step_halvings, max_error, span, theta_next, rho_next,
+  if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,
+                     min_micro_steps, max_error, span, theta_next, rho_next,
                      grad_theta_next, logp_theta_next, adapt_handler)) {
     return std::nullopt;
   }

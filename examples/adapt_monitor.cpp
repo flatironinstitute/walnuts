@@ -282,13 +282,10 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 template <typename Sampler>
 AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
   std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
-
   std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
-  std::stop_source stop_source;
 
   std::vector<std::unique_ptr<AdaptRunner<Sampler>>> runners;
   runners.reserve(cfg.num_chains);
-
   for (std::size_t m = 0; m < cfg.num_chains; ++m) {
     runners.emplace_back(std::make_unique<AdaptRunner<Sampler>>(
       static_cast<std::uint32_t>(m), cfg, buffers[m], start_gate,
@@ -299,14 +296,7 @@ AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
       r->request_stop();
     }
   };
-  
-  AdaptResult res = controller_loop(buffers, cfg, stop_all);
-
-  for (auto& r : runners) {
-    r->join();
-  }
-
-  return res;
+  return controller_loop(buffers, cfg, stop_all);
 }
 
 

@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -march=native -O3 -pthread -I ../include/walnuts rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <array>
@@ -17,6 +17,7 @@
 #include <numeric>
 #include <random>
 #include <span>
+#include <sstream>
 #include <stdexcept>
 #include <stop_token>
 #include <string>
@@ -365,23 +366,26 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   return chain_records;
 }
 
-template <typename T>
-static inline void write_u32(std::ostream& out, T x) {
+template <typename T, typename Out>
+static inline void write_u32(Out& out, T x) {
   auto y = static_cast<std::uint32_t>(x);
   out.write(reinterpret_cast<const char*>(&y), sizeof(y));
 }
 
-static inline void write_f64(std::ostream& out, double x) {
+template <typename Out>
+static inline void write_f64(Out& out, double x) {
   auto bytes = reinterpret_cast<const char*>(&x);
   out.write(bytes, 8);
 }
 
-static inline void write_string(std::ostream& out, const std::string& s) {
+template <typename Out>
+static inline void write_string(Out& out, const std::string& s) {
   write_u32(out, s.size());
   out.write(s.data(), static_cast<std::streamsize>(s.size()));
 }
 
-static void write_fixed_header(std::ofstream& out, std::size_t dim,
+template <typename Out>
+static void write_fixed_header(Out& out, std::size_t dim,
                                const std::vector<ChainRecord>& chains) {
   static constexpr std::array<char, 8> NAME = {'W','A','L','N','U','T','S','\0'};
   static constexpr std::uint32_t VERSION = 1;
@@ -391,7 +395,8 @@ static void write_fixed_header(std::ofstream& out, std::size_t dim,
   write_u32(out, dim);
 }
 
-static void write_column_names(std::ofstream& out, std::size_t dim) {
+template <typename Out>
+static void write_column_names(Out& out, std::size_t dim) {
   write_u32(out, dim + 1);
   write_string(out, "log_density");
   for (std::size_t d = 0; d < dim; ++d) {
@@ -400,7 +405,8 @@ static void write_column_names(std::ofstream& out, std::size_t dim) {
   }
 }
 
-static void write_chains(std::ofstream& out, std::size_t dim,
+template <typename Out>
+static void write_chains(Out& out, std::size_t dim,
                          const std::vector<ChainRecord>& chains) {
   for (std::size_t chain_id = 0; chain_id < chains.size(); ++chain_id) {
     const ChainRecord& rec = chains[chain_id];
@@ -430,8 +436,17 @@ static void write_binary(const std::string& path, std::size_t dim,
   }
   std::vector<char> filebuf(8u << 20); //  8 MB buffer bigger than usual
   out.rdbuf()->pubsetbuf(filebuf.data(), static_cast<std::streamsize>(filebuf.size()));
-  write_fixed_header(out, dim, chains);
-  write_column_names(out, dim);
+
+  std::ostringstream oss;
+  write_fixed_header(oss, dim, chains);
+  write_column_names(oss, dim);
+  auto header = oss.str();
+  out << header;
+  std::size_t padding_to_8_byte_boundary = 8 - header.size() % 8;   
+  for (std::size_t i = 0; i < padding_to_8_byte_boundary; ++i) {
+    out << '\0';
+  }
+
   write_chains(out, dim, chains);
   if (!out) {
     throw std::runtime_error("I/O error writing binary file");

@@ -123,30 +123,6 @@ class AdaptWorker {
   AdaptiveSampler& adapter_;
 };
 
-template <class AdaptiveSampler>
-class AdaptRunner {
- public:
-  AdaptRunner(std::uint32_t chain_id,
-              const AdaptConfig& cfg,
-              PaddedBuffer& buffer,
-              std::latch& start_gate,
-              AdaptiveSampler& adapter)
-      : worker_(chain_id, cfg, buffer, start_gate, adapter),
-        thread_(std::ref(worker_)) {}
-
-  AdaptRunner(const AdaptRunner&) = delete;
-  AdaptRunner& operator=(const AdaptRunner&) = delete;
-  AdaptRunner(AdaptRunner&&) noexcept = delete;
-  AdaptRunner& operator=(AdaptRunner&&) noexcept = delete;
-
-  void request_stop() noexcept { thread_.request_stop(); }
-  void join() { thread_.join(); }
-
- private:
-  AdaptWorker<AdaptiveSampler> worker_;
-  std::jthread thread_;
-};
-
 
 struct AdaptResult {
   std::vector<float> mass_bar;
@@ -284,16 +260,15 @@ AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
   std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
   std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
 
-  std::vector<std::unique_ptr<AdaptRunner<Sampler>>> runners;
-  runners.reserve(cfg.num_chains);
+  std::vector<std::jthread> threads;
+  threads.reserve(cfg.num_chains);
   for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    runners.emplace_back(std::make_unique<AdaptRunner<Sampler>>(
-      static_cast<std::uint32_t>(m), cfg, buffers[m], start_gate,
-      samplers[m]));
+    std::uint32_t chain_id = static_cast<std::uint32_t>(m);
+    threads.emplace_back(AdaptWorker<Sampler>(chain_id, cfg, buffers[m], start_gate, samplers[m]));
   }
   auto stop_all = [&] {
-    for (auto& r : runners) {
-      r->request_stop();
+    for (auto& t : threads) {
+      t.request_stop();
     }
   };
   return controller_loop(buffers, cfg, stop_all);

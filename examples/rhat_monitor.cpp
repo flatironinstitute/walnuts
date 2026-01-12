@@ -207,10 +207,11 @@ template <class Sampler>
 class ChainWorker {
  public:
   ChainWorker(std::size_t draws_per_chain, Sampler& sampler,
+	      ChainRecord& chain_record,
               AtomicChainStats& acs, std::latch& start_gate)
       : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        chain_record_(sampler.dim(), draws_per_chain),
+        chain_record_(chain_record), // sampler.dim(), draws_per_chain),
         acs_(acs),
         start_gate_(start_gate) {}
 
@@ -232,39 +233,13 @@ class ChainWorker {
     }
   }
 
-  ChainRecord take_record() && { return std::move(chain_record_); }
-
- private:
+private:
   std::size_t draws_per_chain_;
   Sampler& sampler_;
-  ChainRecord chain_record_;
+  ChainRecord& chain_record_;
   WelfordAccumulator logp_stats_;
   AtomicChainStats& acs_;
   std::latch& start_gate_;
-};
-
-template <class Sampler>
-class ChainRunner {
- public:
-  ChainRunner(std::size_t draws_per_chain, Sampler& sampler,
-              AtomicChainStats& acs, std::latch& start_gate)
-      : worker_(draws_per_chain, sampler, acs, start_gate),
-        thread_(std::ref(worker_)) {}
-
-  ChainRunner(const ChainRunner&) = delete;
-  ChainRunner& operator=(const ChainRunner&) = delete;
-  ChainRunner(ChainRunner&&) noexcept = default;
-  ChainRunner& operator=(ChainRunner&&) noexcept = default;
-
-  void request_stop() { thread_.request_stop(); }
-
-  void join() { thread_.join(); }
-
-  ChainRecord take_record() { return std::move(worker_).take_record(); }
-
- private:
-  ChainWorker<Sampler> worker_;
-  std::jthread thread_;
 };
 
 void debug_print(double variance_of_means, double mean_of_variances,
@@ -339,31 +314,49 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   std::size_t M = samplers.size();
   std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(M);
-
-  std::vector<ChainRunner<Sampler>> runners;
-  runners.reserve(M);
+  std::vector<ChainRecord> chain_records;
+  chain_records.reserve(M);
+  std::vector<std::jthread> threads;
+  threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    runners.emplace_back(max_draws_per_chain, samplers[m],
-                         stats_by_chain[m].val, start_gate);
+    chain_records.emplace_back(samplers[m].dim(), max_draws_per_chain);
+    threads.emplace_back(ChainWorker<Sampler>(max_draws_per_chain, samplers[m],
+					      chain_records[m],
+					      stats_by_chain[m].val, start_gate));
   }
-
   auto stop_all = [&] {
-    for (auto& r : runners) {
-      r.request_stop();
+    for (auto& t : threads) {
+      t.request_stop();
     }
   };
   controller_loop(stats_by_chain, rhat_threshold, start_gate,
                   max_draws_per_chain, stop_all);
-  for (auto& r : runners) {
-    r.join();  // avoid race before taking records
-  }
-
-  std::vector<ChainRecord> chain_records;
-  chain_records.reserve(M);
-  for (auto& r : runners) {
-    chain_records.emplace_back(r.take_record());
-  }
   return chain_records;
+  
+  // std::vector<ChainRunner<Sampler>> runners;
+  // runners.reserve(M);
+  // for (std::size_t m = 0; m < M; ++m) {
+  //   runners.emplace_back(max_draws_per_chain, samplers[m],
+  //                        stats_by_chain[m].val, start_gate);
+  // }
+
+  // auto stop_all = [&] {
+  //   for (auto& r : runners) {
+  //     r.request_stop();
+  //   }
+  // };
+  // controller_loop(stats_by_chain, rhat_threshold, start_gate,
+  //                 max_draws_per_chain, stop_all);
+  // for (auto& r : runners) {
+  //   r.join();  // avoid race before taking records
+  // }
+
+  // std::vector<ChainRecord> chain_records;
+  // chain_records.reserve(M);
+  // for (auto& r : runners) {
+  //   chain_records.emplace_back(r.take_record());
+  // }
+  // return chain_records;
 }
 
 template <typename T, typename Out>

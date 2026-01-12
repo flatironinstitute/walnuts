@@ -83,8 +83,8 @@ class TripleBuffer {
    */
   void publish() noexcept {
     const int published = back_;
-    back_ = spare_.exchange(published, std::memory_order_acq_rel);
     front_.store(published, std::memory_order_release);
+    back_ = spare_.exchange(published, std::memory_order_acq_rel);
   }
 
   /**
@@ -115,11 +115,11 @@ class TripleBuffer {
   /** Current spare buffer, aligned to avoid cache line conflicts. */
   alignas(walnuts::DI_SIZE) std::atomic<index_t> spare_;
 
-  /** Current back buffer---only used by writer and publisher. */
-  index_t back_;
+  /** Current back buffer---only used by writer. */
+  alignas(walnuts::DI_SIZE) index_t back_;
 
   /** Current read buffer---only used by reader. */
-  index_t read_;
+  alignas(walnuts::DI_SIZE) index_t read_;
 };
 
 }  // namespace walnuts  

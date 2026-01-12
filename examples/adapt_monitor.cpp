@@ -18,11 +18,11 @@
 #include <thread>
 #include <vector>
 
-#include "walnuts/padded.hpp"
-#include "walnuts/triple_buffer.hpp"
+#include <walnuts/padded.hpp>
+#include <walnuts/triple_buffer.hpp>
 
 
-struct AdaptSnapshot {
+struct alignas(walnuts::DI_SIZE) AdaptSnapshot {
   std::uint32_t iter = 0;
   float log_step = std::numeric_limits<float>::quiet_NaN();
   std::vector<float> log_mass;
@@ -81,7 +81,7 @@ class AdaptWorker {
         adapter_(adapter) {}
 
   void operator()(std::stop_token st) {
-    start_gate_.arrive_and_wait();
+    start_gate_.get().arrive_and_wait();
     std::uint32_t last_done = 0;
     publish_snapshot(0);
     for (std::uint32_t iter = 1; iter <= cfg_.max_warmup_iters; ++iter) {
@@ -89,7 +89,7 @@ class AdaptWorker {
       if (cfg_.yield_period > 0 && (iter % cfg_.yield_period == 0)) {
         std::this_thread::yield();
       }
-      adapter_.step(iter);
+      adapter_.get().step(iter);
       last_done = iter;
       if (cfg_.publish_stride > 0 && (iter % cfg_.publish_stride == 0)) {
         publish_snapshot(iter);
@@ -102,49 +102,25 @@ class AdaptWorker {
 
  private:
   void publish_snapshot(std::uint32_t iter) {
-    AdaptSnapshot& snap = buffer_.write_buffer();
+    AdaptSnapshot& snap = buffer_.get().write_buffer();
     snap.iter = iter;
     snap.log_step = (iter == 0) ? std::numeric_limits<float>::quiet_NaN()
-                                : adapter_.log_step();
+      : adapter_.get().log_step();
 
-    const auto lm = adapter_.log_mass();
+    const auto lm = adapter_.get().log_mass();
     for (std::size_t d = 0; d < cfg_.dim; ++d) {
       const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
       snap.log_mass[d] = v;
       snap.mass[d] = std::exp(v);
     }
-    buffer_.publish();
+    buffer_.get().publish();
   }
 
   std::uint32_t chain_id_;
   AdaptConfig cfg_;
-  Buffer& buffer_;
-  std::latch& start_gate_;
-  AdaptiveSampler& adapter_;
-};
-
-template <class AdaptiveSampler>
-class AdaptRunner {
- public:
-  AdaptRunner(std::uint32_t chain_id,
-              const AdaptConfig& cfg,
-              PaddedBuffer& buffer,
-              std::latch& start_gate,
-              AdaptiveSampler& adapter)
-      : worker_(chain_id, cfg, buffer, start_gate, adapter),
-        thread_(std::ref(worker_)) {}
-
-  AdaptRunner(const AdaptRunner&) = delete;
-  AdaptRunner& operator=(const AdaptRunner&) = delete;
-  AdaptRunner(AdaptRunner&&) noexcept = delete;
-  AdaptRunner& operator=(AdaptRunner&&) noexcept = delete;
-
-  void request_stop() noexcept { thread_.request_stop(); }
-  void join() { thread_.join(); }
-
- private:
-  AdaptWorker<AdaptiveSampler> worker_;
-  std::jthread thread_;
+  std::reference_wrapper<Buffer> buffer_;
+  std::reference_wrapper<std::latch> start_gate_;
+  std::reference_wrapper<AdaptiveSampler> adapter_;
 };
 
 
@@ -282,31 +258,20 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 template <typename Sampler>
 AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
   std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
-
   std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
-  std::stop_source stop_source;
 
-  std::vector<std::unique_ptr<AdaptRunner<Sampler>>> runners;
-  runners.reserve(cfg.num_chains);
-
+  std::vector<std::jthread> threads;
+  threads.reserve(cfg.num_chains);
   for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    runners.emplace_back(std::make_unique<AdaptRunner<Sampler>>(
-      static_cast<std::uint32_t>(m), cfg, buffers[m], start_gate,
-      samplers[m]));
+    std::uint32_t chain_id = static_cast<std::uint32_t>(m);
+    threads.emplace_back(AdaptWorker<Sampler>(chain_id, cfg, buffers[m], start_gate, samplers[m]));
   }
   auto stop_all = [&] {
-    for (auto& r : runners) {
-      r->request_stop();
+    for (auto& t : threads) {
+      t.request_stop();
     }
   };
-  
-  AdaptResult res = controller_loop(buffers, cfg, stop_all);
-
-  for (auto& r : runners) {
-    r->join();
-  }
-
-  return res;
+  return controller_loop(buffers, cfg, stop_all);
 }
 
 

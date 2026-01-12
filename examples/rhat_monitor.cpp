@@ -115,10 +115,11 @@ class ChainRecord {
   }
 
   std::span<const double> draw(std::size_t n) const noexcept {
-    return {&theta_[n * D_], D_};
+    return {theta_.data() + n * D_, D_};
   }
 
   double& logp(std::size_t n) noexcept { return logp_[n]; }
+
   const double& logp(std::size_t n) const noexcept { return logp_[n]; }
 
   void commit() noexcept { ++n_; }
@@ -224,17 +225,17 @@ class ChainWorker {
 
   void operator()(std::stop_token st) {
     interactive_qos();
-    start_gate_.arrive_and_wait();
+    start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 0;
 	 iter < draws_per_chain_ && !st.stop_requested();
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
       }
-      auto draw = chain_record_.draw(iter);
-      auto& lp = chain_record_.logp(iter);
+      auto draw = chain_record_.get().draw(iter);
+      auto& lp = chain_record_.get().logp(iter);
       lp = sampler_.get().sample(draw);
-      chain_record_.commit();
+      chain_record_.get().commit();
       logp_stats_.observe(lp);
       acs_.get().store(logp_stats_.sample_stats());
     }
@@ -243,10 +244,10 @@ class ChainWorker {
 private:
   const std::size_t draws_per_chain_;
   std::reference_wrapper<Sampler> sampler_;
-  ChainRecord& chain_record_;
+  std::reference_wrapper<ChainRecord> chain_record_;
   WelfordAccumulator logp_stats_;
   std::reference_wrapper<AtomicChainStats> acs_;
-  std::latch& start_gate_;
+  std::reference_wrapper<std::latch> start_gate_;
   const std::size_t yield_period_;
 };
 
@@ -465,7 +466,7 @@ int main() {
 
   std::size_t num_rhat_evals;
   std::vector<ChainRecord> chain_records = sample(samplers, rhat_threshold, N, num_rhat_evals);
-  std::cout << "num Rhat evals = " << num_rhat_evals;
+  std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
   std::size_t rows = 0;
   for (std::size_t m = 0; m < chain_records.size(); ++m) {
     const auto& chain_record = chain_records[m];
@@ -482,7 +483,8 @@ int main() {
   std::cout << "Number of draws: " << rows << '\n';
 
   // uncomment to dump csv or binary .mcmc formats
-  // write_binary(out_path, D, chain_records); // WARNING: up to N * D * 8 bytes
+  std::cout << "writing sample to file: " << out_path << "\n";
+  write_binary(out_path, D, chain_records); // WARNING: up to N * D * 8 bytes
   // write_csv(out_path, D, chain_records);  // WARNING: even bigger
   // std::cout << "Wrote draws to " << out_path << '\n';
 

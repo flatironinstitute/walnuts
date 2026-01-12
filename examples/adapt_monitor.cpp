@@ -81,7 +81,7 @@ class AdaptWorker {
         adapter_(adapter) {}
 
   void operator()(std::stop_token st) {
-    start_gate_.arrive_and_wait();
+    start_gate_.get().arrive_and_wait();
     std::uint32_t last_done = 0;
     publish_snapshot(0);
     for (std::uint32_t iter = 1; iter <= cfg_.max_warmup_iters; ++iter) {
@@ -89,7 +89,7 @@ class AdaptWorker {
       if (cfg_.yield_period > 0 && (iter % cfg_.yield_period == 0)) {
         std::this_thread::yield();
       }
-      adapter_.step(iter);
+      adapter_.get().step(iter);
       last_done = iter;
       if (cfg_.publish_stride > 0 && (iter % cfg_.publish_stride == 0)) {
         publish_snapshot(iter);
@@ -102,25 +102,25 @@ class AdaptWorker {
 
  private:
   void publish_snapshot(std::uint32_t iter) {
-    AdaptSnapshot& snap = buffer_.write_buffer();
+    AdaptSnapshot& snap = buffer_.get().write_buffer();
     snap.iter = iter;
     snap.log_step = (iter == 0) ? std::numeric_limits<float>::quiet_NaN()
-                                : adapter_.log_step();
+      : adapter_.get().log_step();
 
-    const auto lm = adapter_.log_mass();
+    const auto lm = adapter_.get().log_mass();
     for (std::size_t d = 0; d < cfg_.dim; ++d) {
       const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
       snap.log_mass[d] = v;
       snap.mass[d] = std::exp(v);
     }
-    buffer_.publish();
+    buffer_.get().publish();
   }
 
   std::uint32_t chain_id_;
   AdaptConfig cfg_;
-  Buffer& buffer_;
-  std::latch& start_gate_;
-  AdaptiveSampler& adapter_;
+  std::reference_wrapper<Buffer> buffer_;
+  std::reference_wrapper<std::latch> start_gate_;
+  std::reference_wrapper<AdaptiveSampler> adapter_;
 };
 
 

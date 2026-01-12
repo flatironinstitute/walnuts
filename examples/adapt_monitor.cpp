@@ -18,11 +18,11 @@
 #include <thread>
 #include <vector>
 
-#include "walnuts/padded.hpp"
-#include "walnuts/triple_buffer.hpp"
+#include <walnuts/padded.hpp>
+#include <walnuts/triple_buffer.hpp>
 
 
-struct AdaptSnapshot {
+struct alignas(walnuts::DI_SIZE) AdaptSnapshot {
   std::uint32_t iter = 0;
   float log_step = std::numeric_limits<float>::quiet_NaN();
   std::vector<float> log_mass;

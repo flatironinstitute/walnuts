@@ -24,25 +24,29 @@
 #include <thread>
 #include <vector>
 
-#include "walnuts/padded.hpp"
+#include <walnuts/padded.hpp>
 
-#if defined(__clang__) || defined(__GNUC__)
-#define VERY_INLINE __attribute__((always_inline)) inline
+#if defined __has_attribute
+#if __has_attribute(always_inline)
+#ifndef WALNUTS_STRONG_INLINE
+#define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
+#endif
 #else
-#define VERY_INLINE inline
+#define WALNUTS_STRONG_INLINE inline
+#endif
 #endif
 
 #ifdef __APPLE__
 #include <pthread.h>
-VERY_INLINE void interactive_qos() {
+WALNUTS_STRONG_INLINE void interactive_qos() {
   pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);  // best
 }
-VERY_INLINE void initiated_qos() {
+WALNUTS_STRONG_INLINE void initiated_qos() {
   pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);  // next best
 }
 #else
-VERY_INLINE void interactive_qos() {}
-VERY_INLINE void initiated_qos() {}
+WALNUTS_STRONG_INLINE void interactive_qos() {}
+WALNUTS_STRONG_INLINE void initiated_qos() {}
 #endif
 
 double sum(const std::vector<double>& xs) noexcept {
@@ -88,12 +92,13 @@ class AtomicChainStats {
     data_.store(init, std::memory_order_relaxed);
   }
 
-  void store(const ChainStats& p) noexcept {
-    data_.store(p, std::memory_order_relaxed);  //  // release);
+  // conservatie release/acquire vs. relaxed pattern
+  void store(const ChainStats& p, std::memory_order mem_order = std::memory_order_release) noexcept {
+    data_.store(p, mem_order);
   }
 
-  ChainStats load() const noexcept {
-    return data_.load(std::memory_order_relaxed);  // acquire);
+  ChainStats load(std::memory_order mem_order = std::memory_order_acquire) const noexcept {
+    return data_.load(mem_order);
   }
 
  private:
@@ -106,7 +111,7 @@ class ChainRecord {
       : D_(D), Nmax_(Nmax), n_(0), theta_(Nmax * D), logp_(Nmax) {}
 
   std::span<double> draw(std::size_t n) noexcept {
-    return {&theta_[n * D_], D_};
+    return {theta_.data() + n * D_, D_};
   }
 
   std::span<const double> draw(std::size_t n) const noexcept {
@@ -208,64 +213,53 @@ class ChainWorker {
  public:
   ChainWorker(std::size_t draws_per_chain, Sampler& sampler,
 	      ChainRecord& chain_record,
-              AtomicChainStats& acs, std::latch& start_gate)
+              AtomicChainStats& acs, std::latch& start_gate,
+	      std::size_t yield_period = 1024)
       : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
         chain_record_(chain_record), // sampler.dim(), draws_per_chain),
         acs_(acs),
-        start_gate_(start_gate) {}
+        start_gate_(start_gate),
+	yield_period_(yield_period) {}
 
   void operator()(std::stop_token st) {
-    static constexpr std::size_t YIELD_PERIOD = 64;
     interactive_qos();
     start_gate_.arrive_and_wait();
-    for (std::size_t iter = 0; iter < draws_per_chain_ && !st.stop_requested();
+    for (std::size_t iter = 0;
+	 iter < draws_per_chain_ && !st.stop_requested();
          ++iter) {
-      if (iter % YIELD_PERIOD == 0) {
+      if (iter % yield_period_ == 0) {
         std::this_thread::yield();
       }
       auto draw = chain_record_.draw(iter);
       auto& lp = chain_record_.logp(iter);
-      lp = sampler_.sample(draw);
+      lp = sampler_.get().sample(draw);
       chain_record_.commit();
       logp_stats_.observe(lp);
-      acs_.store(logp_stats_.sample_stats());
+      acs_.get().store(logp_stats_.sample_stats());
     }
   }
 
 private:
-  std::size_t draws_per_chain_;
-  Sampler& sampler_;
+  const std::size_t draws_per_chain_;
+  std::reference_wrapper<Sampler> sampler_;
   ChainRecord& chain_record_;
   WelfordAccumulator logp_stats_;
-  AtomicChainStats& acs_;
+  std::reference_wrapper<AtomicChainStats> acs_;
   std::latch& start_gate_;
+  const std::size_t yield_period_;
 };
 
-void debug_print(double variance_of_means, double mean_of_variances,
-                 double num_draws, double r_hat,
-                 const std::vector<std::size_t>& counts) {
-  auto M = counts.size();
-  std::cout << "RHAT: " << r_hat << "  NUM_DRAWS: " << num_draws
-            << "  COUNTS: ";
-  for (std::size_t m = 0; m < M; ++m) {
-    if (m > 0) {
-      std::cout << ", ";
-    }
-    std::cout << counts[m];
-  }
-  std::cout << std::endl;
-}
 
 template <typename Stopper>
 static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
                             double rhat_threshold, std::latch& start_gate,
                             std::size_t max_draws_per_chain,
-                            Stopper stop_chains) {
-  static constexpr auto PERIOD = std::chrono::milliseconds{10};
-
+                            Stopper stop_chains,
+			    std::size_t& num_rhat_evals,
+			    std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();
-  std::size_t num_rhat_evals = 0;
+  num_rhat_evals = 0;
   const std::size_t M = stats_by_chain.size();
   std::vector<double> chain_means(M, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> chain_variances(M,
@@ -273,7 +267,7 @@ static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stat
   std::vector<std::size_t> counts(M, 0);
 
   start_gate.wait();
-  auto next = std::chrono::steady_clock::now() + PERIOD;
+  auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
     for (std::size_t m = 0; m < M; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
@@ -287,8 +281,8 @@ static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stat
     std::size_t num_draws = sum(counts);
 
     ++num_rhat_evals;
-    // debug_print(variance_of_means, mean_of_variances, num_draws, r_hat, counts);
 
+    // PLACEHOLDER FOR DEBUGGING---GET RID OF ALL std::cout FOR SERVER VERSION
     std::cout << std::setprecision(6) << std::fixed
 	      << std::setw(8) << std::setfill(' ')
 	      << '\r' // begin of currnet line
@@ -299,10 +293,11 @@ static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stat
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
       break;
     }
+    // we only need so many evaluations per second in a user-facing app
     std::this_thread::sleep_until(next);
-    next += PERIOD;
+    next += eval_period;
   }
-  std::cout << "\n# Rhat evals by controller: " << num_rhat_evals << std::endl;
+
   stop_chains();
 }
 
@@ -310,7 +305,8 @@ static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stat
 template <typename Sampler>
 std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 double rhat_threshold,
-                                std::size_t max_draws_per_chain) {
+                                std::size_t max_draws_per_chain,
+				std::size_t& num_rhat_evals) {
   std::size_t M = samplers.size();
   std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(M);
@@ -330,33 +326,8 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
     }
   };
   controller_loop(stats_by_chain, rhat_threshold, start_gate,
-                  max_draws_per_chain, stop_all);
+                  max_draws_per_chain, stop_all, num_rhat_evals);
   return chain_records;
-  
-  // std::vector<ChainRunner<Sampler>> runners;
-  // runners.reserve(M);
-  // for (std::size_t m = 0; m < M; ++m) {
-  //   runners.emplace_back(max_draws_per_chain, samplers[m],
-  //                        stats_by_chain[m].val, start_gate);
-  // }
-
-  // auto stop_all = [&] {
-  //   for (auto& r : runners) {
-  //     r.request_stop();
-  //   }
-  // };
-  // controller_loop(stats_by_chain, rhat_threshold, start_gate,
-  //                 max_draws_per_chain, stop_all);
-  // for (auto& r : runners) {
-  //   r.join();  // avoid race before taking records
-  // }
-
-  // std::vector<ChainRecord> chain_records;
-  // chain_records.reserve(M);
-  // for (auto& r : runners) {
-  //   chain_records.emplace_back(r.take_record());
-  // }
-  // return chain_records;
 }
 
 template <typename T, typename Out>
@@ -380,7 +351,7 @@ static inline void write_string(Out& out, const std::string& s) {
 template <typename Out>
 static void write_fixed_header(Out& out, std::size_t dim,
                                const std::vector<ChainRecord>& chains) {
-  static constexpr std::array<char, 8> NAME = {'W','A','L','N','U','T','S','\0'};
+  static constexpr std::string_view NAME = "WALNUTS";
   static constexpr std::uint32_t VERSION = 1;
   out.write(NAME.data(), NAME.size());
   write_u32(out, VERSION);
@@ -492,7 +463,9 @@ int main() {
     samplers.emplace_back(seed, D);
   }
 
-  std::vector<ChainRecord> chain_records = sample(samplers, rhat_threshold, N);
+  std::size_t num_rhat_evals;
+  std::vector<ChainRecord> chain_records = sample(samplers, rhat_threshold, N, num_rhat_evals);
+  std::cout << "num Rhat evals = " << num_rhat_evals;
   std::size_t rows = 0;
   for (std::size_t m = 0; m < chain_records.size(); ++m) {
     const auto& chain_record = chain_records[m];

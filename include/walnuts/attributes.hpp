@@ -25,7 +25,8 @@
 #endif
 
 /**
- * Place function on the cold path for the compiler. Useful for functions that construct error messages etc.
+ * Place function on the cold path for the compiler. Useful for functions that
+ *construct error messages etc.
  * https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-cold-function-attribute
  **/
 #ifndef WALNUTS_COLD_

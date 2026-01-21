@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <new>
 
-namespace walnuts {
+namespace nuts {
 
 /**
  * @brief The destructive interference size, if non-zero, else 128.
@@ -42,4 +42,4 @@ struct alignas(Align) Padded {
   std::array<std::byte, PADDING_BYTES> pad_{};
 };
 
-}  // namespace walnuts
+}  // namespace nuts

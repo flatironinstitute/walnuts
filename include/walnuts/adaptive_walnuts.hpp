@@ -6,19 +6,20 @@
 #include "online_moments.hpp"
 #include "util.hpp"
 #include "walnuts.hpp"
-
+#include <walnuts/attributes.hpp>
+#include <walnuts/concepts.hpp>
 namespace nuts {
 
 /**
  * @brief Return the gradient of the log density at the specified position.
  *
  * @tparam S The type of scalars.
- * @tparam F The type of the target log density/gradient function.
+ * @tparam F A callable type for the target log density/gradient function.
  * @param[in] logp_grad The target log density/gradient function.
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
-template <typename S, class F>
+template <FloatingPoint S, LogGradFun<S> F>
 Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
   Vec<S> g;
   S logp;
@@ -38,12 +39,12 @@ Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
  *
  * @tparam S The type of scalars.
  */
-template <typename S>
+template <FloatingPoint S>
 struct MassAdaptConfig {
   /**
    * @brief Construct a mass adaptation configuration with the specified
    * tuning parameters.
-   *
+   * @tparam MassInit An Eigen vector type
    * @param[in] mass_init The diagonal of the diagonal initial mass matrix.
    * @param[in] init_count The pseudocount of observations for the
    * initialization.
@@ -58,9 +59,10 @@ struct MassAdaptConfig {
    * positive.
    * @throw std::invalid_argument If the additive smoothing is not in (0, 1).
    */
-  MassAdaptConfig(const Vec<S>& mass_init, S init_count, S iter_offset,
+  template <EigenVector MassInit>
+  MassAdaptConfig(MassInit&& mass_init, S init_count, S iter_offset,
                   S additive_smoothing)
-      : mass_init_(mass_init),
+      : mass_init_(std::forward<MassInit>(mass_init)),
         init_count_(init_count),
         iter_offset_(iter_offset),
         additive_smoothing_(additive_smoothing) {
@@ -97,7 +99,7 @@ struct MassAdaptConfig {
  *
  * @tparam S The type of scalars.
  */
-template <typename S>
+template <FloatingPoint S>
 struct WalnutsConfig {
   /**
    * @brief Construct a WALNUTS configuration with the specified
@@ -148,7 +150,7 @@ struct WalnutsConfig {
  *
  * @tparam S The type of scalars.
  */
-template <typename S>
+template <FloatingPoint S>
 class StepAdaptHandler {
  public:
   /**
@@ -184,7 +186,7 @@ class StepAdaptHandler {
  *
  * @tparam S The type of scalars.
  */
-template <typename S>
+template <FloatingPoint S>
 class MassEstimator {
  public:
   /**
@@ -206,7 +208,7 @@ class MassEstimator {
    * and the variance of the draws (the variance estimator).  This estimate
    * is then additively smoothed by multiplying by multiplying by one minus
    * the additive smoothing and adding the additive smoothing.
-   *
+   * @tparam MassConfig `MassAdaptConfig<S>`. Template used here for perfect forwarding.
    * @param[in] mass_cfg The mass matrix adaptation configuration.
    * @param[in] theta The initial position.
    * @param[in] grad The gradient of the target log density at the initial
@@ -214,9 +216,11 @@ class MassEstimator {
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
+  template <typename MassConfig>
+  requires(std::same_as<std::decay_t<MassConfig>, MassAdaptConfig<S>>)
+  MassEstimator(MassConfig&& mass_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
-      : mass_cfg_(mass_cfg) {
+      : mass_cfg_(std::forward<MassConfig>(mass_cfg)) {
     // 0.98 is dummy that will get overwritten
     // var_estimator_(0.98, static_cast<std::size_t>(theta.size())),
     // inv_var_estimator_(0.98, static_cast<std::size_t>(theta.size())) {
@@ -360,7 +364,7 @@ class MinMicroStepsAdaptHandler {
  * @tparam S Type of scalars.
  * @tparam RNG Type of base random number generator.
  */
-template <class F, typename S, class RNG>
+template <FloatingPoint S, LogGradFun<S> F, class RNG>
 class AdaptiveWalnuts {
  public:
   /**
@@ -376,6 +380,8 @@ class AdaptiveWalnuts {
    * the minimum number of micro steps per macro step and adjusted with
    * a mean estimator to achieve this average.
    *
+   * @tparam FF Callable type for the log density and gradient function.
+   * @tparam ThetaInit Eigen vector type
    * @param[in,out] rng The base random number generator.
    * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
@@ -384,7 +390,9 @@ class AdaptiveWalnuts {
    * @param[in] walnuts_cfg The WALNUTS configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
-  AdaptiveWalnuts(RNG& rng, const F& logp_grad, const Vec<S>& theta_init,
+  template <LogGradFun<S> FF, EigenVector ThetaInit>
+  requires(std::same_as<std::decay_t<FF>, F>)
+  AdaptiveWalnuts(RNG& rng, FF&& logp_grad, ThetaInit&& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
                   const AdamConfig<S>& step_cfg,
                   const WalnutsConfig<S>& walnuts_cfg,
@@ -393,8 +401,8 @@ class AdaptiveWalnuts {
         step_cfg_(step_cfg),
         walnuts_cfg_(walnuts_cfg),
         rand_(rng),
-        logp_grad_(logp_grad),
-        theta_(theta_init),
+        logp_grad_(std::forward<FF>(logp_grad)),
+        theta_(std::forward<ThetaInit>(theta_init)),
         iteration_(0),
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
@@ -437,12 +445,11 @@ class AdaptiveWalnuts {
    *
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, S, RNG> sampler() {
-    return WalnutsSampler<F, S, RNG>(
-        rand_, logp_grad_.logp_grad_, theta_,
+  auto sampler() {
+    return WalnutsSampler{rand_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_);
+        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_};
   }
 
   /**
@@ -450,7 +457,7 @@ class AdaptiveWalnuts {
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  Vec<S> inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
+  EigenVector auto inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
 
   /**
    * @brief Return the step size.
@@ -500,5 +507,12 @@ class AdaptiveWalnuts {
   /** The estimator for the minimum number of micro steps per macro step. */
   MinMicroStepsAdaptHandler min_micro_estimator_;
 };
+// CTAD deduction guide
+template <FloatingPoint S, LogGradFun<S> FF, typename RNG>
+AdaptiveWalnuts(RNG& rng, const FF& logp_grad, const Vec<S>& theta_init,
+                const MassAdaptConfig<S>& mass_cfg,
+                const AdamConfig<S>& step_cfg,
+                const WalnutsConfig<S>& walnuts_cfg,
+                double target_depth = 4.0) -> AdaptiveWalnuts<S, std::decay_t<FF>, RNG>;
 
 }  // namespace nuts

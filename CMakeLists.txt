@@ -6,7 +6,7 @@ project(walnuts
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -177,7 +177,7 @@ endif()
 #################################
 if (WALNUTS_BUILD_DOCS)
   find_package(Doxygen REQUIRED)
-
+  if (DOXYGEN_FOUND)
   # Public headers only
   file(GLOB_RECURSE WALNUT_HEADERS
       "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
@@ -194,4 +194,7 @@ if (WALNUTS_BUILD_DOCS)
     ${WALNUT_HEADERS}           # INPUT files
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
+  else()
+    message(WARNING "Doxygen not found. 'doc' target will not be available.")
+  endif()
 endif()

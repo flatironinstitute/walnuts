@@ -9,7 +9,7 @@
 
 #include "walnuts/padded.hpp"
 
-namespace walnuts {
+namespace nuts {
 
 /*
  * @brief A lock-free, single-producer, single-consumer queue with triple buffering.
@@ -50,7 +50,7 @@ class TripleBuffer {
       back_(other.back_),
       read_(other.read_) {}
 
-  
+
   /**
    * Move the specified buffer into this buffer.
    *
@@ -67,7 +67,7 @@ class TripleBuffer {
     read_ = other.read_;
     return *this;
   }
-  
+
   TripleBuffer(const TripleBuffer&) = delete;
   TripleBuffer& operator=(const TripleBuffer&) = delete;
 
@@ -79,7 +79,7 @@ class TripleBuffer {
   T& write_buffer() noexcept { return buffers_[back_]; }
 
   /**
-   * Commit the changes to the write buffer. 
+   * Commit the changes to the write buffer.
    */
   void publish() noexcept {
     const int published = back_;
@@ -122,4 +122,4 @@ class TripleBuffer {
   index_t read_;
 };
 
-}  // namespace walnuts  
+}  // namespace nuts

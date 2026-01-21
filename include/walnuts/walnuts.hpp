@@ -5,7 +5,8 @@
 #include <utility>
 
 #include <Eigen/Dense>
-
+#include <walnuts/concepts.hpp>
+#include <walnuts/attributes.hpp>
 #include "util.hpp"
 
 namespace nuts {
@@ -23,7 +24,7 @@ namespace nuts {
  *
  * @tparam S Type of scalars.
  */
-template <typename S>
+template <FloatingPoint S>
 class SpanW {
  public:
   /**
@@ -35,18 +36,19 @@ class SpanW {
    * @param[in] grad_theta The gradient of the log density at `theta`.
    * @param[in] logp The joint log density of the position and momentum.
    */
-  static SpanW<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
-                                     Vec<S>&& grad_theta, S logp) {
+  template <EigenVector Theta, EigenVector Rho, EigenVector ThetaGrad>
+  static SpanW<S> from_initial_point(Theta&& theta, Rho&& rho,
+                                     ThetaGrad&& grad_theta, S logp) {
     return {theta,
             rho,
             grad_theta,
             logp,
             theta,
-            std::move(rho),
+            std::forward<Rho>(rho),
             grad_theta,
             logp,
-            std::move(theta),
-            std::move(grad_theta),
+            std::forward<Theta>(theta),
+            std::forward<ThetaGrad>(grad_theta),
             logp};
   }
 
@@ -127,7 +129,7 @@ class SpanW {
  * @param[in,out] rho_next Input initial momentum, set to final position.
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
-template <typename S, typename F>
+template <FloatingPoint S, std::invocable<Vec<S>&, S&, Vec<S>&> F>
 bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
                       std::size_t num_steps, S max_error, S logp_next,
                       Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next) {
@@ -162,7 +164,7 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[in] grad The final gradient from which to reverse.
  * @return `true` if the path ending in the specified state is reversible.
  */
-template <typename S, typename F>
+template <FloatingPoint S, LogGradFun<S> F>
 bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
                 std::size_t num_steps, std::size_t min_micro_steps, S max_error,
                 S logp_next, const Vec<S>& theta, const Vec<S>& rho,
@@ -212,7 +214,7 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, typename S, typename F, class A>
+template <Direction D, FloatingPoint S, LogGradFun<S> F, class A>
 bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
                 std::size_t max_step_halvings, std::size_t min_micro_steps,
                 S max_error, const SpanW<S>& span, Vec<S>& theta_next,
@@ -272,7 +274,7 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param span_new The span continuing the old span forward or backward in time.
  * @return The combined span.
  */
-template <Update U, Direction D, typename S, class Rand>
+template <Update U, Direction D, FloatingPoint S, class Rand>
 SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
   using std::log;
   S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
@@ -324,7 +326,7 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, typename S, class F, class A>
+template <Direction D, FloatingPoint S, LogGradFun<S> F, class A>
 std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
                                    const Vec<S>& inv_mass, S step,
                                    std::size_t max_step_halvings,
@@ -365,7 +367,7 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, typename S, class F, class Rand, class A>
+template <Direction D, FloatingPoint S, LogGradFun<S> F, class Rand, class A>
 std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
                                    const Vec<S>& inv_mass, S step,
                                    std::size_t depth,
@@ -420,7 +422,7 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <typename S, class F, class Rand, class A>
+template <FloatingPoint S, LogGradFun<S> F, class Rand, class A>
 Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
                     const Vec<S>& chol_mass, S step, std::size_t max_depth,
                     std::size_t max_step_halvings, std::size_t min_micro_steps,
@@ -477,7 +479,7 @@ class NoOpHandler {
    * @tparam T The type of the functor argument.
    */
   template <typename T>
-  inline void operator()(const T&) const noexcept {}
+  WALNUTS_ALWAYS_INLINE_ constexpr void operator()(const T&) const noexcept {}
 };
 
 /**
@@ -505,13 +507,14 @@ class NoOpHandler {
  * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
  */
-template <class F, typename S, class RNG>
+template <FloatingPoint S, LogGradFun<S> F, class RNG>
 class WalnutsSampler {
  public:
   /**
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
+   * @tparam FF A callable that is the same type as `F`.
    * @param[in] rand The randomizer for HMC.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
@@ -534,14 +537,15 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_step_havlings` is not positive.
    * @throw std::invalid_argument If `min_micro_steps` is not positive.
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
-
    */
-  WalnutsSampler(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta,
+  template <LogGradFun<S> FF>
+  requires(std::same_as<std::decay_t<FF>, std::decay_t<F>>)
+  WalnutsSampler(Random<S, RNG>& rand, FF&& logp_grad, const Vec<S>& theta,
                  const Vec<S>& inv_mass, S macro_step_size,
                  std::size_t max_nuts_depth, std::size_t max_step_halvings,
                  std::size_t min_micro_steps, S max_error)
       : rand_(rand),
-        logp_grad_(logp_grad),
+        logp_grad_(std::forward<FF>(logp_grad)),
         theta_(theta),
         inv_mass_(inv_mass),
         cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
@@ -629,5 +633,13 @@ class WalnutsSampler {
   /** A handler for adaptation which does nothing. */
   const NoOpHandler no_op_adapt_handler_;
 };
+
+// CTAD guide
+template <FloatingPoint S, LogGradFun<S> FF, class RNG>
+WalnutsSampler(Random<S, RNG>& rand, FF&& logp_grad, const Vec<S>& theta,
+               const Vec<S>& inv_mass, S macro_step_size,
+               std::size_t max_nuts_depth, std::size_t max_step_halvings,
+               std::size_t min_micro_steps, S max_error) -> WalnutsSampler<S, std::decay_t<FF>, RNG>;
+
 
 }  // namespace nuts

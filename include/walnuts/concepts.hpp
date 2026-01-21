@@ -117,21 +117,24 @@ concept EigenMatrixBase = is_base_pointer_convertible_v<Eigen::MatrixBase, std::
 template <typename T>
 concept EigenDenseBase = is_base_pointer_convertible_v<Eigen::DenseBase, std::decay_t<T>>;
 
-// 1D (vector) vs 2D (matrix) using Eigen compile-time shape
+// 1D (vector) using Eigen compile-time shape
 template <typename T>
 concept EigenVector
     = EigenMatrixBase<T>
       && ((std::decay_t<T>::RowsAtCompileTime == 1 && std::decay_t<T>::ColsAtCompileTime != 1) ||
           (std::decay_t<T>::ColsAtCompileTime == 1 && std::decay_t<T>::RowsAtCompileTime != 1));
 
+// Concept for a 1D column vector
 template <typename T>
 concept EigenColVector
-    = EigenMatrixBase<T> && (std::decay_t<T>::ColsAtCompileTime == 1 && std::decay_t<T>::RowsAtCompileTime != 1);
+    = EigenVector<T> && (std::decay_t<T>::ColsAtCompileTime == 1 && std::decay_t<T>::RowsAtCompileTime != 1);
 
+// Concept for a 1d row vector
 template <typename T>
 concept EigenRowVector
-    = EigenMatrixBase<T> && (std::decay_t<T>::RowsAtCompileTime == 1 && std::decay_t<T>::ColsAtCompileTime != 1);
+    = EigenVector<T> && (std::decay_t<T>::RowsAtCompileTime == 1 && std::decay_t<T>::ColsAtCompileTime != 1);
 
+// A 2d matrix
 template <typename T>
 concept EigenMatrix
     = EigenMatrixBase<T>

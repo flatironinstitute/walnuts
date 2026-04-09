@@ -24,7 +24,7 @@
 #include <thread>
 #include <vector>
 
-#include <walnuts/padded.hpp>
+#include "padded.hpp"
 
 #if defined __has_attribute
 #if __has_attribute(always_inline)

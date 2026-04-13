@@ -366,6 +366,14 @@ class AdaptiveWalnuts {
   /**
    * @brief Construct an adaptive WALNUTS sampler.
    *
+   * The target log density and gradient function must implement the signature
+   *
+   * ```cpp
+   * void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+   *                       S& logp,
+   *                       Eigen::Matrix<S, -1, 1>& grad);
+   * ```
+   *
    * The configuration objects are moved, the initialization is
    * copied, and the base random number generator and log
    * density/gradient function are held by reference.  The RNG is

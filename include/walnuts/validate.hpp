@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace walnuts {
+namespace nuts {
 
   template <typename T1, typename T2>
   void validate_same_size(const T1& x1, const T2& x2,

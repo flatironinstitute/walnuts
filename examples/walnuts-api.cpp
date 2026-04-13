@@ -69,59 +69,44 @@ static void demo_logp_grad() {
 	    << std::endl;
 }
 
-template <typename RNG>
-static nuts::InitConfig create_init(RNG& rng) {
-  auto logp_grad = std_normal;
-  uint64_t num_chains = 4;
-  uint64_t size = 2;
-  double step_size = 0.5;
-  double inv_mass_smoothing = 0.25;
-  double init_scale = 1.0;
-  return {rng, logp_grad, num_chains, size, step_size,
-      inv_mass_smoothing, init_scale};
+template <typename RNG, typename LPG>
+static nuts::InitConfig create_init(RNG& rng, const LPG& logp_grad, uint64_t chains, uint64_t dims) {
+  double init_scale = 1.05;
+  double mass_smoothing = 0.1;
+  auto config = nuts::InitConfigBuilder(chains, dims)
+    .positions(rng, init_scale)
+    .masses(std_normal, mass_smoothing)
+    .build();
+  return config;
 }
 
 static nuts::WarmupConfig create_warmup() {
-  uint64_t max_warmup_iter = 1000;
-  
-  double step_size_converge_tol = 0.1;
-  double mass_matrix_converge_tol = 1.0;
-
-  double mass_init_count = 4.0; 
-  double mass_additive_smoothing = 1e-5;
-
-  double max_macro_steps_target = 15.0;
-
-  double step_accept_rate_target = 0.8;
-    
-  double step_learning_rate = 0.2;        
-  double step_gradient_decay = 0.3;       
-  double step_sq_gradient_decay = 0.99;   
-  double step_stabilization = 1e-4;       
-
-  return {max_warmup_iter, step_size_converge_tol, mass_matrix_converge_tol,
-      mass_init_count, mass_additive_smoothing, max_macro_steps_target,
-      step_accept_rate_target, step_learning_rate, step_gradient_decay,
-      step_sq_gradient_decay, step_stabilization};
+  auto config = nuts::WarmupConfigBuilder()
+    .max_warmup_iter(200)
+    .mass_init_count(2.5)
+    .build();
+  return config;
 }
 
 nuts::SamplingConfig create_sampling() {
-   uint64_t max_iter = 1000;
-   uint64_t max_trajectory_doublings = 5;
-   uint64_t max_step_halvings = 5;
-   double max_hamiltonian_error = 0.5;
-   double rhat_converge_tol = 1.01;
-   return {max_iter, max_trajectory_doublings, max_step_halvings,
-       max_hamiltonian_error, rhat_converge_tol};
+  auto config = nuts::SamplingConfigBuilder()
+    .max_iter(200)
+    .max_trajectory_doublings(8)
+    .build();
+  return config;
 }
 
 int main() {
   uint32_t rng_seed = 42;
   std::mt19937 rng(rng_seed);
- 
+  uint64_t chains = 4;
+  uint64_t dims = 2;
+
+  
   // demo_logp_grad();
 
-  auto init_config = create_init(rng);
+  auto logp_grad = std_normal;
+  auto init_config = create_init(rng, logp_grad, chains, dims);
   auto warmup_config = create_warmup();
   auto sampling_config = create_sampling();
   std::cout << init_config     << "\n"

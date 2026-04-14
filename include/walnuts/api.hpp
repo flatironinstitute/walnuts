@@ -6,6 +6,12 @@
 #include <walnuts/config.hpp>
 
 namespace nuts {
+
+
+  template <typename Adapter>
+  void adapt(std::vector<Adapter>& adapters) {
+
+  }
   
   template <typename Handler, typename RNG, typename LogProbGrad>
   void walnuts(RNG& rng,
@@ -17,6 +23,7 @@ namespace nuts {
     std::cout << init_config << std::endl;
     std::cout << warmup_config << std::endl;
     std::cout << sampling_config << std::endl;
+
   }
 
 }  // namespace walnuts

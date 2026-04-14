@@ -69,7 +69,7 @@ namespace nuts {
   class InitConfig {
   public:
     uint64_t num_chains()                            const { return step_sizes_.size(); }
-    uint64_t dims()                                  const { return num_chains() == 0 ? 0 : positions_[0].size(); }
+    uint64_t dims()                                  const { return num_chains() == 0 ? 0 : static_cast<uint64_t>(positions_[0].size()); }
     const std::vector<double>& step_sizes()          const { return step_sizes_; }
     const std::vector<Eigen::VectorXd>& positions()  const { return positions_; }
     const std::vector<Eigen::VectorXd>& masses()     const { return masses_; }
@@ -184,33 +184,37 @@ namespace nuts {
 
   class WarmupConfig {
   public: 
-    uint64_t max_warmup_iter()          const { return max_warmup_iter_; }
-    double step_size_converge_tol()     const { return step_size_converge_tol_; }
-    double mass_matrix_converge_tol()   const { return mass_matrix_converge_tol_; }
-    double mass_init_count()            const { return mass_init_count_; }
-    double mass_additive_smoothing()    const { return mass_additive_smoothing_; }
-    double max_macro_steps_target()     const { return max_macro_steps_target_; }
-    double step_accept_rate_target()    const { return step_accept_rate_target_; }
-    double step_learning_rate()         const { return step_learning_rate_; }
-    double step_gradient_decay()        const { return step_gradient_decay_; }
-    double step_sq_gradient_decay()     const { return step_sq_gradient_decay_; }
-    double step_stabilization()         const { return step_stabilization_; }
+    uint64_t max_warmup_iter()         const { return max_warmup_iter_; }
+    double step_size_converge_tol()    const { return step_size_converge_tol_; }
+    double mass_matrix_converge_tol()  const { return mass_matrix_converge_tol_; }
+    double mass_init_count()           const { return mass_init_count_; }
+    double mass_additive_smoothing()   const { return mass_additive_smoothing_; }
+    double max_macro_steps_target()    const { return max_macro_steps_target_; }
+    double step_accept_rate_target()   const { return step_accept_rate_target_; }
+    double step_learning_rate()        const { return step_learning_rate_; }
+    double step_gradient_decay()       const { return step_gradient_decay_; }
+    double step_sq_gradient_decay()    const { return step_sq_gradient_decay_; }
+    double step_stabilization()        const { return step_stabilization_; }
+    uint64_t publish_stride()          const { return publish_stride_; }
+    uint64_t probe_microseconds()      const { return probe_microseconds_; }
   private:
     friend class WarmupConfigBuilder;
 
     WarmupConfig() = default;
 
-    uint64_t max_warmup_iter_          = 1000;
-    double step_size_converge_tol_     = 0.1;
-    double mass_matrix_converge_tol_   = 1.0;
-    double mass_init_count_            = 4.0;
-    double mass_additive_smoothing_    = 1e-5;
-    double max_macro_steps_target_     = 15.0;
-    double step_accept_rate_target_    = 0.8;
-    double step_learning_rate_         = 0.2;
-    double step_gradient_decay_        = 0.3;
-    double step_sq_gradient_decay_     = 0.99;
-    double step_stabilization_         = 1e-4;
+    uint64_t max_warmup_iter_           = 1000;
+    double step_size_converge_tol_      = 0.1;
+    double mass_matrix_converge_tol_    = 1.0;
+    double mass_init_count_             = 4.0;
+    double mass_additive_smoothing_     = 1e-5;
+    double max_macro_steps_target_      = 15.0;
+    double step_accept_rate_target_     = 0.8;
+    double step_learning_rate_          = 0.2;
+    double step_gradient_decay_         = 0.3;
+    double step_sq_gradient_decay_      = 0.99;
+    double step_stabilization_          = 1e-4;
+    uint64_t publish_stride_            = 5;
+    uint64_t probe_microseconds_        = 1000;
   };
 
   class WarmupConfigBuilder {
@@ -269,6 +273,16 @@ namespace nuts {
       cfg_.step_stabilization_ = v;
       return *this;
     }
+    WarmupConfigBuilder publish_stride(uint64_t v) {
+      validate_finite_positive(v, "publish_stride");
+      cfg_.publish_stride_ = v;
+      return *this;
+    }
+    WarmupConfigBuilder probe_microseconds(uint64_t v) {
+      validate_finite_positive(v, "probe_microseconds");
+      cfg_.probe_microseconds_ = v;
+      return *this;
+    }
 
     WarmupConfig build() { return cfg_; }
 
@@ -278,17 +292,19 @@ namespace nuts {
 
   std::ostream& operator<<(std::ostream& out, const nuts::WarmupConfig& cfg) {
     out << "WarmupConfig\n"
-	<< "  max_warmup_iter            = " << cfg.max_warmup_iter()          << "\n"
-	<< "  step_size_converge_tol     = " << cfg.step_size_converge_tol()   << "\n"
-	<< "  mass_matrix_converge_tol   = " << cfg.mass_matrix_converge_tol() << "\n"
-	<< "  mass_init_count            = " << cfg.mass_init_count()          << "\n"
-	<< "  mass_additive_smoothing    = " << cfg.mass_additive_smoothing()  << "\n"
-	<< "  max_macro_steps_target     = " << cfg.max_macro_steps_target()   << "\n"
-	<< "  step_accept_rate_target    = " << cfg.step_accept_rate_target()  << "\n"
-	<< "  step_learning_rate         = " << cfg.step_learning_rate()       << "\n"
-	<< "  step_gradient_decay        = " << cfg.step_gradient_decay()      << "\n"
-	<< "  step_sq_gradient_decay     = " << cfg.step_sq_gradient_decay()   << "\n"
-	<< "  step_stabilization         = " << cfg.step_stabilization()       << "\n";
+	<< "  max_warmup_iter            = " << cfg.max_warmup_iter()           << "\n"
+	<< "  step_size_converge_tol     = " << cfg.step_size_converge_tol()    << "\n"
+	<< "  mass_matrix_converge_tol   = " << cfg.mass_matrix_converge_tol()  << "\n"
+	<< "  mass_init_count            = " << cfg.mass_init_count()           << "\n"
+	<< "  mass_additive_smoothing    = " << cfg.mass_additive_smoothing()   << "\n"
+	<< "  max_macro_steps_target     = " << cfg.max_macro_steps_target()    << "\n"
+	<< "  step_accept_rate_target    = " << cfg.step_accept_rate_target()   << "\n"
+	<< "  step_learning_rate         = " << cfg.step_learning_rate()        << "\n"
+	<< "  step_gradient_decay        = " << cfg.step_gradient_decay()       << "\n"
+	<< "  step_sq_gradient_decay     = " << cfg.step_sq_gradient_decay()    << "\n"
+	<< "  step_stabilization         = " << cfg.step_stabilization()        << "\n"
+	<< "  publish_stride             = " << cfg.publish_stride()            << "\n"
+	<< "  probe_microseconds         = " << cfg.probe_microseconds()        << "\n";
     return out;
   }
   
@@ -346,11 +362,11 @@ namespace nuts {
 
   std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
     out << "SamplingConfig\n"
-	<< "  max_iter                  = " << cfg.max_iter()                 << "\n"
-	<< "  max_trajectory_doublings  = " << cfg.max_trajectory_doublings() << "\n"
-	<< "  max_step_halvings         = " << cfg.max_step_halvings()        << "\n"
-	<< "  max_hamiltonian_error     = " << cfg.max_hamiltonian_error()    << "\n"
-	<< "  rhat_converge_tol         = " << cfg.rhat_converge_tol()        << "\n";
+	<< "  max_iter                   = " << cfg.max_iter()                 << "\n"
+	<< "  max_trajectory_doublings   = " << cfg.max_trajectory_doublings() << "\n"
+	<< "  max_step_halvings          = " << cfg.max_step_halvings()        << "\n"
+	<< "  max_hamiltonian_error      = " << cfg.max_hamiltonian_error()    << "\n"
+	<< "  rhat_converge_tol          = " << cfg.rhat_converge_tol()        << "\n";
     return out;
   }
   

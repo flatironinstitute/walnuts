@@ -70,10 +70,10 @@ static void demo_logp_grad() {
 }
 
 template <typename RNG, typename LPG>
-static nuts::InitConfig create_init(RNG& rng, const LPG& logp_grad, uint64_t chains, uint64_t dims) {
+static nuts::InitConfig create_init(RNG& rng, const LPG& logp_grad, uint64_t chains, uint64_t dim) {
   double init_scale = 1.05;
   double mass_smoothing = 0.1;
-  auto config = nuts::InitConfigBuilder(chains, dims)
+  auto config = nuts::InitConfigBuilder(chains, dim)
     .positions(rng, init_scale)
     .masses(std_normal, mass_smoothing)
     .build();

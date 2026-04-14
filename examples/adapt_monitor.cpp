@@ -52,31 +52,18 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
   return buffers;
 }
 
-struct AdaptConfig {
-  std::size_t dims = 0;                        // init.dims()
-  std::size_t num_chains = 0;                  // init.num_chains()
-  std::size_t max_warmup_iters = 0;            // warmup.max_iter()
-
-  std::uint32_t min_iters = 20;                // warmup.min_iter()
-  std::uint32_t publish_stride = 5;            // warmup.publish_stride()
-  std::chrono::milliseconds probe_period{10};  // warmup.probe_microseconds()
-
-  float tau_mass = 1e-2f;                      // warmup.mass_converge_tol()
-  float tau_step = 1e-2f;                      // warmup.step_size_converge_tol()
-
-  std::uint32_t yield_period = 64;             // warmup.yield_period()
-};
-
 template <class AdaptiveSampler>
 class AdaptWorker {
  public:
   AdaptWorker(std::uint32_t chain_id,
-              const AdaptConfig& cfg,
+              const nuts::InitConfig& init_cfg,
+	      const nuts::WarmupConfig& warmup_cfg,
               PaddedBuffer& buffer,
               std::latch& start_gate,
               AdaptiveSampler& adapter)
       : chain_id_(chain_id),
-        cfg_(cfg),
+        init_config_(init_cfg),
+	warmup_config_(warmup_cfg),
         buffer_(buffer.val),
         start_gate_(start_gate),
         adapter_(adapter) {}
@@ -85,18 +72,18 @@ class AdaptWorker {
     start_gate_.get().arrive_and_wait();
     std::uint32_t last_done = 0;
     publish_snapshot(0);
-    for (std::uint32_t iter = 1; iter <= cfg_.max_warmup_iters; ++iter) {
+    for (std::uint32_t iter = 1; iter <= warmup_config_.max_iter(); ++iter) {
       if (st.stop_requested()) break;
-      if (cfg_.yield_period > 0 && (iter % cfg_.yield_period == 0)) {
+      if (warmup_config_.yield_period() > 0 && (iter % warmup_config_.yield_period() == 0)) {
         std::this_thread::yield();
       }
       adapter_.get().step(iter);
       last_done = iter;
-      if (cfg_.publish_stride > 0 && (iter % cfg_.publish_stride == 0)) {
+      if (warmup_config_.publish_stride() > 0 && (iter % warmup_config_.publish_stride() == 0)) {
         publish_snapshot(iter);
       }
     }
-    if (cfg_.publish_stride == 0 || (last_done % cfg_.publish_stride != 0)) {
+    if (warmup_config_.publish_stride() == 0 || (last_done % warmup_config_.publish_stride() != 0)) {
       publish_snapshot(last_done);
     }
   }
@@ -109,7 +96,7 @@ class AdaptWorker {
       : adapter_.get().log_step();
 
     const auto lm = adapter_.get().log_mass();
-    for (std::size_t d = 0; d < cfg_.dims; ++d) {
+    for (std::size_t d = 0; d < init_config_.dims(); ++d) {
       const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
       snap.log_mass[d] = v;
       snap.mass[d] = std::exp(v);
@@ -118,7 +105,8 @@ class AdaptWorker {
   }
 
   std::uint32_t chain_id_;
-  AdaptConfig cfg_;
+  const nuts::InitConfig& init_config_;
+  const nuts::WarmupConfig& warmup_config_;
   std::reference_wrapper<Buffer> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   std::reference_wrapper<AdaptiveSampler> adapter_;
@@ -177,10 +165,11 @@ static float l2_rel_diff(std::span<const float> a,
 
 template <class Stopper>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
-                                   const AdaptConfig& cfg,
+				   const nuts::InitConfig& init_cfg,
+				   const nuts::WarmupConfig& warmup_cfg,
                                    Stopper stop_all) {
-  const std::size_t M = cfg.num_chains;
-  const std::size_t D = cfg.dims;
+  const std::size_t M = init_cfg.num_chains();
+  const std::size_t D = init_cfg.dims();
 
   std::vector<float> mean_log_mass(D, 0.0f);
   std::vector<float> mean_mass(D, 0.0f);
@@ -190,7 +179,9 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 
   std::uint32_t min_iter = 0;
 
-  auto next = std::chrono::steady_clock::now() + cfg.probe_period;
+  auto probe_period = std::chrono::microseconds(warmup_cfg.probe_microseconds());
+
+  auto next = std::chrono::steady_clock::now() + probe_period;
   std::vector<const AdaptSnapshot*> latest(M, nullptr);
   while (true) {
     std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0f);
@@ -233,12 +224,13 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
               << "  max_rel_step=" << max_rel_step
               << std::flush;
 
-    const bool enough_iters = (min_iter >= cfg.min_iters);
+    const bool enough_iters = (min_iter >= warmup_cfg.min_iter());
     const bool converged =
-        enough_iters && (max_rel_mass <= cfg.tau_mass) &&
-        (max_rel_step <= cfg.tau_step);
+      enough_iters
+      && max_rel_mass <= warmup_cfg.mass_converge_tol()
+      && max_rel_step <= warmup_cfg.step_size_converge_tol();
 
-    const bool hit_max = (min_iter >= cfg.max_warmup_iters);
+    const bool hit_max = min_iter >= warmup_cfg.max_iter();
 
     if (converged || hit_max) {
       stop_all();
@@ -251,28 +243,31 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     }
 
     std::this_thread::sleep_until(next);
-    next += cfg.probe_period;
+    next += probe_period;
   }
 }
 
 
 template <typename Sampler>
-AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
-  std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dims);
-  std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
+AdaptResult sample(const nuts::InitConfig& init_cfg,
+		   const nuts::WarmupConfig& warmup_cfg,
+		   std::vector<Sampler>& samplers) {
+  std::vector<PaddedBuffer> buffers = construct_buffers(init_cfg.num_chains(), init_cfg.dims());
+  std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains()));
 
   std::vector<std::jthread> threads;
-  threads.reserve(cfg.num_chains);
-  for (std::size_t m = 0; m < cfg.num_chains; ++m) {
+  threads.reserve(init_cfg.num_chains());
+  for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
     std::uint32_t chain_id = static_cast<std::uint32_t>(m);
-    threads.emplace_back(AdaptWorker<Sampler>(chain_id, cfg, buffers[m], start_gate, samplers[m]));
+    threads.emplace_back(AdaptWorker<Sampler>(chain_id, init_cfg, warmup_cfg,
+					      buffers[m], start_gate, samplers[m]));
   }
   auto stop_all = [&] {
     for (auto& t : threads) {
       t.request_stop();
     }
   };
-  return controller_loop(buffers, cfg, stop_all);
+  return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
 }
 
 
@@ -329,24 +324,27 @@ class ExampleSampler {
 int main() {
   std::cout << "Adaptation Monitoring Demo" << std::endl;
 
-  AdaptConfig cfg;
-  cfg.dims = 100;
-  cfg.num_chains = 32;
-  cfg.max_warmup_iters = 2000;
-  cfg.min_iters = 20;
-  cfg.publish_stride = 5;
-  cfg.probe_period = std::chrono::milliseconds{1};
-  cfg.tau_mass = 1e0f;
-  cfg.tau_step = 8e-2f;
+  uint64_t chains = 32;
+  uint64_t dim = 100;
+  auto init_cfg = nuts::InitConfigBuilder(chains, dim)
+    .build();
+  
+  auto warmup_cfg = nuts::WarmupConfigBuilder()
+    .min_max_iter(20, 2000)
+    .publish_stride(5)
+    .probe_microseconds(1000)
+    .mass_converge_tol(1.0)
+    .step_size_converge_tol(0.08)
+    .build();
 
   std::mt19937_64 rng(1234);
   std::vector<ExampleSampler> samplers;
-  samplers.reserve(cfg.num_chains);
-  for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    samplers.emplace_back(ExampleSampler(cfg.dims, rng()));
+  samplers.reserve(init_cfg.num_chains());
+  for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
+    samplers.emplace_back(ExampleSampler(init_cfg.dims(), rng()));
   }
   
-  AdaptResult res = sample<ExampleSampler>(cfg, samplers);
+  AdaptResult res = sample<ExampleSampler>(init_cfg, warmup_cfg, samplers);
 
   const float mass_bar_norm = l2_norm(std::span<const float>(res.mass_bar));
   

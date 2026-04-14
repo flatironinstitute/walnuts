@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 #include <Eigen/Dense>
 #include <walnuts/validate.hpp>
@@ -11,7 +13,8 @@
 
 namespace nuts {
 
-  void valiate_probability(double p, const std::string& var) {
+  template <std::floating_point T>
+  void validate_probability(T p, const std::string& var) {
     if (!(p > 0 && p < 1))
       throw std::invalid_argument(var + " must be a proportion in (0, 1)");
   }
@@ -30,19 +33,22 @@ namespace nuts {
       throw std::invalid_argument(var + " size must match " + target);
   }
 
-  void validate_finite_gt1(double x, const std::string& var) {
+  template <std::floating_point T>
+  void validate_finite_gt1(T x, const std::string& var) {
     if (!(std::isfinite(x) && x > 1))
       throw std::invalid_argument(var + " must be finite and > 1");
   }
-  
-  void validate_finite_positive(uint64_t x, const std::string& var) {
-    if (!(std::isfinite(x) && x > 0))
-      throw std::invalid_argument(var + " must be > 0");
+
+  template <std::integral T>
+  void validate_finite_positive(T x, const std::string& var) {
+    if (!(x > 0))
+        throw std::invalid_argument(var + " must be > 0");
   }
 
-  void validate_finite_positive(double x, const std::string& var) {
+  template <std::floating_point T>
+  void validate_finite_positive(T x, const std::string& var) {
     if (!(std::isfinite(x) && x > 0))
-      throw std::invalid_argument(var + " must be finite and > 0");
+        throw std::invalid_argument(var + " must be finite and > 0");
   }
   
   template <typename T, int R, int C>
@@ -62,10 +68,11 @@ namespace nuts {
   
   class InitConfig {
   public:
-    uint64_t num_chains()                              const { return step_sizes_.size(); }
-    const std::vector<double>& step_sizes()            const { return step_sizes_; }
-    const std::vector<Eigen::VectorXd>& positions()    const { return positions_; }
-    const std::vector<Eigen::VectorXd>& masses()       const { return masses_; }
+    uint64_t num_chains()                            const { return step_sizes_.size(); }
+    uint64_t dims()                                  const { return num_chains() == 0 ? 0 : positions_[0].size(); }
+    const std::vector<double>& step_sizes()          const { return step_sizes_; }
+    const std::vector<Eigen::VectorXd>& positions()  const { return positions_; }
+    const std::vector<Eigen::VectorXd>& masses()     const { return masses_; }
 
   private:
     friend class InitConfigBuilder;
@@ -166,11 +173,11 @@ namespace nuts {
     out << "InitConfigs (by chain)\n";
     for (size_t n = 0; n < cfg.step_sizes().size(); ++n) {
       if (n > 0) out << "\n";
-      out << "  chain                    = " << n                          << "\n"
-	  << "    num_chains             = " << cfg.num_chains()           << "\n"
-	  << "    step_size              = " << cfg.step_sizes()[n]        << "\n"
-	  << "    position               = " << cfg.positions()[n].transpose() << "\n"
-	  << "    mass                   = " << cfg.masses()[n].transpose() << "\n";
+      out << "  chain         = " << n                              << "\n"
+	  << "    num_chains  = " << cfg.num_chains()               << "\n"
+	  << "    step_size   = " << cfg.step_sizes()[n]            << "\n"
+	  << "    position    = " << cfg.positions()[n].transpose() << "\n"
+	  << "    mass        = " << cfg.masses()[n].transpose()    << "\n";
     }
     return out;
   }

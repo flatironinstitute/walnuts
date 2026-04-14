@@ -82,7 +82,7 @@ static nuts::InitConfig create_init(RNG& rng, const LPG& logp_grad, uint64_t cha
 
 static nuts::WarmupConfig create_warmup() {
   auto config = nuts::WarmupConfigBuilder()
-    .max_warmup_iter(200)
+    .min_max_iter(50, 200)
     .mass_init_count(2.5)
     .build();
   return config;
@@ -90,7 +90,7 @@ static nuts::WarmupConfig create_warmup() {
 
 nuts::SamplingConfig create_sampling() {
   auto config = nuts::SamplingConfigBuilder()
-    .max_iter(200)
+    .min_max_iter(10, 200)
     .max_trajectory_doublings(8)
     .build();
   return config;

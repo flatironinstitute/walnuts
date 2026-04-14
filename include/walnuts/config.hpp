@@ -184,9 +184,10 @@ namespace nuts {
 
   class WarmupConfig {
   public: 
-    uint64_t max_warmup_iter()         const { return max_warmup_iter_; }
+    uint64_t min_iter()                const { return min_iter_; }
+    uint64_t max_iter()                const { return max_iter_; }
     double step_size_converge_tol()    const { return step_size_converge_tol_; }
-    double mass_matrix_converge_tol()  const { return mass_matrix_converge_tol_; }
+    double mass_converge_tol()         const { return mass_converge_tol_; }
     double mass_init_count()           const { return mass_init_count_; }
     double mass_additive_smoothing()   const { return mass_additive_smoothing_; }
     double max_macro_steps_target()    const { return max_macro_steps_target_; }
@@ -197,14 +198,16 @@ namespace nuts {
     double step_stabilization()        const { return step_stabilization_; }
     uint64_t publish_stride()          const { return publish_stride_; }
     uint64_t probe_microseconds()      const { return probe_microseconds_; }
+    uint64_t yield_period()            const { return yield_period_; }
   private:
     friend class WarmupConfigBuilder;
 
     WarmupConfig() = default;
 
-    uint64_t max_warmup_iter_           = 1000;
+    uint64_t min_iter_                  = 50;
+    uint64_t max_iter_                  = 1000;
     double step_size_converge_tol_      = 0.1;
-    double mass_matrix_converge_tol_    = 1.0;
+    double mass_converge_tol_           = 1.0;
     double mass_init_count_             = 4.0;
     double mass_additive_smoothing_     = 1e-5;
     double max_macro_steps_target_      = 15.0;
@@ -215,12 +218,16 @@ namespace nuts {
     double step_stabilization_          = 1e-4;
     uint64_t publish_stride_            = 5;
     uint64_t probe_microseconds_        = 1000;
+    uint64_t yield_period_              = 32;
   };
 
   class WarmupConfigBuilder {
   public:
-    WarmupConfigBuilder max_warmup_iter(uint64_t v) {
-      cfg_.max_warmup_iter_ = v;
+    WarmupConfigBuilder min_max_iter(uint64_t min_iter, uint64_t max_iter) {
+      if (!(min_iter <= max_iter))
+	throw std::invalid_argument("min_iter cannot be greater than than max_iter");
+      cfg_.min_iter_ = min_iter;
+      cfg_.max_iter_ = max_iter;
       return *this;
     }
     WarmupConfigBuilder step_size_converge_tol(double v) {
@@ -228,9 +235,9 @@ namespace nuts {
       cfg_.step_size_converge_tol_ = v;
       return *this;
     }
-    WarmupConfigBuilder mass_matrix_converge_tol(double v) {
-      validate_finite_positive(v, "mass_matrix_converge_tol");
-      cfg_.mass_matrix_converge_tol_ = v;
+    WarmupConfigBuilder mass_converge_tol(double v) {
+      validate_finite_positive(v, "mass_converge_tol");
+      cfg_.mass_converge_tol_ = v;
       return *this;
     }
     WarmupConfigBuilder mass_init_count(double v) {
@@ -283,6 +290,11 @@ namespace nuts {
       cfg_.probe_microseconds_ = v;
       return *this;
     }
+    WarmupConfigBuilder yield_period(uint64_t v) {
+      validate_finite_positive(v, "yield_period");
+      cfg_.yield_period_ = v;
+      return *this;
+    }
 
     WarmupConfig build() { return cfg_; }
 
@@ -292,9 +304,10 @@ namespace nuts {
 
   std::ostream& operator<<(std::ostream& out, const nuts::WarmupConfig& cfg) {
     out << "WarmupConfig\n"
-	<< "  max_warmup_iter            = " << cfg.max_warmup_iter()           << "\n"
+	<< "  min_iter                   = " << cfg.min_iter()           << "\n"
+	<< "  max_iter                   = " << cfg.max_iter()           << "\n"
 	<< "  step_size_converge_tol     = " << cfg.step_size_converge_tol()    << "\n"
-	<< "  mass_matrix_converge_tol   = " << cfg.mass_matrix_converge_tol()  << "\n"
+	<< "  mass_converge_tol          = " << cfg.mass_converge_tol()  << "\n"
 	<< "  mass_init_count            = " << cfg.mass_init_count()           << "\n"
 	<< "  mass_additive_smoothing    = " << cfg.mass_additive_smoothing()   << "\n"
 	<< "  max_macro_steps_target     = " << cfg.max_macro_steps_target()    << "\n"
@@ -304,12 +317,14 @@ namespace nuts {
 	<< "  step_sq_gradient_decay     = " << cfg.step_sq_gradient_decay()    << "\n"
 	<< "  step_stabilization         = " << cfg.step_stabilization()        << "\n"
 	<< "  publish_stride             = " << cfg.publish_stride()            << "\n"
-	<< "  probe_microseconds         = " << cfg.probe_microseconds()        << "\n";
+	<< "  probe_microseconds         = " << cfg.probe_microseconds()        << "\n"
+	<< "  yield_period               = " << cfg.yield_period()              << "\n";
     return out;
   }
   
   class SamplingConfig {
   public:
+    uint64_t min_iter()                 const { return min_iter_; }
     uint64_t max_iter()                 const { return max_iter_; }
     uint64_t max_trajectory_doublings() const { return max_trajectory_doublings_; }
     uint64_t max_step_halvings()        const { return max_step_halvings_; }
@@ -321,6 +336,7 @@ namespace nuts {
 
     SamplingConfig() = default;
 
+    uint64_t min_iter_                 = 50;
     uint64_t max_iter_                 = 1000;
     uint64_t max_trajectory_doublings_ = 5;
     uint64_t max_step_halvings_        = 5;
@@ -330,9 +346,11 @@ namespace nuts {
 
   class SamplingConfigBuilder {
   public:
-    SamplingConfigBuilder& max_iter(uint64_t v) {
-      validate_finite_positive(v, "max_iter");
-      cfg_.max_iter_ = v;
+    SamplingConfigBuilder& min_max_iter(uint64_t min_iter, uint64_t max_iter) {
+      if (!(min_iter <= max_iter))
+	throw std::invalid_argument("min_iter must be <= max_iter");
+      cfg_.min_iter_ = min_iter;
+      cfg_.max_iter_ = max_iter;
       return *this;
     }
     SamplingConfigBuilder& max_trajectory_doublings(uint64_t v) {
@@ -362,6 +380,7 @@ namespace nuts {
 
   std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
     out << "SamplingConfig\n"
+	<< "  min_iter                   = " << cfg.min_iter()                 << "\n"
 	<< "  max_iter                   = " << cfg.max_iter()                 << "\n"
 	<< "  max_trajectory_doublings   = " << cfg.max_trajectory_doublings() << "\n"
 	<< "  max_step_halvings          = " << cfg.max_step_halvings()        << "\n"

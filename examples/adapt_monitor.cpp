@@ -1,6 +1,6 @@
 // examples/adapt_monitor.cpp
 
-// clang++ -std=c++20 -march=native -O3 -pthread -I ../include adapt_monitor.cpp -o adapt_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I ../build/_deps/eigen adapt_monitor.cpp -o adapt_monitor
 // ./adapt_monitor
 
 #include <algorithm>
@@ -18,6 +18,7 @@
 #include <thread>
 #include <vector>
 
+#include <walnuts/config.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>
 
@@ -52,18 +53,18 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
 }
 
 struct AdaptConfig {
-  std::size_t dim = 0;
-  std::size_t num_chains = 0;
-  std::size_t max_warmup_iters = 0;
+  std::size_t dims = 0;                        // init.dims()
+  std::size_t num_chains = 0;                  // init.num_chains()
+  std::size_t max_warmup_iters = 0;            // warmup.max_iter()
 
-  std::uint32_t min_iters = 20;
-  std::uint32_t publish_stride = 5;
-  std::chrono::milliseconds probe_period{10};
+  std::uint32_t min_iters = 20;                // warmup.min_iter()
+  std::uint32_t publish_stride = 5;            // warmup.publish_stride()
+  std::chrono::milliseconds probe_period{10};  // warmup.probe_microseconds()
 
-  float tau_mass = 1e-2f;
-  float tau_step = 1e-2f;
+  float tau_mass = 1e-2f;                      // warmup.mass_converge_tol()
+  float tau_step = 1e-2f;                      // warmup.step_size_converge_tol()
 
-  std::uint32_t yield_period = 64;
+  std::uint32_t yield_period = 64;             // warmup.yield_period()
 };
 
 template <class AdaptiveSampler>
@@ -108,7 +109,7 @@ class AdaptWorker {
       : adapter_.get().log_step();
 
     const auto lm = adapter_.get().log_mass();
-    for (std::size_t d = 0; d < cfg_.dim; ++d) {
+    for (std::size_t d = 0; d < cfg_.dims; ++d) {
       const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
       snap.log_mass[d] = v;
       snap.mass[d] = std::exp(v);
@@ -179,7 +180,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
                                    const AdaptConfig& cfg,
                                    Stopper stop_all) {
   const std::size_t M = cfg.num_chains;
-  const std::size_t D = cfg.dim;
+  const std::size_t D = cfg.dims;
 
   std::vector<float> mean_log_mass(D, 0.0f);
   std::vector<float> mean_mass(D, 0.0f);
@@ -257,7 +258,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 
 template <typename Sampler>
 AdaptResult sample(const AdaptConfig& cfg, std::vector<Sampler>& samplers) {
-  std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dim);
+  std::vector<PaddedBuffer> buffers = construct_buffers(cfg.num_chains, cfg.dims);
   std::latch start_gate(static_cast<std::ptrdiff_t>(cfg.num_chains));
 
   std::vector<std::jthread> threads;
@@ -329,7 +330,7 @@ int main() {
   std::cout << "Adaptation Monitoring Demo" << std::endl;
 
   AdaptConfig cfg;
-  cfg.dim = 100;
+  cfg.dims = 100;
   cfg.num_chains = 32;
   cfg.max_warmup_iters = 2000;
   cfg.min_iters = 20;
@@ -342,7 +343,7 @@ int main() {
   std::vector<ExampleSampler> samplers;
   samplers.reserve(cfg.num_chains);
   for (std::size_t m = 0; m < cfg.num_chains; ++m) {
-    samplers.emplace_back(ExampleSampler(cfg.dim, rng()));
+    samplers.emplace_back(ExampleSampler(cfg.dims, rng()));
   }
   
   AdaptResult res = sample<ExampleSampler>(cfg, samplers);

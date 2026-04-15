@@ -248,10 +248,10 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 }
 
 
-template <typename Sampler>
-AdaptResult sample(const nuts::InitConfig& init_cfg,
-		   const nuts::WarmupConfig& warmup_cfg,
-		   std::vector<Sampler>& samplers) {
+template <typename Adapter>
+AdaptResult adapt(const nuts::InitConfig& init_cfg,
+		  const nuts::WarmupConfig& warmup_cfg,
+		  std::vector<Adapter>& adapters) {
   std::vector<PaddedBuffer> buffers = construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains()));
 
@@ -259,8 +259,8 @@ AdaptResult sample(const nuts::InitConfig& init_cfg,
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
     std::uint32_t chain_id = static_cast<std::uint32_t>(m);
-    threads.emplace_back(AdaptWorker<Sampler>(chain_id, init_cfg, warmup_cfg,
-					      buffers[m], start_gate, samplers[m]));
+    threads.emplace_back(AdaptWorker<Adapter>(chain_id, init_cfg, warmup_cfg,
+					      buffers[m], start_gate, adapters[m]));
   }
   auto stop_all = [&] {
     for (auto& t : threads) {
@@ -274,9 +274,9 @@ AdaptResult sample(const nuts::InitConfig& init_cfg,
 // ********** EXAMPLE AFTER HERE **************
 
 // this is a stub that will get replaced with WALNUTS
-class ExampleSampler {
+class MyAdapter {
  public:
-  ExampleSampler(std::size_t dim, std::uint64_t seed)
+  MyAdapter(std::size_t dim, std::uint64_t seed)
       : dim_(dim),
         rng_(seed),
         z_(0.0f, 1.0f),
@@ -338,13 +338,13 @@ int main() {
     .build();
 
   std::mt19937_64 rng(1234);
-  std::vector<ExampleSampler> samplers;
-  samplers.reserve(init_cfg.num_chains());
+  std::vector<MyAdapter> adapters;
+  adapters.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    samplers.emplace_back(ExampleSampler(init_cfg.dims(), rng()));
+    adapters.emplace_back(MyAdapter(init_cfg.dims(), rng()));
   }
   
-  AdaptResult res = sample<ExampleSampler>(init_cfg, warmup_cfg, samplers);
+  AdaptResult res = adapt<MyAdapter>(init_cfg, warmup_cfg, adapters);
 
   const float mass_bar_norm = l2_norm(std::span<const float>(res.mass_bar));
   
@@ -355,11 +355,11 @@ int main() {
             << '\n';
 
   std::cout << "\nPER CHAIN FINAL STATES:\n";
-  for (std::size_t m = 0; m < samplers.size(); ++m) {
+  for (std::size_t m = 0; m < adapters.size(); ++m) {
     std::cout << m << ")"
-	      << " iter = " << samplers[m].iter()
-	      << "  step = " << std::exp(samplers[m].log_step())
-	      << "  ||log_mass|| = " << l2_norm(std::span<const float>(samplers[m].log_mass()))
+	      << " iter = " << adapters[m].iter()
+	      << "  step = " << std::exp(adapters[m].log_step())
+	      << "  ||log_mass|| = " << l2_norm(std::span<const float>(adapters[m].log_mass()))
 	      << std::endl;
   }
 

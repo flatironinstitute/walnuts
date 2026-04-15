@@ -1,11 +1,10 @@
-#include <chrono>
-#include <cmath>
-#include <iomanip>
+
 #include <iostream>
 #include <random>
 #include <Eigen/Dense>
 
 #include "walnuts/api.hpp"
+#include "walnuts/config.hpp"
 
 struct MyHandler {
   MyHandler(bool save_warmup = true)
@@ -56,62 +55,38 @@ static void std_normal(const Eigen::VectorXd& x, double& lp,
   grad = -x;
 }
 
-static void demo_logp_grad() {
-  std::cout << "DEMO: logp_grad(std_normal)" << std::endl;
-  Eigen::VectorXd y(2);
-  y << 1.2, -3.9;
-  double lp;
-  Eigen::VectorXd grad;
-  std_normal(y, lp, grad);
-  std::cout << "y = " << y
-	    << "\n  lp=" << lp
-	    << "\n  grad=" << grad
-	    << std::endl;
-}
+int main() {
+  auto logp_grad = std_normal;
 
-template <typename RNG, typename LPG>
-static nuts::InitConfig create_init(RNG& rng, const LPG& logp_grad, uint64_t chains, uint64_t dim) {
-  double init_scale = 1.05;
-  double mass_smoothing = 0.1;
-  auto config = nuts::InitConfigBuilder(chains, dim)
-    .positions(rng, init_scale)
-    .masses(std_normal, mass_smoothing)
+  uint32_t rng_seed = 42;
+  std::mt19937 rng(rng_seed);
+  uint64_t num_chains = 64;
+  uint64_t dims = 3;
+  
+  std::vector<MyHandler> handlers(num_chains);
+  for (size_t n = 0; n < num_chains; ++n) {
+    handlers[n] = MyHandler();
+  }
+
+  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
+    .positions(rng, 1.05)
+    .masses(std_normal, 0.1)
     .build();
-  return config;
-}
 
-static nuts::WarmupConfig create_warmup() {
-  auto config = nuts::WarmupConfigBuilder()
+  auto warmup_cfg = walnuts::WarmupConfigBuilder()
     .min_max_iter(50, 200)
     .mass_init_count(2.5)
     .build();
-  return config;
-}
 
-nuts::SamplingConfig create_sampling() {
-  auto config = nuts::SamplingConfigBuilder()
+  auto sampling_cfg = walnuts::SamplingConfigBuilder()
     .min_max_iter(10, 200)
     .max_trajectory_doublings(8)
     .build();
-  return config;
-}
 
-int main() {
-  uint32_t rng_seed = 42;
-  std::mt19937 rng(rng_seed);
-  uint64_t chains = 4;
-  uint64_t dims = 2;
-
-  
-  // demo_logp_grad();
-
-  auto logp_grad = std_normal;
-  auto init_config = create_init(rng, logp_grad, chains, dims);
-  auto warmup_config = create_warmup();
-  auto sampling_config = create_sampling();
-  std::cout << init_config     << "\n"
-	    << warmup_config   << "\n"
-	    << sampling_config << "\n";
+  walnuts::walnuts(rng,
+		   handlers,
+		   logp_grad,
+		   init_cfg, warmup_cfg, sampling_cfg);
   
   std::cout << "FINISHED NORMALLY." << std::endl << std::endl;
 }

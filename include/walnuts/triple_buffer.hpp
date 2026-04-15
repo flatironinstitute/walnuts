@@ -76,7 +76,7 @@ class TripleBuffer {
    *
    * @return A reference into which to write a value.
    */
-  T& write_buffer() noexcept { return buffers_[back_]; }
+  T& write_buffer() noexcept { return buffers_[static_cast<size_t>(back_)]; }
 
   /**
    * Commit the changes to the write buffer. 
@@ -99,7 +99,7 @@ class TripleBuffer {
       read_ = idx;
       spare_.store(old, std::memory_order_release);
     }
-    return buffers_[read_];
+    return buffers_[static_cast<size_t>(read_)];
   }
 
  private:

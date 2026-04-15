@@ -11,7 +11,7 @@
 #include <walnuts/util.hpp>
 #include <walnuts/config.hpp>
 
-namespace nuts {
+namespace walnuts {
 
   template <std::floating_point T>
   void validate_probability(T p, const std::string& var) {
@@ -86,7 +86,7 @@ namespace nuts {
 
   class InitConfigBuilder {
   public:
-    explicit InitConfigBuilder(uint64_t num_chains, uint64_t dims)
+    InitConfigBuilder(uint64_t num_chains, uint64_t dims)
       : num_chains_(num_chains), dims_(dims) {
       this->step_sizes(0.1);
       Eigen::VectorXd position = Eigen::VectorXd::Zero(static_cast<int64_t>(dims));
@@ -109,7 +109,8 @@ namespace nuts {
 
     template <typename RNG>
     InitConfigBuilder& positions(RNG& rng, double init_scale) {
-      Random<double, RNG> rand(rng);
+      validate_finite_positive(init_scale, "init_scale");
+      nuts::Random<double, RNG> rand(rng);
       for (size_t c = 0; c < num_chains_; ++c) {
 	positions_[c] = init_scale * rand.standard_normal(dims_);
       }
@@ -128,12 +129,12 @@ namespace nuts {
     }
   
     template <typename LPG>
-    InitConfigBuilder& masses(const LPG& lp_grad, double mass_smoothing) {
+    InitConfigBuilder& masses(const LPG& logp_grad, double mass_smoothing) {
       validate_finite_positive(mass_smoothing, "mass_smoothing");
       Eigen::VectorXd grad;
       double lp;
       for (size_t c = 0; c < num_chains_; ++c) {
-	lp_grad(positions_[c], lp, grad);
+	logp_grad(positions_[c], lp, grad);
 	masses_[c] = (1 - mass_smoothing) * grad.array().abs().sqrt() + mass_smoothing;
       }
       return *this;
@@ -302,7 +303,7 @@ namespace nuts {
     WarmupConfig cfg_;
   };
 
-  std::ostream& operator<<(std::ostream& out, const nuts::WarmupConfig& cfg) {
+  std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
     out << "WarmupConfig\n"
 	<< "  min_iter                   = " << cfg.min_iter()           << "\n"
 	<< "  max_iter                   = " << cfg.max_iter()           << "\n"

@@ -476,6 +476,22 @@ class AdaptiveWalnuts {
     return min_micro_estimator_.min_micro_steps();
   }
 
+  std::size_t dim() const noexcept {
+    return theta_.size();
+  }
+
+  double log_step() const noexcept {
+    return std::log(step_size());
+  }
+
+  Eigen::VectorXd log_mass() const {
+    return inv_mass().array().inverse().log().matrix();
+  }
+
+  std::size_t iter() const {
+    return iteration_;
+  }
+  
  private:
   /** The mass adaptation configuration. */
   const MassAdaptConfig<S> mass_cfg_;

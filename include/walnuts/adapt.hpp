@@ -8,7 +8,6 @@
 #include <limits>
 #include <memory>
 #include <random>
-#include <span>
 #include <stop_token>
 #include <thread>
 #include <vector>
@@ -22,14 +21,16 @@
 namespace walnuts {
 
   struct alignas(walnuts::DI_SIZE) AdaptSnapshot {
-    std::uint32_t iter = 0;
-    float log_step = std::numeric_limits<float>::quiet_NaN();
-    std::vector<float> log_mass;
-    std::vector<float> mass;
+    std::uint64_t iter = 0;
+    double log_step = std::numeric_limits<double>::quiet_NaN();
+    Eigen::VectorXd log_mass;
+    Eigen::VectorXd mass;
 
-    explicit AdaptSnapshot(std::size_t dim)
-      : log_mass(dim, std::numeric_limits<float>::quiet_NaN()),
-      mass(dim, std::numeric_limits<float>::quiet_NaN()) {}
+    explicit AdaptSnapshot(std::int64_t dim)
+      : log_mass(dim), mass(dim) {
+      log_mass = Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN());
+      mass = Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN());
+    }
   };
 
   using Buffer = walnuts::TripleBuffer<AdaptSnapshot>;
@@ -53,7 +54,7 @@ namespace walnuts {
   template <class AdaptiveSampler>
   class AdaptWorker {
   public:
-    AdaptWorker(std::uint32_t chain_id,
+    AdaptWorker(std::uint64_t chain_id,
 		const walnuts::InitConfig& init_cfg,
 		const walnuts::WarmupConfig& warmup_cfg,
 		PaddedBuffer& buffer,
@@ -68,7 +69,7 @@ namespace walnuts {
 
     void operator()(std::stop_token st) {
       start_gate_.get().arrive_and_wait();
-      std::uint32_t last_done = 0;
+      std::uint64_t last_done = 0;
       publish_snapshot(0);
       for (std::uint32_t iter = 1; iter <= warmup_config_.max_iter(); ++iter) {
 	if (st.stop_requested()) break;
@@ -87,22 +88,22 @@ namespace walnuts {
     }
 
   private:
-    void publish_snapshot(std::uint32_t iter) {
+    void publish_snapshot(std::uint64_t iter) {
       AdaptSnapshot& snap = buffer_.get().write_buffer();
       snap.iter = iter;
-      snap.log_step = (iter == 0) ? std::numeric_limits<float>::quiet_NaN()
+      snap.log_step = (iter == 0) ? std::numeric_limits<double>::quiet_NaN()
 	: adapter_.get().log_step();
 
       const auto lm = adapter_.get().log_mass();
-      for (std::size_t d = 0; d < init_config_.dims(); ++d) {
-	const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
-	snap.log_mass[d] = v;
-	snap.mass[d] = std::exp(v);
+      for (std::int64_t d = 0; d < static_cast<std::int64_t>(init_config_.dims()); ++d) {
+	const double v = (iter == 0) ? std::numeric_limits<double>::quiet_NaN() : lm[d];
+	snap.log_mass(d) = v;
+	snap.mass(d) = std::exp(v);
       }
       buffer_.get().publish();
     }
 
-    std::uint32_t chain_id_;
+    std::uint64_t chain_id_;
     const walnuts::InitConfig& init_config_;
     const walnuts::WarmupConfig& warmup_config_;
     std::reference_wrapper<Buffer> buffer_;
@@ -112,53 +113,15 @@ namespace walnuts {
 
 
   struct AdaptResult {
-    std::vector<float> mass_bar;
-    float step_bar = std::numeric_limits<float>::quiet_NaN();
-    std::uint32_t stop_iter_min = 0;
+    Eigen::VectorXd mass_bar;
+    double step_bar = std::numeric_limits<double>::quiet_NaN();
+    std::uint64_t stop_iter_min = 0;
   };
 
-  static float l2_norm(std::span<const float> x) noexcept {
-    double sum_sq = 0.0;
-    for (float v : x) {
-      const double dv = static_cast<double>(v);
-      sum_sq += dv * dv;
-    }
-    return static_cast<float>(std::sqrt(sum_sq));
-  }
 
-  static void elementwise_exp(std::span<const float> log_x,
-			      std::span<float> out_x) noexcept {
-    const std::size_t n = log_x.size();
-    for (std::size_t i = 0; i < n; ++i) {
-      out_x[i] = std::exp(log_x[i]);
-    }
-  }
-
-  static void elementwise_add(std::span<const float> x,
-			      std::span<float> acc) noexcept {
-    const std::size_t n = x.size();
-    for (std::size_t i = 0; i < n; ++i) {
-      acc[i] += x[i];
-    }
-  }
-
-  static void elementwise_scale(float a, std::span<float> x) noexcept {
-    for (float& v : x) {
-      v *= a;
-    }
-  }
-
-  static float l2_rel_diff(std::span<const float> a,
-			   std::span<const float> b) noexcept {
-    double sum_sq = 0.0;
-    const std::size_t n = a.size();
-    for (std::size_t i = 0; i < n; ++i) {
-      double ad = static_cast<double>(a[i]);
-      double bd = static_cast<double>(b[i]);
-      double rel_diff = (ad - bd) / bd;
-      sum_sq += rel_diff * rel_diff;
-    }
-    return static_cast<float>(std::sqrt(sum_sq));
+  static double l2_rel_diff(const Eigen::VectorXd& a,
+			    const Eigen::VectorXd& b) noexcept {
+    return ((a - b).array() / b.array()).matrix().norm();
   }
 
 
@@ -170,34 +133,33 @@ namespace walnuts {
     const std::size_t M = init_cfg.num_chains();
     const std::size_t D = init_cfg.dims();
 
-    std::vector<float> mean_log_mass(D, 0.0f);
-    std::vector<float> mean_mass(D, 0.0f);
-    std::vector<float> scratch_mass(D, 0.0f);
+    Eigen::VectorXd mean_log_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
+    Eigen::VectorXd mean_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
+    Eigen::VectorXd scratch_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
 
-    float mean_log_step = 0.0f;
+    double mean_log_step = 0.0;
 
-    std::uint32_t min_iter = 0;
+    std::uint64_t min_iter = 0;
 
     auto probe_period = std::chrono::microseconds(warmup_cfg.probe_microseconds());
 
     auto next = std::chrono::steady_clock::now() + probe_period;
     std::vector<const AdaptSnapshot*> latest(M, nullptr);
     while (true) {
-      std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0f);
-      mean_log_step = 0.0f;
+      std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0);
+      mean_log_step = 0.0;
       min_iter = std::numeric_limits<std::uint32_t>::max();
       for (std::size_t m = 0; m < M; ++m) {
 	latest[m] = &buffers[m].val.read_latest();
 	const AdaptSnapshot& s = *latest[m];
 	min_iter = std::min(min_iter, s.iter);
 	mean_log_step += s.log_step;
-	elementwise_add(std::span<const float>(s.log_mass), mean_log_mass);
+	mean_log_mass += s.log_mass;
       }
 
-      mean_log_step /= static_cast<float>(M);
-      elementwise_scale(1.0f / static_cast<float>(M), mean_log_mass);
-      elementwise_exp(std::span<const float>(mean_log_mass),
-		      std::span<float>(mean_mass));
+      mean_log_step /= static_cast<double>(M);
+      mean_log_mass /= static_cast<double>(M);
+      mean_mass = mean_log_mass.array().exp().matrix();
 
       double max_rel_mass = 0.0;
       double max_rel_step = 0.0;
@@ -205,8 +167,7 @@ namespace walnuts {
       for (std::size_t m = 0; m < M; ++m) {
 	const AdaptSnapshot& s = *latest[m]; //  buffers[m].val.read_latest();
 
-	const float diff_mass =
-          l2_rel_diff(std::span<const float>(s.mass), std::span<const float>(mean_mass));
+	const double diff_mass = l2_rel_diff(s.mass, mean_mass);
 	max_rel_mass = std::fmax<double>(max_rel_mass, diff_mass);
 
 	// Step comparison on log scale: |log_step_m - mean_log_step| / |mean_log_step|
@@ -235,7 +196,7 @@ namespace walnuts {
 	stop_all();
 	std::cout << '\n';
 	AdaptResult out;
-	out.mass_bar = std::move(mean_mass);
+	out.mass_bar = mean_mass;
 	out.step_bar = std::exp(mean_log_step);
 	out.stop_iter_min = min_iter;
 	return out;

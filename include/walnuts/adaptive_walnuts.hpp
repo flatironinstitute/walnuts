@@ -484,7 +484,7 @@ class AdaptiveWalnuts {
     return std::log(step_size());
   }
 
-  Eigen::VectorXd log_mass() const {
+  Eigen::VectorXd log_mass() const noexcept {
     return inv_mass().array().inverse().log().matrix();
   }
 

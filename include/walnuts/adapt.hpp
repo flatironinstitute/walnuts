@@ -37,7 +37,7 @@ namespace walnuts {
   using PaddedBuffer = walnuts::Padded<Buffer>;
 
   static PaddedBuffer construct_buffer(std::size_t dim) {
-    auto make = [dim] { return AdaptSnapshot(dim); };
+    auto make = [dim] { return AdaptSnapshot(static_cast<std::int64_t>(dim)); };
     return PaddedBuffer{Buffer(make)};
   }
 
@@ -76,7 +76,7 @@ namespace walnuts {
 	if (warmup_config_.yield_period() > 0 && (iter % warmup_config_.yield_period() == 0)) {
 	  std::this_thread::yield();
 	}
-	adapter_.get().step(iter);
+	adapter_.get().step_size();
 	last_done = iter;
 	if (warmup_config_.publish_stride() > 0 && (iter % warmup_config_.publish_stride() == 0)) {
 	  publish_snapshot(iter);
@@ -92,7 +92,7 @@ namespace walnuts {
       AdaptSnapshot& snap = buffer_.get().write_buffer();
       snap.iter = iter;
       snap.log_step = (iter == 0) ? std::numeric_limits<double>::quiet_NaN()
-	: adapter_.get().log_step();
+	: adapter_.get().log_step_size();
 
       const auto lm = adapter_.get().log_mass();
       for (std::int64_t d = 0; d < static_cast<std::int64_t>(init_config_.dims()); ++d) {

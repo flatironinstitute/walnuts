@@ -31,12 +31,15 @@ namespace walnuts {
   // VectorXd inv_mass()
   // double step_size()
   // size_t min_micro_steps()
-  // + size_t dim()
-  // + double log_step()
-  // + VectorXd log_mass()
-  // + size_t iter()
+
+  // size_t dim() const noexcept
+  // double step_size() const noexcept
+  // double log_step_size() const noexcept
+  // VectorXd log_mass() const noexcept
+  // size_t iter() const noexcept
+  // --------------------
   
-  // Adapter(rng, dim)
+  // TemporaryStubAdapter(rng, dim)
   // size_t dim() const noexcept;
   // void step(size_t iter);
   // double log_step() const noexcept;
@@ -49,6 +52,7 @@ namespace walnuts {
     TemporaryStubAdapter(RNG& rng, std::size_t dim)
       : rng_(rng),
 	dim_(dim),
+	iter_(0),
         z_(0.0, 1.0),
         log_mass_means_(means(dim)),
         log_mass_(dim),
@@ -56,16 +60,16 @@ namespace walnuts {
 
     std::size_t dim() const noexcept { return dim_; }
 
-    void step(std::size_t iter) {
-      double sd = 1 / std::sqrt(static_cast<double>(iter));
+    void step_size() {
+      ++iter_;  // here because no opertor()() called for sampling
+      double sd = 1 / std::sqrt(static_cast<double>(iter_));
       log_step_ = std::log(0.1) + sd * z_(rng_);
       for (std::int64_t d = 0; d < static_cast<std::int64_t>(dim_); ++d) {
-	log_mass_(d) = log_mass_means_(d) + sd * z_(rng_);
+    	log_mass_(d) = log_mass_means_(d) + sd * z_(rng_);
       }
-      ++iter_;
     }
 
-    double log_step() const noexcept { return log_step_; }
+    double log_step_size() const noexcept { return log_step_; }
 
     Eigen::VectorXd log_mass() const noexcept { return log_mass_; }
 
@@ -83,7 +87,7 @@ namespace walnuts {
 
     RNG& rng_;
     const std::size_t dim_;
-    std::size_t iter_ = 0;
+    std::size_t iter_;
     std::normal_distribution<double> z_;
     Eigen::VectorXd log_mass_means_;
     Eigen::VectorXd log_mass_;
@@ -124,7 +128,7 @@ namespace walnuts {
     for (std::size_t m = 0; m < adapters.size(); ++m) {
       std::cout << m << ")"
 		<< " iter = " << adapters[m].iter()
-		<< "  step = " << std::exp(adapters[m].log_step())
+		<< "  step = " << std::exp(adapters[m].log_step_size())
 		<< "  ||log_mass|| = "
 		<< adapters[m].log_mass().norm()
 		<< std::endl;

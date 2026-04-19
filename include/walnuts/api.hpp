@@ -49,7 +49,7 @@ namespace walnuts {
   template <typename RNG>
   class TemporaryStubAdapter {
   public:
-    TemporaryStubAdapter(RNG& rng, std::size_t dim)
+    TemporaryStubAdapter(RNG&& rng, std::size_t dim)
       : rng_(rng),
 	dim_(dim),
 	iter_(0),
@@ -85,7 +85,7 @@ namespace walnuts {
       return m;
     }
 
-    RNG& rng_;
+    RNG rng_;  // intentionally keeping key
     const std::size_t dim_;
     std::size_t iter_;
     std::normal_distribution<double> z_;
@@ -95,26 +95,65 @@ namespace walnuts {
   };
   
 
-  template <typename RNG, typename Handler, typename LogProbGrad>
-  void walnuts(RNG& rng,
+  template <typename Handler, typename LogProbGrad>
+  void walnuts(uint32_t seed, 
 	       std::vector<Handler>& , // handlers,  
-	       const LogProbGrad& , // log_p_grad,
+	       const LogProbGrad& log_p_grad,
 	       const InitConfig& init_cfg,
 	       const WarmupConfig& warmup_cfg,
 	       const SamplingConfig& sampling_cfg) {
+
     std::cout << init_cfg << std::endl;
     std::cout << warmup_cfg << std::endl;
     std::cout << sampling_cfg << std::endl;
 
-    std::vector<TemporaryStubAdapter<RNG>> adapters;
+
+    std::vector<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>> walnuts_adapters;
+    walnuts_adapters.reserve(init_cfg.num_chains());
+    
+    for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
+      std::seed_seq seed_m{seed, m + 1u};
+      std::mt19937 rng{seed_m};
+      nuts::MassAdaptConfig<double> mass_cfg(init_cfg.mass(static_cast<size_t>(m)),
+					     warmup_cfg.mass_init_count(),
+					     warmup_cfg.mass_init_count(), // reuse init for iter offset
+					     warmup_cfg.mass_additive_smoothing());
+      
+      nuts::AdamConfig<double> step_cfg(init_cfg.step_size(m),
+					warmup_cfg.step_accept_rate_target(),
+					warmup_cfg.step_learning_rate(),
+					warmup_cfg.step_gradient_decay(),
+					warmup_cfg.step_sq_gradient_decay(),
+					warmup_cfg.step_stabilization());
+
+      std::size_t min_micro_steps= 1;
+      nuts::WalnutsConfig<double> walnuts_cfg(sampling_cfg.max_hamiltonian_error(),
+					      sampling_cfg.max_trajectory_doublings(),
+					      sampling_cfg.max_step_halvings(),
+					      min_micro_steps);
+      
+      walnuts_adapters
+      	.emplace_back(nuts::AdaptiveWalnuts(rng,
+      					    log_p_grad,
+      					    init_cfg.position(static_cast<size_t>(m)),
+      					    mass_cfg,
+      					    step_cfg,
+      					    walnuts_cfg,
+      					    std::log2(warmup_cfg.max_macro_steps_target())));
+					    
+    }
+      
+    std::vector<TemporaryStubAdapter<std::mt19937>> adapters;
     adapters.reserve(init_cfg.num_chains());
     auto D = init_cfg.dims();
-    for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-      adapters.emplace_back(TemporaryStubAdapter(rng, D));
+    for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
+      std::seed_seq seed_m{seed, m + 1u};
+      std::mt19937 rng{seed_m};
+      adapters.emplace_back(TemporaryStubAdapter(std::move(rng), D));
     }
 
     AdaptResult res
-      = adapt<TemporaryStubAdapter<RNG>>(init_cfg, warmup_cfg, adapters);
+      = adapt<TemporaryStubAdapter<std::mt19937>>(init_cfg, warmup_cfg, adapters);
 
     const double mass_bar_norm = res.mass_bar.norm();
   

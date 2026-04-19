@@ -58,8 +58,9 @@ static void std_normal(const Eigen::VectorXd& x, double& lp,
 int main() {
   auto logp_grad = std_normal;
 
-  uint32_t rng_seed = 42;
-  std::mt19937 rng(rng_seed);
+  uint32_t seed = 42;
+  std::seed_seq seed_seq_for_init{seed, 0u};
+  std::mt19937 rng{seed_seq_for_init};
   uint64_t num_chains = 64;
   uint64_t dims = 3;
   
@@ -83,7 +84,7 @@ int main() {
     .max_trajectory_doublings(8)
     .build();
 
-  walnuts::walnuts(rng,
+  walnuts::walnuts(seed,
 		   handlers,
 		   logp_grad,
 		   init_cfg, warmup_cfg, sampling_cfg);

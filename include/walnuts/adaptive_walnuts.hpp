@@ -488,7 +488,7 @@ class AdaptiveWalnuts {
     return inv_mass().array().inverse().log().matrix();
   }
 
-  std::size_t iter() const {
+  std::size_t iter() const noexcept {
     return iteration_;
   }
   

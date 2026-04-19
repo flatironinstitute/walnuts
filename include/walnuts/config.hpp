@@ -71,8 +71,11 @@ namespace walnuts {
     uint64_t num_chains()                            const { return step_sizes_.size(); }
     uint64_t dims()                                  const { return num_chains() == 0 ? 0 : static_cast<uint64_t>(positions_[0].size()); }
     const std::vector<double>& step_sizes()          const { return step_sizes_; }
+    double step_size(size_t n)                       const { return step_sizes_[n]; }                             
     const std::vector<Eigen::VectorXd>& positions()  const { return positions_; }
+    Eigen::VectorXd position(size_t n)               const { return positions_[n]; }
     const std::vector<Eigen::VectorXd>& masses()     const { return masses_; }
+    Eigen::VectorXd mass(size_t n)                   const { return masses_[n]; }
 
   private:
     friend class InitConfigBuilder;

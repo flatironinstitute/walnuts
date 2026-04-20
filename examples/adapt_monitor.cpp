@@ -337,7 +337,7 @@ int main() {
     .step_size_converge_tol(0.08)
     .build();
 
-  std::mt19937_64 rng(1234);
+  std::mt19937_64 rng(123456);
   std::vector<MyAdapter> adapters;
   adapters.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {

@@ -83,6 +83,16 @@ struct MassAdaptConfig {
   const S additive_smoothing_;
 };
 
+template <typename S>
+std::ostream& operator<<(std::ostream& out, const MassAdaptConfig<S>& cfg) {
+    out << "MassAdaptConfig\n"
+        << "  mass_init          = " << cfg.mass_init_.transpose() << "\n"
+        << "  init_count         = " << cfg.init_count_            << "\n"
+        << "  iter_offset        = " << cfg.iter_offset_           << "\n"
+        << "  additive_smoothing = " << cfg.additive_smoothing_    << "\n";
+    return out;
+}
+
 /**
  * @brief The immutable top-level configuration for WALNUTS.
  *
@@ -142,6 +152,16 @@ struct WalnutsConfig {
   /** The minimum number of micro steps per macro step. */
   const std::size_t min_micro_steps_;
 };
+
+template <typename S>
+std::ostream& operator<<(std::ostream& out, const WalnutsConfig<S>& cfg) {
+    out << "WalnutsConfig\n"
+        << "  max_error        = " << cfg.max_error_        << "\n"
+        << "  max_nuts_depth   = " << cfg.max_nuts_depth_   << "\n"
+        << "  max_step_halvings = " << cfg.max_step_halvings_ << "\n"
+        << "  min_micro_steps  = " << cfg.min_micro_steps_  << "\n";
+    return out;
+}
 
 /**
  * @brief The step-size adaptation handler for WALNUTS.
@@ -406,7 +426,11 @@ class AdaptiveWalnuts {
         iteration_(0),
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
-        min_micro_estimator_(target_depth) {}
+        min_micro_estimator_(target_depth) {
+    std::cout << mass_cfg << "\n";
+    std::cout << step_cfg << "\n";
+    std::cout << walnuts_cfg << "\n";
+  }
 
   /**
    * @brief Return the next state from warmup.
@@ -480,7 +504,7 @@ class AdaptiveWalnuts {
     return theta_.size();
   }
 
-  double log_step() const noexcept {
+  double log_step_size() const noexcept {
     return std::log(step_size());
   }
 

@@ -81,6 +81,18 @@ struct AdamConfig {
   const S epsilon_;
 };
 
+template <typename S>
+std::ostream& operator<<(std::ostream& out, const AdamConfig<S>& cfg) {
+    out << "AdamConfig\n"
+        << "  step_size_init      = " << cfg.step_size_init_      << "\n"
+        << "  target_accept_rate  = " << cfg.target_accept_rate_  << "\n"
+        << "  learn_rate          = " << cfg.learn_rate_          << "\n"
+        << "  beta1               = " << cfg.beta1_               << "\n"
+        << "  beta2               = " << cfg.beta2_               << "\n"
+        << "  epsilon             = " << cfg.epsilon_             << "\n";
+    return out;
+}  
+
 /**
  * The Adam stochastic gradient optimizer specialized for step-size adaptation.
  */

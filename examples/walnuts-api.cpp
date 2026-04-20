@@ -61,7 +61,7 @@ int main() {
   uint32_t seed = 42;
   std::seed_seq seed_seq_for_init{seed, 0u};
   std::mt19937 rng{seed_seq_for_init};
-  uint64_t num_chains = 64;
+  uint64_t num_chains = 32;
   uint64_t dims = 3;
   
   std::vector<MyHandler> handlers(num_chains);
@@ -75,8 +75,9 @@ int main() {
     .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
-    .min_max_iter(50, 200)
-    .mass_init_count(2.5)
+    .min_max_iter(50, 2000)
+    .step_size_converge_tol(1)
+    .mass_init_count(4.0)
     .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()

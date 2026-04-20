@@ -76,6 +76,7 @@ namespace walnuts {
 	if (warmup_config_.yield_period() > 0 && (iter % warmup_config_.yield_period() == 0)) {
 	  std::this_thread::yield();
 	}
+	adapter_.get()();  // actually do the sampling!
 	adapter_.get().step_size();
 	last_done = iter;
 	if (warmup_config_.publish_stride() > 0 && (iter % warmup_config_.publish_stride() == 0)) {

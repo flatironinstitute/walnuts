@@ -104,7 +104,7 @@ class Random {
 
  private:
   /** The base random number generator reference. */
-  RNG& rng_;
+  RNG rng_;  // copy avoids construction ref going out of scope
 
   /** The `uniform([0, 1])` random number generator. */
   std::uniform_real_distribution<S> unif_;

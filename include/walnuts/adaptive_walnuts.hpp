@@ -427,9 +427,6 @@ class AdaptiveWalnuts {
         step_adapt_handler_(step_cfg),
         mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
         min_micro_estimator_(target_depth) {
-    std::cout << mass_cfg << "\n";
-    std::cout << step_cfg << "\n";
-    std::cout << walnuts_cfg << "\n";
   }
 
   /**

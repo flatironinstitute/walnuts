@@ -103,11 +103,6 @@ namespace walnuts {
 	       const WarmupConfig& warmup_cfg,
 	       const SamplingConfig& sampling_cfg) {
 
-    std::cout << init_cfg << std::endl;
-    std::cout << warmup_cfg << std::endl;
-    std::cout << sampling_cfg << std::endl;
-
-
     std::vector<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>> adapters;
     adapters.reserve(init_cfg.num_chains());
     
@@ -148,26 +143,16 @@ namespace walnuts {
 
     AdaptResult res
       = adapt<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>>(init_cfg, warmup_cfg, adapters);
-    
-    // std::vector<TemporaryStubAdapter<std::mt19937>> adapters;
-    // adapters.reserve(init_cfg.num_chains());
-    // auto D = init_cfg.dims();
-    // for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
-    //   std::seed_seq seed_m{seed, m + 1u};
-    //   std::mt19937 rng{seed_m};
-    //   adapters.emplace_back(TemporaryStubAdapter(std::move(rng), D));
-    // }
 
-    // AdaptResult res
-    //   = adapt<TemporaryStubAdapter<std::mt19937>>(init_cfg, warmup_cfg, adapters);
 
-    const double mass_bar_norm = res.mass_bar.norm();
+    double mass_bar_norm = res.mass_bar.norm();
   
     std::cout << "\nSHARED ADAPTED RESULT:  "
 	      << "stop_iter_min=" << res.stop_iter_min
 	      << "  step_bar=" << res.step_bar
 	      << "  ||mass_bar||=" << mass_bar_norm
 	      << '\n';
+
 
     std::cout << "\nPER CHAIN FINAL STATES:\n";
     for (std::size_t m = 0; m < adapters.size(); ++m) {

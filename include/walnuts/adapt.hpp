@@ -114,9 +114,14 @@ namespace walnuts {
 
 
   struct AdaptResult {
+    AdaptResult(const Eigen::VectorXd& mass_b, double step_b, std::uint64_t stop_iter_m):
+      mass_bar(mass_b),
+      step_bar(step_b),
+      stop_iter_min(stop_iter_m) {
+    }
     Eigen::VectorXd mass_bar;
-    double step_bar = std::numeric_limits<double>::quiet_NaN();
-    std::uint64_t stop_iter_min = 0;
+    double step_bar; 
+    std::uint64_t stop_iter_min;
   };
 
 
@@ -178,13 +183,6 @@ namespace walnuts {
 	max_rel_step = std::fmax<double>(max_rel_step, rel_step);
       }
 
-      // Optional progress print (single line).
-      std::cout << '\r'
-		<< "min_iter=" << min_iter
-		<< "  max_rel_mass=" << max_rel_mass
-		<< "  max_rel_step=" << max_rel_step
-		<< std::flush;
-
       const bool enough_iters = (min_iter >= warmup_cfg.min_iter());
       const bool converged =
 	enough_iters
@@ -195,12 +193,7 @@ namespace walnuts {
 
       if (converged || hit_max) {
 	stop_all();
-	std::cout << '\n';
-	AdaptResult out;
-	out.mass_bar = mean_mass;
-	out.step_bar = std::exp(mean_log_step);
-	out.stop_iter_min = min_iter;
-	return out;
+	return {mean_mass, std::exp(mean_log_step), min_iter};
       }
 
       std::this_thread::sleep_until(next);

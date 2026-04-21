@@ -6,6 +6,8 @@ if(WALNUTS_BUILD_STAN)
   add_executable(walnuts-api walnuts-api.cpp) 
   target_link_libraries(walnuts-api PRIVATE nuts::nuts Eigen3::Eigen) 
   target_compile_options(walnuts-api PRIVATE -O3 -Wall) 
+  target_compile_options(walnuts-api PRIVATE -fsanitize=thread) 
+  target_link_options(walnuts-api PRIVATE -fsanitize=thread) 
 
   add_executable(examples_stan examples_stan.cpp)
   target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)

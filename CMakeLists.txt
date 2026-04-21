@@ -195,3 +195,4 @@ if (WALNUTS_BUILD_DOCS)
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
+

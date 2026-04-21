@@ -216,9 +216,9 @@ namespace walnuts {
     double mass_additive_smoothing_     = 1e-5;
     double max_macro_steps_target_      = 15.0;
     double step_accept_rate_target_     = 0.8;
-    double step_learning_rate_          = 0.2;
-    double step_gradient_decay_         = 0.3;
-    double step_sq_gradient_decay_      = 0.99;
+    double step_learning_rate_          = 0.05;
+    double step_gradient_decay_         = 0.8;
+    double step_sq_gradient_decay_      = 0.9;
     double step_stabilization_          = 1e-4;
     uint64_t publish_stride_            = 5;
     uint64_t probe_microseconds_        = 1000;

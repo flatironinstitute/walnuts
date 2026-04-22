@@ -105,6 +105,12 @@ namespace walnuts {
 
     std::vector<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>> adapters;
     adapters.reserve(init_cfg.num_chains());
+
+    std::vector<std::mt19937> rngs(0);
+    for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
+      std::seed_seq ss{seed, m + 1u};
+      rngs.emplace_back(ss);
+    }
     
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
       nuts::MassAdaptConfig<double>
@@ -129,9 +135,8 @@ namespace walnuts {
 		    min_micro_steps);
       
       std::seed_seq seed_m{seed, m + 1u};
-      std::mt19937 rng{seed_m};
       adapters
-      	.emplace_back(nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>(rng,
+      	.emplace_back(nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>(rngs[m],
       					    log_p_grad,
       					    init_cfg.position(static_cast<size_t>(m)),
       					    mass_cfg,

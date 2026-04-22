@@ -1,4 +1,4 @@
-// clang++ -std=c++20 -march=native -O3 -pthread -I ../include rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I ../build/_deps/eigen rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <array>
@@ -24,7 +24,9 @@
 #include <thread>
 #include <vector>
 
-#include "padded.hpp"
+#include <Eigen/Dense>
+
+#include "walnuts/padded.hpp"
 
 #if defined __has_attribute
 #if __has_attribute(always_inline)

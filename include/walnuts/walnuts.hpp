@@ -38,16 +38,17 @@ class SpanW {
   static SpanW<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
                                      Vec<S>&& grad_theta, S logp) {
     return {theta,
-            rho,
-            grad_theta,
-            logp,
-            theta,
-            std::move(rho),
-            grad_theta,
-            logp,
-            std::move(theta),
-            std::move(grad_theta),
-            logp};
+	rho,
+	grad_theta,
+	logp,
+	theta,
+	std::move(rho),
+	grad_theta,
+	logp,
+	std::move(theta),
+	std::move(grad_theta),
+	logp,  // logp_select = total logp
+	logp};
   }
 
   /**
@@ -63,18 +64,20 @@ class SpanW {
    */
   static SpanW<S> from_subspans(SpanW<S>&& span1, SpanW<S>&& span2,
                                 Vec<S>&& theta_select, Vec<S>&& grad_select,
+				S logp_select,
                                 S logp) {
     return {std::move(span1.theta_bk_),
-            std::move(span1.rho_bk_),
-            std::move(span1.grad_theta_bk_),
-            span1.logp_bk_,
-            std::move(span2.theta_fw_),
-            std::move(span2.rho_fw_),
-            std::move(span2.grad_theta_fw_),
-            span2.logp_fw_,
-            std::move(theta_select),
-            std::move(grad_select),
-            logp};
+	std::move(span1.rho_bk_),
+	std::move(span1.grad_theta_bk_),
+	span1.logp_bk_,
+	std::move(span2.theta_fw_),
+	std::move(span2.rho_fw_),
+	std::move(span2.grad_theta_fw_),
+	span2.logp_fw_,
+	std::move(theta_select),
+	std::move(grad_select),
+	logp_select,
+	logp};
   }
 
   /** The earliest state. */
@@ -106,6 +109,9 @@ class SpanW {
 
   /** The gradient of the log density at the selected state. */
   Vec<S> grad_select_;
+
+  /** The log density of the selected state. */
+  double logp_select_;
 
   /** The log of the sum of the joint densities in the trajectory. */
   S logp_;
@@ -286,9 +292,11 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   auto& grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
+  double logp_select = update ? span_new.logp_select_ : span_old.logp_select_;
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return SpanW<S>::from_subspans(std::move(span_bk), std::move(span_fw),
                                  std::move(selected), std::move(grad_selected),
+				 logp_select,
                                  logp_total);
 }
 

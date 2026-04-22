@@ -444,12 +444,13 @@ class AdaptiveWalnuts {
     Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
     Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
+    S logp_select;
     std::size_t depth = 0;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
         min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_,
-        std::move(theta_), depth, grad_select, step_adapt_handler_);
+        std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(depth);
     ++iteration_;

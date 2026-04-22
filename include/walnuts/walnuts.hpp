@@ -577,6 +577,26 @@ class WalnutsSampler {
     validate_positive(max_error, "max_error");
   }
 
+  WalnutsSampler(const WalnutsSampler& sampler) = default;
+  WalnutsSampler(WalnutsSampler&& sampler) = default;
+
+  /**
+   * @brief Return the next draw from the sampler, saving the log density
+   * of the position returned.
+   *
+   * @param[out] logp_pos The log density of the position returned.
+   * @return The next draw.
+   */
+  Vec<S> operator()(S& logp_pos) {
+    std::size_t depth;
+    Vec<S> grad_next;
+    theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
+                          macro_step_size_, max_nuts_depth_, max_step_halvings_,
+                          min_micro_steps_, max_error_, std::move(theta_),
+                          depth, grad_next, logp_pos, no_op_adapt_handler_);
+    return theta_;
+  }
+
   /**
    * @brief Return the next draw from the sampler.
    *
@@ -585,13 +605,15 @@ class WalnutsSampler {
   Vec<S> operator()() {
     std::size_t depth;
     Vec<S> grad_next;
+    S logp_pos;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
-                          depth, grad_next, no_op_adapt_handler_);
+                          depth, grad_next, logp_pos, no_op_adapt_handler_);
     return theta_;
   }
 
+  
   /**
    * @brief  Return the diagonal of the diagonal inverse mass matrix.
    *
@@ -612,6 +634,10 @@ class WalnutsSampler {
    * @return The maximum error allowed among Hamiltonians.
    */
   S max_error() const { return max_error_; }
+
+  size_t dim() const noexcept {
+    return static_cast<size_t>(theta_.size());
+  }
 
  private:
   /** The underlying randomizer. */

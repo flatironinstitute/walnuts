@@ -21,6 +21,7 @@
 #include <walnuts/adaptive_walnuts.hpp>
 #include <walnuts/config.hpp>
 #include <walnuts/padded.hpp>
+#include <walnuts/sampler.hpp>
 #include <walnuts/triple_buffer.hpp>
 
 namespace walnuts {
@@ -146,15 +147,15 @@ namespace walnuts {
 					    
     }
 
-    AdaptResult res
+    AdaptResult adapt_result
       = adapt<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>>(init_cfg, warmup_cfg, adapters);
 
-
-    double mass_bar_norm = res.mass_bar.norm();
+    double mass_bar_norm = adapt_result.mass_bar.norm();
   
+    // ********************DEBUG I/O*****************************
     std::cout << "\nSHARED ADAPTED RESULT:  "
-	      << "stop_iter_min=" << res.stop_iter_min
-	      << "  step_bar=" << res.step_bar
+	      << "stop_iter_min=" << adapt_result.stop_iter_min
+	      << "  step_bar=" << adapt_result.step_bar
 	      << "  ||mass_bar||=" << mass_bar_norm
 	      << '\n';
 
@@ -169,6 +170,19 @@ namespace walnuts {
 		<< std::endl;
 
     }
+    // *************************************************
+
+    std::vector<nuts::WalnutsSampler<LogProbGrad, double, std::mt19937>> samplers;
+    for (std::size_t n = 0; n < adapters.size(); ++n)
+      samplers.emplace_back(adapters[n].sampler());
+
+    size_t num_rhat_evals = 0u;
+    std::vector<ChainRecord> chain_records = 
+      sample(samplers,
+    	     sampling_cfg.rhat_converge_tol(),
+    	     sampling_cfg.max_iter(),
+    	     num_rhat_evals);
+    std::cout << "num_rhat_evals = " << num_rhat_evals << std::endl;
   }
   
 }  // namespace walnuts

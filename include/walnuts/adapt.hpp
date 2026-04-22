@@ -219,7 +219,11 @@ namespace walnuts {
       for (auto& t : threads) {
 	t.request_stop();
       }
+      for (auto& t : threads) {
+	t.join();
+      }
     };
+
     return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
   }
   

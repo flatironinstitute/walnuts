@@ -6,6 +6,30 @@
 
 namespace nuts {
 
+#if defined __has_attribute
+#if __has_attribute(always_inline)
+#ifndef WALNUTS_STRONG_INLINE
+#define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
+#endif
+#else
+#define WALNUTS_STRONG_INLINE inline
+#endif
+#endif
+
+#ifdef __APPLE__
+#include <pthread.h>
+WALNUTS_STRONG_INLINE void interactive_qos() {
+  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);  // best
+}
+WALNUTS_STRONG_INLINE void initiated_qos() {
+  pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);  // next best
+}
+#else
+WALNUTS_STRONG_INLINE void interactive_qos() {}
+WALNUTS_STRONG_INLINE void initiated_qos() {}
+#endif
+
+
 /**
  * @brief The type of column vectors.
  *

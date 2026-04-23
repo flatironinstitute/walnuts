@@ -182,7 +182,24 @@ namespace walnuts {
     	     sampling_cfg.rhat_converge_tol(),
     	     sampling_cfg.max_iter(),
     	     num_rhat_evals);
-    std::cout << "num_rhat_evals = " << num_rhat_evals << std::endl;
+
+    // *********************** DEBUG I/O *******************
+    std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
+    std::size_t rows = 0;
+    for (std::size_t m = 0; m < chain_records.size(); ++m) {
+      const auto& chain_record = chain_records[m];
+      std::size_t N_m = chain_record.num_draws();
+      Eigen::VectorXd lps(N_m);
+      for (std::size_t n = 0; n < N_m; ++n) {
+	lps(static_cast<int64_t>(n)) = chain_record.logp(n);
+      }
+      rows += N_m;
+      std::cout << "Chain " << m << "  count " << N_m
+		<< "  mean(logp) " << lps.mean()
+		<< "  sd(logp) [sample] " << std::sqrt(variance(lps)) << '\n';
+    }
+    std::cout << "Number of draws: " << rows << '\n';
+    // *****************************************************
   }
   
 }  // namespace walnuts

@@ -455,7 +455,7 @@ int main() {
   const std::size_t D = 100;
   std::size_t M = 64;
   const std::size_t N = 100000;
-  double rhat_threshold = 1.0001;
+  double rhat_threshold = 1.00001;
   unsigned int seed = 1234;  // not reproducible because of threading!
 
   std::mt19937 rd(seed);

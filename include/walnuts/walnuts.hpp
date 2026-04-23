@@ -250,7 +250,7 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
       logp_grad(theta_next, logp_pos_next, grad_next);
       rho_next.noalias() += half_step * grad_next;
     }
-    logp_next += logp_pos_next + logp_momentum(rho_next, inv_mass);
+    logp_next = logp_pos_next + logp_momentum(rho_next, inv_mass);
     if (num_steps == min_micro_steps) {
       S min_accept = std::exp(-std::fabs(logp - logp_next));
       adapt_handler(min_accept);

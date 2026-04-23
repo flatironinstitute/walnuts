@@ -55,7 +55,7 @@ namespace walnuts {
       data_.store(init, std::memory_order_relaxed);
     }
 
-    // conservatie release/acquire vs. relaxed pattern
+    // conservative release/acquire vs. relaxed pattern
     void store(const ChainStats& p, std::memory_order mem_order = std::memory_order_release) noexcept {
       data_.store(p, mem_order);
     }
@@ -176,7 +176,7 @@ namespace walnuts {
 		std::size_t yield_period = 1024)
       : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        chain_record_(chain_record), // sampler.dim(), draws_per_chain),
+        chain_record_(chain_record),
         acs_(acs),
         start_gate_(start_gate),
 	yield_period_(yield_period) {}

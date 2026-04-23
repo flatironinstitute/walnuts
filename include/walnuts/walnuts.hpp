@@ -522,8 +522,9 @@ class NoOpHandler {
  * @tparam F The type of the log density and gradient function.
  * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
+ * @tparam Handler The type of the sampling event handler.
  */
-template <class F, typename S, class RNG>
+template <class F, typename S, class RNG, class Handler>
 class WalnutsSampler {
  public:
   /**
@@ -531,6 +532,7 @@ class WalnutsSampler {
    * density/gradient initialization, and tuning parameters.
    *
    * @param[in] rand The randomizer for HMC.
+   * @param[in,out] handler The sampling event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
    * @param[in] theta The initial position.
@@ -554,11 +556,13 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
    */
-  WalnutsSampler(Random<S, RNG>& rand, const F& logp_grad, const Vec<S>& theta,
+  WalnutsSampler(Random<S, RNG>& rand, Handler& handler,
+		 const F& logp_grad, const Vec<S>& theta,
                  const Vec<S>& inv_mass, S macro_step_size,
                  std::size_t max_nuts_depth, std::size_t max_step_halvings,
                  std::size_t min_micro_steps, S max_error)
       : rand_(rand),
+	handler_(handler),
         logp_grad_(logp_grad),
         theta_(theta),
         inv_mass_(inv_mass),
@@ -594,26 +598,10 @@ class WalnutsSampler {
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_adapt_handler_);
+    handler_.on_sample(theta_, logp_pos);
     return theta_;
   }
 
-  /**
-   * @brief Return the next draw from the sampler.
-   *
-   * @return The next draw.
-   */
-  Vec<S> operator()() {
-    std::size_t depth;
-    Vec<S> grad_next;
-    S logp_pos;
-    theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
-                          macro_step_size_, max_nuts_depth_, max_step_halvings_,
-                          min_micro_steps_, max_error_, std::move(theta_),
-                          depth, grad_next, logp_pos, no_op_adapt_handler_);
-    return theta_;
-  }
-
-  
   /**
    * @brief  Return the diagonal of the diagonal inverse mass matrix.
    *
@@ -643,6 +631,9 @@ class WalnutsSampler {
   /** The underlying randomizer. */
   Random<S, RNG> rand_;
 
+  /** Reference to the sampling event handler. */
+  Handler& handler_;
+  
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F, S> logp_grad_;
 

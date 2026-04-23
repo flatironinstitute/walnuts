@@ -97,14 +97,16 @@ namespace walnuts {
   
 
   template <typename Handler, typename LogProbGrad>
-  void walnuts(uint32_t seed, 
-	       std::vector<Handler>& , // handlers,  
-	       const LogProbGrad& log_p_grad,
-	       const InitConfig& init_cfg,
-	       const WarmupConfig& warmup_cfg,
-	       const SamplingConfig& sampling_cfg) {
+  std::vector<ChainRecord> walnuts(uint32_t seed, 
+				   std::vector<Handler>& handlers,
+				   const LogProbGrad& log_p_grad,
+				   const InitConfig& init_cfg,
+				   const WarmupConfig& warmup_cfg,
+				   const SamplingConfig& sampling_cfg) {
+    using AdaptiveSampler = nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
+    using Sampler = nuts::WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
-    std::vector<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>> adapters;
+    std::vector<AdaptiveSampler> adapters;
     adapters.reserve(init_cfg.num_chains());
 
     std::vector<std::mt19937> rngs(0);
@@ -112,7 +114,8 @@ namespace walnuts {
       std::seed_seq ss{seed, m + 1u};
       rngs.emplace_back(ss);
     }
-    
+
+    // TODO: unify to use external API config throughout
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
       nuts::MassAdaptConfig<double>
 	mass_cfg(init_cfg.mass(static_cast<size_t>(m)),
@@ -137,29 +140,27 @@ namespace walnuts {
       
       std::seed_seq seed_m{seed, m + 1u};
       adapters
-      	.emplace_back(nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>(rngs[m],
-      					    log_p_grad,
-      					    init_cfg.position(static_cast<size_t>(m)),
-      					    mass_cfg,
-      					    step_cfg,
-      					    walnuts_cfg,
-      					    std::log2(warmup_cfg.max_macro_steps_target())));
+      	.emplace_back(AdaptiveSampler(rngs[m],
+				      handlers[m],
+				      log_p_grad,
+				      init_cfg.position(static_cast<size_t>(m)),
+				      mass_cfg,
+				      step_cfg,
+				      walnuts_cfg,
+				      std::log2(warmup_cfg.max_macro_steps_target())));
 					    
     }
 
     AdaptResult adapt_result
-      = adapt<nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937>>(init_cfg, warmup_cfg, adapters);
+      = adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
 
-    double mass_bar_norm = adapt_result.mass_bar.norm();
-  
+
     // ********************DEBUG I/O*****************************
     std::cout << "\nSHARED ADAPTED RESULT:  "
 	      << "stop_iter_min=" << adapt_result.stop_iter_min
 	      << "  step_bar=" << adapt_result.step_bar
-	      << "  ||mass_bar||=" << mass_bar_norm
+	      << "  ||mass_bar||=" << adapt_result.mass_bar.norm()
 	      << '\n';
-
-
     std::cout << "\nPER CHAIN FINAL STATES:\n";
     for (std::size_t m = 0; m < adapters.size(); ++m) {
       std::cout << m << ")"
@@ -168,21 +169,21 @@ namespace walnuts {
 		<< "  ||log_mass|| = "
 		<< adapters[m].log_mass().norm()
 		<< std::endl;
-
     }
     // *************************************************
 
-    std::vector<nuts::WalnutsSampler<LogProbGrad, double, std::mt19937>> samplers;
+
+    std::vector<Sampler> samplers;
     for (std::size_t n = 0; n < adapters.size(); ++n)
       samplers.emplace_back(adapters[n].sampler());
 
     size_t num_rhat_evals = 0u;
-    std::vector<ChainRecord> chain_records = 
-      sample(samplers,
-    	     sampling_cfg.rhat_converge_tol(),
-    	     sampling_cfg.max_iter(),
-    	     num_rhat_evals);
+    std::vector<ChainRecord> chain_records = sample(samplers,
+						    sampling_cfg.rhat_converge_tol(),
+						    sampling_cfg.max_iter(),
+						    num_rhat_evals);
 
+    
     // *********************** DEBUG I/O *******************
     std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
     std::size_t rows = 0;
@@ -200,6 +201,9 @@ namespace walnuts {
     }
     std::cout << "Number of draws: " << rows << '\n';
     // *****************************************************
+
+    
+    return chain_records;
   }
   
 }  // namespace walnuts

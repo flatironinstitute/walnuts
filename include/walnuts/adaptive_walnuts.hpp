@@ -237,9 +237,6 @@ class MassEstimator {
   MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
       : mass_cfg_(mass_cfg) {
-    // 0.98 is dummy that will get overwritten
-    // var_estimator_(0.98, static_cast<std::size_t>(theta.size())),
-    // inv_var_estimator_(0.98, static_cast<std::size_t>(theta.size())) {
     validate_same_size(theta, grad, "theta", "grad");
 
     S smoothing = mass_cfg_.additive_smoothing_;
@@ -379,8 +376,9 @@ class MinMicroStepsAdaptHandler {
  * @tparam F Type of log density/gradient function.
  * @tparam S Type of scalars.
  * @tparam RNG Type of base random number generator.
+ * @tparam Handler Type of adaptation and sampling event handler.
  */
-template <class F, typename S, class RNG>
+template <class F, typename S, class RNG, class Handler>
 class AdaptiveWalnuts {
  public:
   /**
@@ -405,6 +403,7 @@ class AdaptiveWalnuts {
    * a mean estimator to achieve this average.
    *
    * @param[in,out] rng The base random number generator.
+   * @param[in,out] handler Event handler for adaptation and sampling.
    * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
    * @param[in] mass_cfg The mass-matrix adaptation configuration.
@@ -412,7 +411,8 @@ class AdaptiveWalnuts {
    * @param[in] walnuts_cfg The WALNUTS configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
-  AdaptiveWalnuts(RNG& rng, const F& logp_grad, const Vec<S>& theta_init,
+  AdaptiveWalnuts(RNG& rng, Handler& handler,
+		  const F& logp_grad, const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
                   const AdamConfig<S>& step_cfg,
                   const WalnutsConfig<S>& walnuts_cfg,
@@ -421,6 +421,7 @@ class AdaptiveWalnuts {
         step_cfg_(step_cfg),
         walnuts_cfg_(walnuts_cfg),
         rand_(rng),
+	handler_(handler),
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
@@ -453,6 +454,7 @@ class AdaptiveWalnuts {
         std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(depth);
+    handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);  // inv_mass pre, inv_mass() post transition
     ++iteration_;
     return theta_;
   }
@@ -467,12 +469,18 @@ class AdaptiveWalnuts {
    *
    * @return The WALNUTS sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, S, RNG> sampler() {
-    return WalnutsSampler<F, S, RNG>(
-        rand_, logp_grad_.logp_grad_, theta_,
-        mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_);
+  WalnutsSampler<F, S, RNG, Handler> sampler() {
+    handler_.on_warmup_complete(step_size(), inv_mass());
+    return WalnutsSampler<F, S, RNG, Handler>(rand_,
+					      handler_,
+					      logp_grad_.logp_grad_,
+					      theta_,
+					      mass_estimator_.inv_mass_estimate(),
+					      step_adapt_handler_.step_size(),
+					      walnuts_cfg_.max_nuts_depth_,
+					      walnuts_cfg_.max_step_halvings_,
+					      min_micro_estimator_.min_micro_steps(),
+					      walnuts_cfg_.max_error_);
   }
 
   /**
@@ -526,6 +534,9 @@ class AdaptiveWalnuts {
 
   /** The random number generator required for NUTS. */
   Random<S, RNG> rand_;
+
+  /** The adaptation and sampling event handler. */
+  Handler& handler_;
 
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F, S> logp_grad_;

@@ -40,7 +40,7 @@ struct MyHandler {
 
   bool save_warmup_;
   double stepsize_ = 0;
-  Eigen::VectorXd diag_inv_mass_ = Eigen::VectorXd();
+  Eigen::VectorXd diag_inv_mass_;
   std::vector<Eigen::VectorXd> draws_ = std::vector<Eigen::VectorXd>();
   std::vector<double> lps_ = std::vector<double>();
   std::vector<Eigen::VectorXd> warmup_draws_ = std::vector<Eigen::VectorXd>();
@@ -65,8 +65,8 @@ int main() {
   uint64_t dims = 100;
   
   std::vector<MyHandler> handlers(num_chains);
-  for (size_t n = 0; n < num_chains; ++n) {
-    handlers[n] = MyHandler();
+  for (size_t m = 0; m < num_chains; ++m) {
+    handlers[m] = MyHandler();
   }
 
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
@@ -86,11 +86,19 @@ int main() {
     .rhat_converge_tol(1.001)
     .build();
 
-  walnuts::walnuts(seed,
-		   handlers,
-		   logp_grad,
-		   init_cfg, warmup_cfg, sampling_cfg);
-  
+  auto chain_records
+    = walnuts::walnuts(seed,
+		       handlers,
+		       logp_grad,
+		       init_cfg, warmup_cfg, sampling_cfg);
+
+  for (size_t m = 0; m < num_chains; ++m) {
+    std::cout << "CHAIN " << m
+	      << "; # warmup_draws = " << handlers[m].warmup_draws_.size()
+	      << "; # draws = " << handlers[m].draws_.size()
+	      << std::endl;
+  }
+
   std::cout << "FINISHED NORMALLY." << std::endl << std::endl;
 }
 

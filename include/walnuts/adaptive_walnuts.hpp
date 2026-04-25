@@ -27,74 +27,6 @@ Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
 }
 
 /**
- * @brief The immutable mass adaptation configuration.
- *
- * The mass adaptation configuration consists of an initializer for
- * the mass matrix, an initial pseudocount of observations to weight
- * the initial mass matrix (higher values imply more weight on the
- * initial mass matrix), slower updating from the initialization, and
- * an iteration offset for smoothing updates (higher values imply
- * slower updating from the initialization).
- *
- * @tparam S The type of scalars.
- */
-template <typename S>
-struct MassAdaptConfig {
-  /**
-   * @brief Construct a mass adaptation configuration with the specified
-   * tuning parameters.
-   *
-   * @param[in] mass_init The diagonal of the diagonal initial mass matrix.
-   * @param[in] init_count The pseudocount of observations for the
-   * initialization.
-   * @param[in] iter_offset The offset from 1 of the first observation.
-   * @param[in] additive_smoothing The additive smoothing of inverse mass
-   * estimates.
-   * @throw std::invalid_argument If the elements of `mass_init` are not finite
-   * and positive.
-   * @throw std::invalid_argument If the initial count is not finite and
-   * positive.
-   * @throw std::invalid_argument If the iteration offset is not finite and
-   * positive.
-   * @throw std::invalid_argument If the additive smoothing is not in (0, 1).
-   */
-  MassAdaptConfig(const Vec<S>& mass_init, S init_count, S iter_offset,
-                  S additive_smoothing)
-      : mass_init_(mass_init),
-        init_count_(init_count),
-        iter_offset_(iter_offset),
-        additive_smoothing_(additive_smoothing) {
-    validate_positive(mass_init, "mass_init entries");
-    validate_positive(init_count, "init_count");
-    validate_positive(iter_offset, "iter_offset");
-    validate_probability(additive_smoothing, "additive_smoothing");
-  }
-
-  /** The diagonal of the diagonal initial mass matrix. */
-  const Vec<S> mass_init_;
-
-  /** The pseudocount for the initial mass matrix. */
-  const S init_count_;
-
-  /** The offset from 1 of the first observation. */
-  const S iter_offset_;
-
-  /** The additive smoothing. */
-  const S additive_smoothing_;
-};
-
-template <typename S>
-std::ostream& operator<<(std::ostream& out, const MassAdaptConfig<S>& cfg) {
-    out << "MassAdaptConfig\n"
-        << "  mass_init          = " << cfg.mass_init_.transpose() << "\n"
-        << "  init_count         = " << cfg.init_count_            << "\n"
-        << "  iter_offset        = " << cfg.iter_offset_           << "\n"
-        << "  additive_smoothing = " << cfg.additive_smoothing_    << "\n";
-    return out;
-}
-
-
-/**
  * @brief The step-size adaptation handler for WALNUTS.
  *
  * @tparam S The type of scalars.
@@ -161,29 +93,29 @@ class MassEstimator {
    * is then additively smoothed by multiplying by multiplying by one minus
    * the additive smoothing and adding the additive smoothing.
    *
-   * @param[in] mass_cfg The mass matrix adaptation configuration.
+   * @param[in] warmup_cfg The warmup configuration.
    * @param[in] theta The initial position.
    * @param[in] grad The gradient of the target log density at the initial
    * position.
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const MassAdaptConfig<S>& mass_cfg, const Vec<S>& theta,
+  MassEstimator(const walnuts::WarmupConfig& warmup_cfg,
+		const Vec<S>& theta,
                 const Vec<S>& grad)
-      : mass_cfg_(mass_cfg) {
+    : warmup_cfg_(warmup_cfg) {
     validate_same_size(theta, grad, "theta", "grad");
 
-    S smoothing = mass_cfg_.additive_smoothing_;
+    S smoothing = warmup_cfg.mass_additive_smoothing();
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
     Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
     Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
     S dummy_discount = 0.98;  // gets reset before being used
-    inv_var_estimator_ = OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_,
+    inv_var_estimator_ = OnlineMoments<S>(dummy_discount, warmup_cfg.mass_init_count(),
                                           zero, init_prec);
-    var_estimator_ =
-        OnlineMoments<S>(dummy_discount, mass_cfg.iter_offset_, zero, init_var);
+    var_estimator_ = OnlineMoments<S>(dummy_discount, warmup_cfg.mass_init_count(), zero, init_var);
   }
 
   /**
@@ -197,7 +129,7 @@ class MassEstimator {
    * @pre iteration >= 0
    */
   void observe(const Vec<S>& theta, const Vec<S>& grad, std::size_t iteration) {
-    double discount_factor = 1.0 - 1.0 / (mass_cfg_.iter_offset_ + iteration);
+    double discount_factor = 1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
     var_estimator_.discount_observe(discount_factor, theta);
     inv_var_estimator_.discount_observe(discount_factor, grad);
   }
@@ -215,9 +147,9 @@ class MassEstimator {
   }
 
  private:
-  /** The mass matrix adaptation configuration. */
-  MassAdaptConfig<S> mass_cfg_;
-
+  /** The warmup configuration for adaptive Walnuts. */
+  walnuts::WarmupConfig warmup_cfg_;
+  
   /** The online variance estimator for draws. */
   OnlineMoments<S> var_estimator_;
 
@@ -340,7 +272,7 @@ class AdaptiveWalnuts {
    * @param[in,out] handler Event handler for adaptation and sampling.
    * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
-   * @param[in] mass_cfg The mass-matrix adaptation configuration.
+   * @param[in] warmup_cfg The warmup configuration.
    * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
@@ -348,7 +280,6 @@ class AdaptiveWalnuts {
 		  Handler& handler,
 		  const F& logp_grad,
 		  const Vec<S>& theta_init,
-                  const MassAdaptConfig<S>& mass_cfg,
 		  const walnuts::InitChainConfig& init_chain_cfg,
 		  const walnuts::WarmupConfig& warmup_cfg,
                   const walnuts::SamplingConfig& sampling_cfg,
@@ -362,7 +293,7 @@ class AdaptiveWalnuts {
         theta_(theta_init),
         iteration_(0),
         step_adapt_handler_(init_chain_cfg, warmup_cfg),
-        mass_estimator_(mass_cfg, theta_, grad(logp_grad, theta_)),
+        mass_estimator_(warmup_cfg, theta_, grad(logp_grad, theta_)),
         min_micro_estimator_(target_depth) {
   }
 

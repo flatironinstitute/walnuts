@@ -47,19 +47,12 @@ namespace walnuts {
 
     // TODO: unify to use external API config throughout
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
-      nuts::MassAdaptConfig<double>
-	mass_cfg(init_cfg.mass(static_cast<size_t>(m)),
-		 warmup_cfg.mass_init_count(),
-		 warmup_cfg.mass_init_count(), // reuse init for iter offset
-		 warmup_cfg.mass_additive_smoothing());
-      
       std::seed_seq seed_m{seed, m + 1u};
       adapters
       	.emplace_back(AdaptiveSampler(rngs[m],
 				      handlers[m],
 				      log_p_grad,
 				      init_cfg.position(static_cast<size_t>(m)),
-				      mass_cfg,
 				      init_cfg.init_chain_config(static_cast<uint64_t>(m)),
 				      warmup_cfg,
 				      sampling_cfg,

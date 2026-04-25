@@ -69,9 +69,11 @@ int main() {
     handlers[m] = MyHandler();
   }
 
+  double init_scale = 0.5;
+  double mass_smoothing = 0.1;
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
-    .positions(rng, 1.05)
-    .masses(std_normal, 0.1)
+    .positions(rng, init_scale)
+    .masses(std_normal, mass_smoothing)
     .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()

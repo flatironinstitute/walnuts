@@ -314,21 +314,21 @@ namespace walnuts {
 
   std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
     out << "WarmupConfig\n"
-	<< "  min_iter                   = " << cfg.min_iter()           << "\n"
-	<< "  max_iter                   = " << cfg.max_iter()           << "\n"
-	<< "  step_size_converge_tol     = " << cfg.step_size_converge_tol()    << "\n"
-	<< "  mass_converge_tol          = " << cfg.mass_converge_tol()  << "\n"
-	<< "  mass_init_count            = " << cfg.mass_init_count()           << "\n"
-	<< "  mass_additive_smoothing    = " << cfg.mass_additive_smoothing()   << "\n"
-	<< "  max_macro_steps_target     = " << cfg.max_macro_steps_target()    << "\n"
-	<< "  step_accept_rate_target    = " << cfg.step_accept_rate_target()   << "\n"
-	<< "  step_learning_rate         = " << cfg.step_learning_rate()        << "\n"
-	<< "  step_gradient_decay        = " << cfg.step_gradient_decay()       << "\n"
-	<< "  step_sq_gradient_decay     = " << cfg.step_sq_gradient_decay()    << "\n"
-	<< "  step_stabilization         = " << cfg.step_stabilization()        << "\n"
-	<< "  publish_stride             = " << cfg.publish_stride()            << "\n"
-	<< "  probe_microseconds         = " << cfg.probe_microseconds()        << "\n"
-	<< "  yield_period               = " << cfg.yield_period()              << "\n";
+	<< "  min_iter                 = " << cfg.min_iter()                 << "\n"
+	<< "  max_iter                 = " << cfg.max_iter()                 << "\n"
+	<< "  step_size_converge_tol   = " << cfg.step_size_converge_tol()   << "\n"
+	<< "  mass_converge_tol        = " << cfg.mass_converge_tol()        << "\n"
+	<< "  mass_init_count          = " << cfg.mass_init_count()          << "\n"
+	<< "  mass_additive_smoothing  = " << cfg.mass_additive_smoothing()  << "\n"
+	<< "  max_macro_steps_target   = " << cfg.max_macro_steps_target()   << "\n"
+	<< "  step_accept_rate_target  = " << cfg.step_accept_rate_target()  << "\n"
+	<< "  step_learning_rate       = " << cfg.step_learning_rate()       << "\n"
+	<< "  step_gradient_decay      = " << cfg.step_gradient_decay()      << "\n"
+	<< "  step_sq_gradient_decay   = " << cfg.step_sq_gradient_decay()   << "\n"
+	<< "  step_stabilization       = " << cfg.step_stabilization()       << "\n"
+	<< "  publish_stride           = " << cfg.publish_stride()           << "\n"
+	<< "  probe_microseconds       = " << cfg.probe_microseconds()       << "\n"
+	<< "  yield_period             = " << cfg.yield_period()             << "\n";
     return out;
   }
   

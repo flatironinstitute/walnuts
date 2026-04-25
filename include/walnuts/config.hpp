@@ -33,6 +33,12 @@ namespace walnuts {
       throw std::invalid_argument(var + " size must match " + target);
   }
 
+  template <typename T>
+  void validate_gt0(T x, const std::string& var) {
+    if (!(x > 0))
+      throw std::invalid_argument(var + " must be > 0");
+  }
+
   template <std::floating_point T>
   void validate_finite_gt1(T x, const std::string& var) {
     if (!(std::isfinite(x) && x > 1))
@@ -328,12 +334,13 @@ namespace walnuts {
   
   class SamplingConfig {
   public:
-    uint64_t min_iter()                 const { return min_iter_; }
-    uint64_t max_iter()                 const { return max_iter_; }
-    uint64_t max_trajectory_doublings() const { return max_trajectory_doublings_; }
-    uint64_t max_step_halvings()        const { return max_step_halvings_; }
-    double max_hamiltonian_error()      const { return max_hamiltonian_error_; }
-    double rhat_converge_tol()          const { return rhat_converge_tol_; }
+    uint64_t min_iter()                 const noexcept { return min_iter_; }
+    uint64_t max_iter()                 const noexcept { return max_iter_; }
+    uint64_t max_trajectory_doublings() const noexcept { return max_trajectory_doublings_; }
+    uint64_t max_step_halvings()        const noexcept { return max_step_halvings_; }
+    double max_hamiltonian_error()      const noexcept { return max_hamiltonian_error_; }
+    uint64_t min_micro_steps()          const noexcept { return min_micro_steps_; }
+    double rhat_converge_tol()          const noexcept { return rhat_converge_tol_; }
 
   private:
     friend class SamplingConfigBuilder;
@@ -345,6 +352,7 @@ namespace walnuts {
     uint64_t max_trajectory_doublings_ = 5;
     uint64_t max_step_halvings_        = 5;
     double max_hamiltonian_error_      = 0.5;
+    uint64_t min_micro_steps_            = 1;
     double rhat_converge_tol_          = 1.01;
   };
 
@@ -370,6 +378,11 @@ namespace walnuts {
       cfg_.max_hamiltonian_error_ = v;
       return *this;
     }
+    SamplingConfigBuilder& min_micro_steps(uint64_t v) {
+      validate_gt0(v, "min_micro_steps");
+      cfg_.min_micro_steps_ = v;
+      return *this;
+    }
     SamplingConfigBuilder& rhat_converge_tol(double v) {
       validate_finite_gt1(v, "rhat_convergence_tol");
       cfg_.rhat_converge_tol_ = v;
@@ -389,6 +402,7 @@ namespace walnuts {
 	<< "  max_trajectory_doublings   = " << cfg.max_trajectory_doublings() << "\n"
 	<< "  max_step_halvings          = " << cfg.max_step_halvings()        << "\n"
 	<< "  max_hamiltonian_error      = " << cfg.max_hamiltonian_error()    << "\n"
+	<< "  min_micro_steps            = " << cfg.min_micro_steps()          << "\n"
 	<< "  rhat_converge_tol          = " << cfg.rhat_converge_tol()        << "\n";
     return out;
   }

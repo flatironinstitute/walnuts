@@ -418,7 +418,6 @@ class AdaptiveWalnuts {
                   const WalnutsConfig<S>& walnuts_cfg,
                   double target_depth = 4.0)
       : mass_cfg_(mass_cfg),
-        step_cfg_(step_cfg),
         walnuts_cfg_(walnuts_cfg),
         rand_(rng),
 	handler_(handler),
@@ -525,9 +524,6 @@ class AdaptiveWalnuts {
  private:
   /** The mass adaptation configuration. */
   const MassAdaptConfig<S> mass_cfg_;
-
-  /** The step-size adaptation configuration. */
-  const AdamConfig<S> step_cfg_;
 
   /** The WALNUTS sampler configuration. */
   const WalnutsConfig<S> walnuts_cfg_;

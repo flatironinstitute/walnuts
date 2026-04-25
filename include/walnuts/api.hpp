@@ -61,12 +61,6 @@ namespace walnuts {
 		 warmup_cfg.step_sq_gradient_decay(),
 		 warmup_cfg.step_stabilization());
 
-      nuts::WalnutsConfig<double>
-	walnuts_cfg(sampling_cfg.max_hamiltonian_error(),
-		    sampling_cfg.max_trajectory_doublings(),
-		    sampling_cfg.max_step_halvings(),
-		    sampling_cfg.min_micro_steps());
-      
       std::seed_seq seed_m{seed, m + 1u};
       adapters
       	.emplace_back(AdaptiveSampler(rngs[m],
@@ -75,7 +69,7 @@ namespace walnuts {
 				      init_cfg.position(static_cast<size_t>(m)),
 				      mass_cfg,
 				      step_cfg,
-				      walnuts_cfg,
+				      sampling_cfg,
 				      std::log2(warmup_cfg.max_macro_steps_target())));
 					    
     }

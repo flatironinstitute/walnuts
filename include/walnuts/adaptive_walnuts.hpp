@@ -408,17 +408,17 @@ class AdaptiveWalnuts {
    * @param[in] theta_init The initial state.
    * @param[in] mass_cfg The mass-matrix adaptation configuration.
    * @param[in] step_cfg The step-size adaptation configuration.
-   * @param[in] walnuts_cfg The WALNUTS configuration.
+   * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
   AdaptiveWalnuts(RNG& rng, Handler& handler,
 		  const F& logp_grad, const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
                   const AdamConfig<S>& step_cfg,
-                  const WalnutsConfig<S>& walnuts_cfg,
+                  const walnuts::SamplingConfig& sampling_cfg,
                   double target_depth = 4.0)
       : mass_cfg_(mass_cfg),
-        walnuts_cfg_(walnuts_cfg),
+	sampling_cfg_(sampling_cfg),
         rand_(rng),
 	handler_(handler),
         logp_grad_(logp_grad),
@@ -448,8 +448,8 @@ class AdaptiveWalnuts {
     std::size_t depth = 0;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
-        walnuts_cfg_.max_nuts_depth_, walnuts_cfg_.max_step_halvings_,
-        min_micro_estimator_.min_micro_steps(), walnuts_cfg_.max_error_,
+        sampling_cfg_.max_trajectory_doublings(), sampling_cfg_.max_step_halvings(), 
+        min_micro_estimator_.min_micro_steps(), sampling_cfg_.max_hamiltonian_error(),
         std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(depth);
@@ -476,10 +476,10 @@ class AdaptiveWalnuts {
 					      theta_,
 					      mass_estimator_.inv_mass_estimate(),
 					      step_adapt_handler_.step_size(),
-					      walnuts_cfg_.max_nuts_depth_,
-					      walnuts_cfg_.max_step_halvings_,
+					      sampling_cfg_.max_trajectory_doublings(), 
+					      sampling_cfg_.max_step_halvings(),
 					      min_micro_estimator_.min_micro_steps(),
-					      walnuts_cfg_.max_error_);
+					      sampling_cfg_.max_hamiltonian_error());
   }
 
   /**
@@ -526,7 +526,7 @@ class AdaptiveWalnuts {
   const MassAdaptConfig<S> mass_cfg_;
 
   /** The WALNUTS sampler configuration. */
-  const WalnutsConfig<S> walnuts_cfg_;
+  const walnuts::SamplingConfig sampling_cfg_;
 
   /** The random number generator required for NUTS. */
   Random<S, RNG> rand_;

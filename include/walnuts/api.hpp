@@ -36,18 +36,15 @@ namespace walnuts {
     using AdaptiveSampler = nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
     using Sampler = nuts::WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
-    std::vector<AdaptiveSampler> adapters;
-    adapters.reserve(init_cfg.num_chains());
-
     std::vector<std::mt19937> rngs(0);
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
       std::seed_seq ss{seed, m + 1u};
       rngs.emplace_back(ss);
     }
 
-    // TODO: unify to use external API config throughout
+    std::vector<AdaptiveSampler> adapters;
+    adapters.reserve(init_cfg.num_chains());
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
-      std::seed_seq seed_m{seed, m + 1u};
       adapters
       	.emplace_back(AdaptiveSampler(rngs[m],
 				      handlers[m],
@@ -64,7 +61,7 @@ namespace walnuts {
       = adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
 
 
-    // ********************DEBUG I/O*****************************
+    // ********************ADAPTATION DEBUG I/O*****************************
     std::cout << "\nSHARED ADAPTED RESULT:  "
 	      << "stop_iter_min=" << adapt_result.stop_iter_min
 	      << "  step_bar=" << adapt_result.step_bar
@@ -84,7 +81,7 @@ namespace walnuts {
 
     std::vector<Sampler> samplers;
     for (std::size_t n = 0; n < adapters.size(); ++n)
-      samplers.emplace_back(adapters[n].sampler());
+      samplers.emplace_back(std::move(adapters[n].sampler()));
 
     size_t num_rhat_evals = 0u;
     std::vector<ChainRecord> chain_records = sample(samplers,
@@ -93,7 +90,7 @@ namespace walnuts {
 						    num_rhat_evals);
 
     
-    // *********************** DEBUG I/O *******************
+    // *********************** SAMPLING DEBUG I/O *******************
     std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
     std::size_t rows = 0;
     for (std::size_t m = 0; m < chain_records.size(); ++m) {

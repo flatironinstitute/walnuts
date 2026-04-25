@@ -7,69 +7,12 @@
 #include <type_traits>
 #include <vector>
 #include <Eigen/Dense>
-#include <walnuts/validate.hpp>
-#include <walnuts/util.hpp>
 #include <walnuts/config.hpp>
+#include <walnuts/util.hpp>
+#include <walnuts/validate.hpp>
+
 
 namespace walnuts {
-
-  template <std::floating_point T>
-  void validate_probability(T p, const std::string& var) {
-    if (!(p > 0 && p < 1))
-      throw std::invalid_argument(var + " must be a proportion in (0, 1)");
-  }
-  
-  template <typename T>
-  void validate_size(const std::vector<T>& x, uint64_t size,
-		     const std::string& var, const std::string& target) {
-    if (x.size() != size)
-      throw std::invalid_argument(var + " size must match " + target);
-  }
-
-  template <typename T, int R, int C>
-  void validate_size(const Eigen::Matrix<T, R, C>& x, uint64_t size,
-		     const std::string& var, const std::string& target) {
-    if (x.size() != static_cast<int64_t>(size))
-      throw std::invalid_argument(var + " size must match " + target);
-  }
-
-  template <typename T>
-  void validate_gt0(T x, const std::string& var) {
-    if (!(x > 0))
-      throw std::invalid_argument(var + " must be > 0");
-  }
-
-  template <std::floating_point T>
-  void validate_finite_gt1(T x, const std::string& var) {
-    if (!(std::isfinite(x) && x > 1))
-      throw std::invalid_argument(var + " must be finite and > 1");
-  }
-
-  template <std::integral T>
-  void validate_finite_positive(T x, const std::string& var) {
-    if (!(x > 0))
-        throw std::invalid_argument(var + " must be > 0");
-  }
-
-  template <std::floating_point T>
-  void validate_finite_positive(T x, const std::string& var) {
-    if (!(std::isfinite(x) && x > 0))
-        throw std::invalid_argument(var + " must be finite and > 0");
-  }
-  
-  template <typename T, int R, int C>
-  void validate_finite_positive(const Eigen::Matrix<T, R, C>& xs, const std::string& var) {
-    std::string var_entries = var + " entries";
-    for (int64_t i = 0; i < xs.size(); ++i)
-      validate_finite_positive(xs(i), var_entries);
-  }
-
-  template <typename T>
-  void validate_finite_positive(const std::vector<T>& xs, const std::string& var) {
-    std::string var_entries = var + " entries";
-    for (const auto& x : xs)
-      validate_finite_positive(x, var_entries);
-  }
 
 
   class InitChainConfig {
@@ -131,20 +74,20 @@ namespace walnuts {
     }
 
     InitConfigBuilder& step_sizes(double v) {
-      validate_finite_positive(v, "step size");
+      nuts::validate_finite_positive(v, "step size");
       step_sizes_ = std::vector<double>(num_chains_, v);
       return *this;
     }
     InitConfigBuilder& step_sizes(const std::vector<double>& v) {
-      validate_size(v, num_chains_, "step_sizes", "num_chains");
-      validate_finite_positive(v, "step_size");
+      nuts::validate_size(v, num_chains_, "step_sizes", "num_chains");
+      nuts::validate_finite_positive(v, "step_size");
       step_sizes_ = v;
       return *this;
     }
 
     template <typename RNG>
     InitConfigBuilder& positions(RNG& rng, double init_scale) {
-      validate_finite_positive(init_scale, "init_scale");
+      nuts::validate_finite_positive(init_scale, "init_scale");
       nuts::Random<double, RNG> rand(rng);
       for (size_t c = 0; c < num_chains_; ++c) {
 	positions_[c] = init_scale * rand.standard_normal(dims_);
@@ -152,20 +95,20 @@ namespace walnuts {
       return *this;
     }
     InitConfigBuilder& positions(const Eigen::VectorXd& v) {
-      validate_size(v, dims_, "position", "dims");
+      nuts::validate_size(v, dims_, "position", "dims");
       positions_ = std::vector<Eigen::VectorXd>(num_chains_, v);
       return *this;
     }
     InitConfigBuilder& positions(const std::vector<Eigen::VectorXd>& v) {
-      validate_size(v, num_chains_, "positions", "num_chains");
-      validate_finite_positive(v, "position");
+      nuts::validate_size(v, num_chains_, "positions", "num_chains");
+      nuts::validate_finite_positive(v, "position");
       positions_ = v;
       return *this;
     }
   
     template <typename LPG>
     InitConfigBuilder& masses(const LPG& logp_grad, double mass_smoothing) {
-      validate_finite_positive(mass_smoothing, "mass_smoothing");
+      nuts::validate_finite_positive(mass_smoothing, "mass_smoothing");
       Eigen::VectorXd grad;
       double lp;
       for (size_t c = 0; c < num_chains_; ++c) {
@@ -175,16 +118,16 @@ namespace walnuts {
       return *this;
     }
     InitConfigBuilder& masses(const Eigen::VectorXd& v) {
-      validate_size(v, dims_, "mass", "dims");
-      validate_finite_positive(v, "masses");
+      nuts::validate_size(v, dims_, "mass", "dims");
+      nuts::validate_finite_positive(v, "masses");
       masses_ = std::vector<Eigen::VectorXd>(num_chains_, v);
       return *this;
     }
     InitConfigBuilder& masses(const std::vector<Eigen::VectorXd>& v) {
-      validate_size(v, num_chains_, "masses", "num_chains");
-      validate_finite_positive(v, "masses");
+      nuts::validate_size(v, num_chains_, "masses", "num_chains");
+      nuts::validate_finite_positive(v, "masses");
       for (const auto& x : v)
-	validate_size(x, dims_, "all masses", "dims");
+	nuts::validate_size(x, dims_, "all masses", "dims");
       masses_ = v;
       return *this;
     }
@@ -267,67 +210,67 @@ namespace walnuts {
       return *this;
     }
     WarmupConfigBuilder step_size_converge_tol(double v) {
-      validate_finite_positive(v, "step_size_converge_tol");
+      nuts::validate_finite_positive(v, "step_size_converge_tol");
       cfg_.step_size_converge_tol_ = v;
       return *this;
     }
     WarmupConfigBuilder mass_converge_tol(double v) {
-      validate_finite_positive(v, "mass_converge_tol");
+      nuts::validate_finite_positive(v, "mass_converge_tol");
       cfg_.mass_converge_tol_ = v;
       return *this;
     }
     WarmupConfigBuilder mass_init_count(double v) {
-      validate_finite_positive(v, "mass_init_count");
+      nuts::validate_finite_positive(v, "mass_init_count");
       cfg_.mass_init_count_ = v;
       return *this;
     }
     WarmupConfigBuilder mass_additive_smoothing(double v) {
-      validate_finite_positive(v, "mass_additive_smoothing");
+      nuts::validate_finite_positive(v, "mass_additive_smoothing");
       cfg_.mass_additive_smoothing_ = v;
       return *this;
     }
     WarmupConfigBuilder max_macro_steps_target(double v) {
-      validate_finite_positive(v, "max_macro_steps_target");
+      nuts::validate_finite_positive(v, "max_macro_steps_target");
       cfg_.max_macro_steps_target_ = v;
       return *this;
     }
     WarmupConfigBuilder step_accept_rate_target(double v) {
-      validate_probability(v, "step_accept_rate_target");
+      nuts::validate_probability(v, "step_accept_rate_target");
       cfg_.step_accept_rate_target_ = v;
       return *this;
     }
     WarmupConfigBuilder step_learning_rate(double v) {
-      validate_finite_positive(v, "step_learning_rate");
+      nuts::validate_finite_positive(v, "step_learning_rate");
       cfg_.step_learning_rate_ = v;
       return *this;
     }
     WarmupConfigBuilder step_gradient_decay(double v) {
-      validate_probability(v, "step_gradient_decay");
+      nuts::validate_probability(v, "step_gradient_decay");
       cfg_.step_gradient_decay_ = v;
       return *this;
     }
     WarmupConfigBuilder step_sq_gradient_decay(double v) {
-      validate_probability(v, "step_sq_gradient_decay");
+      nuts::validate_probability(v, "step_sq_gradient_decay");
       cfg_.step_sq_gradient_decay_ = v;
       return *this;
     }
     WarmupConfigBuilder step_stabilization(double v) {
-      validate_finite_positive(v, "step_stabilization");
+      nuts::validate_finite_positive(v, "step_stabilization");
       cfg_.step_stabilization_ = v;
       return *this;
     }
     WarmupConfigBuilder publish_stride(uint64_t v) {
-      validate_finite_positive(v, "publish_stride");
+      nuts::validate_finite_positive(v, "publish_stride");
       cfg_.publish_stride_ = v;
       return *this;
     }
     WarmupConfigBuilder probe_microseconds(uint64_t v) {
-      validate_finite_positive(v, "probe_microseconds");
+      nuts::validate_finite_positive(v, "probe_microseconds");
       cfg_.probe_microseconds_ = v;
       return *this;
     }
     WarmupConfigBuilder yield_period(uint64_t v) {
-      validate_finite_positive(v, "yield_period");
+      nuts::validate_finite_positive(v, "yield_period");
       cfg_.yield_period_ = v;
       return *this;
     }
@@ -400,17 +343,17 @@ namespace walnuts {
       return *this;
     }
     SamplingConfigBuilder& max_hamiltonian_error(double v) {
-      validate_finite_positive(v, "max_hamiltonian_error");
+      nuts::validate_finite_positive(v, "max_hamiltonian_error");
       cfg_.max_hamiltonian_error_ = v;
       return *this;
     }
     SamplingConfigBuilder& min_micro_steps(uint64_t v) {
-      validate_gt0(v, "min_micro_steps");
+      nuts::validate_gt0(v, "min_micro_steps");
       cfg_.min_micro_steps_ = v;
       return *this;
     }
     SamplingConfigBuilder& rhat_converge_tol(double v) {
-      validate_finite_gt1(v, "rhat_convergence_tol");
+      nuts::validate_finite_gt1(v, "rhat_convergence_tol");
       cfg_.rhat_converge_tol_ = v;
       return *this;
     }

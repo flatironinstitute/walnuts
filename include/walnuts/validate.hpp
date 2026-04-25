@@ -57,4 +57,63 @@ namespace nuts {
     auto is_pos = [](auto u) { return u > 0; };
     validate_elements(is_pos, x, fun, arg, "must be positive");
   }
+
+
+  template <std::floating_point T>
+  void validate_probability(T p, const std::string& var) {
+    if (!(p > 0 && p < 1))
+      throw std::invalid_argument(var + " must be a proportion in (0, 1)");
+  }
+  
+  template <typename T>
+  void validate_size(const std::vector<T>& x, uint64_t size,
+		     const std::string& var, const std::string& target) {
+    if (x.size() != size)
+      throw std::invalid_argument(var + " size must match " + target);
+  }
+
+  template <typename T, int R, int C>
+  void validate_size(const Eigen::Matrix<T, R, C>& x, uint64_t size,
+		     const std::string& var, const std::string& target) {
+    if (x.size() != static_cast<int64_t>(size))
+      throw std::invalid_argument(var + " size must match " + target);
+  }
+
+  template <typename T>
+  void validate_gt0(T x, const std::string& var) {
+    if (!(x > 0))
+      throw std::invalid_argument(var + " must be > 0");
+  }
+
+  template <std::floating_point T>
+  void validate_finite_gt1(T x, const std::string& var) {
+    if (!(std::isfinite(x) && x > 1))
+      throw std::invalid_argument(var + " must be finite and > 1");
+  }
+
+  template <std::integral T>
+  void validate_finite_positive(T x, const std::string& var) {
+    if (!(x > 0))
+        throw std::invalid_argument(var + " must be > 0");
+  }
+
+  template <std::floating_point T>
+  void validate_finite_positive(T x, const std::string& var) {
+    if (!(std::isfinite(x) && x > 0))
+        throw std::invalid_argument(var + " must be finite and > 0");
+  }
+  
+  template <typename T, int R, int C>
+  void validate_finite_positive(const Eigen::Matrix<T, R, C>& xs, const std::string& var) {
+    std::string var_entries = var + " entries";
+    for (int64_t i = 0; i < xs.size(); ++i)
+      validate_finite_positive(xs(i), var_entries);
+  }
+
+  template <typename T>
+  void validate_finite_positive(const std::vector<T>& xs, const std::string& var) {
+    std::string var_entries = var + " entries";
+    for (const auto& x : xs)
+      validate_finite_positive(x, var_entries);
+  }
 }

@@ -20,103 +20,36 @@ S relu(S x) {
 }
 
 /**
- * @brief The immutable configuration for Adam-based step-size adaptation.
- *
- * @tparam S The type of scalars.
- */
-template <typename S>
-struct AdamConfig {
-  /**
-   * @brief Construct a step-size adaptation configuration given the
-   * tuning parameters.
-   *
-   * @param[in] step_size_init The initial step size.
-   * @param[in] target_accept_rate The target acceptance rate.
-   * @param[in] learn_rate The learning rate.
-   * @param[in] beta1 The decay rate of the moving average for gradients.
-   * @param[in] beta2 The decay rate of the moving average for squared
-   * gradients.
-   * @param[in] epsilon The stabilization constant added to the denominator of
-   * updates.
-   * @throw std::invalid_argument If the initial step size is not finite and
-   * positive.
-   * @throw std::invalid_argument If the learning rate is not positive and
-   * finite.
-   * @throw std::invalid_argument If `beta1` is not in (0, 1).
-   * @throw std::invalid_argument If `beta2` is not in (0, 1).
-   * @throw std::invalid_argument If `epsilon" is not positive and finite.
-   */
-  AdamConfig(S step_size_init, S target_accept_rate, S learn_rate = 0.2,
-             S beta1 = 0.3, S beta2 = 0.99, S epsilon = 1e-4)
-      : step_size_init_(step_size_init),
-        target_accept_rate_(target_accept_rate),
-        learn_rate_(learn_rate),
-        beta1_(beta1),
-        beta2_(beta2),
-        epsilon_(epsilon) {
-    validate_positive(step_size_init, "step_size_init");
-    validate_probability(target_accept_rate, "target_accept_rate");
-    validate_positive(learn_rate, "learn_rate");
-    validate_probability(beta1, "beta1");
-    validate_probability(beta2, "beta2");
-    validate_positive(epsilon, "epsilon");
-  }
-
-  /** The initial macro step size. */
-  const S step_size_init_;
-
-  /** The target expected Metropolis acceptance rate of macro steps. */
-  const S target_accept_rate_;
-
-  /** The learning rate for Adam. */
-  const S learn_rate_;
-
-  /** The decay rate of the moving average for gradients */
-  const S beta1_;
-
-  /** The decay rate of the moving average for squared gradients. */
-  const S beta2_;
-
-  /** The additive stabiliziation constant for the denominator of updates. */
-  const S epsilon_;
-};
-
-template <typename S>
-std::ostream& operator<<(std::ostream& out, const AdamConfig<S>& cfg) {
-    out << "AdamConfig\n"
-        << "  step_size_init      = " << cfg.step_size_init_      << "\n"
-        << "  target_accept_rate  = " << cfg.target_accept_rate_  << "\n"
-        << "  learn_rate          = " << cfg.learn_rate_          << "\n"
-        << "  beta1               = " << cfg.beta1_               << "\n"
-        << "  beta2               = " << cfg.beta2_               << "\n"
-        << "  epsilon             = " << cfg.epsilon_             << "\n";
-    return out;
-}  
-
-/**
  * The Adam stochastic gradient optimizer specialized for step-size adaptation.
  */
 template <typename S>
 class Adam {
  public:
   /**
-   * Construct an Adam optimizer from a configuration.
+   * Construct an Adam optimizer from tuning parameters and initialization.
    *
-   * @param[in] cfg The configuration for the optimizer.
+   * @param[in] step_size_init The initial step size.
+   * @param[in] accept_rate_target The target acceptance rate.
+   * @param[in] learning_rate The learning rate.
+   * @param[in] gradient_decay The gradient decay rate.
+   * @param[in] sq_gradient_decay The squared gradient decay rate.
+   * @param[in] stabilization The estimation stabilization parameter.
    */
-  Adam(const AdamConfig<S>& cfg)
-      : theta_(std::log(cfg.step_size_init_)),
-        m_(0),
-        v_(0),
-        t_(0),
-        beta1_pow_(1),
-        beta2_pow_(1),
-        target_accept_rate_(cfg.target_accept_rate_),
-        learn_rate_(cfg.learn_rate_),
-        beta1_(cfg.beta1_),
-        beta2_(cfg.beta2_),
-        eps_(cfg.epsilon_) {}
-
+  Adam(double step_size_init, double accept_rate_target,
+       double learning_rate, double gradient_decay, double sq_gradient_decay,
+       double stabilization)
+    : theta_(std::log(step_size_init)),
+      m_(0),
+      v_(0),
+      t_(0),
+      beta1_pow_(1),
+      beta2_pow_(1),
+      target_accept_rate_(accept_rate_target),
+      learn_rate_(learning_rate),
+      beta1_(gradient_decay),
+      beta2_(sq_gradient_decay),
+      eps_(stabilization) {}
+  
   /**
    * Observe an acceptance probabilty in (0, 1).
    *

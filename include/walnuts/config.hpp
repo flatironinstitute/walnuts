@@ -71,17 +71,43 @@ namespace walnuts {
       validate_finite_positive(x, var_entries);
   }
 
-  
+
+  class InitChainConfig {
+  public:
+    InitChainConfig(double step_size,
+		    const Eigen::VectorXd& position,
+		    const Eigen::VectorXd& mass)
+      : step_size_(step_size),
+	position_(position),
+	mass_(mass) {
+    }
+    double step_size() const { return step_size_; }
+    const Eigen::VectorXd& position() const { return position_; }
+    const Eigen::VectorXd& mass() const { return mass_; }
+  private:
+    double step_size_;
+    const Eigen::VectorXd& position_;
+    const Eigen::VectorXd& mass_;
+  };
+
+  // multiple chains to broadcast builder calls
   class InitConfig {
   public:
-    uint64_t num_chains()                            const { return step_sizes_.size(); }
-    uint64_t dims()                                  const { return num_chains() == 0 ? 0 : static_cast<uint64_t>(positions_[0].size()); }
-    const std::vector<double>& step_sizes()          const { return step_sizes_; }
-    double step_size(size_t n)                       const { return step_sizes_[n]; }                             
-    const std::vector<Eigen::VectorXd>& positions()  const { return positions_; }
-    Eigen::VectorXd position(size_t n)               const { return positions_[n]; }
-    const std::vector<Eigen::VectorXd>& masses()     const { return masses_; }
-    Eigen::VectorXd mass(size_t n)                   const { return masses_[n]; }
+    uint64_t num_chains()                               const { return step_sizes_.size(); }
+    uint64_t dims()                                     const { return num_chains() == 0
+	                                                          ? 0
+	                                                          : static_cast<uint64_t>(positions_[0].size()); }
+    const std::vector<double>& step_sizes()             const { return step_sizes_; }
+    double step_size(size_t n)                          const { return step_sizes_[n]; }                             
+    const std::vector<Eigen::VectorXd>& positions()     const { return positions_; }
+    const Eigen::VectorXd& position(size_t n)           const { return positions_[n]; }
+    const std::vector<Eigen::VectorXd>& masses()        const { return masses_; }
+    const Eigen::VectorXd& mass(size_t n)               const { return masses_[n]; }
+    const InitChainConfig init_chain_config(size_t n)   const {
+      return InitChainConfig(step_size(n),
+			     position(n),
+			     mass(n));
+    }
 
   private:
     friend class InitConfigBuilder;

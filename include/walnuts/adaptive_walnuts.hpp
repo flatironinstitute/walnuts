@@ -102,12 +102,15 @@ std::ostream& operator<<(std::ostream& out, const MassAdaptConfig<S>& cfg) {
 template <typename S>
 class StepAdaptHandler {
  public:
-  /**
-   * Construct a step-size adaptation handler for WALNUTS.
-   *
-   * @param[in] cfg The stepsize adaptation tuning parameters.
-   */
-  StepAdaptHandler(const AdamConfig<S>& cfg) : adam_(cfg) {}
+  StepAdaptHandler(const walnuts::InitChainConfig& init_chain_cfg,
+		   const walnuts::WarmupConfig& warmup_cfg)
+    : adam_(init_chain_cfg.step_size(),
+	    warmup_cfg.step_accept_rate_target(),
+	    warmup_cfg.step_learning_rate(),
+	    warmup_cfg.step_gradient_decay(),
+	    warmup_cfg.step_sq_gradient_decay(),
+	    warmup_cfg.step_stabilization()) {
+  }
 
   /**
    * @brief Update with the estimate of step size given the specified
@@ -338,25 +341,28 @@ class AdaptiveWalnuts {
    * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
    * @param[in] mass_cfg The mass-matrix adaptation configuration.
-   * @param[in] step_cfg The step-size adaptation configuration.
    * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
-  AdaptiveWalnuts(RNG& rng, Handler& handler,
-		  const F& logp_grad, const Vec<S>& theta_init,
+  AdaptiveWalnuts(RNG& rng,
+		  Handler& handler,
+		  const F& logp_grad,
+		  const Vec<S>& theta_init,
                   const MassAdaptConfig<S>& mass_cfg,
-                  const AdamConfig<S>& step_cfg,
+		  const walnuts::InitChainConfig& init_chain_cfg,
+		  const walnuts::WarmupConfig& warmup_cfg,
                   const walnuts::SamplingConfig& sampling_cfg,
                   double target_depth = 4.0)
-      : mass_cfg_(mass_cfg),
+      : init_chain_cfg_(init_chain_cfg),
+	warmup_cfg_(warmup_cfg),
 	sampling_cfg_(sampling_cfg),
         rand_(rng),
 	handler_(handler),
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
-        step_adapt_handler_(step_cfg),
-        mass_estimator_(mass_cfg_, theta_, grad(logp_grad, theta_)),
+        step_adapt_handler_(init_chain_cfg, warmup_cfg),
+        mass_estimator_(mass_cfg, theta_, grad(logp_grad, theta_)),
         min_micro_estimator_(target_depth) {
   }
 
@@ -453,8 +459,11 @@ class AdaptiveWalnuts {
   }
   
  private:
-  /** The mass adaptation configuration. */
-  const MassAdaptConfig<S> mass_cfg_;
+  /** The configuration of initialization for this chain. */
+  const walnuts::InitChainConfig init_chain_cfg_;
+
+  /** The warmup configuration. */
+  const walnuts::WarmupConfig warmup_cfg_;
 
   /** The WALNUTS sampler configuration. */
   const walnuts::SamplingConfig sampling_cfg_;

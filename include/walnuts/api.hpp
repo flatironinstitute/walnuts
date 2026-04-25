@@ -53,14 +53,6 @@ namespace walnuts {
 		 warmup_cfg.mass_init_count(), // reuse init for iter offset
 		 warmup_cfg.mass_additive_smoothing());
       
-      nuts::AdamConfig<double>
-	step_cfg(init_cfg.step_size(m),
-		 warmup_cfg.step_accept_rate_target(),
-		 warmup_cfg.step_learning_rate(),
-		 warmup_cfg.step_gradient_decay(),
-		 warmup_cfg.step_sq_gradient_decay(),
-		 warmup_cfg.step_stabilization());
-
       std::seed_seq seed_m{seed, m + 1u};
       adapters
       	.emplace_back(AdaptiveSampler(rngs[m],
@@ -68,7 +60,8 @@ namespace walnuts {
 				      log_p_grad,
 				      init_cfg.position(static_cast<size_t>(m)),
 				      mass_cfg,
-				      step_cfg,
+				      init_cfg.init_chain_config(static_cast<uint64_t>(m)),
+				      warmup_cfg,
 				      sampling_cfg,
 				      std::log2(warmup_cfg.max_macro_steps_target())));
 					    

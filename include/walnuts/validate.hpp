@@ -116,4 +116,11 @@ namespace nuts {
     for (const auto& x : xs)
       validate_finite_positive(x, var_entries);
   }
+
+  template <class Stream>
+  void validate_open(const Stream& s, const std::string& name) {
+    if (!s.is_open()) {
+      throw std::invalid_argument("could not open stream from : " + name);
+    }
+  }
 }

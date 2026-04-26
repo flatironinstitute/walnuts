@@ -92,7 +92,7 @@ namespace walnuts {
     
     // *********************** SAMPLING DEBUG I/O *******************
     std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
-    std::size_t rows = 0;
+    std::size_t num_draws = 0;
     for (std::size_t m = 0; m < chain_records.size(); ++m) {
       const auto& chain_record = chain_records[m];
       std::size_t N_m = chain_record.num_draws();
@@ -100,12 +100,12 @@ namespace walnuts {
       for (std::size_t n = 0; n < N_m; ++n) {
 	lps(static_cast<int64_t>(n)) = chain_record.logp(n);
       }
-      rows += N_m;
+      num_draws += N_m;
       std::cout << "Chain " << m << "  count " << N_m
 		<< "  mean(logp) " << lps.mean()
 		<< "  sd(logp) [sample] " << std::sqrt(variance(lps)) << '\n';
     }
-    std::cout << "Number of draws: " << rows << '\n';
+    std::cout << "Number of draws: " << num_draws << '\n';
     // *****************************************************
 
     

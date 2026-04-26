@@ -11,9 +11,7 @@
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
 
-
 namespace walnuts {
-
 
   class InitChainConfig {
   public:
@@ -33,7 +31,7 @@ namespace walnuts {
     const Eigen::VectorXd& mass_;
   };
 
-  // multiple chains to broadcast builder calls
+  
   class InitConfig {
   public:
     uint64_t num_chains()                               const { return step_sizes_.size(); }
@@ -61,6 +59,7 @@ namespace walnuts {
     std::vector<Eigen::VectorXd> positions_;
     std::vector<Eigen::VectorXd> masses_;
   };
+
 
   class InitConfigBuilder {
   public:
@@ -148,6 +147,7 @@ namespace walnuts {
     std::vector<Eigen::VectorXd> masses_;
   };
 
+  
   std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
     out << "InitConfigs (by chain)\n";
     for (size_t n = 0; n < cfg.step_sizes().size(); ++n) {
@@ -161,6 +161,7 @@ namespace walnuts {
     return out;
   }
 
+  
   class WarmupConfig {
   public: 
     uint64_t min_iter()                const { return min_iter_; }
@@ -199,6 +200,7 @@ namespace walnuts {
     uint64_t probe_microseconds_        = 1000;
     uint64_t yield_period_              = 32;
   };
+
 
   class WarmupConfigBuilder {
   public:
@@ -281,6 +283,7 @@ namespace walnuts {
     WarmupConfig cfg_;
   };
 
+
   std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
     out << "WarmupConfig\n"
 	<< "  min_iter                 = " << cfg.min_iter()                 << "\n"
@@ -301,6 +304,7 @@ namespace walnuts {
     return out;
   }
   
+
   class SamplingConfig {
   public:
     uint64_t min_iter()                 const noexcept { return min_iter_; }
@@ -324,6 +328,7 @@ namespace walnuts {
     uint64_t min_micro_steps_            = 1;
     double rhat_converge_tol_          = 1.01;
   };
+
 
   class SamplingConfigBuilder {
   public:
@@ -363,6 +368,7 @@ namespace walnuts {
   private:
     SamplingConfig cfg_;
   };
+
 
   std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
     out << "SamplingConfig\n"

@@ -104,19 +104,19 @@ class MassEstimator {
   MassEstimator(const walnuts::WarmupConfig& warmup_cfg,
 		const Vec<S>& theta,
                 const Vec<S>& grad)
-    : warmup_cfg_(warmup_cfg) {
+    : warmup_cfg_(warmup_cfg)
+  {
     validate_same_size(theta, grad, "theta", "grad");
-
     S smoothing = warmup_cfg.mass_additive_smoothing();
     Vec<S> zero = Vec<S>::Zero(theta.size());
     Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
     Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
     Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
-    S dummy_discount = 0.98;  // gets reset before being used
-    inv_var_estimator_ = OnlineMoments<S>(dummy_discount, warmup_cfg.mass_init_count(),
-                                          zero, init_prec);
-    var_estimator_ = OnlineMoments<S>(dummy_discount, warmup_cfg.mass_init_count(), zero, init_var);
+    inv_var_estimator_ = OnlineMoments<S>(warmup_cfg.mass_init_count(),
+					  zero, init_prec);
+    var_estimator_ = OnlineMoments<S>(warmup_cfg.mass_init_count(),
+				      zero, init_var);
   }
 
   /**

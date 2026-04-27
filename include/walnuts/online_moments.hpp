@@ -1,8 +1,11 @@
 #pragma once
 
+#include <concepts>
+
 #include <Eigen/Dense>
 
 #include "util.hpp"
+#include "validate.hpp"
 
 namespace nuts {
 
@@ -45,31 +48,17 @@ namespace nuts {
  *
  * @tparam S The type of scalars.
  */
-template <typename S>
+template <std::floating_point S>
 class OnlineMoments {
  public:
   /**
-   * @brief Construct a default online estimator of size zero.
+   * @brief Construct a default online estimator of size zero with
+   * default discount factor of 0.98.
    */
   OnlineMoments()
-      : discount_factor_(0.98),  // dummy valid inits
-        weight_(0),
+      : weight_(0),
         mean_(Vec<S>::Zero(0)),
         sum_sq_dev_(Vec<S>::Zero(0)) {}
-
-  /**
-   * @brief Construct online moments with a given discount factor and size.
-   *
-   * @param[in] discount_factor The past discount factor (between 0 and 1,
-   * inclusive).
-   * @param[in] dims The number of dimensions.
-   * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
-   */
-  OnlineMoments(double discount_factor, std::size_t dims)
-      : discount_factor_(discount_factor),
-        weight_(0),
-        mean_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))),
-        sum_sq_dev_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))) {}
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -80,8 +69,6 @@ class OnlineMoments {
    * initial mean and variance were the result of a count of
    * `init_weight` observations.
    *
-   * @param[in] discount_factor The past discount factor (between 0 and 1,
-   * inclusive).
    * @param[in] init_weight Weight (in number of draws) of initial mean
    * and variance (positive).
    * @param[in] init_mean Initial mean.
@@ -92,13 +79,12 @@ class OnlineMoments {
    * @throw std::invalid_argument If the initial mean and variance are not
    * the same size.
    */
-  OnlineMoments(S discount_factor, S init_weight, const Vec<S>& init_mean,
+  OnlineMoments(S init_weight, const Vec<S>& init_mean,
                 const Vec<S>& init_variance)
-      : discount_factor_(discount_factor),
-        weight_(init_weight),
+      : weight_(init_weight),
         mean_(init_mean),
-        sum_sq_dev_(init_weight * init_variance) {
-    validate_probability_inclusive(discount_factor, "discount_factor");
+        sum_sq_dev_(init_weight * init_variance)
+  {
     validate_positive(init_weight, "init_weight");
     validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
   }
@@ -110,9 +96,8 @@ class OnlineMoments {
    * @param discount_factor The discount factor.
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
-  inline void set_discount_factor(S discount_factor) {
-    validate_probability_inclusive(discount_factor,
-                                   "set_discount_factor(discount_factror)");
+  void set_discount_factor(S discount_factor) {
+    validate_probability_inclusive(discount_factor, "discount_factor");
     discount_factor_ = discount_factor;
   }
 
@@ -128,11 +113,11 @@ class OnlineMoments {
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
-  inline void observe(const Eigen::MatrixBase<Derived>& y) {
-    const Vec<S> delta = y - mean_;
+  void observe(const Eigen::MatrixBase<Derived>& y) {
+    auto delta = y - mean_;
     weight_ = discount_factor_ * weight_ + 1;
     mean_ += delta / weight_;
-    sum_sq_dev_ =
+    sum_sq_dev_.noalias() =
         discount_factor_ * sum_sq_dev_ + delta.cwiseProduct(y - mean_);
   }
 
@@ -145,12 +130,12 @@ class OnlineMoments {
    * @tparam Derived The type of matrix underlying the observation.
    * @param discount_factor The discount factor.
    * @param y The observed vector.
-   * @pre discount_factor > 0 && discount_factor <= 1
+   * @throw discount_factor > 0 && discount_factor <= 1
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
-  inline void discount_observe(double discount_factor,
-                               const Eigen::MatrixBase<Derived>& y) {
+  void discount_observe(S discount_factor,
+			const Eigen::MatrixBase<Derived>& y) {
     set_discount_factor(discount_factor);
     observe(y);
   }
@@ -160,23 +145,27 @@ class OnlineMoments {
    *
    * @return The mean estimate.
    */
-  inline const Vec<S>& mean() const noexcept { return mean_; }
+  const Vec<S>& mean() const noexcept { return mean_; }
 
   /**
-   * @brief Return the estimate of the variance.
+   * @brief Return the maximum likelihood estimate of the variance, or
+   * a vector of 1 values if there have been no observations.
    *
    * @return The variance estimate.
    */
-  inline Vec<S> variance() const {
-    if (weight_ > 0) {
-      return sum_sq_dev_ / weight_;
+  Vec<S> variance() const {
+    if (!(weight_ > 0)) {
+      return Vec<S>::Ones(mean_.size());
     }
-    return Vec<S>::Ones(mean_.size());
+    return sum_sq_dev_ / weight_;
   }
 
  private:
-  /** The discount factor applied to the weights of previous observations. */
-  S discount_factor_;
+  /** The discount factor applied to the weights of previous observations.
+   *
+   * Gets reset before it is used in discounted Welford algorithm.
+   */
+  S discount_factor_ = std::numeric_limits<S>::quiet_NaN();
 
   /** The combined weight of all previous observations. */
   S weight_;

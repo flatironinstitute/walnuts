@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <concepts>
 
 #include "util.hpp"
 
@@ -65,7 +66,7 @@ class Adam {
    *
    * @param[in] alpha The acceptance probability.
    */
-  inline void observe(S alpha) noexcept {
+  void observe(S alpha) noexcept {
     ++t_;
     beta1_pow_ *= beta1_;
     beta2_pow_ *= beta2_;
@@ -90,7 +91,7 @@ class Adam {
    *
    * @return The step size.
    */
-  inline S step_size() const noexcept { return std::exp(theta_); }
+  S step_size() const noexcept { return std::exp(theta_); }
 
  private:
   S theta_;

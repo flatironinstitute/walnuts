@@ -117,6 +117,28 @@ namespace nuts {
       validate_finite_positive(x, var_entries);
   }
 
+  template <std::floating_point T>
+  void validate_finite(T x, const std::string& var) {
+    if (!std::isfinite(x))
+        throw std::invalid_argument(var + " must be finite and > 0");
+  }
+  
+  template <typename T, int R, int C>
+  void validate_finite(const Eigen::Matrix<T, R, C>& xs, const std::string& var) {
+    std::string var_entries = var + " entries";
+    for (int64_t i = 0; i < xs.size(); ++i)
+      validate_finite(xs(i), var_entries);
+  }
+
+  template <typename T>
+  void validate_finite(const std::vector<T>& xs, const std::string& var) {
+    std::string var_entries = var + " entries";
+    for (const auto& x : xs)
+      validate_finite(x, var_entries);
+  }
+
+
+  
   template <class Stream>
   void validate_open(const Stream& s, const std::string& name) {
     if (!s.is_open()) {

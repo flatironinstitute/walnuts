@@ -197,6 +197,11 @@ int main() {
     .rhat_converge_tol(1.001)
     .build();
 
+  // init_cfg too verbose to print regularly with inits in all chains
+  // std::cout << init_cfg << "\n\n";
+  std::cout << warmup_cfg << "\n\n";
+  std::cout << sampling_cfg << "\n\n";
+
   auto chain_records
     = walnuts::walnuts(seed,
 		       handlers,

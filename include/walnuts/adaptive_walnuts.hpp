@@ -41,7 +41,8 @@ class StepAdaptHandler {
 	    warmup_cfg.step_learning_rate(),
 	    warmup_cfg.step_gradient_decay(),
 	    warmup_cfg.step_sq_gradient_decay(),
-	    warmup_cfg.step_stabilization()) {
+	    warmup_cfg.step_stabilization(),
+	    warmup_cfg.step_learn_rate_decay()) {
   }
 
   /**

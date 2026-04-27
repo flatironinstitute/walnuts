@@ -7,22 +7,29 @@
 namespace nuts {
 
 /**
- * Return the rectified linear unit (relu) of the argument.
- *
- * relu(x) = x if x > 0 and relu(x) = 0 if x <= 0`
- *
- * @param[in] x The argument.
- * @return The relu of the argument.
- */
-template <typename S>
-S relu(S x) {
-  return x < 0 ? 0 : x;
-}
+ * The Adam stochastic gradient optimizer specialized for step-size
+ * adaptation with a decreasing learning rate schedule.  
 
-/**
- * The Adam stochastic gradient optimizer specialized for step-size adaptation.
+ * The specialization for step size builds in quadratic error,
+ * following Nuts. That is, for observed accept rate `acc_obs` and
+ * target accept rate `accept_target`, the error is `-0.5 *
+ * (accept_target - accept_observed)^2` so that the gradient is
+ * `accept_target - accept_observed`.
+
+ * The non-standard effective learning rate schedule divides the
+ * learning rate by `pow(t, learn_rate_decay)` in iteration `t`
+ * (indexed from 1).  The Robbins-Monro theory around SGD allows
+ * values as high as `learn_rate_decay = 1`, Nuts used
+ * `learn_rate_decay = 0.75`.
+
+
+Nuts used `learn_rate_decay = 3/4` 
+ * used `t^(3/4)` instead of `t^(1/2)`.  Dividing by just `t` is the
+ * usual Robbins-Monro SGD approach.
+ *
+ * @tparam S Type of floating point values.
  */
-template <typename S>
+template <std::floating_point S>
 class Adam {
  public:
   /**
@@ -34,10 +41,11 @@ class Adam {
    * @param[in] gradient_decay The gradient decay rate.
    * @param[in] sq_gradient_decay The squared gradient decay rate.
    * @param[in] stabilization The estimation stabilization parameter.
+   * @param[in] learn_rate_decay The learning rate exponent on iteration.
    */
-  Adam(double step_size_init, double accept_rate_target,
-       double learning_rate, double gradient_decay, double sq_gradient_decay,
-       double stabilization)
+  Adam(S step_size_init, S accept_rate_target,
+       S learning_rate, S gradient_decay, S sq_gradient_decay,
+       S stabilization, S learn_rate_decay)
     : theta_(std::log(step_size_init)),
       m_(0),
       v_(0),
@@ -48,10 +56,12 @@ class Adam {
       learn_rate_(learning_rate),
       beta1_(gradient_decay),
       beta2_(sq_gradient_decay),
-      eps_(stabilization) {}
+      eps_(stabilization),
+      learn_rate_decay_(learn_rate_decay)
+  {}
   
   /**
-   * Observe an acceptance probabilty in (0, 1).
+   * Observe an acceptance probability in (0, 1).
    *
    * @param[in] alpha The acceptance probability.
    */
@@ -60,16 +70,18 @@ class Adam {
     beta1_pow_ *= beta1_;
     beta2_pow_ *= beta2_;
 
-    const S grad = target_accept_rate_ - alpha;
+    S grad = target_accept_rate_ - alpha;
 
     m_ = beta1_ * m_ + (1 - beta1_) * grad;
     v_ = beta2_ * v_ + (1 - beta2_) * grad * grad;
 
-    const S m_hat = m_ / (1 - beta1_pow_);
-    S v_hat = relu(v_ / (1 - beta2_pow_));
+    S m_hat = m_ / (1 - beta1_pow_);
+    S v_hat = v_ / (1 - beta2_pow_);
 
-    const S denom = std::sqrt(v_hat) + eps_;
-    const S effective_lr = learn_rate_ / std::sqrt(static_cast<S>(t_));
+
+    // dividing by sqrt(t_) non-standard; similar to dual average to make 
+    S effective_lr = learn_rate_ / std::pow(t_, learn_rate_decay_);
+    S denom = std::sqrt(v_hat) + eps_;
     theta_ -= effective_lr * m_hat / denom;
   }
 
@@ -84,7 +96,7 @@ class Adam {
   S theta_;
   S m_;
   S v_;
-  std::size_t t_;
+  S t_;
   S beta1_pow_;
   S beta2_pow_;
 
@@ -93,6 +105,7 @@ class Adam {
   const S beta1_;
   const S beta2_;
   const S eps_;
+  const S learn_rate_decay_;
 };
 
 }  // namespace nuts

@@ -176,6 +176,7 @@ namespace walnuts {
     double step_gradient_decay()       const { return step_gradient_decay_; }
     double step_sq_gradient_decay()    const { return step_sq_gradient_decay_; }
     double step_stabilization()        const { return step_stabilization_; }
+    double step_learn_rate_decay()     const { return step_learn_rate_decay_; }
     uint64_t publish_stride()          const { return publish_stride_; }
     uint64_t probe_microseconds()      const { return probe_microseconds_; }
     uint64_t yield_period()            const { return yield_period_; }
@@ -196,6 +197,7 @@ namespace walnuts {
     double step_gradient_decay_         = 0.8;
     double step_sq_gradient_decay_      = 0.9;
     double step_stabilization_          = 1e-4;
+    double step_learn_rate_decay_       = 0.5;
     uint64_t publish_stride_            = 5;
     uint64_t probe_microseconds_        = 1000;
     uint64_t yield_period_              = 32;
@@ -261,6 +263,11 @@ namespace walnuts {
       cfg_.step_stabilization_ = v;
       return *this;
     }
+    WarmupConfigBuilder step_learn_rate_decay(double v) {
+      nuts::validate_probability(v, "step_learn_rate_decay");
+      cfg_.step_learn_rate_decay_ = v;
+      return *this;
+    }
     WarmupConfigBuilder publish_stride(uint64_t v) {
       nuts::validate_finite_positive(v, "publish_stride");
       cfg_.publish_stride_ = v;
@@ -298,6 +305,7 @@ namespace walnuts {
 	<< "  step_gradient_decay      = " << cfg.step_gradient_decay()      << "\n"
 	<< "  step_sq_gradient_decay   = " << cfg.step_sq_gradient_decay()   << "\n"
 	<< "  step_stabilization       = " << cfg.step_stabilization()       << "\n"
+	<< "  step_learn_rate_decay    = " << cfg.step_learn_rate_decay()    << "\n"
 	<< "  publish_stride           = " << cfg.publish_stride()           << "\n"
 	<< "  probe_microseconds       = " << cfg.probe_microseconds()       << "\n"
 	<< "  yield_period             = " << cfg.yield_period()             << "\n";

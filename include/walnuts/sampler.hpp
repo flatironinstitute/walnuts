@@ -284,6 +284,9 @@ namespace walnuts {
       for (auto& t : threads) {
 	t.request_stop();
       }
+      for (auto& t : threads) {
+	t.join();
+      }
     };
     controller_loop(stats_by_chain, rhat_threshold, start_gate,
 		    max_draws_per_chain, stop_all, num_rhat_evals);

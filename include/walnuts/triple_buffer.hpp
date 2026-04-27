@@ -4,6 +4,7 @@
 
 #include <array>
 #include <atomic>
+#include <concepts>
 #include <cstdint>
 #include <utility>
 
@@ -29,7 +30,7 @@ class TripleBuffer {
    * @tparam Factory The type of initial value generator.
    * @param[in] make The functor to create initial values.
    */
-  template <class Factory>
+  template <std::invocable Factory>
   explicit TripleBuffer(Factory make)
       : buffers_{make(), make(), make()},
         front_(0),
@@ -52,7 +53,9 @@ class TripleBuffer {
 
   
   /**
-   * Move the specified buffer into this buffer.
+   * Move the specified buffer into this buffer.  
+
+   * This is only safe before any threading begins producing or consuming.
    *
    * @param other The buffer to move.
    * @return A reference to this buffer.
@@ -88,7 +91,8 @@ class TripleBuffer {
   }
 
   /**
-   * Return a constant reference to the latest value.
+   * Return a constant reference to the most recently published value, or the 
+   * default-constructed initial value if no values have been published. 
    *
    * @return The latest value.
    */

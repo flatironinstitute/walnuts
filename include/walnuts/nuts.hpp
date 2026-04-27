@@ -248,8 +248,7 @@ template <typename S, class F, class RNG>
 Vec<S> transition(Random<S, RNG>& rand, const F& logp_grad,
                   const Vec<S>& inv_mass, const Vec<S>& chol_mass, S step,
                   std::size_t max_depth, Vec<S>&& theta) {
-  Vec<S> rho = rand.standard_normal(static_cast<std::size_t>(theta.size()))
-                   .cwiseProduct(chol_mass);
+  Vec<S> rho = rand.standard_normal_cwise_product(chol_mass);
   Vec<S> grad(theta.size());
   S logp;
   logp_grad(theta, logp, grad);

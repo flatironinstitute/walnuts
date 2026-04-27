@@ -91,7 +91,8 @@ namespace walnuts {
       nuts::Random<double, RNG> rand(rng);
       positions_.resize(num_chains_);
       for (size_t c = 0; c < num_chains_; ++c) {
-        positions_[c] = init_scale * rand.standard_normal(dims_);
+	rand.standard_normal(dims_, positions_[c]);
+	positions_[c] *= init_scale;
       }
       return *this;
     }

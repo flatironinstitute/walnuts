@@ -6,18 +6,15 @@
 
 namespace nuts {
 
-#if defined __has_attribute
-#if __has_attribute(always_inline)
-#ifndef WALNUTS_STRONG_INLINE
-#define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
-#endif
+#if defined(__has_attribute) && __has_attribute(always_inline)
+#  define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
 #else
-#define WALNUTS_STRONG_INLINE inline
+#  define WALNUTS_STRONG_INLINE inline
 #endif
-#endif
-
+  
 #ifdef __APPLE__
 #include <pthread.h>
+#include <pthread/qos.h>
 WALNUTS_STRONG_INLINE void interactive_qos() {
   pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);  // best
 }
@@ -87,7 +84,7 @@ class Random {
    *
    * @param rng The base random number generator.
    */
-  Random(RNG& rng)
+  explicit Random(RNG& rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   /**
@@ -98,7 +95,7 @@ class Random {
    *
    * @return A number between 0 and 1 generated uniformly at random.
    */
-  inline S uniform_real_01() { return unif_(rng_); }
+  S uniform_real_01() { return unif_(rng_); }
 
   /**
    * @brief Return `true` or `false` uniformly at random.
@@ -108,7 +105,22 @@ class Random {
    *
    * @return A boolean value generated uniformly at random.
    */
-  inline bool uniform_binary() { return binary_(rng_); }
+  bool uniform_binary() { return binary_(rng_); }
+
+  /**
+   * @brief Write a vector of random standard normal variables into the out vector.
+   *
+   * The base random number generator is used to generate each 
+   * component independently from a `normal(0, 1)` distribution.
+   *
+   * @param[in] n The size of the vector generated.
+   * @param[in,out] out The output vector.
+   */
+  void standard_normal(std::size_t n, Vec<S>& out) {
+    out.resize(static_cast<int64_t>(n));
+    for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i)
+      out[i] = normal_(rng_);
+  }
 
   /**
    * @brief Return a vector of values generated according to a
@@ -120,15 +132,24 @@ class Random {
    * @param n The size of the vector generated.
    * @return A vector generated according to a standard normal distribution.
    */
-  inline Vec<S> standard_normal(std::size_t n) {
-    auto n_signed = static_cast<Eigen::Index>(n);
-    return Vec<S>::NullaryExpr(n_signed,
-                               [&](std::size_t) { return normal_(rng_); });
+  Vec<S> standard_normal(std::size_t n) {
+    Vec<S> out;
+    standard_normal(n, out);
+    return out;
   }
+
+  Vec<S> standard_normal_cwise_product(const Vec<S>& v) {
+    Vec<S> out(v.size());
+    for (Eigen::Index i = 0; i < v.size(); ++i) {
+      out[i] = v[i] * normal_(rng_);
+    }
+    return out;
+  }
+
 
  private:
   /** The base random number generator reference. */
-  RNG& rng_;  // copy avoids construction ref going out of scope
+  RNG& rng_;
 
   /** The `uniform([0, 1])` random number generator. */
   std::uniform_real_distribution<S> unif_;
@@ -152,9 +173,10 @@ class Random {
  * @return The log of the sum of the exponentiations of the arguments.
  */
 template <typename S>
-S log_sum_exp(const S& x1, const S& x2) {
+inline S log_sum_exp(const S& x1, const S& x2) {
   using std::fmax, std::log, std::exp;
   S m = fmax(x1, x2);
+  if (std::isinf(m) && m < 0) return m;  // x1 = x2 = -inf
   return m + log(exp(x1 - m) + exp(x2 - m));
 }
 
@@ -170,7 +192,7 @@ S log_sum_exp(const S& x1, const S& x2) {
  * @return The log of the sum of the exponentiation of the vector's components.
  */
 template <typename S>
-S log_sum_exp(const Vec<S>& x) {
+inline S log_sum_exp(const Vec<S>& x) {
   using std::log;
   S m = x.maxCoeff();
   return m + log((x.array() - m).exp().sum());
@@ -178,29 +200,32 @@ S log_sum_exp(const Vec<S>& x) {
 
 /**
  * @brief Return the unnormalized log density of the specified momentum given
- * the specified inverse mass matrix.
+ * the specified inverse mass matrix diagonal.
  *
  * The unnormalized log density is the negative kinetic energy.
  *
- * The formula is `-0.5 * rho' .* inv_mass * rho`.
+ * The formula is `-0.5 * rho' .* inv_mass * rho`, which for diagonals works
+ * out to `-0.5 * rho**2 * inv_mass` elementwise.
  *
  * @tparam S Type of scalars.
  * @param[in] rho Vector of momenta.
- * @param[in] inv_mass The inverse mass matrix.
+ * @param[in] inv_mass_diag The diagonal of the diagonal inverse mass matrix.
  * @return The log density of the momentum.
  */
 template <typename S>
-S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass) {
-  return -0.5 * rho.dot(inv_mass.cwiseProduct(rho));
+inline S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass_diag) {
+  // equiv, but with temporaries: -0.5 * rho.dot(inv_mass_diag.cwiseProduct(rho));
+  return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
 }
 
 /**
  * @brief Return a tuple of the arguments ordered by direction.
 
- * The arguments are forwarded as is the returned tuple.  If the
+ * The arguments are forwarded as is the returned tuple and returned
+ * by reference, so function arguments must stay in scope.  If the
  * template argument `D` is `Direction::Forward`, then the tuple is
- * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple
- * is `(x2, x1)`.
+ * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
+ * `(x2, x1)`.
  *
  * @tparam D The `Direction` in which to combine the arguments
  * (`Forward` or `Backward`).
@@ -212,7 +237,7 @@ S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass) {
 template <Direction D, typename T>
 inline auto order_forward_backward(T&& x1, T&& x2) {
   if constexpr (D == Direction::Forward) {
-    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
+      return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
   } else {  // Direction::Backward
     return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
   }
@@ -278,7 +303,9 @@ class NoExceptLogpGrad {
    *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(const F& logp_grad) : logp_grad_(logp_grad) {}
+  NoExceptLogpGrad(const F& logp_grad)
+    : logp_grad_(std::cref(logp_grad)) {
+  }
 
   /**
    * @brief Given the specified position, set the log density and
@@ -288,18 +315,18 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  inline void operator()(const Vec<S>& x, S& logp,
-                         Vec<S>& grad) const noexcept {
+  void operator()(const Vec<S>& x, S& logp,
+		  Vec<S>& grad) const {
     try {
-      logp_grad_(x, logp, grad);
+      logp_grad_.get()(x, logp, grad);
     } catch (...) {
-      // TODO: log exception
+      // logp_grad failure equivalent to -inf log density: rejects in algorithm
       logp = -std::numeric_limits<S>::infinity();
-      grad = Vec<S>::Zero(x.size());
+      grad.setZero(x.size());
     }
   }
 
-  const F& logp_grad_;
+  const std::reference_wrapper<const F> logp_grad_;
 };
 
 /**
@@ -311,7 +338,7 @@ class NoExceptLogpGrad {
  * @throw std::invalid_argument If the value is not positive and finite.
  */
 template <typename S>
-void validate_positive(S x, const std::string& name) {
+inline void validate_positive(S x, const std::string& name) {
   if (x > 0 && !std::isinf(x)) {
     return;
   }
@@ -326,7 +353,7 @@ void validate_positive(S x, const std::string& name) {
  * @param[in] name The variable's name.
  * @throw std::invalid_argument If the value is not positive.
  */
-void validate_positive(std::size_t x, const std::string& name) {
+inline void validate_positive(std::size_t x, const std::string& name) {
   if (x > 0) {
     return;
   }
@@ -345,7 +372,7 @@ void validate_positive(std::size_t x, const std::string& name) {
  * positive and finite.
  */
 template <typename S>
-void validate_positive(const Vec<S>& x, const std::string& name) {
+inline void validate_positive(const Vec<S>& x, const std::string& name) {
   if ((x.array() > 0.0).all() && x.allFinite()) {
     return;
   }
@@ -362,7 +389,7 @@ void validate_positive(const Vec<S>& x, const std::string& name) {
  * @throw std::invalid_argument If the value is not in (0, 1).
  */
 template <typename S>
-void validate_probability(S x, const std::string& name) {
+inline void validate_probability(S x, const std::string& name) {
   if (x > 0 && x < 1) {
     return;
   }
@@ -379,11 +406,11 @@ void validate_probability(S x, const std::string& name) {
  * @throw std::invalid_argument If the value is not in [0, 1].
  */
 template <typename S>
-void validate_probability_inclusive(S x, const std::string& name) {
+inline void validate_probability_inclusive(S x, const std::string& name) {
   if (x >= 0 && x <= 1) {
     return;
   }
-  std::string msg = name + " must be in (0, 1)";
+  std::string msg = name + " must be in [0, 1]";
   throw std::invalid_argument(msg);
 }
 
@@ -399,7 +426,7 @@ void validate_probability_inclusive(S x, const std::string& name) {
  * @throw std::invalid_argument If the containers are not the same size.
  */
 template <typename T1, typename T2>
-void validate_same_size(const T1& x1, const T2& x2, const std::string& name1,
+inline void validate_same_size(const T1& x1, const T2& x2, const std::string& name1,
                         const std::string& name2) {
   if (x1.size() == x2.size()) {
     return;

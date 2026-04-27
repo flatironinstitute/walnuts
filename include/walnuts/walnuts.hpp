@@ -443,8 +443,7 @@ Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
                     std::size_t max_step_halvings, std::size_t min_micro_steps,
                     S max_error, Vec<S>&& theta, std::size_t& depth,
                     Vec<S>& theta_grad, S& logp_pos_select, A& adapt_handler) {
-  std::size_t dims = static_cast<std::size_t>(theta.size());
-  Vec<S> rho = rand.standard_normal(dims).cwiseProduct(chol_mass);
+  Vec<S> rho = rand.standard_normal_cwise_product(chol_mass);
   Vec<S> grad(theta.size());
   S logp_pos;
   logp_grad(theta, logp_pos, grad);

@@ -1,5 +1,3 @@
-// include/walnuts/triple_buffer.hpp
-
 #pragma once
 
 #include <array>

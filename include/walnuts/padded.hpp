@@ -1,29 +1,30 @@
-// include/walnuts/padded.hpp
-
 #pragma once
 
 #include <array>
 #include <cstddef>
-#include <new>
 
 namespace walnuts {
 
 /**
- * @brief The destructive interference size, if non-zero, else 128.
+ * @brief Go with a conservative constant destructive interference size.  
+ *
+ * The std::hardware_destructive_interference_size is not universally supported
+ * and can underreport when it is supported.  128 is safe for ARM and Intel
+ * hardware. 
  */
-inline constexpr std::size_t DI_SIZE =
-    std::hardware_destructive_interference_size > 0
-        ? std::hardware_destructive_interference_size
-        : 128;
+inline constexpr std::size_t CACHE_LINE_SIZE = 128;
 
 /**
- * @brief A wrapper of `T` aligned to `DI_SIZE` and padded to minimum
- * multiple of `DI_SIZE` big enough to hold value.
+ * @brief A wrapper of `T` aligned to `CACHE_LINE_SIZE` and padded to minimum
+ * multiple of `CACHE_LINE_SIZE` big enough to hold value.
  *
  * @tparam T The type of value.
  */
-template <class T, std::size_t Align = DI_SIZE>
+template <class T, std::size_t Align = CACHE_LINE_SIZE>
 struct alignas(Align) Padded {
+  static_assert((Align & (Align - 1)) == 0, "Align must be a power of two");
+  static_assert(Align >= alignof(T), "Align must be >= alignof(T)");
+  
   /**
    * @brief Padding bytes required to make `sizeof(Padded<T>)` at least
    * `Align` and a multiple of `Align`.
@@ -34,12 +35,12 @@ struct alignas(Align) Padded {
   /**
    * @brief The value.
    */
-  T val;
+  T val{};
 
   /**
    * @brief The unused padding bytes.
    */
-  std::array<std::byte, PADDING_BYTES> pad_{};
+  std::array<std::byte, PADDING_BYTES> pad{};
 };
 
 }  // namespace walnuts

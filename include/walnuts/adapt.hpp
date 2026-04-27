@@ -20,7 +20,7 @@
 
 namespace walnuts {
 
-  struct alignas(walnuts::DI_SIZE) AdaptSnapshot {
+  struct alignas(walnuts::CACHE_LINE_SIZE) AdaptSnapshot {
     std::uint64_t iter = 0;
     double log_step = std::numeric_limits<double>::quiet_NaN();
     Eigen::VectorXd log_mass;

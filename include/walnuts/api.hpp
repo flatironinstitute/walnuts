@@ -84,14 +84,16 @@ namespace walnuts {
       samplers.emplace_back(std::move(adapters[n].sampler()));
 
     size_t num_rhat_evals = 0u;
+    double rhat;
     std::vector<ChainRecord> chain_records = sample(samplers,
 						    sampling_cfg.rhat_converge_tol(),
 						    sampling_cfg.max_iter(),
-						    num_rhat_evals);
+						    num_rhat_evals,
+						    rhat);
 
     
     // *********************** SAMPLING DEBUG I/O *******************
-    std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
+    std::cout << "\nnum Rhat evals = " << num_rhat_evals << ";  Rhat = " << rhat << "\n";
     std::size_t num_draws = 0;
     for (std::size_t m = 0; m < chain_records.size(); ++m) {
       const auto& chain_record = chain_records[m];

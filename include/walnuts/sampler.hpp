@@ -1,9 +1,6 @@
 #pragma once
 
-#include <array>
 #include <atomic>
-#include <chrono>
-#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -15,8 +12,6 @@
 #include <new>
 #include <numeric>
 #include <random>
-#include <span>
-#include <sstream>
 #include <stdexcept>
 #include <stop_token>
 #include <string>
@@ -214,11 +209,13 @@ namespace walnuts {
   static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
 			      double rhat_threshold, std::latch& start_gate,
 			      std::size_t max_draws_per_chain,
-			      Stopper stop_chains,
+			      Stopper& stop_chains,
 			      std::size_t& num_rhat_evals,
+			      double& r_hat,
 			      std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
     nuts::initiated_qos();
     num_rhat_evals = 0;
+    r_hat = std::numeric_limits<double>::quiet_NaN();
     const std::size_t M = stats_by_chain.size();
     Eigen::VectorXd chain_means(M);
     Eigen::VectorXd chain_variances(M);
@@ -235,23 +232,12 @@ namespace walnuts {
       }
       double variance_of_means = variance(chain_means);
       double mean_of_variances = chain_variances.mean();
-      double r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
+      r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
       std::size_t num_draws = sum(counts);
-
       ++num_rhat_evals;
-
-      // PLACEHOLDER FOR DEBUGGING---GET RID OF ALL std::cout FOR SERVER VERSION
-      std::cout << std::setprecision(6) << std::fixed
-		<< std::setw(8) << std::setfill(' ')
-		<< '\r' // begin of current line
-		<< "R hat " << r_hat
-		<< "  #draws " << num_draws
-		<< std::flush;
-    
       if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
 	break;
       }
-      // we only need so many evaluations per second in a user-facing app
       std::this_thread::sleep_until(next);
       next += eval_period;
     }
@@ -266,7 +252,8 @@ namespace walnuts {
   std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
 				  double rhat_threshold,
 				  std::size_t max_draws_per_chain,
-				  std::size_t& num_rhat_evals) {
+				  std::size_t& num_rhat_evals,
+				  double& rhat) {
     std::size_t M = samplers.size();
     std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
     std::latch start_gate(static_cast<int64_t>(M));
@@ -289,7 +276,7 @@ namespace walnuts {
       }
     };
     controller_loop(stats_by_chain, rhat_threshold, start_gate,
-		    max_draws_per_chain, stop_all, num_rhat_evals);
+		    max_draws_per_chain, stop_all, num_rhat_evals, rhat);
     return chain_records;
   }
   

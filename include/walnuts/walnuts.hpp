@@ -583,9 +583,11 @@ class WalnutsSampler {
 
   /**
    * @brief Return the next draw from the sampler, saving the log
-   * density of the position returned.  The returned reference will
-   * change on future calls to this method, so the value must be
-   * consumed before calling `operator()(S&)` again.
+   * density of the position returned.  
+
+   * The returned reference will change on future calls to this
+   * method, so the value must be consumed before calling
+   * `operator()(S&)` again.
    *
    * @param[out] logp_pos The log density of the position returned.
    * @return The next draw.
@@ -603,6 +605,8 @@ class WalnutsSampler {
 
   /**
    * @brief  Return a constant reference the diagonal of the diagonal inverse mass matrix. 
+   *
+   * The value of the inverse mass matrix will change on subsequent calls to `operator()(S&)`.
    *
    * @return The diagonal of the inverse mass matrix.
    */

@@ -88,11 +88,13 @@ class MassEstimator {
    * where `iter_offset` is the offset specified in the configuration and `iter`
    * is the iteration number for the observation.
    *
-   * The final estimate for the inverse mass matrix is given by the geometric
-   * mean of the variance of the scores (the inverse variance estimator)
-   * and the variance of the draws (the variance estimator).  This estimate
-   * is then additively smoothed by multiplying by multiplying by one minus
-   * the additive smoothing and adding the additive smoothing.
+   * The initial estimate is additively smoothed by multiplying by one
+   * minus the additive smoothing and adding the additive smoothing.
+   * 
+   * The final estimate for the inverse mass matrix is given by the
+   * geometric mean of the variance of the scores (the inverse
+   * variance estimator) and the inverse variance of the draws (the
+   * variance estimator).  
    *
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] theta The initial position.
@@ -136,13 +138,15 @@ class MassEstimator {
   }
 
   /**
-   * @brief Return an estimate of the inverse mass matrix.
+   * @brief Return an estimate of the inverse mass matrix.  The result
+   * is the geometric average of the variance of the draws and the
+   * inverse variance of the scores.
    *
    * @return The inverse mass matrix estimate.
    */
   Vec<S> inv_mass_estimate() const {
-    return (var_estimator_.variance().array() *
-            inv_var_estimator_.variance().array().inverse())
+    return (var_estimator_.variance().array() /
+            inv_var_estimator_.variance().array())
         .sqrt()
         .matrix();
   }
@@ -159,8 +163,8 @@ class MassEstimator {
 };
 
 /**
- * @brief The adaptation handler for the minimum number of micro steps per macro
- * step.
+ * @brief The adaptation handler for the minimum number of micro steps
+ * per macro step.
  *
  * After being constructed with a target number of macro steps, this
  * class is given observeations of the number of micro steps taken and
@@ -175,10 +179,10 @@ class MinMicroStepsAdaptHandler {
   /**
    * Construct a minimum number of micro steps per macro step handler.
    *
-   * @param[in] expected_macro_steps Expected number of macro steps.
+   * @param[in] target_macro_steps Target number of expected macro steps.
    */
-  MinMicroStepsAdaptHandler(double expected_macro_steps)
-      : expected_macro_steps_(expected_macro_steps),
+  MinMicroStepsAdaptHandler(double target_macro_steps)
+      : target_macro_steps_(target_macro_steps),
         total_macro_steps_(2.0),
         count_(1.0) {}
 
@@ -202,15 +206,12 @@ class MinMicroStepsAdaptHandler {
    */
   std::size_t min_micro_steps() const noexcept {
     double mean_micro = total_macro_steps_ / count_;
-    double min_micro_per_macro =
-        std::fmax(1.0, std::floor(mean_micro / expected_macro_steps_));
-    std::size_t steps =
-        static_cast<std::size_t>(std::round(min_micro_per_macro));
-    return steps;
+    double min_micro_steps = mean_micro / target_macro_steps_;
+    return static_cast<std::size_t>(std::max(1L, std::lround(min_micro_steps)));
   }
 
  private:
-  const double expected_macro_steps_;
+  const double target_macro_steps_;
   double total_macro_steps_;
   double count_;
 };
@@ -284,7 +285,7 @@ class AdaptiveWalnuts {
 		  const walnuts::InitChainConfig& init_chain_cfg,
 		  const walnuts::WarmupConfig& warmup_cfg,
                   const walnuts::SamplingConfig& sampling_cfg,
-                  double target_depth = 4.0)
+                  double target_depth = 3.0)
       : init_chain_cfg_(init_chain_cfg),
 	warmup_cfg_(warmup_cfg),
 	sampling_cfg_(sampling_cfg),
@@ -295,16 +296,16 @@ class AdaptiveWalnuts {
         iteration_(0),
         step_adapt_handler_(init_chain_cfg, warmup_cfg),
         mass_estimator_(warmup_cfg, theta_, grad(logp_grad, theta_)),
-        min_micro_estimator_(target_depth) {
+        min_micro_estimator_(std::pow(2.0, target_depth)) {
   }
 
   /**
    * @brief Return the next state from warmup.
    *
-   * This method should be called a number of time equal to the
-   * number of warmup iterations desired.  These warmup draws are
-   * *not* drawn from a Markov chain and are not valid for inference.
-   * After warmup, call `sampler()` to return a sampler that fixes the
+   * This method should be called a number of time equal to the number
+   * of warmup iterations desired.  These warmup draws are *not* drawn
+   * from a Markov chain and are not valid for inference.  After
+   * warmup, call `sampler()` to return a sampler that fixes the
    * tuning parameters and provides a proper Markov chain.
    *
    * @return The next warmup state.
@@ -321,8 +322,8 @@ class AdaptiveWalnuts {
         min_micro_estimator_.min_micro_steps(), sampling_cfg_.max_hamiltonian_error(),
         std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
-    min_micro_estimator_.observe(depth);
-    handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);  // inv_mass pre, inv_mass() post transition
+    min_micro_estimator_.observe(1 << depth);
+    handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);
     ++iteration_;
     return theta_;
   }

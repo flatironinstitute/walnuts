@@ -206,7 +206,7 @@ namespace walnuts {
 		    const walnuts::WarmupConfig& warmup_cfg,
 		    std::vector<Adapter>& adapters) {
     std::vector<PaddedBuffer> buffers = construct_buffers(init_cfg.num_chains(), init_cfg.dims());
-    std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains()));
+    std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
 
     std::vector<std::jthread> threads;
     threads.reserve(init_cfg.num_chains());
@@ -215,6 +215,9 @@ namespace walnuts {
       threads.emplace_back(AdaptWorker<Adapter>(chain_id, init_cfg, warmup_cfg,
 						buffers[m], start_gate, adapters[m]));
     }
+
+    start_gate.arrive_and_wait();
+
     auto stop_all = [&] {
       for (auto& t : threads) {
 	t.request_stop();
@@ -223,7 +226,6 @@ namespace walnuts {
 	t.join();
       }
     };
-
     return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
   }
   

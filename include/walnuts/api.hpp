@@ -37,6 +37,7 @@ namespace walnuts {
     using Sampler = nuts::WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
     std::vector<std::mt19937> rngs(0);
+    rngs.reserve(init_cfg.num_chains());
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
       std::seed_seq ss{seed, m + 1u};
       rngs.emplace_back(ss);

@@ -35,6 +35,7 @@ class SpanW {
    * @param[in] grad_theta The gradient of the log density at `theta`.
    * @param[in] logp_pos The log density of the position.
    * @param[in] logp_joint The joint log density of the position and momentum.
+   * @return The span constructed from the initial point.
    */
   static SpanW<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
                                      Vec<S>&& grad_theta,
@@ -115,7 +116,7 @@ class SpanW {
   Vec<S> grad_select_;
 
   /** The log density of the selected state. */
-  double logp_pos_select_;
+  S logp_pos_select_;
 
   /** The log of the sum of the joint densities in the trajectory. */
   S logp_;
@@ -144,14 +145,13 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
   S half_step = 0.5 * step;
   S logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
-    rho_next.noalias() = rho_next + half_step * grad_next;
-    theta_next.noalias() +=
-        step * (inv_mass.array() * rho_next.array()).matrix();
+    rho_next += half_step * grad_next;
+    theta_next.array() += step * inv_mass.array() * rho_next.array();
     logp_grad(theta_next, logp_next, grad_next);
-    rho_next.noalias() += half_step * grad_next;
+    rho_next += half_step * grad_next;
   }
   logp_next += logp_momentum(rho_next, inv_mass);
-  return std::abs(logp_next - logp) <= max_error;
+  return std::abs(logp_next - logp) <= max_error;  // only tests one way
 }
 
 /**
@@ -180,13 +180,11 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
   if (num_steps == 1) {
     return true;
   }
-  Vec<S> theta_next(grad.size());
-  Vec<S> rho_next(rho.size());
-  Vec<S> grad_next(grad.size());
-  while (num_steps > 2 * min_micro_steps) {
-    theta_next = theta;
-    rho_next = -rho;
-    grad_next = grad;
+  // factor of 2 allows halving of steps, >= to allow num_steps = min_micro_steps
+  while (num_steps >= 2 * min_micro_steps) {
+    Vec<S> theta_next = theta;
+    Vec<S> rho_next = -rho;
+    Vec<S> grad_next = grad;
     num_steps /= 2;
     step *= 2;
     if (within_tolerance(logp_grad, inv_mass, step, num_steps, max_error,
@@ -217,9 +215,9 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[out] theta_next The position after the macro step.
  * @param[out] rho_next The momentum after the macro step.
  * @param[out] grad_next The gradient of the position after the macro step.
- * @param[out] logp_pos_next The log density of the positon and momentum after the
+ * @param[out] logp_pos_next The log density of the position and momentum after the
  * macro step.
- * @param[out] logp_next The log density of the positon and momentum after the
+ * @param[out] logp_next The log density of the position and momentum after the
  * macro step.
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
@@ -244,11 +242,10 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
     grad_next = grad;
     S half_step = 0.5 * step;
     for (std::size_t n = 0; n < num_steps; ++n) {
-      rho_next.noalias() += half_step * grad_next;
-      theta_next.noalias() +=
-          step * (inv_mass.array() * rho_next.array()).matrix();
+      rho_next += half_step * grad_next;
+      theta_next.array() += step * inv_mass.array() * rho_next.array();
       logp_grad(theta_next, logp_pos_next, grad_next);
-      rho_next.noalias() += half_step * grad_next;
+      rho_next += half_step * grad_next;
     }
     logp_next = logp_pos_next + logp_momentum(rho_next, inv_mass);
     if (num_steps == min_micro_steps) {
@@ -264,8 +261,8 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
 }
 
 /**
- * @brief Return the specified spans into a new span and select a new position.
- * state.
+ * @brief Return the specified spans combined into a new span and update
+ * the selected position.
  *
  * If the direction `D` is `Forward`, then `span_new` is ordered after
  * `span_old` in time; if it is `Backward`, then `span_new` is before
@@ -494,7 +491,7 @@ class NoOpHandler {
    * @tparam T The type of the functor argument.
    */
   template <typename T>
-  inline void operator()(const T&) const noexcept {}
+  constexpr void operator()(const T&) const noexcept {}
 };
 
 /**
@@ -514,7 +511,7 @@ class NoOpHandler {
  * ```
  *
  * where `S` is the scalar type parameter of the sampler (the log
- * density function need not be templated itself.  The argument `x`
+ * density function need not be templated itself).  The argument `x`
  * is the position argument, and `logp` is set to the log density of
  * `x`, and `grad` set to the gradient of the log density at `x`.
  *
@@ -530,7 +527,8 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * @param[in] rand The randomizer for HMC.
+   * @param[in] rand The randomizer for HMC, which must persist for the duration of the class
+   * because it is stored by reference. 
    * @param[in,out] handler The sampling event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
@@ -550,7 +548,7 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `macro_step_size` is not positive or not
    finite.
    * @throw std::invalid_argument If `max_nuts_depth` is not positive.
-   * @throw std::invalid_argument If `max_step_havlings` is not positive.
+   * @throw std::invalid_argument If `max_step_halvings` is not positive.
    * @throw std::invalid_argument If `min_micro_steps` is not positive.
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
@@ -584,13 +582,15 @@ class WalnutsSampler {
   WalnutsSampler(WalnutsSampler&& sampler) = default;
 
   /**
-   * @brief Return the next draw from the sampler, saving the log density
-   * of the position returned.
+   * @brief Return the next draw from the sampler, saving the log
+   * density of the position returned.  The returned reference will
+   * change on future calls to this method, so the value must be
+   * consumed before calling `operator()(S&)` again.
    *
    * @param[out] logp_pos The log density of the position returned.
    * @return The next draw.
    */
-  Vec<S> operator()(S& logp_pos) {
+  const Vec<S>& operator()(S& logp_pos) {
     std::size_t depth;
     Vec<S> grad_next;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
@@ -602,32 +602,33 @@ class WalnutsSampler {
   }
 
   /**
-   * @brief  Return the diagonal of the diagonal inverse mass matrix.
+   * @brief  Return a constant reference the diagonal of the diagonal inverse mass matrix. 
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  Vec<S> inverse_mass_matrix_diagonal() const { return inv_mass_; }
+  const Vec<S>& inverse_mass_matrix_diagonal() const noexcept { return inv_mass_; }
 
   /**
    * @brief Return the macro (largest) step size.
    *
    * @return The largest step size.
    */
-  S macro_step_size() const { return macro_step_size_; }
+  S macro_step_size() const noexcept { return macro_step_size_; }
 
   /**
    * @brief Return the maximum error allowed among Hamiltonians.
    *
    * @return The maximum error allowed among Hamiltonians.
    */
-  S max_error() const { return max_error_; }
+  S max_error() const noexcept { return max_error_; }
 
-  size_t dim() const noexcept {
-    return static_cast<size_t>(theta_.size());
+  std::size_t dim() const noexcept {
+    return static_cast<std::size_t>(theta_.size());
   }
 
  private:
-  /** The underlying randomizer. */
+  // TODO: audit why there are race conditions if this is taken by reference
+  /** The underlying randomizer (copied to remove race conditions). */
   Random<S, RNG> rand_;
 
   /** Reference to the sampling event handler. */
@@ -640,10 +641,10 @@ class WalnutsSampler {
   Vec<S> theta_;
 
   /** The diagonal of the diagonal inverse mass matrix. */
-  const Vec<S> inv_mass_;
+  Vec<S> inv_mass_;
 
   /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
-  const Vec<S> cholesky_mass_;
+  Vec<S> cholesky_mass_;
 
   /** The initial step size. */
   const S macro_step_size_;

@@ -20,13 +20,10 @@ namespace nuts {
  * The non-standard effective learning rate schedule divides the
  * learning rate by `pow(t, learn_rate_decay)` in iteration `t`
  * (indexed from 1).  The Robbins-Monro theory around SGD allows
- * values as high as `learn_rate_decay = 1`, Nuts used
- * `learn_rate_decay = 0.75`.
-
-
-Nuts used `learn_rate_decay = 3/4` 
- * used `t^(3/4)` instead of `t^(1/2)`.  Dividing by just `t` is the
- * usual Robbins-Monro SGD approach.
+ * values as high as `learn_rate_decay = 1`, and that is a common
+ * default, but it can decay too quickly. Nuts used `learn_rate_decay
+ * = 0.75` for dual averaging and we have found `learn_rate_decay=0.5`
+ * to work well for Adam.
  *
  * @tparam S Type of floating point values.
  */

@@ -1,153 +1,275 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <cstdint>
 #include <stdexcept>
 #include <vector>
 
+#include <Eigen/Dense>
+
 namespace walnuts {
 
-template <typename T1, typename T2>
-inline void validate_same_size(const T1& x1, const T2& x2,
-                               const std::string& fun, const std::string& arg1,
-                               const std::string& arg2) {
-  if (x1.size() != x2.size()) {
-    throw std::invalid_argument(fun + ": " + arg1 + " and " + arg2 +
-                                " must be same size");
-  }
+/**
+ * @brief Validate that the specified stream is open.
+ *
+ * @tparam Stream The type of the stream.
+ * @param[in] s The stream.
+ * @param[in] name The name of the stream.
+ * @throw invalid_argument If the stream is not open.
+ */
+template <class Stream>
+inline void validate_open(const Stream& s, const std::string& name) {
+  if (s.is_open()) return;
+  throw std::invalid_argument("could not open stream from: " + name);
 }
 
-template <typename F, typename T>
-inline void validate_elements(const F& f, T x, const std::string& fun,
-                              const std::string& arg, const std::string& err) {
-  if (!f(x)) {
-    std::string msg = fun + " argument " + arg + " " + err;
-    throw std::invalid_argument(msg);
-  }
-}
-
-template <typename F, typename T, int M, int N>
-inline void validate_elements(const F& f, const Eigen::Matrix<T, M, N>& x,
-                              const std::string& fun, const std::string& arg,
-                              const std::string& err) {
-  for (int64_t n = 0; n < x.size(); ++n) {
-    validate_elements(f, x(n), fun, arg, err);
-  }
-}
-
-template <typename F, typename T>
-inline void validate_elements(const F& test, const std::vector<T>& xs,
-                              const std::string& fun, const std::string& arg,
-                              const std::string& err) {
-  for (const T& x : xs) {
-    validate_elements(test, x, fun, arg, err);
-  }
-}
-
-template <typename T>
-inline void validate_positive(T x, const std::string& fun,
-                              const std::string& arg) {
-  auto is_pos = [](auto u) { return u > 0; };
-  validate_elements(is_pos, x, fun, arg, "must be positive");
-}
-
-template <std::floating_point T>
-inline void validate_probability(T p, const std::string& var) {
-  if (!(p > 0 && p < 1)) {
-    throw std::invalid_argument(var + " must be a proportion in (0, 1)");
-  }
-}
-
+/**
+ * @brief Validate the standard vector is the specified size.
+ *
+ * @tparam T The type of vector elements.
+ * @param[in] x The vector.
+ * @param[in] size The size to test.
+ * @param[in] var The name of the vector.
+ * @param[in] target The name of size.
+ * @throw invalid_argument If the container size is not the specified size.
+ */
 template <typename T>
 inline void validate_size(const std::vector<T>& x, uint64_t size,
                           const std::string& var, const std::string& target) {
-  if (x.size() != size) {
-    throw std::invalid_argument(var + " size must match " + target);
-  }
+  if (x.size() == size) return;
+  throw std::invalid_argument(var + " size must match " + target);
 }
 
-template <typename T, int R, int C>
+/**
+ * @brief Validate the Eigen container is the specified size.
+ *
+ * @tparam T The type of vector elements.
+ * @tparam R The size or dynamic specification of rows.
+ * @tparam C The size or dynamic specification of columns.
+ * @param[in] x The container.
+ * @param[in] size The size to test.
+ * @param[in] var The name of the container.
+ * @param[in] target The name of size.
+ * @throw invalid_argument If the container size is not the specified size.
+ */
+template <std::floating_point T, int R, int C>
 inline void validate_size(const Eigen::Matrix<T, R, C>& x, uint64_t size,
                           const std::string& var, const std::string& target) {
-  if (x.size() != static_cast<int64_t>(size)) {
-    throw std::invalid_argument(var + " size must match " + target);
-  }
+  if (x.size() == static_cast<int64_t>(size)) return;
+  throw std::invalid_argument(var + " size must match " + target);
 }
 
-template <typename T>
-inline void validate_gt0(T x, const std::string& var) {
-  if (!(x > 0)) {
-    throw std::invalid_argument(var + " must be > 0");
-  }
+/**
+ * @brief Throw an exception if the containers do not have the same size.
+ *
+ * @tparam T1 Type of first container.
+ * @tparam T2 Type of second container.
+ * @param[in] x1 The first container.
+ * @param[in] x2 The second container.
+ * @param[in] name1 The first container's name.
+ * @param[in] name2 The second container's name.
+ * @throw std::invalid_argument If the containers are not the same size.
+ */
+template <typename T1, typename T2>
+inline void validate_same_size(const T1& x1, const T2& x2,
+                               const std::string& name1,
+                               const std::string& name2) {
+  if (x1.size() == x2.size()) return;
+  std::string msg = name1 + " and " + name2 + " must be the same size.";
+  throw std::invalid_argument(msg);
 }
 
+/**
+ * @brief Throw an exception if the value is not finite and > 1.
+ * 
+ * @tparam T The type of value.
+ * @param x The value.
+ * @param var The name of the value.
+ * @throw std::invalid_argument If the value is not finite and > 1.
+ */
 template <std::floating_point T>
 inline void validate_finite_gt1(T x, const std::string& var) {
-  if (!(std::isfinite(x) && x > 1)) {
-    throw std::invalid_argument(var + " must be finite and > 1");
-  }
+  if (std::isfinite(x) && x > 1) return;
+  throw std::invalid_argument(var + " must be finite and > 1");
 }
 
-template <std::integral T>
-inline void validate_finite_positive(T x, const std::string& var) {
-  if (!(x > 0)) {
-    throw std::invalid_argument(var + " must be > 0");
-  }
-}
-
+/**
+ * @brief Throw an exception if the value is not finite and > 0.
+ * 
+ * @tparam T The type of value.
+ * @param x The value.
+ * @param var The name of the value.
+ * @throw std::invalid_argument If the value is not finite and > 0.
+ */
 template <std::floating_point T>
 inline void validate_finite_positive(T x, const std::string& var) {
-  if (!(std::isfinite(x) && x > 0)) {
-    throw std::invalid_argument(var + " must be finite and > 0");
-  }
+  if (std::isfinite(x) && x > 0) return;
+  throw std::invalid_argument(var + " must be finite and > 0");
 }
 
-template <typename T, int R, int C>
+/**
+ * @brief Throw an exception if the container's elements are not
+ * finite and > 0.
+ * 
+ * @tparam T The type of values.
+ * @tparam R The row size (or -1 for dynamic).
+ * @tparam C The column size (or -1 for dynamic).
+ * @param xs The container.
+ * @param var The name of the container.
+ * @throw std::invalid_argument If the container has an element that
+ * is not finite and > 0.
+ */
+template <std::floating_point T, int R, int C>
 inline void validate_finite_positive(const Eigen::Matrix<T, R, C>& xs,
                                      const std::string& var) {
-  std::string var_entries = var + " entries";
   for (Eigen::Index i = 0; i < xs.size(); ++i) {
-    validate_finite_positive(xs(i), var_entries);
+    validate_finite_positive(xs(i), var);
   }
 }
 
+/**
+ * @brief Throw an exception if the container's elements are not
+ * finite and > 0.
+ * 
+ * @tparam T The type of values (container or floating point).
+ * @param xs The container.
+ * @param var The name of the container.
+ * @throw std::invalid_argument If the container has an element that
+ * is not finite and > 0.
+ */
 template <typename T>
 inline void validate_finite_positive(const std::vector<T>& xs,
                                      const std::string& var) {
-  std::string var_entries = var + " entries";
   for (const auto& x : xs) {
-    validate_finite_positive(x, var_entries);
+    validate_finite_positive(x, var);
   }
 }
 
+/**
+ * @brief Throw an exception if the value is not finite.
+ * 
+ * @tparam T The type of value.
+ * @param x The value.
+ * @param var The name of the value.
+ * @throw std::invalid_argument If the value is not finite.
+ */
 template <std::floating_point T>
 inline void validate_finite(T x, const std::string& var) {
-  if (!std::isfinite(x)) {
-    throw std::invalid_argument(var + " must be finite");
-  }
+  if (std::isfinite(x)) return;
+  throw std::invalid_argument(var + " must be finite");
 }
 
-template <typename T, int R, int C>
+/**
+ * @brief Throw an exception if the container's elements are not
+ * finite.
+ * 
+ * @tparam T The type of values.
+ * @tparam R The row size (or -1 for dynamic).
+ * @tparam C The column size (or -1 for dynamic).
+ * @param xs The container.
+ * @param var The name of the container.
+ * @throw std::invalid_argument If the container has an element that
+ * is not finite.
+ */  
+template <std::floating_point T, int R, int C>
 inline void validate_finite(const Eigen::Matrix<T, R, C>& xs,
                             const std::string& var) {
-  std::string var_entries = var + " entries";
   for (int64_t i = 0; i < xs.size(); ++i) {
-    validate_finite(xs(i), var_entries);
+    validate_finite(xs(i), var);
   }
 }
 
+/**
+ * @brief Throw an exception if the container's elements are not
+ * finite.
+ * 
+ * @tparam T The type of values (container or floating point).
+ * @param xs The container.
+ * @param var The name of the container.
+ * @throw std::invalid_argument If the container has an element that
+ * is not finite.
+ */  
 template <typename T>
 inline void validate_finite(const std::vector<T>& xs, const std::string& var) {
-  std::string var_entries = var + " entries";
   for (const auto& x : xs) {
-    validate_finite(x, var_entries);
+    validate_finite(x, var);
   }
 }
 
-template <class Stream>
-inline void validate_open(const Stream& s, const std::string& name) {
-  if (!s.is_open()) {
-    throw std::invalid_argument("could not open stream from: " + name);
-  }
+/**
+ * @brief Throw an exception if the value is not positive and finite.
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not positive and finite.
+ */
+template <typename S>
+inline void validate_positive(S x, const std::string& name) {
+  if (x > 0 && !std::isinf(x)) return;
+  std::string msg = name + " must be in (0, inf).";
+  throw std::invalid_argument(msg);
 }
+
+/**
+ * @brief Throw an exception if the value is not positive.
+ *
+ * @tparam T Type of integral value.
+ * @param[in] x The integral value.
+ * @param[in] name The name of the variable.
+ * @throw std::invalid_argument If the value is not positive.
+ */
+template <std::integral T>  
+inline void validate_positive(T x, const std::string& name) {
+  if (x > 0) return;
+  std::string msg = name + " must be in {1, 2, ... }";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the Eigen container's components are
+ * not positive and finite.
+ *
+ * @tparam T The type of elements.
+ * @param[in] x The Eigen container.
+ * @param[in] name The container's name.
+ * @throw std::invalid_argument If the elements of the container are
+ * not all positive and finite.
+ */
+template <typename T, int R, int C>
+inline void validate_positive(const Eigen::Matrix<T, R, C>& x, const std::string& name) {
+  if ((x.array() > 0.0).all() && x.allFinite()) return;
+  std::string msg = name + " must be in (0, inf).";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the value is not in (0, 1).
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not in (0, 1).
+ */
+template <typename S>
+inline void validate_probability(S x, const std::string& name) {
+  if (x > 0 && x < 1) return;
+  std::string msg = name + " must be in (0, 1)";
+  throw std::invalid_argument(msg);
+}
+
+/**
+ * @brief Throw an exception if the value is not in [0, 1].
+ *
+ * @tparam S Type of value.
+ * @param[in] x The variable's value.
+ * @param[in] name The variable's name.
+ * @throw std::invalid_argument If the value is not in [0, 1].
+ */
+template <typename S>
+inline void validate_probability_inclusive(S x, const std::string& name) {
+  if (x >= 0 && x <= 1) return;
+  std::string msg = name + " must be in [0, 1]";
+  throw std::invalid_argument(msg);
+}  
+
 }  // namespace walnuts

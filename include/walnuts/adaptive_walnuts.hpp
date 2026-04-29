@@ -11,23 +11,6 @@
 namespace walnuts {
 
 /**
- * @brief Return the gradient of the log density at the specified position.
- *
- * @tparam S The type of scalars.
- * @tparam F The type of the target log density/gradient function.
- * @param[in] logp_grad The target log density/gradient function.
- * @param[in] theta The position at which to evaluate the gradient.
- * @return The gradient of the log density at `theta`.
- */
-template <typename S, class F>
-Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
-  Vec<S> g;
-  S logp;
-  logp_grad(theta, logp, g);
-  return g;
-}
-
-/**
  * @brief The step-size adaptation handler for WALNUTS.
  *
  * @tparam S The type of scalars.

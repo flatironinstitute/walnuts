@@ -331,110 +331,20 @@ class NoExceptLogpGrad {
 };
 
 /**
- * @brief Throw an exception if the value is not positive and finite.
+ * @brief Return the gradient of the log density at the specified position.
  *
- * @tparam S Type of value.
- * @param[in] x The variable's value.
- * @param[in] name The variable's name.
- * @throw std::invalid_argument If the value is not positive and finite.
+ * @tparam S The type of scalars.
+ * @tparam F The type of the target log density/gradient function.
+ * @param[in] logp_grad The target log density/gradient function.
+ * @param[in] theta The position at which to evaluate the gradient.
+ * @return The gradient of the log density at `theta`.
  */
-template <typename S>
-inline void validate_positive(S x, const std::string& name) {
-  if (x > 0 && !std::isinf(x)) {
-    return;
-  }
-  std::string msg = name + " must be in (0, inf).";
-  throw std::invalid_argument(msg);
-}
-
-/**
- * @brief Throw an exception if the value is not positive.
- *
- * @param[in] x The variable's value.
- * @param[in] name The variable's name.
- * @throw std::invalid_argument If the value is not positive.
- */
-inline void validate_positive(std::size_t x, const std::string& name) {
-  if (x > 0) {
-    return;
-  }
-  std::string msg = name + " must be in {1, 2, ... }";
-  throw std::invalid_argument(msg);
-}
-
-/**
- * @brief Throw an exception if the vector's components are not positive
- * and finite.
- *
- * @tparam S Type of vector variable's components.
- * @param[in] x The vector value.
- * @param[in] name The vector's name.
- * @throw std::invalid_argument If the elements of the vector are not all
- * positive and finite.
- */
-template <typename S>
-inline void validate_positive(const Vec<S>& x, const std::string& name) {
-  if ((x.array() > 0.0).all() && x.allFinite()) {
-    return;
-  }
-  std::string msg = name + " must be in (0, inf).";
-  throw std::invalid_argument(msg);
-}
-
-/**
- * @brief Throw an exception if the value is not in (0, 1).
- *
- * @tparam S Type of value.
- * @param[in] x The variable's value.
- * @param[in] name The variable's name.
- * @throw std::invalid_argument If the value is not in (0, 1).
- */
-template <typename S>
-inline void validate_probability(S x, const std::string& name) {
-  if (x > 0 && x < 1) {
-    return;
-  }
-  std::string msg = name + " must be in (0, 1)";
-  throw std::invalid_argument(msg);
-}
-
-/**
- * @brief Throw an exception if the value is not in [0, 1].
- *
- * @tparam S Type of value.
- * @param[in] x The variable's value.
- * @param[in] name The variable's name.
- * @throw std::invalid_argument If the value is not in [0, 1].
- */
-template <typename S>
-inline void validate_probability_inclusive(S x, const std::string& name) {
-  if (x >= 0 && x <= 1) {
-    return;
-  }
-  std::string msg = name + " must be in [0, 1]";
-  throw std::invalid_argument(msg);
-}
-
-/**
- * @brief Throw an exception if the containers do not have the same size.
- *
- * @tparam T1 Type of first container.
- * @tparam T2 Type of second container.
- * @param[in] x1 The first container.
- * @param[in] x2 The second container.
- * @param[in] name1 The first container's name.
- * @param[in] name2 The second container's name.
- * @throw std::invalid_argument If the containers are not the same size.
- */
-template <typename T1, typename T2>
-inline void validate_same_size(const T1& x1, const T2& x2,
-                               const std::string& name1,
-                               const std::string& name2) {
-  if (x1.size() == x2.size()) {
-    return;
-  }
-  std::string msg = name1 + " and " + name2 + " must be the same size.";
-  throw std::invalid_argument(msg);
+template <typename S, class F>
+Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
+  Vec<S> g;
+  S logp;
+  logp_grad(theta, logp, g);
+  return g;
 }
 
 }  // namespace walnuts

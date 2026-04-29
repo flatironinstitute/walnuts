@@ -21,17 +21,17 @@
 namespace walnuts {
 
 struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
-  std::uint64_t iter = 0;
-  double log_step = std::numeric_limits<double>::quiet_NaN();
-  Eigen::VectorXd log_mass;
-  Eigen::VectorXd mass;
-
   explicit AdaptSnapshot(std::int64_t dim) : log_mass(dim), mass(dim) {
     log_mass = Eigen::VectorXd::Constant(
         dim, std::numeric_limits<double>::quiet_NaN());
     mass = Eigen::VectorXd::Constant(dim,
                                      std::numeric_limits<double>::quiet_NaN());
   }
+
+  std::uint64_t iter = 0;
+  double log_step = std::numeric_limits<double>::quiet_NaN();
+  Eigen::VectorXd log_mass;
+  Eigen::VectorXd mass;
 };
 
 using Buffer = TripleBuffer<AdaptSnapshot>;

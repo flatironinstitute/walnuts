@@ -292,17 +292,17 @@ class WarmupConfigBuilder {
     return *this;
   }
   WarmupConfigBuilder& publish_stride(uint64_t v) {
-    validate_gt0(v, "publish_stride");
+    validate_positive(v, "publish_stride");
     cfg_.publish_stride_ = v;
     return *this;
   }
   WarmupConfigBuilder& probe_microseconds(uint64_t v) {
-    validate_finite_positive(v, "probe_microseconds");
+    validate_positive(v, "probe_microseconds");
     cfg_.probe_microseconds_ = v;
     return *this;
   }
   WarmupConfigBuilder& yield_period(uint64_t v) {
-    validate_finite_positive(v, "yield_period");
+    validate_positive(v, "yield_period");
     cfg_.yield_period_ = v;
     return *this;
   }
@@ -388,7 +388,7 @@ class SamplingConfigBuilder {
     return *this;
   }
   SamplingConfigBuilder& min_micro_steps(uint64_t v) {
-    validate_gt0(v, "min_micro_steps");
+    validate_positive(v, "min_micro_steps");
     cfg_.min_micro_steps_ = v;
     return *this;
   }

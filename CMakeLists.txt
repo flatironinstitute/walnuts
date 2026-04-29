@@ -172,26 +172,21 @@ endif()
 ##########################
 ##     Doxygen Docs     ##
 ##########################
-#################################
-##        Documentation        ##
-#################################
 if (WALNUTS_BUILD_DOCS)
   find_package(Doxygen REQUIRED)
 
-  # Public headers only
   file(GLOB_RECURSE WALNUT_HEADERS
       "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
 
-  # Doxygen configuration overrides
   set(DOXYGEN_FILE_PATTERNS    "*.hpp")
   set(DOXYGEN_GENERATE_HTML    YES)
   set(DOXYGEN_GENERATE_LATEX   NO)
-  set(DOXYGEN_EXTRACT_ALL YES)
+  set(DOXYGEN_EXTRACT_ALL      YES)
+  set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/refs.bib")
 
-  # `cmake --build . --target doc`
   doxygen_add_docs(
-    doc                         # target name
-    ${WALNUT_HEADERS}           # INPUT files
+    doc
+    ${WALNUT_HEADERS}
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()

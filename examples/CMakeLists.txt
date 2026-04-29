@@ -4,7 +4,7 @@ target_compile_options(examples PRIVATE -O3 -Wall)
 
 if(WALNUTS_BUILD_STAN)
   add_executable(walnuts-api walnuts-api.cpp) 
-  target_link_libraries(walnuts-api PRIVATE nuts::nuts Eigen3::Eigen) 
+  target_link_libraries(walnuts-api PRIVATE nuts::nuts Eigen3::Eigen walnuts)
   target_compile_options(walnuts-api PRIVATE -O3 -Wall) 
   target_compile_options(walnuts-api PRIVATE -fsanitize=thread) 
   target_link_options(walnuts-api PRIVATE -fsanitize=thread) 

@@ -3,12 +3,12 @@
 #include <functional>
 #include <utility>
 
-#include "adam.hpp"
-#include "online_moments.hpp"
-#include "util.hpp"
-#include "walnuts.hpp"
+#include <walnuts/adam.hpp>
+#include <walnuts/online_moments.hpp>
+#include <walnuts/util.hpp>
+#include <walnuts/walnuts.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * @brief Return the gradient of the log density at the specified position.
@@ -35,8 +35,8 @@ Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
 template <typename S>
 class StepAdaptHandler {
  public:
-  StepAdaptHandler(const walnuts::InitChainConfig& init_chain_cfg,
-                   const walnuts::WarmupConfig& warmup_cfg)
+  StepAdaptHandler(const InitChainConfig& init_chain_cfg,
+                   const WarmupConfig& warmup_cfg)
       : adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
               warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
               warmup_cfg.step_sq_gradient_decay(),
@@ -101,7 +101,7 @@ class MassEstimator {
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const walnuts::WarmupConfig& warmup_cfg, const Vec<S>& theta,
+  MassEstimator(const WarmupConfig& warmup_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
       : warmup_cfg_(warmup_cfg) {
     validate_same_size(theta, grad, "theta", "grad");
@@ -150,7 +150,7 @@ class MassEstimator {
 
  private:
   /** The warmup configuration for adaptive Walnuts. */
-  walnuts::WarmupConfig warmup_cfg_;
+  WarmupConfig warmup_cfg_;
 
   /** The online variance estimator for draws. */
   OnlineMoments<S> var_estimator_;
@@ -274,10 +274,9 @@ class AdaptiveWalnuts {
    */
   AdaptiveWalnuts(RNG& rng, Handler& handler, const F& logp_grad,
                   const Vec<S>& theta_init,
-                  const walnuts::InitChainConfig& init_chain_cfg,
-                  const walnuts::WarmupConfig& warmup_cfg,
-                  const walnuts::SamplingConfig& sampling_cfg,
-                  double target_depth = 3.0)
+                  const InitChainConfig& init_chain_cfg,
+                  const WarmupConfig& warmup_cfg,
+                  const SamplingConfig& sampling_cfg, double target_depth = 3.0)
       : init_chain_cfg_(std::cref(init_chain_cfg)),
         warmup_cfg_(std::cref(warmup_cfg)),
         sampling_cfg_(std::cref(sampling_cfg)),
@@ -380,13 +379,13 @@ class AdaptiveWalnuts {
 
  private:
   /** The configuration of initialization for this chain. */
-  std::reference_wrapper<const walnuts::InitChainConfig> init_chain_cfg_;
+  std::reference_wrapper<const InitChainConfig> init_chain_cfg_;
 
   /** The warmup configuration. */
-  std::reference_wrapper<const walnuts::WarmupConfig> warmup_cfg_;
+  std::reference_wrapper<const WarmupConfig> warmup_cfg_;
 
   /** The WALNUTS sampler configuration. */
-  std::reference_wrapper<const walnuts::SamplingConfig> sampling_cfg_;
+  std::reference_wrapper<const SamplingConfig> sampling_cfg_;
 
   /** The random number generator required for NUTS. */
   Random<S, RNG> rand_;
@@ -414,4 +413,4 @@ class AdaptiveWalnuts {
   MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

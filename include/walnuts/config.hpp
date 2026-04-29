@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
@@ -8,6 +7,9 @@
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include <Eigen/Dense>
+
 #include <walnuts/config.hpp>
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
@@ -70,21 +72,21 @@ class InitConfigBuilder {
   }
 
   InitConfigBuilder& step_sizes(double v) {
-    nuts::validate_finite_positive(v, "step size");
+    validate_finite_positive(v, "step size");
     step_sizes_ = std::vector<double>(num_chains_, v);
     return *this;
   }
   InitConfigBuilder& step_sizes(const std::vector<double>& v) {
-    nuts::validate_size(v, num_chains_, "step_sizes", "num_chains");
-    nuts::validate_finite_positive(v, "step_size");
+    validate_size(v, num_chains_, "step_sizes", "num_chains");
+    validate_finite_positive(v, "step_size");
     step_sizes_ = v;
     return *this;
   }
 
   template <std::uniform_random_bit_generator RNG>
   InitConfigBuilder& positions(RNG& rng, double init_scale) {
-    nuts::validate_finite_positive(init_scale, "init_scale");
-    nuts::Random<double, RNG> rand(rng);
+    validate_finite_positive(init_scale, "init_scale");
+    Random<double, RNG> rand(rng);
     positions_.resize(num_chains_);
     for (std::size_t c = 0; c < num_chains_; ++c) {
       rand.standard_normal(dims_, positions_[c]);
@@ -93,27 +95,27 @@ class InitConfigBuilder {
     return *this;
   }
   InitConfigBuilder& positions(const Eigen::VectorXd& v) {
-    nuts::validate_size(v, dims_, "position", "dims");
-    nuts::validate_finite(v, "position");
+    validate_size(v, dims_, "position", "dims");
+    validate_finite(v, "position");
     positions_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
   InitConfigBuilder& positions(const std::vector<Eigen::VectorXd>& v) {
-    nuts::validate_size(v, num_chains_, "positions", "num_chains");
-    nuts::validate_finite(v, "positions");
+    validate_size(v, num_chains_, "positions", "num_chains");
+    validate_finite(v, "positions");
     positions_ = v;
     return *this;
   }
   InitConfigBuilder& positions(std::vector<Eigen::VectorXd>&& v) {
-    nuts::validate_size(v, num_chains_, "positions", "num_chains");
-    nuts::validate_finite(v, "positions");
+    validate_size(v, num_chains_, "positions", "num_chains");
+    validate_finite(v, "positions");
     positions_ = std::move(v);
     return *this;
   }
 
   template <typename LPG>
   InitConfigBuilder& masses(const LPG& logp_grad, double mass_smoothing) {
-    nuts::validate_probability(mass_smoothing, "mass_smoothing");
+    validate_probability(mass_smoothing, "mass_smoothing");
     Eigen::VectorXd grad;
     double lp;  // needed to calculate gradient, o.w. not used
     masses_.resize(num_chains_);
@@ -126,25 +128,25 @@ class InitConfigBuilder {
     return *this;
   }
   InitConfigBuilder& masses(const Eigen::VectorXd& v) {
-    nuts::validate_size(v, dims_, "masses", "dims");
-    nuts::validate_finite_positive(v, "masses");
+    validate_size(v, dims_, "masses", "dims");
+    validate_finite_positive(v, "masses");
     masses_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
   InitConfigBuilder& masses(const std::vector<Eigen::VectorXd>& v) {
-    nuts::validate_size(v, num_chains_, "masses", "num_chains");
-    nuts::validate_finite_positive(v, "masses");
+    validate_size(v, num_chains_, "masses", "num_chains");
+    validate_finite_positive(v, "masses");
     for (const auto& x : v) {
-      nuts::validate_size(x, dims_, "all masses", "dims");
+      validate_size(x, dims_, "all masses", "dims");
     }
     masses_ = v;
     return *this;
   }
   InitConfigBuilder& masses(std::vector<Eigen::VectorXd>&& v) {
-    nuts::validate_size(v, num_chains_, "masses", "num_chains");
-    nuts::validate_finite_positive(v, "masses");
+    validate_size(v, num_chains_, "masses", "num_chains");
+    validate_finite_positive(v, "masses");
     for (const auto& x : v) {
-      nuts::validate_size(x, dims_, "all masses", "dims");
+      validate_size(x, dims_, "all masses", "dims");
     }
     masses_ = std::move(v);
     return *this;
@@ -235,72 +237,72 @@ class WarmupConfigBuilder {
     return *this;
   }
   WarmupConfigBuilder& step_size_converge_tol(double v) {
-    nuts::validate_finite_positive(v, "step_size_converge_tol");
+    validate_finite_positive(v, "step_size_converge_tol");
     cfg_.step_size_converge_tol_ = v;
     return *this;
   }
   WarmupConfigBuilder& mass_converge_tol(double v) {
-    nuts::validate_finite_positive(v, "mass_converge_tol");
+    validate_finite_positive(v, "mass_converge_tol");
     cfg_.mass_converge_tol_ = v;
     return *this;
   }
   WarmupConfigBuilder& mass_init_count(double v) {
-    nuts::validate_finite_positive(v, "mass_init_count");
+    validate_finite_positive(v, "mass_init_count");
     cfg_.mass_init_count_ = v;
     return *this;
   }
   WarmupConfigBuilder& mass_additive_smoothing(double v) {
-    nuts::validate_finite_positive(v, "mass_additive_smoothing");
+    validate_finite_positive(v, "mass_additive_smoothing");
     cfg_.mass_additive_smoothing_ = v;
     return *this;
   }
   WarmupConfigBuilder& max_macro_steps_target(double v) {
-    nuts::validate_finite_positive(v, "max_macro_steps_target");
+    validate_finite_positive(v, "max_macro_steps_target");
     cfg_.max_macro_steps_target_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_accept_rate_target(double v) {
-    nuts::validate_probability(v, "step_accept_rate_target");
+    validate_probability(v, "step_accept_rate_target");
     cfg_.step_accept_rate_target_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_learning_rate(double v) {
-    nuts::validate_finite_positive(v, "step_learning_rate");
+    validate_finite_positive(v, "step_learning_rate");
     cfg_.step_learning_rate_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_gradient_decay(double v) {
-    nuts::validate_probability(v, "step_gradient_decay");
+    validate_probability(v, "step_gradient_decay");
     cfg_.step_gradient_decay_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_sq_gradient_decay(double v) {
-    nuts::validate_probability(v, "step_sq_gradient_decay");
+    validate_probability(v, "step_sq_gradient_decay");
     cfg_.step_sq_gradient_decay_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_stabilization(double v) {
-    nuts::validate_finite_positive(v, "step_stabilization");
+    validate_finite_positive(v, "step_stabilization");
     cfg_.step_stabilization_ = v;
     return *this;
   }
   WarmupConfigBuilder& step_learn_rate_decay(double v) {
-    nuts::validate_probability(v, "step_learn_rate_decay");
+    validate_probability(v, "step_learn_rate_decay");
     cfg_.step_learn_rate_decay_ = v;
     return *this;
   }
   WarmupConfigBuilder& publish_stride(uint64_t v) {
-    nuts::validate_gt0(v, "publish_stride");
+    validate_gt0(v, "publish_stride");
     cfg_.publish_stride_ = v;
     return *this;
   }
   WarmupConfigBuilder& probe_microseconds(uint64_t v) {
-    nuts::validate_finite_positive(v, "probe_microseconds");
+    validate_finite_positive(v, "probe_microseconds");
     cfg_.probe_microseconds_ = v;
     return *this;
   }
   WarmupConfigBuilder& yield_period(uint64_t v) {
-    nuts::validate_finite_positive(v, "yield_period");
+    validate_finite_positive(v, "yield_period");
     cfg_.yield_period_ = v;
     return *this;
   }
@@ -381,17 +383,17 @@ class SamplingConfigBuilder {
     return *this;
   }
   SamplingConfigBuilder& max_hamiltonian_error(double v) {
-    nuts::validate_finite_positive(v, "max_hamiltonian_error");
+    validate_finite_positive(v, "max_hamiltonian_error");
     cfg_.max_hamiltonian_error_ = v;
     return *this;
   }
   SamplingConfigBuilder& min_micro_steps(uint64_t v) {
-    nuts::validate_gt0(v, "min_micro_steps");
+    validate_gt0(v, "min_micro_steps");
     cfg_.min_micro_steps_ = v;
     return *this;
   }
   SamplingConfigBuilder& rhat_converge_tol(double v) {
-    nuts::validate_finite_gt1(v, "rhat_convergence_tol");
+    validate_finite_gt1(v, "rhat_convergence_tol");
     cfg_.rhat_converge_tol_ = v;
     return *this;
   }

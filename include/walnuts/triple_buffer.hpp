@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "walnuts/padded.hpp"
+#include <walnuts/padded.hpp>
 
 namespace walnuts {
 
@@ -115,16 +115,16 @@ class TripleBuffer {
   std::array<T, 3> buffers_;
 
   /** Current front of the buffer, aligned to avoid cache line conflicts. */
-  alignas(walnuts::CACHE_LINE_SIZE) std::atomic<index_t> front_;
+  alignas(CACHE_LINE_SIZE) std::atomic<index_t> front_;
 
   /** Current spare buffer, aligned to avoid cache line conflicts. */
-  alignas(walnuts::CACHE_LINE_SIZE) std::atomic<index_t> spare_;
+  alignas(CACHE_LINE_SIZE) std::atomic<index_t> spare_;
 
   /** Current back buffer---only used by writer. */
-  alignas(walnuts::CACHE_LINE_SIZE) index_t back_;
+  alignas(CACHE_LINE_SIZE) index_t back_;
 
   /** Current read buffer---only used by reader. */
-  alignas(walnuts::CACHE_LINE_SIZE) index_t read_;
+  alignas(CACHE_LINE_SIZE) index_t read_;
 };
 
 }  // namespace walnuts

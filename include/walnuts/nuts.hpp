@@ -7,9 +7,9 @@
 
 #include <Eigen/Dense>
 
-#include "util.hpp"
+#include <walnuts/util.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * @brief A span encodes the necessary information about a Hamiltonian
@@ -377,4 +377,4 @@ class Nuts {
   const std::size_t max_nuts_depth_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

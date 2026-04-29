@@ -20,8 +20,8 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/padded.hpp"
-#include "walnuts/util.hpp"
+#include <walnuts/padded.hpp>
+#include <walnuts/util.hpp>
 
 namespace walnuts {
 
@@ -179,7 +179,7 @@ class ChainWorker {
         yield_period_(yield_period) {}
 
   void operator()(std::stop_token st) {
-    nuts::interactive_qos();
+    interactive_qos();
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 0; iter < draws_per_chain_ && !st.stop_requested();
          ++iter) {
@@ -207,12 +207,12 @@ class ChainWorker {
 
 template <typename Stopper>
 static void controller_loop(
-    std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
+    std::vector<Padded<AtomicChainStats>>& stats_by_chain,
     double rhat_threshold, std::latch& start_gate,
     std::size_t max_draws_per_chain, Stopper& stop_chains,
     std::size_t& num_rhat_evals, double& r_hat,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
-  nuts::initiated_qos();
+  initiated_qos();
   num_rhat_evals = 0;
   r_hat = std::numeric_limits<double>::quiet_NaN();
   const std::size_t M = stats_by_chain.size();
@@ -254,7 +254,7 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 std::size_t max_draws_per_chain,
                                 std::size_t& num_rhat_evals, double& rhat) {
   std::size_t M = samplers.size();
-  std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
+  std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<int64_t>(M));
   std::vector<ChainRecord> chain_records;
   chain_records.reserve(M);

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace nuts {
+namespace walnuts {
 
 template <typename T1, typename T2>
 inline void validate_same_size(const T1& x1, const T2& x2,
@@ -150,4 +150,4 @@ inline void validate_open(const Stream& s, const std::string& name) {
     throw std::invalid_argument("could not open stream from: " + name);
   }
 }
-}  // namespace nuts
+}  // namespace walnuts

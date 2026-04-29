@@ -25,9 +25,8 @@ std::vector<ChainRecord> walnuts(uint32_t seed, std::vector<Handler>& handlers,
                                  const WarmupConfig& warmup_cfg,
                                  const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler =
-      nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
-  using Sampler =
-      nuts::WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
+      AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
+  using Sampler = WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
   if (handlers.size() != init_cfg.num_chains()) {
     throw std::invalid_argument(
@@ -94,7 +93,7 @@ std::vector<ChainRecord> walnuts(uint32_t seed, std::vector<Handler>& handlers,
     num_draws += N_m;
     std::cout << "Chain " << m << "  count " << N_m << "  mean(logp) "
               << lps.mean() << "  sd(logp) [sample] "
-              << std::sqrt(walnuts::variance(lps)) << '\n';
+              << std::sqrt(variance(lps)) << '\n';
   }
   std::cout << "Number of draws: " << num_draws << '\n';
   // *****************************************************

@@ -1,10 +1,11 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <random>
 #include <type_traits>
 
-namespace nuts {
+#include <Eigen/Dense>
+
+namespace walnuts {
 
 #if defined(__has_attribute) && __has_attribute(always_inline)
 #define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
@@ -436,4 +437,4 @@ inline void validate_same_size(const T1& x1, const T2& x2,
   throw std::invalid_argument(msg);
 }
 
-}  // namespace nuts
+}  // namespace walnuts

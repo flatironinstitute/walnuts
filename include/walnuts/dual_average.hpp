@@ -2,9 +2,9 @@
 
 #include <cmath>
 
-#include "util.hpp"
+#include <walnuts/util.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * @brief The configuration and state for a dual averaging estimator
@@ -136,4 +136,4 @@ class DualAverage {
   const S decay_rate_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

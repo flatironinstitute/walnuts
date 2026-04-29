@@ -4,10 +4,10 @@
 
 #include <Eigen/Dense>
 
-#include "util.hpp"
-#include "validate.hpp"
+#include <walnuts/util.hpp>
+#include <walnuts/validate.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * @brief An accumulator estimating discounted means and variances online.
@@ -174,4 +174,4 @@ class OnlineMoments {
   Vec<S> sum_sq_dev_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

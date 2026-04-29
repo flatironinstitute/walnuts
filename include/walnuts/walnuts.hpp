@@ -6,9 +6,9 @@
 
 #include <Eigen/Dense>
 
-#include "util.hpp"
+#include <walnuts/util.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
@@ -673,4 +673,4 @@ class WalnutsSampler {
   const NoOpHandler no_op_adapt_handler_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

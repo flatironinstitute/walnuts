@@ -127,7 +127,7 @@ struct CacheHandler {
                                   const std::string& filename,
                                   int precision = 8) {
     std::ofstream os(filename);
-    nuts::validate_open(os, filename);
+    walnuts::validate_open(os, filename);
     write_step_size_csv(handlers, os, precision);
   }
 
@@ -135,7 +135,7 @@ struct CacheHandler {
                                     const std::string& filename,
                                     int precision = 8) {
     std::ofstream os(filename);
-    nuts::validate_open(os, filename);
+    walnuts::validate_open(os, filename);
     write_mass_matrix_csv(handlers, os, precision);
   }
 
@@ -143,7 +143,7 @@ struct CacheHandler {
                                const std::string& filename,
                                bool include_warmup = true, int precision = 8) {
     std::ofstream os(filename);
-    nuts::validate_open(os, filename);
+    walnuts::validate_open(os, filename);
     write_sample_csv(handlers, os, include_warmup, precision);
   }
 

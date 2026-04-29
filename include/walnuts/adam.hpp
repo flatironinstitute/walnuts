@@ -5,7 +5,7 @@
 
 #include <walnuts/util.hpp>
 
-namespace nuts {
+namespace walnuts {
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size
@@ -108,4 +108,4 @@ class Adam {
   const S learn_rate_decay_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

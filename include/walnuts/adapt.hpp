@@ -20,7 +20,7 @@
 
 namespace walnuts {
 
-struct alignas(walnuts::CACHE_LINE_SIZE) AdaptSnapshot {
+struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
   std::uint64_t iter = 0;
   double log_step = std::numeric_limits<double>::quiet_NaN();
   Eigen::VectorXd log_mass;
@@ -34,8 +34,8 @@ struct alignas(walnuts::CACHE_LINE_SIZE) AdaptSnapshot {
   }
 };
 
-using Buffer = walnuts::TripleBuffer<AdaptSnapshot>;
-using PaddedBuffer = walnuts::Padded<Buffer>;
+using Buffer = TripleBuffer<AdaptSnapshot>;
+using PaddedBuffer = Padded<Buffer>;
 
 static PaddedBuffer construct_buffer(std::size_t dim) {
   auto make = [dim] { return AdaptSnapshot(static_cast<std::int64_t>(dim)); };
@@ -55,8 +55,8 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
 template <class AdaptiveSampler>
 class AdaptWorker {
  public:
-  AdaptWorker(std::uint64_t chain_id, const walnuts::InitConfig& init_cfg,
-              const walnuts::WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
+  AdaptWorker(std::uint64_t chain_id, const InitConfig& init_cfg,
+              const WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
               std::latch& start_gate, AdaptiveSampler& adapter)
       : chain_id_(chain_id),
         init_config_(init_cfg),
@@ -110,8 +110,8 @@ class AdaptWorker {
   }
 
   std::uint64_t chain_id_;
-  const walnuts::InitConfig& init_config_;
-  const walnuts::WarmupConfig& warmup_config_;
+  const InitConfig& init_config_;
+  const WarmupConfig& warmup_config_;
   std::reference_wrapper<Buffer> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   std::reference_wrapper<AdaptiveSampler> adapter_;
@@ -133,8 +133,8 @@ static double l2_rel_diff(const Eigen::VectorXd& a,
 
 template <class Stopper>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
-                                   const walnuts::InitConfig& init_cfg,
-                                   const walnuts::WarmupConfig& warmup_cfg,
+                                   const InitConfig& init_cfg,
+                                   const WarmupConfig& warmup_cfg,
                                    Stopper stop_all) {
   const std::size_t M = init_cfg.num_chains();
   const std::size_t D = init_cfg.dims();
@@ -177,7 +177,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 
     for (std::size_t m = 0; m < M; ++m) {
       const AdaptSnapshot& s = buffers[m].val.read_latest();
-      
+
       const double diff_mass = l2_rel_diff(s.mass, mean_mass);
       max_rel_mass = std::fmax<double>(max_rel_mass, diff_mass);
 
@@ -206,8 +206,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 }
 
 template <typename Adapter>
-AdaptResult adapt(const walnuts::InitConfig& init_cfg,
-                  const walnuts::WarmupConfig& warmup_cfg,
+AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
                   std::vector<Adapter>& adapters) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());

@@ -75,7 +75,7 @@ class Adam {
     S m_hat = m_ / (1 - beta1_pow_);
     S v_hat = v_ / (1 - beta2_pow_);
 
-    // dividing by sqrt(t_) non-standard; similar to dual average to make
+    // standard Adam takes learn_rate_decay_ = 0
     S effective_lr = learn_rate_ / std::pow(t_, learn_rate_decay_);
     S denom = std::sqrt(v_hat) + eps_;
     theta_ -= effective_lr * m_hat / denom;

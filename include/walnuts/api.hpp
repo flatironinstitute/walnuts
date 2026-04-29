@@ -11,12 +11,24 @@
 #include <walnuts/adapt.hpp>
 #include <walnuts/adaptive_walnuts.hpp>
 #include <walnuts/config.hpp>
-#include <walnuts/padded.hpp>
 #include <walnuts/sampler.hpp>
-#include <walnuts/triple_buffer.hpp>
+#include <walnuts/walnuts.hpp>
 
 namespace walnuts {
 
+/**
+ * Return the chain records from running Walnuts with the specified
+ * seed, sampling event handlers, and configuration.
+ *
+ * @tparam Handler The type of the event handlers.
+ * @param seed The seed for the pseudo-random number generator.
+ * @param handlers The collection of chain-specific handlers.
+ * @param init_cfg The initialization configuration.
+ * @param warmup_cfg The warmup configuration.
+ * @param sampling_cfg The sampling configuration.
+ * @throws std::invalid_argument If the number of handlers doesn't match
+ * the initialization configuration's number of chains.
+ */
 template <typename Handler, typename LogProbGrad>
 [[nodiscard]]
 std::vector<ChainRecord> walnuts(uint32_t seed, std::vector<Handler>& handlers,

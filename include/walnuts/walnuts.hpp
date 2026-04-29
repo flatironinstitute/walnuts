@@ -38,20 +38,20 @@ class SpanW {
    * @return The span constructed from the initial point.
    */
   static SpanW<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
-                                     Vec<S>&& grad_theta,
-				     S logp_pos, S logp_joint) {
+                                     Vec<S>&& grad_theta, S logp_pos,
+                                     S logp_joint) {
     return {theta,
-	rho,
-	grad_theta,
-	logp_joint,
-	theta,
-	std::move(rho),
-	grad_theta,
-	logp_joint,
-	std::move(theta),
-	std::move(grad_theta),
-	logp_pos,  
-	logp_joint};
+            rho,
+            grad_theta,
+            logp_joint,
+            theta,
+            std::move(rho),
+            grad_theta,
+            logp_joint,
+            std::move(theta),
+            std::move(grad_theta),
+            logp_pos,
+            logp_joint};
   }
 
   /**
@@ -64,25 +64,24 @@ class SpanW {
    * @param[in] grad_select The gradient of the target log density at the
    * selected position.
    * @param[in] logp_pos_select The log density of the selected position.
-   * @param[in] logp_joint_total The log of the sum of the joint densities of positions and momentums
-   * on the trajectory.
+   * @param[in] logp_joint_total The log of the sum of the joint densities of
+   * positions and momentums on the trajectory.
    */
   static SpanW<S> from_subspans(SpanW<S>&& span1, SpanW<S>&& span2,
                                 Vec<S>&& theta_select, Vec<S>&& grad_select,
-				S logp_pos_select,
-                                S logp_joint_total) {
+                                S logp_pos_select, S logp_joint_total) {
     return {std::move(span1.theta_bk_),
-	std::move(span1.rho_bk_),
-	std::move(span1.grad_theta_bk_),
-	span1.logp_bk_,
-	std::move(span2.theta_fw_),
-	std::move(span2.rho_fw_),
-	std::move(span2.grad_theta_fw_),
-	span2.logp_fw_,
-	std::move(theta_select),
-	std::move(grad_select),
-	logp_pos_select,
-	logp_joint_total};
+            std::move(span1.rho_bk_),
+            std::move(span1.grad_theta_bk_),
+            span1.logp_bk_,
+            std::move(span2.theta_fw_),
+            std::move(span2.rho_fw_),
+            std::move(span2.grad_theta_fw_),
+            span2.logp_fw_,
+            std::move(theta_select),
+            std::move(grad_select),
+            logp_pos_select,
+            logp_joint_total};
   }
 
   /** The earliest state. */
@@ -180,7 +179,8 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
   if (num_steps == 1) {
     return true;
   }
-  // factor of 2 allows halving of steps, >= to allow num_steps = min_micro_steps
+  // factor of 2 allows halving of steps, >= to allow num_steps =
+  // min_micro_steps
   while (num_steps >= 2 * min_micro_steps) {
     Vec<S> theta_next = theta;
     Vec<S> rho_next = -rho;
@@ -215,8 +215,8 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[out] theta_next The position after the macro step.
  * @param[out] rho_next The momentum after the macro step.
  * @param[out] grad_next The gradient of the position after the macro step.
- * @param[out] logp_pos_next The log density of the position and momentum after the
- * macro step.
+ * @param[out] logp_pos_next The log density of the position and momentum after
+ * the macro step.
  * @param[out] logp_next The log density of the position and momentum after the
  * macro step.
  * @param[in,out] adapt_handler The step-size adaptation handler.
@@ -227,7 +227,7 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
                 std::size_t max_step_halvings, std::size_t min_micro_steps,
                 S max_error, const SpanW<S>& span, Vec<S>& theta_next,
                 Vec<S>& rho_next, Vec<S>& grad_next, S& logp_pos_next,
-		S& logp_next, A& adapt_handler) {
+                S& logp_next, A& adapt_handler) {
   using std::fmax, std::fmin;
   constexpr bool is_forward = (D == Direction::Forward);
   const Vec<S>& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
@@ -295,12 +295,12 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   auto& grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
-  double logp_pos_select = update ? span_new.logp_pos_select_ : span_old.logp_pos_select_;
+  double logp_pos_select =
+      update ? span_new.logp_pos_select_ : span_old.logp_pos_select_;
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return SpanW<S>::from_subspans(std::move(span_bk), std::move(span_fw),
                                  std::move(selected), std::move(grad_selected),
-				 logp_pos_select,
-                                 logp_total);
+                                 logp_pos_select, logp_total);
 }
 
 /**
@@ -348,13 +348,13 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
   S logp_next;
   if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,
                      min_micro_steps, max_error, span, theta_next, rho_next,
-                     grad_theta_next, logp_pos_next, logp_next, adapt_handler)) {
+                     grad_theta_next, logp_pos_next, logp_next,
+                     adapt_handler)) {
     return std::nullopt;
   }
   return SpanW<S>::from_initial_point(
       std::move(theta_next), std::move(rho_next), std::move(grad_theta_next),
-      logp_pos_next,
-      logp_next);
+      logp_pos_next, logp_next);
 }
 
 /**
@@ -445,8 +445,8 @@ Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
   S logp_pos;
   logp_grad(theta, logp_pos, grad);
   S logp_joint = logp_pos + logp_momentum(rho, inv_mass);
-  auto span_accum = SpanW<S>::from_initial_point(std::move(theta), std::move(rho),
-						 std::move(grad), logp_pos, logp_joint);
+  auto span_accum = SpanW<S>::from_initial_point(
+      std::move(theta), std::move(rho), std::move(grad), logp_pos, logp_joint);
   for (depth = 1; depth <= max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
     auto expand_in_direction = [&](auto direction) -> bool {
@@ -527,8 +527,9 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * @param[in] rand The randomizer for HMC, which must persist for the duration of the class
-   * because it is stored by reference. 
+   * @param[in] rand The randomizer for HMC, which must persist for the duration
+   of the class
+   * because it is stored by reference.
    * @param[in,out] handler The sampling event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
@@ -553,13 +554,12 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
    */
-  WalnutsSampler(Random<S, RNG>& rand, Handler& handler,
-		 const F& logp_grad, const Vec<S>& theta,
-                 const Vec<S>& inv_mass, S macro_step_size,
+  WalnutsSampler(Random<S, RNG>& rand, Handler& handler, const F& logp_grad,
+                 const Vec<S>& theta, const Vec<S>& inv_mass, S macro_step_size,
                  std::size_t max_nuts_depth, std::size_t max_step_halvings,
                  std::size_t min_micro_steps, S max_error)
       : rand_(rand),
-	handler_(handler),
+        handler_(handler),
         logp_grad_(logp_grad),
         theta_(theta),
         inv_mass_(inv_mass),
@@ -583,7 +583,7 @@ class WalnutsSampler {
 
   /**
    * @brief Return the next draw from the sampler, saving the log
-   * density of the position returned.  
+   * density of the position returned.
 
    * The returned reference will change on future calls to this
    * method, so the value must be consumed before calling
@@ -604,13 +604,17 @@ class WalnutsSampler {
   }
 
   /**
-   * @brief  Return a constant reference the diagonal of the diagonal inverse mass matrix. 
+   * @brief  Return a constant reference the diagonal of the diagonal inverse
+   * mass matrix.
    *
-   * The value of the inverse mass matrix will change on subsequent calls to `operator()(S&)`.
+   * The value of the inverse mass matrix will change on subsequent calls to
+   * `operator()(S&)`.
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  const Vec<S>& inverse_mass_matrix_diagonal() const noexcept { return inv_mass_; }
+  const Vec<S>& inverse_mass_matrix_diagonal() const noexcept {
+    return inv_mass_;
+  }
 
   /**
    * @brief Return the macro (largest) step size.
@@ -637,7 +641,7 @@ class WalnutsSampler {
 
   /** Reference to the sampling event handler. */
   Handler& handler_;
-  
+
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F, S> logp_grad_;
 

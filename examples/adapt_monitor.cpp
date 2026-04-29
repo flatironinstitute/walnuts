@@ -1,11 +1,12 @@
 // examples/adapt_monitor.cpp
 
-// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I ../build/_deps/eigen adapt_monitor.cpp -o adapt_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I
+// ../build/_deps/eigen adapt_monitor.cpp -o adapt_monitor
 // ./adapt_monitor
 
 #include <algorithm>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -21,7 +22,6 @@
 #include <walnuts/config.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>
-
 
 struct alignas(walnuts::DI_SIZE) AdaptSnapshot {
   std::uint32_t iter = 0;
@@ -55,15 +55,12 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
 template <class AdaptiveSampler>
 class AdaptWorker {
  public:
-  AdaptWorker(std::uint32_t chain_id,
-              const nuts::InitConfig& init_cfg,
-	      const nuts::WarmupConfig& warmup_cfg,
-              PaddedBuffer& buffer,
-              std::latch& start_gate,
-              AdaptiveSampler& adapter)
+  AdaptWorker(std::uint32_t chain_id, const nuts::InitConfig& init_cfg,
+              const nuts::WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
+              std::latch& start_gate, AdaptiveSampler& adapter)
       : chain_id_(chain_id),
         init_config_(init_cfg),
-	warmup_config_(warmup_cfg),
+        warmup_config_(warmup_cfg),
         buffer_(buffer.val),
         start_gate_(start_gate),
         adapter_(adapter) {}
@@ -73,17 +70,22 @@ class AdaptWorker {
     std::uint32_t last_done = 0;
     publish_snapshot(0);
     for (std::uint32_t iter = 1; iter <= warmup_config_.max_iter(); ++iter) {
-      if (st.stop_requested()) break;
-      if (warmup_config_.yield_period() > 0 && (iter % warmup_config_.yield_period() == 0)) {
+      if (st.stop_requested()) {
+        break;
+      }
+      if (warmup_config_.yield_period() > 0 &&
+          (iter % warmup_config_.yield_period() == 0)) {
         std::this_thread::yield();
       }
       adapter_.get().step(iter);
       last_done = iter;
-      if (warmup_config_.publish_stride() > 0 && (iter % warmup_config_.publish_stride() == 0)) {
+      if (warmup_config_.publish_stride() > 0 &&
+          (iter % warmup_config_.publish_stride() == 0)) {
         publish_snapshot(iter);
       }
     }
-    if (warmup_config_.publish_stride() == 0 || (last_done % warmup_config_.publish_stride() != 0)) {
+    if (warmup_config_.publish_stride() == 0 ||
+        (last_done % warmup_config_.publish_stride() != 0)) {
       publish_snapshot(last_done);
     }
   }
@@ -93,11 +95,12 @@ class AdaptWorker {
     AdaptSnapshot& snap = buffer_.get().write_buffer();
     snap.iter = iter;
     snap.log_step = (iter == 0) ? std::numeric_limits<float>::quiet_NaN()
-      : adapter_.get().log_step();
+                                : adapter_.get().log_step();
 
     const auto lm = adapter_.get().log_mass();
     for (std::size_t d = 0; d < init_config_.dims(); ++d) {
-      const float v = (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
+      const float v =
+          (iter == 0) ? std::numeric_limits<float>::quiet_NaN() : lm[d];
       snap.log_mass[d] = v;
       snap.mass[d] = std::exp(v);
     }
@@ -111,7 +114,6 @@ class AdaptWorker {
   std::reference_wrapper<std::latch> start_gate_;
   std::reference_wrapper<AdaptiveSampler> adapter_;
 };
-
 
 struct AdaptResult {
   std::vector<float> mass_bar;
@@ -151,7 +153,7 @@ static void elementwise_scale(float a, std::span<float> x) noexcept {
 }
 
 static float l2_rel_diff(std::span<const float> a,
-			 std::span<const float> b) noexcept {
+                         std::span<const float> b) noexcept {
   double sum_sq = 0.0;
   const std::size_t n = a.size();
   for (std::size_t i = 0; i < n; ++i) {
@@ -165,8 +167,8 @@ static float l2_rel_diff(std::span<const float> a,
 
 template <class Stopper>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
-				   const nuts::InitConfig& init_cfg,
-				   const nuts::WarmupConfig& warmup_cfg,
+                                   const nuts::InitConfig& init_cfg,
+                                   const nuts::WarmupConfig& warmup_cfg,
                                    Stopper stop_all) {
   const std::size_t M = init_cfg.num_chains();
   const std::size_t D = init_cfg.dims();
@@ -179,7 +181,8 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 
   std::uint32_t min_iter = 0;
 
-  auto probe_period = std::chrono::microseconds(warmup_cfg.probe_microseconds());
+  auto probe_period =
+      std::chrono::microseconds(warmup_cfg.probe_microseconds());
 
   auto next = std::chrono::steady_clock::now() + probe_period;
   std::vector<const AdaptSnapshot*> latest(M, nullptr);
@@ -204,13 +207,14 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     float max_rel_step = 0.0f;
 
     for (std::size_t m = 0; m < M; ++m) {
-      const AdaptSnapshot& s = *latest[m]; //  buffers[m].val.read_latest();
+      const AdaptSnapshot& s = *latest[m];  //  buffers[m].val.read_latest();
 
-      const float diff_mass =
-          l2_rel_diff(std::span<const float>(s.mass), std::span<const float>(mean_mass));
+      const float diff_mass = l2_rel_diff(std::span<const float>(s.mass),
+                                          std::span<const float>(mean_mass));
       max_rel_mass = std::max(max_rel_mass, diff_mass);
 
-      // Step comparison on log scale: |log_step_m - mean_log_step| / |mean_log_step|
+      // Step comparison on log scale: |log_step_m - mean_log_step| /
+      // |mean_log_step|
       double s_step = std::exp(s.log_step);
       double m_step = std::exp(mean_log_step);
       const float rel_step = (s_step - m_step) / m_step;
@@ -218,17 +222,14 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     }
 
     // Optional progress print (single line).
-    std::cout << '\r'
-              << "min_iter=" << min_iter
+    std::cout << '\r' << "min_iter=" << min_iter
               << "  max_rel_mass=" << max_rel_mass
-              << "  max_rel_step=" << max_rel_step
-              << std::flush;
+              << "  max_rel_step=" << max_rel_step << std::flush;
 
     const bool enough_iters = (min_iter >= warmup_cfg.min_iter());
-    const bool converged =
-      enough_iters
-      && max_rel_mass <= warmup_cfg.mass_converge_tol()
-      && max_rel_step <= warmup_cfg.step_size_converge_tol();
+    const bool converged = enough_iters &&
+                           max_rel_mass <= warmup_cfg.mass_converge_tol() &&
+                           max_rel_step <= warmup_cfg.step_size_converge_tol();
 
     const bool hit_max = min_iter >= warmup_cfg.max_iter();
 
@@ -247,20 +248,20 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
   }
 }
 
-
 template <typename Adapter>
 AdaptResult adapt(const nuts::InitConfig& init_cfg,
-		  const nuts::WarmupConfig& warmup_cfg,
-		  std::vector<Adapter>& adapters) {
-  std::vector<PaddedBuffer> buffers = construct_buffers(init_cfg.num_chains(), init_cfg.dims());
+                  const nuts::WarmupConfig& warmup_cfg,
+                  std::vector<Adapter>& adapters) {
+  std::vector<PaddedBuffer> buffers =
+      construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains()));
 
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
     std::uint32_t chain_id = static_cast<std::uint32_t>(m);
-    threads.emplace_back(AdaptWorker<Adapter>(chain_id, init_cfg, warmup_cfg,
-					      buffers[m], start_gate, adapters[m]));
+    threads.emplace_back(AdaptWorker<Adapter>(
+        chain_id, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
   }
   auto stop_all = [&] {
     for (auto& t : threads) {
@@ -269,7 +270,6 @@ AdaptResult adapt(const nuts::InitConfig& init_cfg,
   };
   return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
 }
-
 
 // ********** EXAMPLE AFTER HERE **************
 
@@ -300,7 +300,7 @@ class MyAdapter {
   std::span<const float> log_mass() const noexcept { return log_mass_; }
 
   std::size_t iter() const noexcept { return iter_; }
-  
+
  private:
   static std::vector<float> means(std::size_t dim) {
     std::vector<float> m(dim);
@@ -320,22 +320,20 @@ class MyAdapter {
   float log_step_;
 };
 
-
 int main() {
   std::cout << "Adaptation Monitoring Demo" << std::endl;
 
   uint64_t chains = 32;
   uint64_t dim = 100;
-  auto init_cfg = nuts::InitConfigBuilder(chains, dim)
-    .build();
-  
+  auto init_cfg = nuts::InitConfigBuilder(chains, dim).build();
+
   auto warmup_cfg = nuts::WarmupConfigBuilder()
-    .min_max_iter(20, 2000)
-    .publish_stride(5)
-    .probe_microseconds(1000)
-    .mass_converge_tol(1.0)
-    .step_size_converge_tol(0.08)
-    .build();
+                        .min_max_iter(20, 2000)
+                        .publish_stride(5)
+                        .probe_microseconds(1000)
+                        .mass_converge_tol(1.0)
+                        .step_size_converge_tol(0.08)
+                        .build();
 
   std::mt19937_64 rng(123456);
   std::vector<MyAdapter> adapters;
@@ -343,26 +341,25 @@ int main() {
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
     adapters.emplace_back(MyAdapter(init_cfg.dims(), rng()));
   }
-  
+
   AdaptResult res = adapt<MyAdapter>(init_cfg, warmup_cfg, adapters);
 
   const float mass_bar_norm = l2_norm(std::span<const float>(res.mass_bar));
-  
+
   std::cout << "\nSHARED ADAPTED RESULT:  "
-	    << "stop_iter_min=" << res.stop_iter_min
+            << "stop_iter_min=" << res.stop_iter_min
             << "  step_bar=" << res.step_bar
-            << "  ||mass_bar||=" << mass_bar_norm
-            << '\n';
+            << "  ||mass_bar||=" << mass_bar_norm << '\n';
 
   std::cout << "\nPER CHAIN FINAL STATES:\n";
   for (std::size_t m = 0; m < adapters.size(); ++m) {
     std::cout << m << ")"
-	      << " iter = " << adapters[m].iter()
-	      << "  step = " << std::exp(adapters[m].log_step())
-	      << "  ||log_mass|| = " << l2_norm(std::span<const float>(adapters[m].log_mass()))
-	      << std::endl;
+              << " iter = " << adapters[m].iter()
+              << "  step = " << std::exp(adapters[m].log_step())
+              << "  ||log_mass|| = "
+              << l2_norm(std::span<const float>(adapters[m].log_mass()))
+              << std::endl;
   }
 
   return 0;
 }
-

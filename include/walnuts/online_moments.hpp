@@ -56,9 +56,7 @@ class OnlineMoments {
    * default discount factor of 0.98.
    */
   OnlineMoments()
-      : weight_(0),
-        mean_(Vec<S>::Zero(0)),
-        sum_sq_dev_(Vec<S>::Zero(0)) {}
+      : weight_(0), mean_(Vec<S>::Zero(0)), sum_sq_dev_(Vec<S>::Zero(0)) {}
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -83,8 +81,7 @@ class OnlineMoments {
                 const Vec<S>& init_variance)
       : weight_(init_weight),
         mean_(init_mean),
-        sum_sq_dev_(init_weight * init_variance)
-  {
+        sum_sq_dev_(init_weight * init_variance) {
     validate_positive(init_weight, "init_weight");
     validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
   }
@@ -135,7 +132,7 @@ class OnlineMoments {
    */
   template <typename Derived>
   void discount_observe(S discount_factor,
-			const Eigen::MatrixBase<Derived>& y) {
+                        const Eigen::MatrixBase<Derived>& y) {
     set_discount_factor(discount_factor);
     observe(y);
   }

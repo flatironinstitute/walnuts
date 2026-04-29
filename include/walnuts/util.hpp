@@ -7,11 +7,11 @@
 namespace nuts {
 
 #if defined(__has_attribute) && __has_attribute(always_inline)
-#  define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
+#define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
 #else
-#  define WALNUTS_STRONG_INLINE inline
+#define WALNUTS_STRONG_INLINE inline
 #endif
-  
+
 #ifdef __APPLE__
 #include <pthread.h>
 #include <pthread/qos.h>
@@ -25,7 +25,6 @@ WALNUTS_STRONG_INLINE void initiated_qos() {
 WALNUTS_STRONG_INLINE void interactive_qos() {}
 WALNUTS_STRONG_INLINE void initiated_qos() {}
 #endif
-
 
 /**
  * @brief The type of column vectors.
@@ -108,9 +107,10 @@ class Random {
   bool uniform_binary() { return binary_(rng_); }
 
   /**
-   * @brief Write a vector of random standard normal variables into the out vector.
+   * @brief Write a vector of random standard normal variables into the out
+   * vector.
    *
-   * The base random number generator is used to generate each 
+   * The base random number generator is used to generate each
    * component independently from a `normal(0, 1)` distribution.
    *
    * @param[in] n The size of the vector generated.
@@ -118,8 +118,9 @@ class Random {
    */
   void standard_normal(std::size_t n, Vec<S>& out) {
     out.resize(static_cast<int64_t>(n));
-    for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i)
+    for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
       out[i] = normal_(rng_);
+    }
   }
 
   /**
@@ -145,7 +146,6 @@ class Random {
     }
     return out;
   }
-
 
  private:
   /** The base random number generator reference. */
@@ -176,7 +176,9 @@ template <typename S>
 inline S log_sum_exp(const S& x1, const S& x2) {
   using std::fmax, std::log, std::exp;
   S m = fmax(x1, x2);
-  if (std::isinf(m) && m < 0) return m;  // x1 = x2 = -inf
+  if (std::isinf(m) && m < 0) {
+    return m;  // x1 = x2 = -inf
+  }
   return m + log(exp(x1 - m) + exp(x2 - m));
 }
 
@@ -214,7 +216,8 @@ inline S log_sum_exp(const Vec<S>& x) {
  */
 template <typename S>
 inline S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass_diag) {
-  // equiv, but with temporaries: -0.5 * rho.dot(inv_mass_diag.cwiseProduct(rho));
+  // equiv, but with temporaries: -0.5 *
+  // rho.dot(inv_mass_diag.cwiseProduct(rho));
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
 }
 
@@ -237,7 +240,7 @@ inline S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass_diag) {
 template <Direction D, typename T>
 inline auto order_forward_backward(T&& x1, T&& x2) {
   if constexpr (D == Direction::Forward) {
-      return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
+    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
   } else {  // Direction::Backward
     return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
   }
@@ -303,9 +306,7 @@ class NoExceptLogpGrad {
    *
    * @param logp_grad The base log density and gradient function.
    */
-  NoExceptLogpGrad(const F& logp_grad)
-    : logp_grad_(std::cref(logp_grad)) {
-  }
+  NoExceptLogpGrad(const F& logp_grad) : logp_grad_(std::cref(logp_grad)) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -315,8 +316,7 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  void operator()(const Vec<S>& x, S& logp,
-		  Vec<S>& grad) const {
+  void operator()(const Vec<S>& x, S& logp, Vec<S>& grad) const {
     try {
       logp_grad_.get()(x, logp, grad);
     } catch (...) {
@@ -426,8 +426,9 @@ inline void validate_probability_inclusive(S x, const std::string& name) {
  * @throw std::invalid_argument If the containers are not the same size.
  */
 template <typename T1, typename T2>
-inline void validate_same_size(const T1& x1, const T2& x2, const std::string& name1,
-                        const std::string& name2) {
+inline void validate_same_size(const T1& x1, const T2& x2,
+                               const std::string& name1,
+                               const std::string& name2) {
   if (x1.size() == x2.size()) {
     return;
   }

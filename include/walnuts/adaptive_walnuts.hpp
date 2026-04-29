@@ -36,15 +36,12 @@ template <typename S>
 class StepAdaptHandler {
  public:
   StepAdaptHandler(const walnuts::InitChainConfig& init_chain_cfg,
-		   const walnuts::WarmupConfig& warmup_cfg)
-    : adam_(init_chain_cfg.step_size(),
-	    warmup_cfg.step_accept_rate_target(),
-	    warmup_cfg.step_learning_rate(),
-	    warmup_cfg.step_gradient_decay(),
-	    warmup_cfg.step_sq_gradient_decay(),
-	    warmup_cfg.step_stabilization(),
-	    warmup_cfg.step_learn_rate_decay()) {
-  }
+                   const walnuts::WarmupConfig& warmup_cfg)
+      : adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
+              warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
+              warmup_cfg.step_sq_gradient_decay(),
+              warmup_cfg.step_stabilization(),
+              warmup_cfg.step_learn_rate_decay()) {}
 
   /**
    * @brief Update with the estimate of step size given the specified
@@ -91,11 +88,11 @@ class MassEstimator {
    *
    * The initial estimate is additively smoothed by multiplying by one
    * minus the additive smoothing and adding the additive smoothing.
-   * 
+   *
    * The final estimate for the inverse mass matrix is given by the
    * geometric mean of the variance of the scores (the inverse
    * variance estimator) and the inverse variance of the draws (the
-   * variance estimator).  
+   * variance estimator).
    *
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] theta The initial position.
@@ -104,11 +101,9 @@ class MassEstimator {
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const walnuts::WarmupConfig& warmup_cfg,
-		const Vec<S>& theta,
+  MassEstimator(const walnuts::WarmupConfig& warmup_cfg, const Vec<S>& theta,
                 const Vec<S>& grad)
-    : warmup_cfg_(warmup_cfg)
-  {
+      : warmup_cfg_(warmup_cfg) {
     validate_same_size(theta, grad, "theta", "grad");
     S smoothing = warmup_cfg.mass_additive_smoothing();
     Vec<S> zero = Vec<S>::Zero(theta.size());
@@ -116,10 +111,10 @@ class MassEstimator {
     Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
     Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Vec<S> init_var = init_prec.array().inverse().matrix();
-    inv_var_estimator_ = OnlineMoments<S>(warmup_cfg.mass_init_count(),
-					  zero, init_prec);
-    var_estimator_ = OnlineMoments<S>(warmup_cfg.mass_init_count(),
-				      zero, init_var);
+    inv_var_estimator_ =
+        OnlineMoments<S>(warmup_cfg.mass_init_count(), zero, init_prec);
+    var_estimator_ =
+        OnlineMoments<S>(warmup_cfg.mass_init_count(), zero, init_var);
   }
 
   /**
@@ -133,7 +128,8 @@ class MassEstimator {
    * @pre iteration >= 0
    */
   void observe(const Vec<S>& theta, const Vec<S>& grad, std::size_t iteration) {
-    double discount_factor = 1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
+    double discount_factor =
+        1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
     var_estimator_.discount_observe(discount_factor, theta);
     inv_var_estimator_.discount_observe(discount_factor, grad);
   }
@@ -155,7 +151,7 @@ class MassEstimator {
  private:
   /** The warmup configuration for adaptive Walnuts. */
   walnuts::WarmupConfig warmup_cfg_;
-  
+
   /** The online variance estimator for draws. */
   OnlineMoments<S> var_estimator_;
 
@@ -276,26 +272,23 @@ class AdaptiveWalnuts {
    * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected NUTS tree depth.
    */
-  AdaptiveWalnuts(RNG& rng,
-		  Handler& handler,
-		  const F& logp_grad,
-		  const Vec<S>& theta_init,
-		  const walnuts::InitChainConfig& init_chain_cfg,
-		  const walnuts::WarmupConfig& warmup_cfg,
+  AdaptiveWalnuts(RNG& rng, Handler& handler, const F& logp_grad,
+                  const Vec<S>& theta_init,
+                  const walnuts::InitChainConfig& init_chain_cfg,
+                  const walnuts::WarmupConfig& warmup_cfg,
                   const walnuts::SamplingConfig& sampling_cfg,
                   double target_depth = 3.0)
-    : init_chain_cfg_(std::cref(init_chain_cfg)),
-      warmup_cfg_(std::cref(warmup_cfg)),
-      sampling_cfg_(std::cref(sampling_cfg)),
-      rand_(rng),
-      handler_(handler),
-      logp_grad_(logp_grad),
-      theta_(theta_init),
-      iteration_(0),
-      step_adapt_handler_(init_chain_cfg, warmup_cfg),
-      mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
-      min_micro_estimator_(std::pow(2.0, target_depth)) {
-  }
+      : init_chain_cfg_(std::cref(init_chain_cfg)),
+        warmup_cfg_(std::cref(warmup_cfg)),
+        sampling_cfg_(std::cref(sampling_cfg)),
+        rand_(rng),
+        handler_(handler),
+        logp_grad_(logp_grad),
+        theta_(theta_init),
+        iteration_(0),
+        step_adapt_handler_(init_chain_cfg, warmup_cfg),
+        mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
+        min_micro_estimator_(std::pow(2.0, target_depth)) {}
 
   /**
    * @brief Return the next state from warmup.
@@ -316,9 +309,11 @@ class AdaptiveWalnuts {
     std::size_t depth = 0;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
-        sampling_cfg_.get().max_trajectory_doublings(), sampling_cfg_.get().max_step_halvings(), 
-        min_micro_estimator_.min_micro_steps(), sampling_cfg_.get().max_hamiltonian_error(),
-        std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
+        sampling_cfg_.get().max_trajectory_doublings(),
+        sampling_cfg_.get().max_step_halvings(),
+        min_micro_estimator_.min_micro_steps(),
+        sampling_cfg_.get().max_hamiltonian_error(), std::move(theta_), depth,
+        grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(1 << depth);
     handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);
@@ -338,16 +333,13 @@ class AdaptiveWalnuts {
    */
   WalnutsSampler<F, S, RNG, Handler> sampler() {
     handler_.on_warmup_complete(step_size(), inv_mass());
-    return WalnutsSampler<F, S, RNG, Handler>(rand_,
-					      handler_,
-					      logp_grad_.logp_grad_,
-					      theta_,
-					      mass_estimator_.inv_mass_estimate(),
-					      step_adapt_handler_.step_size(),
-					      sampling_cfg_.get().max_trajectory_doublings(), 
-					      sampling_cfg_.get().max_step_halvings(),
-					      min_micro_estimator_.min_micro_steps(),
-					      sampling_cfg_.get().max_hamiltonian_error());
+    return WalnutsSampler<F, S, RNG, Handler>(
+        rand_, handler_, logp_grad_.logp_grad_, theta_,
+        mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
+        sampling_cfg_.get().max_trajectory_doublings(),
+        sampling_cfg_.get().max_step_halvings(),
+        min_micro_estimator_.min_micro_steps(),
+        sampling_cfg_.get().max_hamiltonian_error());
   }
 
   /**
@@ -377,23 +369,19 @@ class AdaptiveWalnuts {
     return static_cast<std::size_t>(theta_.size());
   }
 
-  double log_step_size() const noexcept {
-    return std::log(step_size());
-  }
+  double log_step_size() const noexcept { return std::log(step_size()); }
 
   Eigen::VectorXd log_mass() const {
     // equiv. inv_mass().array().inverse().log().matrix();
     return -inv_mass().array().log().matrix();
   }
 
-  std::size_t iter() const noexcept {
-    return iteration_;
-  }
-  
+  std::size_t iter() const noexcept { return iteration_; }
+
  private:
   /** The configuration of initialization for this chain. */
   std::reference_wrapper<const walnuts::InitChainConfig> init_chain_cfg_;
-  
+
   /** The warmup configuration. */
   std::reference_wrapper<const walnuts::WarmupConfig> warmup_cfg_;
 

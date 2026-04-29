@@ -11,14 +11,14 @@
 namespace walnuts {
 
 /*
- * @brief A lock-free, single-producer, single-consumer queue with triple buffering.
+ * @brief A lock-free, single-producer, single-consumer queue with triple
+ * buffering.
  *
  * @tparam T Type of object buffered.
  */
 template <class T>
 class TripleBuffer {
  public:
-
   /**
    * @brief Construct a buffer using the specified factory to
    * construct values of type `T` to buffer.  The factory must
@@ -41,34 +41,37 @@ class TripleBuffer {
    *
    * @param other The buffer to move.
    */
-  TripleBuffer(TripleBuffer&& other)
-    noexcept(std::is_nothrow_move_constructible_v<std::array<T, 3>>)
-    : buffers_(std::move(other.buffers_)),
-      front_(other.front_.load(std::memory_order_relaxed)),
-      spare_(other.spare_.load(std::memory_order_relaxed)),
-      back_(other.back_),
-      read_(other.read_) {}
+  TripleBuffer(TripleBuffer&& other) noexcept(
+      std::is_nothrow_move_constructible_v<std::array<T, 3>>)
+      : buffers_(std::move(other.buffers_)),
+        front_(other.front_.load(std::memory_order_relaxed)),
+        spare_(other.spare_.load(std::memory_order_relaxed)),
+        back_(other.back_),
+        read_(other.read_) {}
 
-  
   /**
-   * Move the specified buffer into this buffer.  
+   * Move the specified buffer into this buffer.
 
    * This is only safe before any threading begins producing or consuming.
    *
    * @param other The buffer to move.
    * @return A reference to this buffer.
    */
-  TripleBuffer& operator=(TripleBuffer&& other)
-    noexcept(std::is_nothrow_move_assignable_v<std::array<T, 3>>) {
-    if (this == &other) return *this;
+  TripleBuffer& operator=(TripleBuffer&& other) noexcept(
+      std::is_nothrow_move_assignable_v<std::array<T, 3>>) {
+    if (this == &other) {
+      return *this;
+    }
     buffers_ = std::move(other.buffers_);
-    front_.store(other.front_.load(std::memory_order_relaxed), std::memory_order_relaxed);
-    spare_.store(other.spare_.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    front_.store(other.front_.load(std::memory_order_relaxed),
+                 std::memory_order_relaxed);
+    spare_.store(other.spare_.load(std::memory_order_relaxed),
+                 std::memory_order_relaxed);
     back_ = other.back_;
     read_ = other.read_;
     return *this;
   }
-  
+
   TripleBuffer(const TripleBuffer&) = delete;
   TripleBuffer& operator=(const TripleBuffer&) = delete;
 
@@ -80,7 +83,7 @@ class TripleBuffer {
   T& write_buffer() noexcept { return buffers_[static_cast<size_t>(back_)]; }
 
   /**
-   * Commit the changes to the write buffer. 
+   * Commit the changes to the write buffer.
    */
   void publish() noexcept {
     const int published = back_;
@@ -89,8 +92,8 @@ class TripleBuffer {
   }
 
   /**
-   * Return a constant reference to the most recently published value, or the 
-   * default-constructed initial value if no values have been published. 
+   * Return a constant reference to the most recently published value, or the
+   * default-constructed initial value if no values have been published.
    *
    * @return The latest value.
    */
@@ -124,4 +127,4 @@ class TripleBuffer {
   alignas(walnuts::CACHE_LINE_SIZE) index_t read_;
 };
 
-}  // namespace walnuts  
+}  // namespace walnuts

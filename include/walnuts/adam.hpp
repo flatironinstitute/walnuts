@@ -9,7 +9,7 @@ namespace nuts {
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size
- * adaptation with a decreasing learning rate schedule.  
+ * adaptation with a decreasing learning rate schedule.
 
  * The specialization for step size builds in quadratic error,
  * following Nuts. That is, for observed accept rate `acc_obs` and
@@ -41,23 +41,22 @@ class Adam {
    * @param[in] stabilization The estimation stabilization parameter.
    * @param[in] learn_rate_decay The learning rate exponent on iteration.
    */
-  Adam(S step_size_init, S accept_rate_target,
-       S learning_rate, S gradient_decay, S sq_gradient_decay,
-       S stabilization, S learn_rate_decay)
-    : theta_(std::log(step_size_init)),
-      m_(0),
-      v_(0),
-      t_(0),
-      beta1_pow_(1),
-      beta2_pow_(1),
-      target_accept_rate_(accept_rate_target),
-      learn_rate_(learning_rate),
-      beta1_(gradient_decay),
-      beta2_(sq_gradient_decay),
-      eps_(stabilization),
-      learn_rate_decay_(learn_rate_decay)
-  {}
-  
+  Adam(S step_size_init, S accept_rate_target, S learning_rate,
+       S gradient_decay, S sq_gradient_decay, S stabilization,
+       S learn_rate_decay)
+      : theta_(std::log(step_size_init)),
+        m_(0),
+        v_(0),
+        t_(0),
+        beta1_pow_(1),
+        beta2_pow_(1),
+        target_accept_rate_(accept_rate_target),
+        learn_rate_(learning_rate),
+        beta1_(gradient_decay),
+        beta2_(sq_gradient_decay),
+        eps_(stabilization),
+        learn_rate_decay_(learn_rate_decay) {}
+
   /**
    * Observe an acceptance probability in (0, 1).
    *
@@ -76,8 +75,7 @@ class Adam {
     S m_hat = m_ / (1 - beta1_pow_);
     S v_hat = v_ / (1 - beta2_pow_);
 
-
-    // dividing by sqrt(t_) non-standard; similar to dual average to make 
+    // dividing by sqrt(t_) non-standard; similar to dual average to make
     S effective_lr = learn_rate_ / std::pow(t_, learn_rate_decay_);
     S denom = std::sqrt(v_hat) + eps_;
     theta_ -= effective_lr * m_hat / denom;

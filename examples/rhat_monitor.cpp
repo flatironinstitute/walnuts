@@ -1,10 +1,11 @@
-// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I ../build/_deps/eigen rhat_monitor.cpp -o rhat_monitor
+// clang++ -std=c++20 -march=native -O3 -pthread -I ../include -I
+// ../build/_deps/eigen rhat_monitor.cpp -o rhat_monitor
 // ./rhat_monitor
 
 #include <array>
 #include <atomic>
-#include <chrono>
 #include <bit>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -95,11 +96,13 @@ class AtomicChainStats {
   }
 
   // conservatie release/acquire vs. relaxed pattern
-  void store(const ChainStats& p, std::memory_order mem_order = std::memory_order_release) noexcept {
+  void store(const ChainStats& p,
+             std::memory_order mem_order = std::memory_order_release) noexcept {
     data_.store(p, mem_order);
   }
 
-  ChainStats load(std::memory_order mem_order = std::memory_order_acquire) const noexcept {
+  ChainStats load(
+      std::memory_order mem_order = std::memory_order_acquire) const noexcept {
     return data_.load(mem_order);
   }
 
@@ -215,21 +218,19 @@ template <class Sampler>
 class ChainWorker {
  public:
   ChainWorker(std::size_t draws_per_chain, Sampler& sampler,
-	      ChainRecord& chain_record,
-              AtomicChainStats& acs, std::latch& start_gate,
-	      std::size_t yield_period = 1024)
+              ChainRecord& chain_record, AtomicChainStats& acs,
+              std::latch& start_gate, std::size_t yield_period = 1024)
       : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        chain_record_(chain_record), // sampler.dim(), draws_per_chain),
+        chain_record_(chain_record),  // sampler.dim(), draws_per_chain),
         acs_(acs),
         start_gate_(start_gate),
-	yield_period_(yield_period) {}
+        yield_period_(yield_period) {}
 
   void operator()(std::stop_token st) {
     interactive_qos();
     start_gate_.get().arrive_and_wait();
-    for (std::size_t iter = 0;
-	 iter < draws_per_chain_ && !st.stop_requested();
+    for (std::size_t iter = 0; iter < draws_per_chain_ && !st.stop_requested();
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
@@ -243,7 +244,7 @@ class ChainWorker {
     }
   }
 
-private:
+ private:
   const std::size_t draws_per_chain_;
   std::reference_wrapper<Sampler> sampler_;
   std::reference_wrapper<ChainRecord> chain_record_;
@@ -253,14 +254,13 @@ private:
   const std::size_t yield_period_;
 };
 
-
 template <typename Stopper>
-static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
-                            double rhat_threshold, std::latch& start_gate,
-                            std::size_t max_draws_per_chain,
-                            Stopper stop_chains,
-			    std::size_t& num_rhat_evals,
-			    std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
+static void controller_loop(
+    std::vector<walnuts::Padded<AtomicChainStats>>& stats_by_chain,
+    double rhat_threshold, std::latch& start_gate,
+    std::size_t max_draws_per_chain, Stopper stop_chains,
+    std::size_t& num_rhat_evals,
+    std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();
   num_rhat_evals = 0;
   const std::size_t M = stats_by_chain.size();
@@ -286,13 +286,10 @@ static void controller_loop(std::vector<walnuts::Padded<AtomicChainStats>>& stat
     ++num_rhat_evals;
 
     // PLACEHOLDER FOR DEBUGGING---GET RID OF ALL std::cout FOR SERVER VERSION
-    std::cout << std::setprecision(6) << std::fixed
-	      << std::setw(8) << std::setfill(' ')
-	      << '\r' // begin of currnet line
-	      << "R hat " << r_hat
-	      << "  #draws " << num_draws
-	      << std::flush;
-    
+    std::cout << std::setprecision(6) << std::fixed << std::setw(8)
+              << std::setfill(' ') << '\r'  // begin of currnet line
+              << "R hat " << r_hat << "  #draws " << num_draws << std::flush;
+
     if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
       break;
     }
@@ -309,7 +306,7 @@ template <typename Sampler>
 std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
                                 double rhat_threshold,
                                 std::size_t max_draws_per_chain,
-				std::size_t& num_rhat_evals) {
+                                std::size_t& num_rhat_evals) {
   std::size_t M = samplers.size();
   std::vector<walnuts::Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(M);
@@ -319,9 +316,9 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     chain_records.emplace_back(samplers[m].dim(), max_draws_per_chain);
-    threads.emplace_back(ChainWorker<Sampler>(max_draws_per_chain, samplers[m],
-					      chain_records[m],
-					      stats_by_chain[m].val, start_gate));
+    threads.emplace_back(
+        ChainWorker<Sampler>(max_draws_per_chain, samplers[m], chain_records[m],
+                             stats_by_chain[m].val, start_gate));
   }
   auto stop_all = [&] {
     for (auto& t : threads) {
@@ -384,7 +381,7 @@ static void write_chains(Out& out, std::size_t dim,
       write_f64(out, rec.logp(n));
       const auto row = rec.draw(n);
       out.write(reinterpret_cast<const char*>(row.data()),
-		static_cast<std::streamsize>(row.size_bytes()));
+                static_cast<std::streamsize>(row.size_bytes()));
     }
   }
 }
@@ -394,22 +391,23 @@ static void write_chains(Out& out, std::size_t dim,
 static void write_binary(const std::string& path, std::size_t dim,
                          const std::vector<ChainRecord>& chains) {
   static_assert(std::endian::native == std::endian::little,
-		"Binary format requires little-endian host");
+                "Binary format requires little-endian host");
   static_assert(sizeof(double) == 8, "Binary format requires 8-byte double");
 
   std::ofstream out(path, std::ios::binary);
   if (!out) {
     throw std::runtime_error("could not open file: " + path);
   }
-  std::vector<char> filebuf(8u << 20); //  8 MB buffer bigger than usual
-  out.rdbuf()->pubsetbuf(filebuf.data(), static_cast<std::streamsize>(filebuf.size()));
+  std::vector<char> filebuf(8u << 20);  //  8 MB buffer bigger than usual
+  out.rdbuf()->pubsetbuf(filebuf.data(),
+                         static_cast<std::streamsize>(filebuf.size()));
 
   std::ostringstream oss;
   write_fixed_header(oss, dim, chains);
   write_column_names(oss, dim);
   auto header = oss.str();
   out << header;
-  std::size_t padding_to_8_byte_boundary = 8 - header.size() % 8;   
+  std::size_t padding_to_8_byte_boundary = 8 - header.size() % 8;
   for (std::size_t i = 0; i < padding_to_8_byte_boundary; ++i) {
     out << '\0';
   }
@@ -433,7 +431,7 @@ class StandardNormalSampler {
       x = normal_dist_(engine_);
       lp += -0.5 * x * x;  // unnomalized
     }
-    std::this_thread::sleep_for(std::chrono::microseconds{500}); // sim Stan
+    std::this_thread::sleep_for(std::chrono::microseconds{500});  // sim Stan
     return lp;
   }
 
@@ -448,8 +446,8 @@ class StandardNormalSampler {
 int main() {
   std::atomic<ChainStats> test_chain_stats;
   std::cout << "LOCK FREE: "
-	    << ( std::atomic<ChainStats>().is_lock_free() ? "yes" : "***NO***")
-	    << std::endl;
+            << (std::atomic<ChainStats>().is_lock_free() ? "yes" : "***NO***")
+            << std::endl;
 
   const std::string out_path = "sample.mcmc";
   const std::size_t D = 100;
@@ -467,7 +465,8 @@ int main() {
   }
 
   std::size_t num_rhat_evals;
-  std::vector<ChainRecord> chain_records = sample(samplers, rhat_threshold, N, num_rhat_evals);
+  std::vector<ChainRecord> chain_records =
+      sample(samplers, rhat_threshold, N, num_rhat_evals);
   std::cout << "\nnum Rhat evals = " << num_rhat_evals << "\n";
   std::size_t rows = 0;
   for (std::size_t m = 0; m < chain_records.size(); ++m) {
@@ -478,15 +477,15 @@ int main() {
       lps[n] = chain_record.logp(n);
     }
     rows += N_m;
-    std::cout << "Chain " << m << "  count " << N_m
-              << "  mean(logp) " << mean(lps)
-              << "  sd(logp) [sample] " << std::sqrt(variance(lps)) << '\n';
+    std::cout << "Chain " << m << "  count " << N_m << "  mean(logp) "
+              << mean(lps) << "  sd(logp) [sample] " << std::sqrt(variance(lps))
+              << '\n';
   }
   std::cout << "Number of draws: " << rows << '\n';
 
   // uncomment to dump csv or binary .mcmc formats
   std::cout << "writing sample to file: " << out_path << "\n";
-  write_binary(out_path, D, chain_records); // WARNING: up to N * D * 8 bytes
+  write_binary(out_path, D, chain_records);  // WARNING: up to N * D * 8 bytes
   // write_csv(out_path, D, chain_records);  // WARNING: even bigger
   // std::cout << "Wrote draws to " << out_path << '\n';
 

@@ -152,17 +152,20 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
       std::chrono::microseconds(warmup_cfg.probe_microseconds());
 
   auto next = std::chrono::steady_clock::now() + probe_period;
-  std::vector<const AdaptSnapshot*> latest(M, nullptr);
+  std::vector<AdaptSnapshot> latest;
+  latest.reserve(M);
+  for (std::size_t m = 0; m < M; ++m) {
+    latest.push_back(buffers[m].val.read_latest());
+  }
   while (true) {
     std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0);
     mean_log_step = 0.0;
     min_iter = std::numeric_limits<std::uint32_t>::max();
     for (std::size_t m = 0; m < M; ++m) {
-      latest[m] = &buffers[m].val.read_latest();
-      const AdaptSnapshot& s = *latest[m];
-      min_iter = std::min(min_iter, s.iter);
-      mean_log_step += s.log_step;
-      mean_log_mass += s.log_mass;
+      latest[m] = buffers[m].val.read_latest();
+      min_iter = std::min(min_iter, latest[m].iter);
+      mean_log_step += latest[m].log_step;
+      mean_log_mass += latest[m].log_mass;
     }
 
     mean_log_step /= static_cast<double>(M);
@@ -173,13 +176,12 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     double max_rel_step = 0.0;
 
     for (std::size_t m = 0; m < M; ++m) {
-      const AdaptSnapshot& s = *latest[m];  //  buffers[m].val.read_latest();
-
+      const AdaptSnapshot& s = buffers[m].val.read_latest();
+      
       const double diff_mass = l2_rel_diff(s.mass, mean_mass);
       max_rel_mass = std::fmax<double>(max_rel_mass, diff_mass);
 
-      // Step comparison on log scale: |log_step_m - mean_log_step| /
-      // |mean_log_step|
+      // could stay on log scale longer
       double s_step = static_cast<double>(std::exp(s.log_step));
       double m_step = static_cast<double>(std::exp(mean_log_step));
       double rel_step = (s_step - m_step) / m_step;

@@ -40,12 +40,12 @@ namespace walnuts {
         ? 0
         : static_cast<uint64_t>(positions_.front().size()); }
     const std::vector<double>& step_sizes()             const { return step_sizes_; }
-    double step_size(size_t n)                          const { return step_sizes_[n]; }                             
+    double step_size(std::size_t n)                          const { return step_sizes_[n]; }                             
     const std::vector<Eigen::VectorXd>& positions()     const { return positions_; }
-    const Eigen::VectorXd& position(size_t n)           const { return positions_[n]; }
+    const Eigen::VectorXd& position(std::size_t n)           const { return positions_[n]; }
     const std::vector<Eigen::VectorXd>& masses()        const { return masses_; }
-    const Eigen::VectorXd& mass(size_t n)               const { return masses_[n]; }
-    InitChainConfig init_chain_config(size_t n)         const {
+    const Eigen::VectorXd& mass(std::size_t n)               const { return masses_[n]; }
+    InitChainConfig init_chain_config(std::size_t n)         const {
       return InitChainConfig(step_size(n),
                              position(n),
                              mass(n));
@@ -90,7 +90,7 @@ namespace walnuts {
       nuts::validate_finite_positive(init_scale, "init_scale");
       nuts::Random<double, RNG> rand(rng);
       positions_.resize(num_chains_);
-      for (size_t c = 0; c < num_chains_; ++c) {
+      for (std::size_t c = 0; c < num_chains_; ++c) {
 	rand.standard_normal(dims_, positions_[c]);
 	positions_[c] *= init_scale;
       }
@@ -121,7 +121,7 @@ namespace walnuts {
       Eigen::VectorXd grad;
       double lp;  // needed to calculate gradient, o.w. not used
       masses_.resize(num_chains_);
-      for (size_t c = 0; c < num_chains_; ++c) {
+      for (std::size_t c = 0; c < num_chains_; ++c) {
         logp_grad(positions_[c], lp, grad);
         // abs geom averages with unit, sqrt additionally regularizes scale
         masses_[c] = (1 - mass_smoothing) * grad.array().abs().sqrt() + mass_smoothing;
@@ -170,7 +170,7 @@ namespace walnuts {
   
   inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
     out << "InitConfigs (by chain)\n";
-    for (size_t n = 0; n < cfg.step_sizes().size(); ++n) {
+    for (std::size_t n = 0; n < cfg.step_sizes().size(); ++n) {
       if (n > 0) out << "\n";
       out << "  chain         = " << n                              << "\n"
           << "    num_chains  = " << cfg.num_chains()               << "\n"

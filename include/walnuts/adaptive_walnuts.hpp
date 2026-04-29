@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <utility>
 
 #include "adam.hpp"
@@ -51,7 +52,7 @@ class StepAdaptHandler {
    *
    * @param[in] accept_prob The observed acceptance probability.
    */
-  void operator()(S accept_prob) { adam_.observe(accept_prob); }
+  void operator()(S accept_prob) noexcept { adam_.observe(accept_prob); }
 
   /**
    * @brief Return the estimated step size.
@@ -167,7 +168,7 @@ class MassEstimator {
  * per macro step.
  *
  * After being constructed with a target number of macro steps, this
- * class is given observeations of the number of micro steps taken and
+ * class is given observations of the number of micro steps taken and
  * adjusts the minimum number of micro steps per macro step in order
  * to achieve the target expected number of macro steps historically.
  * There is slight regularization of a single observation at depth 2,
@@ -187,7 +188,7 @@ class MinMicroStepsAdaptHandler {
         count_(1.0) {}
 
   /**
-   * @brief Observe the specifed number of macro steps in a NUTS trajectory.
+   * @brief Observe the specified number of macro steps in a NUTS trajectory.
    *
    * @param[in] macro_steps The number of macro steps used in a trajectory.
    */
@@ -260,15 +261,12 @@ class AdaptiveWalnuts {
    *                       Eigen::Matrix<S, -1, 1>& grad);
    * ```
    *
-   * The configuration objects are moved, the initialization is
-   * copied, and the base random number generator and log
-   * density/gradient function are held by reference.  The RNG is
-   * changes every time a random number is generated.  The target log
-   * density can be non-constant to allow for implementations that,
-   * for example, track number of gradient evaluations.  The target depth
-   * specifies the expected NUTS tree depth, which is controlled through
-   * the minimum number of micro steps per macro step and adjusted with
-   * a mean estimator to achieve this average.
+   * The configuration objects, the base random number generator, and
+   * the log density/gradient function are held by reference.  The RNG
+   * changes state every time a random number is generated.  The
+   * target depth specifies the expected NUTS tree depth, which is
+   * controlled through the minimum number of micro steps per macro
+   * step and adjusted with a mean estimator to achieve this average.
    *
    * @param[in,out] rng The base random number generator.
    * @param[in,out] handler Event handler for adaptation and sampling.
@@ -286,17 +284,17 @@ class AdaptiveWalnuts {
 		  const walnuts::WarmupConfig& warmup_cfg,
                   const walnuts::SamplingConfig& sampling_cfg,
                   double target_depth = 3.0)
-      : init_chain_cfg_(init_chain_cfg),
-	warmup_cfg_(warmup_cfg),
-	sampling_cfg_(sampling_cfg),
-        rand_(rng),
-	handler_(handler),
-        logp_grad_(logp_grad),
-        theta_(theta_init),
-        iteration_(0),
-        step_adapt_handler_(init_chain_cfg, warmup_cfg),
-        mass_estimator_(warmup_cfg, theta_, grad(logp_grad, theta_)),
-        min_micro_estimator_(std::pow(2.0, target_depth)) {
+    : init_chain_cfg_(std::cref(init_chain_cfg)),
+      warmup_cfg_(std::cref(warmup_cfg)),
+      sampling_cfg_(std::cref(sampling_cfg)),
+      rand_(rng),
+      handler_(handler),
+      logp_grad_(logp_grad),
+      theta_(theta_init),
+      iteration_(0),
+      step_adapt_handler_(init_chain_cfg, warmup_cfg),
+      mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
+      min_micro_estimator_(std::pow(2.0, target_depth)) {
   }
 
   /**
@@ -318,8 +316,8 @@ class AdaptiveWalnuts {
     std::size_t depth = 0;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
-        sampling_cfg_.max_trajectory_doublings(), sampling_cfg_.max_step_halvings(), 
-        min_micro_estimator_.min_micro_steps(), sampling_cfg_.max_hamiltonian_error(),
+        sampling_cfg_.get().max_trajectory_doublings(), sampling_cfg_.get().max_step_halvings(), 
+        min_micro_estimator_.min_micro_steps(), sampling_cfg_.get().max_hamiltonian_error(),
         std::move(theta_), depth, grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(1 << depth);
@@ -346,10 +344,10 @@ class AdaptiveWalnuts {
 					      theta_,
 					      mass_estimator_.inv_mass_estimate(),
 					      step_adapt_handler_.step_size(),
-					      sampling_cfg_.max_trajectory_doublings(), 
-					      sampling_cfg_.max_step_halvings(),
+					      sampling_cfg_.get().max_trajectory_doublings(), 
+					      sampling_cfg_.get().max_step_halvings(),
 					      min_micro_estimator_.min_micro_steps(),
-					      sampling_cfg_.max_hamiltonian_error());
+					      sampling_cfg_.get().max_hamiltonian_error());
   }
 
   /**
@@ -376,15 +374,16 @@ class AdaptiveWalnuts {
   }
 
   std::size_t dim() const noexcept {
-    return theta_.size();
+    return static_cast<std::size_t>(theta_.size());
   }
 
   double log_step_size() const noexcept {
     return std::log(step_size());
   }
 
-  Eigen::VectorXd log_mass() const noexcept {
-    return inv_mass().array().inverse().log().matrix();
+  Eigen::VectorXd log_mass() const {
+    // equiv. inv_mass().array().inverse().log().matrix();
+    return -inv_mass().array().log().matrix();
   }
 
   std::size_t iter() const noexcept {
@@ -393,13 +392,13 @@ class AdaptiveWalnuts {
   
  private:
   /** The configuration of initialization for this chain. */
-  const walnuts::InitChainConfig init_chain_cfg_;
-
+  std::reference_wrapper<const walnuts::InitChainConfig> init_chain_cfg_;
+  
   /** The warmup configuration. */
-  const walnuts::WarmupConfig warmup_cfg_;
+  std::reference_wrapper<const walnuts::WarmupConfig> warmup_cfg_;
 
   /** The WALNUTS sampler configuration. */
-  const walnuts::SamplingConfig sampling_cfg_;
+  std::reference_wrapper<const walnuts::SamplingConfig> sampling_cfg_;
 
   /** The random number generator required for NUTS. */
   Random<S, RNG> rand_;
@@ -420,7 +419,7 @@ class AdaptiveWalnuts {
    */
   StepAdaptHandler<S> step_adapt_handler_;
 
-  /** The estimat for mass matrices. */
+  /** The estimator for the mass matrix. */
   MassEstimator<S> mass_estimator_;
 
   /** The estimator for the minimum number of micro steps per macro step. */

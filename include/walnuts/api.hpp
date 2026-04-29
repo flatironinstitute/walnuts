@@ -1,21 +1,12 @@
 #pragma once
 
-#include <algorithm>
 #include <cmath>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <latch>
-#include <limits>
-#include <memory>
 #include <random>
-#include <span>
-#include <stop_token>
-#include <thread>
 #include <vector>
 #include <Eigen/Dense>
-#include <walnuts/config.hpp>
 
 #include <walnuts/adapt.hpp>
 #include <walnuts/adaptive_walnuts.hpp>
@@ -27,6 +18,7 @@
 namespace walnuts {
 
   template <typename Handler, typename LogProbGrad>
+  [[nodiscard]]
   std::vector<ChainRecord> walnuts(uint32_t seed, 
 				   std::vector<Handler>& handlers,
 				   const LogProbGrad& log_p_grad,
@@ -36,6 +28,10 @@ namespace walnuts {
     using AdaptiveSampler = nuts::AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
     using Sampler = nuts::WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
+    if (handlers.size() != init_cfg.num_chains()) {
+      throw std::invalid_argument("handlers.size() must equal init_cfg.num_chains()");
+    }
+    
     std::vector<std::mt19937> rngs(0);
     rngs.reserve(init_cfg.num_chains());
     for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
@@ -45,13 +41,13 @@ namespace walnuts {
 
     std::vector<AdaptiveSampler> adapters;
     adapters.reserve(init_cfg.num_chains());
-    for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
+    for (std::uint64_t m = 0; m < init_cfg.num_chains(); ++m) {
       adapters
       	.emplace_back(AdaptiveSampler(rngs[m],
 				      handlers[m],
 				      log_p_grad,
 				      init_cfg.position(static_cast<size_t>(m)),
-				      init_cfg.init_chain_config(static_cast<uint64_t>(m)),
+				      init_cfg.init_chain_config(static_cast<std::size_t>(m)),
 				      warmup_cfg,
 				      sampling_cfg,
 				      std::log2(warmup_cfg.max_macro_steps_target())));
@@ -84,7 +80,7 @@ namespace walnuts {
     for (std::size_t n = 0; n < adapters.size(); ++n)
       samplers.emplace_back(std::move(adapters[n].sampler()));
 
-    size_t num_rhat_evals = 0u;
+    std::size_t num_rhat_evals{0};
     double rhat;
     std::vector<ChainRecord> chain_records = sample(samplers,
 						    sampling_cfg.rhat_converge_tol(),
@@ -106,7 +102,7 @@ namespace walnuts {
       num_draws += N_m;
       std::cout << "Chain " << m << "  count " << N_m
 		<< "  mean(logp) " << lps.mean()
-		<< "  sd(logp) [sample] " << std::sqrt(variance(lps)) << '\n';
+		<< "  sd(logp) [sample] " << std::sqrt(walnuts::variance(lps)) << '\n';
     }
     std::cout << "Number of draws: " << num_draws << '\n';
     // *****************************************************

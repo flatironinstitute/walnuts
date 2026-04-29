@@ -14,7 +14,7 @@ namespace nuts {
  * The specialization for step size builds in quadratic error,
  * following Nuts. That is, for observed accept rate `acc_obs` and
  * target accept rate `accept_target`, the error is `-0.5 *
- * (accept_target - accept_observed)^2` so that the gradient is
+ * (accept_oberved - accept_target)^2` so that the gradient is
  * `accept_target - accept_observed`.
 
  * The non-standard effective learning rate schedule divides the

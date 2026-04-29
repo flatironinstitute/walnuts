@@ -3,27 +3,30 @@
 #include <cmath>
 #include <concepts>
 
-#include "util.hpp"
+#include <walnuts/util.hpp>
 
 namespace nuts {
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size
  * adaptation with a decreasing learning rate schedule.
-
+ *
  * The specialization for step size builds in quadratic error,
- * following Nuts. That is, for observed accept rate `acc_obs` and
- * target accept rate `accept_target`, the error is `-0.5 *
- * (accept_oberved - accept_target)^2` so that the gradient is
+ * following Nuts. That is, for observed accept rate `accept_observed`
+ * and target accept rate `accept_target`, the error is `-0.5 *
+ * (accept_observed - accept_target)^2` and its gradient is
  * `accept_target - accept_observed`.
-
- * The non-standard effective learning rate schedule divides the
- * learning rate by `pow(t, learn_rate_decay)` in iteration `t`
- * (indexed from 1).  The Robbins-Monro theory around SGD allows
- * values as high as `learn_rate_decay = 1`, and that is a common
- * default, but it can decay too quickly. Nuts used `learn_rate_decay
- * = 0.75` for dual averaging and we have found `learn_rate_decay=0.5`
- * to work well for Adam.
+ *
+ * This implementation includes a learning rate schedule that divides
+ * the specified learning rate by `pow(t, learn_rate_decay)` in
+ * iteration `t` (indexed from 1).  The standard version of Adam
+ * (2014; \cite kingma2014adam) uses `learn_decay_rate = 0`, so that
+ * the learning rate stays fixed and estimates continue to bounce
+ * around with new observations. With stepsize decay, Adam converges
+ * as long as `0 < learn_rate_decay <= 1`; see Zou et al. (2019 \cite
+ * zou2019sufficient).  Nuts used `learn_rate_decay = 0.75` for dual
+ * averaging and we have found `learn_rate_decay=0.5` to work well for
+ * Adam.
  *
  * @tparam S Type of floating point values.
  */
@@ -39,7 +42,7 @@ class Adam {
    * @param[in] gradient_decay The gradient decay rate.
    * @param[in] sq_gradient_decay The squared gradient decay rate.
    * @param[in] stabilization The estimation stabilization parameter.
-   * @param[in] learn_rate_decay The learning rate exponent on iteration.
+   * @param[in] learn_rate_decay The decay exponent for iterations.
    */
   Adam(S step_size_init, S accept_rate_target, S learning_rate,
        S gradient_decay, S sq_gradient_decay, S stabilization,
@@ -61,6 +64,7 @@ class Adam {
    * Observe an acceptance probability in (0, 1).
    *
    * @param[in] alpha The acceptance probability.
+   * @pre alpha > 0 && alpha < 1
    */
   void observe(S alpha) noexcept {
     ++t_;

@@ -16,35 +16,141 @@
 
 namespace walnuts {
 
+/**
+ * @brief The initialization configuration for a single Markov chain.
+ *
+ * The initialization configuration specifies a step size, initial position,
+ * and initial mass matrix.
+ */
 class InitChainConfig {
  public:
+  /**
+   * @brief Construct an initialization configuration.
+   *
+   * @param step_size The initial step size.
+   * @param position The initial position.
+   * @param mass The initial mass matrix (diagonal).
+   */
   InitChainConfig(double step_size, const Eigen::VectorXd& position,
                   const Eigen::VectorXd& mass)
       : step_size_(step_size), position_(position), mass_(mass) {}
-  double step_size() const { return step_size_; }
-  const Eigen::VectorXd& position() const { return position_; }
-  const Eigen::VectorXd& mass() const { return mass_; }
+
+  /**
+   * @brief Return the initial step size.
+   *
+   * @return The step size.
+   */
+  double step_size() const noexcept { return step_size_; }
+
+  /**
+   * @brief Return the initial position.
+   *
+   * @return The position.
+   */
+  const Eigen::VectorXd& position() const noexcept { return position_; }
+
+  /**
+   * @brief Return the initial mass matrix.
+   *
+   * @return The mass matrix.
+   */
+  const Eigen::VectorXd& mass() const noexcept { return mass_; }
 
  private:
-  double step_size_;
+  const double step_size_;
   const Eigen::VectorXd position_;
   const Eigen::VectorXd mass_;
 };
 
+/**
+ * The initialization configuration for multiple Markov chains.
+ * Rather than a public constructor, it is built using an
+ * `InitConfigBuilder` instance.
+ *
+ * The initialization configuration specifies a step size, initial
+ * position, and initial mass matrix.
+ */
 class InitConfig {
  public:
-  uint64_t num_chains() const { return step_sizes_.size(); }
-  uint64_t dims() const {
+  /**
+   * @brief Return the number of chains.
+   *
+   * @return The number of chains.
+   */
+  uint64_t num_chains() const noexcept { return step_sizes_.size(); }
+
+  /**
+   * @brief Return the dimensionality of the positions.
+   *
+   * If the initialization is empty, 0 is returned.
+   *
+   * @return The dimensionality.
+   */
+  uint64_t dims() const noexcept {
     return positions_.empty()
-               ? 0
+               ? 0u
                : static_cast<uint64_t>(positions_.front().size());
   }
-  const std::vector<double>& step_sizes() const { return step_sizes_; }
-  double step_size(std::size_t n) const { return step_sizes_[n]; }
-  const std::vector<Eigen::VectorXd>& positions() const { return positions_; }
-  const Eigen::VectorXd& position(std::size_t n) const { return positions_[n]; }
-  const std::vector<Eigen::VectorXd>& masses() const { return masses_; }
-  const Eigen::VectorXd& mass(std::size_t n) const { return masses_[n]; }
+
+  /**
+   * @brief Return the initial step sizes.
+   *
+   * @return The step sizes.
+   */
+  const std::vector<double>& step_sizes() const noexcept { return step_sizes_; }
+
+  /**
+   * @brief Return the initial step size for the specified chain.
+   *
+   * @param n The chain identifier.
+   * @return The step size.
+   */
+  double step_size(std::size_t n) const noexcept { return step_sizes_[n]; }
+
+  /**
+   * @brief Return the initial positions for all chains.
+   *
+   * @return The positions.
+   */
+  const std::vector<Eigen::VectorXd>& positions() const noexcept {
+    return positions_;
+  }
+
+  /**
+   * @brief Return the initial position for the specified chain.
+   *
+   * @param n The chain index.
+   * @return The positions.
+   */
+  const Eigen::VectorXd& position(std::size_t n) const noexcept {
+    return positions_[n];
+  }
+
+  /**
+   * @brief Return the initial diagonal mass matrices for all chains.
+   *
+   * @return The mass matrix diagonals.
+   */
+  const std::vector<Eigen::VectorXd>& masses() const noexcept {
+    return masses_;
+  }
+
+  /**
+   * @brief Return the mass matrix for the specified chain.
+   *
+   * @param n The chain index.
+   * @return The mass matrix.
+   */
+  const Eigen::VectorXd& mass(std::size_t n) const noexcept {
+    return masses_[n];
+  }
+
+  /**
+   * @brief Return the initialization configuration for the specified chain.
+   *
+   * @param n The chain index.
+   * @return The indexed chain's initialization configuration.
+   */
   InitChainConfig init_chain_config(std::size_t n) const {
     return InitChainConfig(step_size(n), position(n), mass(n));
   }
@@ -59,8 +165,21 @@ class InitConfig {
   std::vector<Eigen::VectorXd> masses_;
 };
 
+/**
+ * @brief The builder for initialization configurations.
+ *
+ * The usage to return an `InitChainConfig` is `InitConfigBuilder(4,
+ * 20).step_sizes(0.5).build();` with any number of config methods
+ * chained between the construction and call to build.
+ */
 class InitConfigBuilder {
  public:
+  /**
+   * @brief Construct an initialization builder of the given sizes.
+   *
+   * @param num_chains The number of Markov chains.
+   * @param dims The dimensionality of each chain.
+   */
   InitConfigBuilder(uint64_t num_chains, uint64_t dims)
       : num_chains_(num_chains), dims_(dims) {
     this->step_sizes(0.1);
@@ -71,11 +190,29 @@ class InitConfigBuilder {
     this->masses(mass);
   }
 
+  /**
+   * @brief Set the step sizes to all be the specified value.
+   *
+   * @param v The step size.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the step size is not finite and positive.
+   */
   InitConfigBuilder& step_sizes(double v) {
     validate_finite_positive(v, "step size");
     step_sizes_ = std::vector<double>(num_chains_, v);
     return *this;
   }
+
+  /**
+   * @brief Set the step sizes to all be the specified values.
+   *
+   * @param v The step sizes.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If any of the step sizes are not finite
+   * positive.
+   * @throw std::invalid_argument If the number of chains doesn't match the
+   * number specified in the constuctor.
+   */
   InitConfigBuilder& step_sizes(const std::vector<double>& v) {
     validate_size(v, num_chains_, "step_sizes", "num_chains");
     validate_finite_positive(v, "step_size");
@@ -83,6 +220,19 @@ class InitConfigBuilder {
     return *this;
   }
 
+  /**
+   * @brief Randomly initialization the positions.
+   *
+   * Initialization is independent in each dimension with values drawn
+   * from a zero-centered normal distribution with the specified
+   * scale.
+   *
+   * @tparam RNG The type of the base random number generator.
+   * @param init_scale The scale of the normal initial values.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the initial scale is not finite and
+   * positive.
+   */
   template <std::uniform_random_bit_generator RNG>
   InitConfigBuilder& positions(RNG& rng, double init_scale) {
     validate_finite_positive(init_scale, "init_scale");
@@ -94,25 +244,89 @@ class InitConfigBuilder {
     }
     return *this;
   }
+
+  /**
+   * @brief Initialize the positions all to the same value.
+   *
+   * @param v The initial position.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the dimensionality doesn't match
+   * that specified during construction.
+   * @throw std::invalid_argument If any of the initial positions contains
+   * non-finite values.
+   */
   InitConfigBuilder& positions(const Eigen::VectorXd& v) {
     validate_size(v, dims_, "position", "dims");
     validate_finite(v, "position");
     positions_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
-  InitConfigBuilder& positions(const std::vector<Eigen::VectorXd>& v) {
-    validate_size(v, num_chains_, "positions", "num_chains");
-    validate_finite(v, "positions");
-    positions_ = v;
-    return *this;
-  }
-  InitConfigBuilder& positions(std::vector<Eigen::VectorXd>&& v) {
-    validate_size(v, num_chains_, "positions", "num_chains");
-    validate_finite(v, "positions");
-    positions_ = std::move(v);
+
+  /**
+   * @brief Initialize the positions to the specified values.
+   *
+   * @param vs The initial positions.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the number of initial positions doesn't
+   * match the number of chains specified in the constructor.
+   * @throw std::invalid_argument If any of the initial positions contains
+   * non-finite values.
+   * @throw std::invalid_argumet If any of the initial positions has a
+   * dimensionality that does not match the dimensionality specified in the
+   * constructor.
+   */
+  InitConfigBuilder& positions(const std::vector<Eigen::VectorXd>& vs) {
+    validate_size(vs, num_chains_, "positions", "num_chains");
+    validate_finite(vs, "positions");
+    for (const auto& v : vs) {
+      validate_size(v, dims_, "position", "dims");
+    }
+    positions_ = vs;
     return *this;
   }
 
+  /**
+   * @brief Initialize the positions to the specified values via move.
+   *
+   * @param vs The initial positions.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the number of initial positions doesn't
+   * match the number of chains specified in the constructor.
+   * @throw std::invalid_argument If any of the initial positions contains
+   * non-finite values.
+   * @throw std::invalid_argumet If any of the initial positions has a
+   * dimensionality that does not match the dimensionality specified in the
+   * constructor.
+   */
+  InitConfigBuilder& positions(std::vector<Eigen::VectorXd>&& vs) {
+    validate_size(vs, num_chains_, "positions", "num_chains");
+    validate_finite(vs, "positions");
+    for (const auto& v : vs) {
+      validate_size(v, dims_, "position", "dims");
+    }
+    positions_ = std::move(vs);
+    return *this;
+  }
+
+  /**
+   * @brief Initialize the masses using the Nutpie outer product strategy.
+   *
+   * The initialization uses a smoothed negative outer product of
+   * gradients, following Nutpie (Seyboldt et al. 2026 \cite
+   * seyboldt2025nutpie).  More specifically, it uses the square root
+   * of the absolute value of the outer proudct of gradients linearly
+   * interpolated with a unit matrix with weight `mass_smoothing` on
+   * the unit matrix and `1 - mass_smoothing` on the regularized outer
+   * product.  This regularization goes beyond Nutpie to do the linear
+   * interpolation and also to take a square root to further
+   * regularize.
+   *
+   * @tparam LPG The type of the log density and gradient function.
+   * @param logp_grad The log density and gradient function.
+   * @param mass_smoothing The additive smoothing for mass matrices.
+   * @throw std::invalid_argumet If the mass smoothing is not in (0, 1).
+   * @return A reference to this builder for chaining.
+   */
   template <typename LPG>
   InitConfigBuilder& masses(const LPG& logp_grad, double mass_smoothing) {
     validate_probability(mass_smoothing, "mass_smoothing");
@@ -127,31 +341,78 @@ class InitConfigBuilder {
     }
     return *this;
   }
+
+  /**
+   * @brief Initialize the mass matrices all to the same value.
+   *
+   * @param v The initial diagonal mass matrix.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the dimensionality doesn't match
+   * that specified during construction.
+   * @throw std::invalid_argument If any of the initial mass matrix
+   * diagonals contains non-finite or non-positive values.
+   */
   InitConfigBuilder& masses(const Eigen::VectorXd& v) {
     validate_size(v, dims_, "masses", "dims");
     validate_finite_positive(v, "masses");
     masses_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
-  InitConfigBuilder& masses(const std::vector<Eigen::VectorXd>& v) {
-    validate_size(v, num_chains_, "masses", "num_chains");
-    validate_finite_positive(v, "masses");
-    for (const auto& x : v) {
-      validate_size(x, dims_, "all masses", "dims");
+
+  /**
+   * @brief Initialize the mass matrices to the specified values.
+   *
+   * @param vs The initial mass matrices.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the number of initial mass
+   * matrices doesn't match the number of chains specified in the
+   * constructor.
+   * @throw std::invalid_argument If any of the initial mass matrices
+   * contains non-finite values.
+   * @throw std::invalid_argumet If any of the initial mass matrices
+   * has a dimensionality that does not match the dimensionality
+   * specified in the constructor.
+   */
+  InitConfigBuilder& masses(const std::vector<Eigen::VectorXd>& vs) {
+    validate_size(vs, num_chains_, "masses", "num_chains");
+    validate_finite_positive(vs, "masses");
+    for (const auto& v : vs) {
+      validate_size(v, dims_, "all masses", "dims");
     }
-    masses_ = v;
-    return *this;
-  }
-  InitConfigBuilder& masses(std::vector<Eigen::VectorXd>&& v) {
-    validate_size(v, num_chains_, "masses", "num_chains");
-    validate_finite_positive(v, "masses");
-    for (const auto& x : v) {
-      validate_size(x, dims_, "all masses", "dims");
-    }
-    masses_ = std::move(v);
+    masses_ = vs;
     return *this;
   }
 
+  /**
+   * @brief Initialize the mass matrices to the specified values via
+   * move.
+   *
+   * @param vs The initial mass matrices.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the number of initial mass
+   * matrices doesn't match the number of chains specified in the
+   * constructor.
+   * @throw std::invalid_argument If any of the initial mass matrices
+   * contains non-finite values.
+   * @throw std::invalid_argumet If any of the initial mass matrices
+   * has a dimensionality that does not match the dimensionality
+   * specified in the constructor.
+   */
+  InitConfigBuilder& masses(std::vector<Eigen::VectorXd>&& vs) {
+    validate_size(vs, num_chains_, "masses", "num_chains");
+    validate_finite_positive(vs, "masses");
+    for (const auto& v : vs) {
+      validate_size(v, dims_, "all masses", "dims");
+    }
+    masses_ = std::move(vs);
+    return *this;
+  }
+
+  /**
+   * @brief Return the initialization configuration.
+   *
+   * @return The initialization configuration.
+   */
   InitConfig build() {
     InitConfig cfg;
     cfg.step_sizes_ = std::move(step_sizes_);
@@ -168,6 +429,13 @@ class InitConfigBuilder {
   std::vector<Eigen::VectorXd> masses_;
 };
 
+/**
+ * Write a dump of the initial configurations to the specified stream.
+ *
+ * @param out Stream to which configuration is written.
+ * @param cfg The configuration to write.
+ * @return A reference to the output stream for chaining.
+ */
 inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
   out << "InitConfigs (by chain)\n";
   for (std::size_t n = 0; n < cfg.step_sizes().size(); ++n) {

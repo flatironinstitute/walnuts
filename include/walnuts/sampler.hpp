@@ -25,36 +25,83 @@
 
 namespace walnuts {
 
+/**
+ * @brief Reeturn the sum of the sizes in the vector.
+ *
+ * @param xs The vector to sum.
+ * @return The sum.
+ */
 std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
   return std::transform_reduce(xs.begin(), xs.end(), std::size_t(0),
                                std::plus<>{}, std::identity());
 }
 
+/**
+ * @brief Return the bias-adjusted sample variance estimate.
+ *
+ * @param xs The vector whose variance is required.
+ * @return The variance.
+ */
 double variance(const Eigen::VectorXd& xs) noexcept {
   return (xs.array() - xs.mean()).square().mean() / (xs.size() - 1);
 }
 
+/**
+ * @brief A simple struct to hold the within chain summary statistics
+ * for R-hat.
+ *
+ * Members are defined to be `float` and `uint32_t` in order to make
+ * the whole lock-free when wrapped with `std::atomic`.
+ */
 struct ChainStats {
-  // downsized to ensure atomic<ChainStats> is lock free
+  /** The within-chain mean. */
   float sample_mean;
+
+  /** The within-chain variance. */
   float sample_var;
-  unsigned int count;
+
+  /** The chain length. */
+  std::uint32_t count;
 };
 
+/**
+ * @brief An atomically-wrapped `ChainStats` object with helper methods.
+ */
 class AtomicChainStats {
  public:
+
+  /**
+   * Construct an atomically-wrapped `ChainStats` object initialized
+   * to `NaN` for the mean and variance and zero for the count and store
+   * it in `relaxed` order.
+   */
   AtomicChainStats() noexcept {
     ChainStats init{std::numeric_limits<float>::quiet_NaN(),
                     std::numeric_limits<float>::quiet_NaN(), 0u};
     data_.store(init, std::memory_order_relaxed);
   }
 
-  // conservative release/acquire vs. relaxed pattern
+  /**
+   * @brief Store the specified object with the specified memory order.
+   *
+   * The default uses a conservate `release` order.
+   *
+   * @param p The chain statistics object to store.
+   * @param mem_order The memory order for the storage.
+   */
   void store(const ChainStats& p,
              std::memory_order mem_order = std::memory_order_release) noexcept {
     data_.store(p, mem_order);
   }
 
+  /**
+   * @brief Return a copy of the local chain stats with the specified memory order.
+   *
+   * The default uses a conservate `acquire` order.
+   *
+   * @param mem_order The memory order for the storage.
+   * @return Copy of the local chain statistics object.
+   */
   ChainStats load(
       std::memory_order mem_order = std::memory_order_acquire) const noexcept {
     return data_.load(mem_order);
@@ -64,8 +111,19 @@ class AtomicChainStats {
   std::atomic<ChainStats> data_;
 };
 
+
+/**
+ * @brief Storage for the draws and log densities from a Markov chain.
+ */  
 class ChainRecord {
  public:
+  /**
+   * Construct an instance to hold the specified number of draws
+   * of the specified dimensionality.
+   *
+   * @param D The dimensionality of the draws.
+   * @param Nmax The maximum number of draws.
+   */
   ChainRecord(std::size_t D, std::size_t Nmax)
       : D_(D), n_(0), theta_(Nmax * D), logp_(Nmax) {}
 
@@ -107,25 +165,7 @@ class ChainRecord {
   Eigen::VectorXd logp_;
 };
 
-static void write_csv_header(std::ofstream& out, std::size_t dim) {
-  out << "chain,iteration,log_density";
-  for (std::size_t d = 0; d < dim; ++d) {
-    out << ",theta[" << d << "]";
-  }
-  out << '\n';
-}
 
-static void write_csv(const std::string& path, std::size_t dim,
-                      const std::vector<ChainRecord>& chain_records) {
-  std::ofstream out(path, std::ios::binary);  // binary for Windows consistency
-  if (!out) {
-    throw std::runtime_error("could not open file: " + path);
-  }
-  write_csv_header(out, dim);
-  for (std::size_t i = 0; i < chain_records.size(); ++i) {
-    chain_records[i].write_csv(out, i);
-  }
-}
 
 class WelfordAccumulator {
  public:

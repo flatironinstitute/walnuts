@@ -1,7 +1,8 @@
 
-#include <Eigen/Dense>
 #include <iostream>
 #include <random>
+
+#include <Eigen/Dense>
 
 #include "walnuts/api.hpp"
 #include "walnuts/config.hpp"
@@ -200,8 +201,7 @@ int main() {
                           .rhat_converge_tol(1.001)
                           .build();
 
-  // init_cfg too verbose to print regularly with inits in all chains
-  // std::cout << init_cfg << "\n\n";
+  // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain
   std::cout << warmup_cfg << "\n\n";
   std::cout << sampling_cfg << "\n\n";
 

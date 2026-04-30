@@ -174,4 +174,4 @@ class OnlineMoments {
   Vec<S> sum_sq_dev_;
 };
 
-}  // namespace walnuts
+}

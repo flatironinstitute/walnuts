@@ -205,8 +205,8 @@ int main() {
   std::cout << warmup_cfg << "\n\n";
   std::cout << sampling_cfg << "\n\n";
 
-  auto chain_records = walnuts::walnuts(seed, handlers, logp_grad, init_cfg,
-                                        warmup_cfg, sampling_cfg);
+  walnuts::walnuts(seed, handlers, logp_grad, init_cfg,
+		   warmup_cfg, sampling_cfg);
 
   for (size_t m = 0; m < num_chains; ++m) {
     std::cout << "CHAIN " << m

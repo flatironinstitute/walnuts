@@ -112,61 +112,6 @@ class AtomicChainStats {
 };
 
 
-/**
- * @brief Storage for the draws and log densities from a Markov chain.
- */  
-class ChainRecord {
- public:
-  /**
-   * Construct an instance to hold the specified number of draws
-   * of the specified dimensionality.
-   *
-   * @param D The dimensionality of the draws.
-   * @param Nmax The maximum number of draws.
-   */
-  ChainRecord(std::size_t D, std::size_t Nmax)
-      : D_(D), n_(0), theta_(Nmax * D), logp_(Nmax) {}
-
-  Eigen::VectorXd draw() const noexcept { return theta_; }
-
-  double& logp(std::size_t n) noexcept {
-    return logp_[static_cast<int64_t>(n)];
-  }
-
-  const double& logp(std::size_t n) const noexcept {
-    return logp_[static_cast<int64_t>(n)];
-  }
-
-  void commit() noexcept { ++n_; }
-
-  std::size_t dims() const noexcept { return D_; }
-
-  std::size_t num_draws() const noexcept { return n_; }
-
-  double operator()(std::size_t n, std::size_t d) const noexcept {
-    return theta_[static_cast<int64_t>(n * D_ + d)];
-  }
-
-  void write_csv(std::ostream& out, std::size_t chain_id) const {
-    auto dim = dims();
-    for (std::size_t n = 0; n < num_draws(); ++n) {
-      out << chain_id << ',' << n << ',' << logp_[static_cast<int64_t>(n)];
-      for (std::size_t d = 0; d < dim; ++d) {
-        out << ',' << operator()(n, d);
-      }
-      out << '\n';
-    }
-  }
-
- private:
-  const std::size_t D_;
-  std::size_t n_;
-  Eigen::VectorXd theta_;
-  Eigen::VectorXd logp_;
-};
-
-
-
 class WelfordAccumulator {
  public:
   WelfordAccumulator() : n_(0), mean_(0.0), M2_(0.0) {}
@@ -209,11 +154,10 @@ template <class Sampler>
 class ChainWorker {
  public:
   ChainWorker(std::size_t draws_per_chain, Sampler& sampler,
-              ChainRecord& chain_record, AtomicChainStats& acs,
+              AtomicChainStats& acs,
               std::latch& start_gate, std::size_t yield_period = 1024)
       : draws_per_chain_(draws_per_chain),
         sampler_(sampler),
-        chain_record_(chain_record),
         acs_(acs),
         start_gate_(start_gate),
         yield_period_(yield_period) {}
@@ -226,10 +170,8 @@ class ChainWorker {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
       }
-      auto draw = chain_record_.get().draw();
-      auto& lp = chain_record_.get().logp(iter);
-      draw = sampler_.get()(lp);
-      chain_record_.get().commit();
+      double lp;
+      auto draw = sampler_.get()(lp);
       logp_stats_.observe(lp);
       acs_.get().store(logp_stats_.sample_stats());
     }
@@ -238,7 +180,6 @@ class ChainWorker {
  private:
   const std::size_t draws_per_chain_;
   std::reference_wrapper<Sampler> sampler_;
-  std::reference_wrapper<ChainRecord> chain_record_;
   WelfordAccumulator logp_stats_;
   std::reference_wrapper<AtomicChainStats> acs_;
   std::reference_wrapper<std::latch> start_gate_;
@@ -289,21 +230,18 @@ static void controller_loop(
 // * Eigen::VectorXd sample(double& lp_pos);
 // * size_t dim();
 template <typename Sampler>
-std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
-                                double rhat_threshold,
-                                std::size_t max_draws_per_chain,
-                                std::size_t& num_rhat_evals, double& rhat) {
+void sample(std::vector<Sampler>& samplers,
+	    double rhat_threshold,
+	    std::size_t max_draws_per_chain,
+	    std::size_t& num_rhat_evals, double& rhat) {
   std::size_t M = samplers.size();
   std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<int64_t>(M));
-  std::vector<ChainRecord> chain_records;
-  chain_records.reserve(M);
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    chain_records.emplace_back(samplers[m].dim(), max_draws_per_chain);
     threads.emplace_back(
-        ChainWorker<Sampler>(max_draws_per_chain, samplers[m], chain_records[m],
+        ChainWorker<Sampler>(max_draws_per_chain, samplers[m], 
                              stats_by_chain[m].val, start_gate));
   }
   auto stop_all = [&] {
@@ -316,7 +254,6 @@ std::vector<ChainRecord> sample(std::vector<Sampler>& samplers,
   };
   controller_loop(stats_by_chain, rhat_threshold, start_gate,
                   max_draws_per_chain, stop_all, num_rhat_evals, rhat);
-  return chain_records;
 }
 
 }  // namespace walnuts

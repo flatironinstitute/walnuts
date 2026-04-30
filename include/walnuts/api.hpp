@@ -30,12 +30,11 @@ namespace walnuts {
  * the initialization configuration's number of chains.
  */
 template <typename Handler, typename LogProbGrad>
-[[nodiscard]]
-std::vector<ChainRecord> walnuts(uint32_t seed, std::vector<Handler>& handlers,
-                                 const LogProbGrad& log_p_grad,
-                                 const InitConfig& init_cfg,
-                                 const WarmupConfig& warmup_cfg,
-                                 const SamplingConfig& sampling_cfg) {
+void walnuts(uint32_t seed, std::vector<Handler>& handlers,
+	     const LogProbGrad& log_p_grad,
+	     const InitConfig& init_cfg,
+	     const WarmupConfig& warmup_cfg,
+	     const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler =
       AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
   using Sampler = WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
@@ -87,30 +86,13 @@ std::vector<ChainRecord> walnuts(uint32_t seed, std::vector<Handler>& handlers,
 
   std::size_t num_rhat_evals{0};
   double rhat;
-  std::vector<ChainRecord> chain_records =
-      sample(samplers, sampling_cfg.rhat_converge_tol(),
-             sampling_cfg.max_iter(), num_rhat_evals, rhat);
+  sample(samplers, sampling_cfg.rhat_converge_tol(),
+	 sampling_cfg.max_iter(), num_rhat_evals, rhat);
 
   // *********************** SAMPLING DEBUG I/O *******************
   std::cout << "\nnum Rhat evals = " << num_rhat_evals << ";  Rhat = " << rhat
             << "\n";
-  std::size_t num_draws = 0;
-  for (std::size_t m = 0; m < chain_records.size(); ++m) {
-    const auto& chain_record = chain_records[m];
-    std::size_t N_m = chain_record.num_draws();
-    Eigen::VectorXd lps(N_m);
-    for (std::size_t n = 0; n < N_m; ++n) {
-      lps(static_cast<int64_t>(n)) = chain_record.logp(n);
-    }
-    num_draws += N_m;
-    std::cout << "Chain " << m << "  count " << N_m << "  mean(logp) "
-              << lps.mean() << "  sd(logp) [sample] "
-              << std::sqrt(variance(lps)) << '\n';
-  }
-  std::cout << "Number of draws: " << num_draws << '\n';
   // *****************************************************
-
-  return chain_records;
 }
 
 }  // namespace walnuts

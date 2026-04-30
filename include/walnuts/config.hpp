@@ -451,23 +451,123 @@ inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
   return out;
 }
 
+/**
+ * @brief The warmup configuration object.  The object supplies methods
+ * for all of the tuning parameters for warmup.
+ */
 class WarmupConfig {
  public:
+  /**
+   * @brief Return the minimum number of warmup iterations.
+   *
+   * @return Minimum warmup iterations.
+   */
   uint64_t min_iter() const { return min_iter_; }
+
+  /**
+   * @brief Return the maximum number of warmup iterations.
+   *
+   * @return Maximum warmup iterations.
+   */
   uint64_t max_iter() const { return max_iter_; }
+
+  /**
+   * @brief Return the step-size convergence tolerance.
+   *
+   * @return The step-size convergence tolerance.
+   */
   double step_size_converge_tol() const { return step_size_converge_tol_; }
+
+  /**
+   * @brief Return the mass matrix convergence tolerance. The
+   * tolerance is for the L2-norm of the diagonal.
+   *
+   * @return The mass matrix  convergence tolerance.
+   */
   double mass_converge_tol() const { return mass_converge_tol_; }
+
+  /**
+   * @brief Return the initial count for the mass matrix estimator.
+   *
+   * @return The initial count for the mass matrix estimator.
+   */
   double mass_init_count() const { return mass_init_count_; }
+
+  /**
+   * @brief Return the additive smoothing for the mass matrix estimator.
+   *
+   * @return The additive smoothing for the mass matrix estimator.
+   */
   double mass_additive_smoothing() const { return mass_additive_smoothing_; }
+
+  /**
+   * @brief Return the target number of macro steps.
+   *
+   * @return The target number of macro steps.
+   */
   double max_macro_steps_target() const { return max_macro_steps_target_; }
+
+  /**
+   * @brief Return the target acceptance rate.
+   *
+   * @return The target acceptance rate.
+   */
   double step_accept_rate_target() const { return step_accept_rate_target_; }
+
+  /**
+   * @brief Return the step-size learning rate for the Adam optimizer.
+   *
+   * @return The step-size learning rate for the Adam optimizer.
+   */
   double step_learning_rate() const { return step_learning_rate_; }
+
+  /**
+   * @brief Return the gradient decay rate for the Adam optimizer.
+   *
+   * @return The gradient decay rate for the Adam optimizer.
+   */
   double step_gradient_decay() const { return step_gradient_decay_; }
+
+  /**
+   * @brief Return the squared gradient decay rate for the Adam optimizer.
+   *
+   * @return The squared gradient decay rate for the Adam optimizer.
+   */
   double step_sq_gradient_decay() const { return step_sq_gradient_decay_; }
+
+  /**
+   * @brief Return the step-size stabilization.
+   *
+   * @return The step-size stabilization.
+   */
   double step_stabilization() const { return step_stabilization_; }
+
+  /**
+   * @brief Return the step-size learning rate decay factor.
+   *
+   * @return The step-size learning rate decay factor.
+   */
   double step_learn_rate_decay() const { return step_learn_rate_decay_; }
+
+  /**
+   * @brief Return the stride for publishing updates for convergence monitoring.
+   *
+   * @return The stride for publishing updates for convergence monitoring.
+   */
   uint64_t publish_stride() const { return publish_stride_; }
+
+  /**
+   * @brief Return the delay before starting another probe for convergence.
+   *
+   * @return The delay before starting another probe for convergence.
+   */
   uint64_t probe_microseconds() const { return probe_microseconds_; }
+
+  /**
+   * @brief Return the period at which threads for chains yield.
+   *
+   * @return The the period at which threads for chains yield.
+   */
   uint64_t yield_period() const { return yield_period_; }
 
  private:
@@ -493,10 +593,21 @@ class WarmupConfig {
   uint64_t yield_period_ = 32;
 };
 
+/**
+ * @brief The builder for `WarmupConfig` objects.
+ */
 class WarmupConfigBuilder {
  public:
+  /**
+   * @brief Set the minimum and maximum number of warmup iterations.
+   *
+   * @param min_iter The minimum number of warmup iterations.
+   * @param max_iter The maximum number of warmup iterations.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If `min_iter` > `max_iter`.
+   */
   WarmupConfigBuilder& min_max_iter(uint64_t min_iter, uint64_t max_iter) {
-    if (!(min_iter <= max_iter)) {
+    if (min_iter > max_iter) {
       throw std::invalid_argument(
           "min_iter cannot be greater than than max_iter");
     }
@@ -504,83 +615,213 @@ class WarmupConfigBuilder {
     cfg_.max_iter_ = max_iter;
     return *this;
   }
+
+  /**
+   * @brief Set the step size convergence tolerance.
+   *
+   * @param v The step size convergence tolerance.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the tolerance is not finite and positive.
+   */
   WarmupConfigBuilder& step_size_converge_tol(double v) {
     validate_finite_positive(v, "step_size_converge_tol");
     cfg_.step_size_converge_tol_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the mass matrix L2-norm convergence tolerance.
+   *
+   * @param v The mass matrix L2-norm convergence tolerance.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the tolerance is not finite and positive.
+   */
   WarmupConfigBuilder& mass_converge_tol(double v) {
     validate_finite_positive(v, "mass_converge_tol");
     cfg_.mass_converge_tol_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the mass matrix estimator initial count.
+   *
+   * @param v The mass matrix estimator initial count.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the initial count is not finite and
+   * positive.
+   */
   WarmupConfigBuilder& mass_init_count(double v) {
     validate_finite_positive(v, "mass_init_count");
     cfg_.mass_init_count_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the mass matrix estimator additive smoothing.
+   *
+   * @param v The mass matrix estimator additive smoothing.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the smoothing is not finite and positive.
+   */
   WarmupConfigBuilder& mass_additive_smoothing(double v) {
     validate_finite_positive(v, "mass_additive_smoothing");
     cfg_.mass_additive_smoothing_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the target number of macro steps.
+   *
+   * @param v The target number of macro steps.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the target is not finite and positive.
+   */
   WarmupConfigBuilder& max_macro_steps_target(double v) {
     validate_finite_positive(v, "max_macro_steps_target");
     cfg_.max_macro_steps_target_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the accept-rate target for step-size estimation.
+   *
+   * @param v The accept-rate target.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the accept rate is not in (0, 1).
+   */
   WarmupConfigBuilder& step_accept_rate_target(double v) {
     validate_probability(v, "step_accept_rate_target");
     cfg_.step_accept_rate_target_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the step size learning rate.
+   *
+   * @param v The step size learning rate.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the learning rate is not finite and
+   * positive.
+   */
   WarmupConfigBuilder& step_learning_rate(double v) {
     validate_finite_positive(v, "step_learning_rate");
     cfg_.step_learning_rate_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the gradient decay for the step-size estimator.
+   *
+   * @param v The gradient decay for the step-size estimator.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the decay is not in (0, 1).
+   */
   WarmupConfigBuilder& step_gradient_decay(double v) {
     validate_probability(v, "step_gradient_decay");
     cfg_.step_gradient_decay_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the squared gradient decay for the step-size estimator.
+   *
+   * @param v The squared gradient decay for the step-size estimator.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the decay is not in (0, 1).
+   */
   WarmupConfigBuilder& step_sq_gradient_decay(double v) {
     validate_probability(v, "step_sq_gradient_decay");
     cfg_.step_sq_gradient_decay_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the step-size estimator stabilization term.
+   *
+   * @param v The step-size estimator stabilization term.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the stabilization is not finite and
+   * positive.
+   */
   WarmupConfigBuilder& step_stabilization(double v) {
     validate_finite_positive(v, "step_stabilization");
     cfg_.step_stabilization_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the learning rate decay exponent for step size.
+   *
+   * @param v The learning rate decay exponent.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the decay exponent is not in (0, 1).
+   */
   WarmupConfigBuilder& step_learn_rate_decay(double v) {
     validate_probability(v, "step_learn_rate_decay");
     cfg_.step_learn_rate_decay_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the stride between publishing statistics for convergence
+   * monitoring.
+   *
+   * @param v The stride for publishing statistics for convergence monitoring.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the stride is not positive.
+   */
   WarmupConfigBuilder& publish_stride(uint64_t v) {
     validate_positive(v, "publish_stride");
     cfg_.publish_stride_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the minimum number of microseconds before the controller thread
+   * probes the chain threads.
+   *
+   * @param v The minimum number of microseconds between probes.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the number of microseconds is not positive.
+   */
   WarmupConfigBuilder& probe_microseconds(uint64_t v) {
     validate_positive(v, "probe_microseconds");
     cfg_.probe_microseconds_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the iteration period between chain threads yielding.
+   *
+   * @param v The iteration period between chain threads yielding.
+   * @return This builder for chaining.
+   * @throw std::invalid_argument If the yield period is not positive.
+   */
   WarmupConfigBuilder& yield_period(uint64_t v) {
     validate_positive(v, "yield_period");
     cfg_.yield_period_ = v;
     return *this;
   }
 
+  /**
+   * @brief Return the warmup configuration.
+   *
+   * @return The warmup configuration.
+   */
   WarmupConfig build() { return cfg_; }
 
  private:
   WarmupConfig cfg_;
 };
 
+/**
+ * Print the tuning parameters specified by the warmup configuration to the
+ * output stream.
+ *
+ * @param out Output stream to which configuration is printed.
+ * @param cfg The sampling configuration.
+ * @return The output stream for chained calls.
+ */
 inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
   out << "WarmupConfig\n"
       << "  min_iter                 = " << cfg.min_iter() << "\n"
@@ -604,18 +845,64 @@ inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
   return out;
 }
 
+/**
+ * A class to hold the configuration for the Walnuts sampler.
+ */
 class SamplingConfig {
  public:
+  /**
+   * @brief Return the minimum number of sampling iterations.
+   *
+   * @return The minimum number of sampling iterations.
+   */
   uint64_t min_iter() const noexcept { return min_iter_; }
+
+  /**
+   * @brief Return the maximum number of sampling iterations.
+   *
+   * @return The maximum number of sampling iterations.
+   */
   uint64_t max_iter() const noexcept { return max_iter_; }
+
+  /**
+   * @brief Return the maximum number of trajectory doublings
+   * for Nuts.
+   *
+   * @return The maximum number of trajectory doublings.
+   */
   uint64_t max_trajectory_doublings() const noexcept {
     return max_trajectory_doublings_;
   }
+
+  /**
+   * @brief Return the maximum number of stepsize halvings
+   * for Nuts.
+   *
+   * @return The maximum number of trajectory doublings.
+   */
   uint64_t max_step_halvings() const noexcept { return max_step_halvings_; }
+
+  /**
+   * @brief Return the maximum error in the Hamiltonian allowed for Walnuts.
+   *
+   * @return The maximum error in the Hamiltonian allowed for Walnuts.
+   */
   double max_hamiltonian_error() const noexcept {
     return max_hamiltonian_error_;
   }
+
+  /**
+   * @brief Return the minimum number of micro steps per macro step.
+   *
+   * @return The minimum number of micro steps per macro step.
+   */
   uint64_t min_micro_steps() const noexcept { return min_micro_steps_; }
+
+  /**
+   * @brief Return the convergence tolerance for the R-hat statistic.
+   *
+   * @return The convergence tolerance for the R-hat statistic.
+   */
   double rhat_converge_tol() const noexcept { return rhat_converge_tol_; }
 
  private:
@@ -632,46 +919,114 @@ class SamplingConfig {
   double rhat_converge_tol_ = 1.01;
 };
 
+/**
+ * @brief The builder for sampling configurations.
+ *
+ * An example use would be
+ * `SampleConfigBuilder(50u,
+ * 100u).max_step_halvings(4u).min_micro_steps(2u).build()`.
+ */
 class SamplingConfigBuilder {
  public:
+  /**
+   * @brief Set the minimum and maximum number of iterations.
+   *
+   * @param min_iter The minimum number of iterations.
+   * @param max_iter The maximum number of iterations.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the minimum number of iterations
+   * is greater than the maximum number of iterations.
+   */
   SamplingConfigBuilder& min_max_iter(uint64_t min_iter, uint64_t max_iter) {
-    if (!(min_iter <= max_iter)) {
+    if (min_iter > max_iter) {
       throw std::invalid_argument("min_iter must be <= max_iter");
     }
     cfg_.min_iter_ = min_iter;
     cfg_.max_iter_ = max_iter;
     return *this;
   }
-  SamplingConfigBuilder& max_trajectory_doublings(uint64_t v) {
+
+  /**
+   * @brief Set the maximum number of trajectory doublings.
+   *
+   * @param v The maximum number of trajectory doublings.
+   * @return A reference to this builder for chaining.
+   */
+  SamplingConfigBuilder& max_trajectory_doublings(uint64_t v) noexcept {
     cfg_.max_trajectory_doublings_ = v;
     return *this;
   }
-  SamplingConfigBuilder& max_step_halvings(uint64_t v) {
+
+  /**
+   * @brief Set the maximum number of step size halvings.
+   *
+   * @param v The maximum number of step size halvings.
+   * @return A reference to this builder for chaining.
+   */
+  SamplingConfigBuilder& max_step_halvings(uint64_t v) noexcept {
     cfg_.max_step_halvings_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the maximum error in the Hamiltonian for Walnuts.
+   *
+   * @param v The maximum error in the Hamiltonian for Walnuts.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the error is not finite and positive.
+   */
   SamplingConfigBuilder& max_hamiltonian_error(double v) {
     validate_finite_positive(v, "max_hamiltonian_error");
     cfg_.max_hamiltonian_error_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the minimum number of micro steps per macro step.
+   *
+   * @param v The minimum number of micro steps per macro step.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the minimum number of steps is not
+   * positive.
+   */
   SamplingConfigBuilder& min_micro_steps(uint64_t v) {
     validate_positive(v, "min_micro_steps");
     cfg_.min_micro_steps_ = v;
     return *this;
   }
+
+  /**
+   * @brief Set the R-hat convergence tolerance.
+   *
+   * @param v The R-hat convergence tolerance.
+   * @return A reference to this builder for chaining.
+   * @throw std::invalid_argument If the tolerance is not finite and > 1.
+   */
   SamplingConfigBuilder& rhat_converge_tol(double v) {
     validate_finite_gt1(v, "rhat_convergence_tol");
     cfg_.rhat_converge_tol_ = v;
     return *this;
   }
 
+  /**
+   * @brief Return the sampling configuration.
+   *
+   * @return The sampling configuration.
+   */
   SamplingConfig build() { return cfg_; }
 
  private:
   SamplingConfig cfg_;
 };
 
+/**
+ * Print the tuning parameters specified by the sampling configuration to the
+ * output stream.
+ *
+ * @param out Output stream to which configuration is printed.
+ * @param cfg The sampling configuration.
+ * @return The output stream for chained calls.
+ */
 inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
   out << "SamplingConfig\n"
       << "  min_iter                   = " << cfg.min_iter() << "\n"

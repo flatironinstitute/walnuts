@@ -90,8 +90,8 @@ inline void validate_same_size(const T1& x1, const T2& x2,
  * @brief Throw an exception if the value is not finite and > 1.
  *
  * @tparam T The type of value.
- * @param x The value.
- * @param var The name of the value.
+ * @param[in] x The value.
+ * @param[in] var The name of the value.
  * @throw std::invalid_argument If the value is not finite and > 1.
  */
 template <std::floating_point T>
@@ -106,8 +106,8 @@ inline void validate_finite_gt1(T x, const std::string& var) {
  * @brief Throw an exception if the value is not finite and > 0.
  *
  * @tparam T The type of value.
- * @param x The value.
- * @param var The name of the value.
+ * @param[in] x The value.
+ * @param[in] var The name of the value.
  * @throw std::invalid_argument If the value is not finite and > 0.
  */
 template <std::floating_point T>
@@ -125,8 +125,8 @@ inline void validate_finite_positive(T x, const std::string& var) {
  * @tparam T The type of values.
  * @tparam R The row size (or -1 for dynamic).
  * @tparam C The column size (or -1 for dynamic).
- * @param xs The container.
- * @param var The name of the container.
+ * @param[in] xs The container.
+ * @param[in] var The name of the container.
  * @throw std::invalid_argument If the container has an element that
  * is not finite and > 0.
  */
@@ -143,8 +143,8 @@ inline void validate_finite_positive(const Eigen::Matrix<T, R, C>& xs,
  * finite and > 0.
  *
  * @tparam T The type of values (container or floating point).
- * @param xs The container.
- * @param var The name of the container.
+ * @param[in] xs The container.
+ * @param[in] var The name of the container.
  * @throw std::invalid_argument If the container has an element that
  * is not finite and > 0.
  */
@@ -160,8 +160,8 @@ inline void validate_finite_positive(const std::vector<T>& xs,
  * @brief Throw an exception if the value is not finite.
  *
  * @tparam T The type of value.
- * @param x The value.
- * @param var The name of the value.
+ * @param[in] x The value.
+ * @param[in] var The name of the value.
  * @throw std::invalid_argument If the value is not finite.
  */
 template <std::floating_point T>
@@ -179,8 +179,8 @@ inline void validate_finite(T x, const std::string& var) {
  * @tparam T The type of values.
  * @tparam R The row size (or -1 for dynamic).
  * @tparam C The column size (or -1 for dynamic).
- * @param xs The container.
- * @param var The name of the container.
+ * @param[in] xs The container.
+ * @param[in] var The name of the container.
  * @throw std::invalid_argument If the container has an element that
  * is not finite.
  */
@@ -197,8 +197,8 @@ inline void validate_finite(const Eigen::Matrix<T, R, C>& xs,
  * finite.
  *
  * @tparam T The type of values (container or floating point).
- * @param xs The container.
- * @param var The name of the container.
+ * @param[in] xs The container.
+ * @param[in] var The name of the container.
  * @throw std::invalid_argument If the container has an element that
  * is not finite.
  */

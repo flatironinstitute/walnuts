@@ -18,6 +18,12 @@ namespace walnuts {
 template <typename S>
 class StepAdaptHandler {
  public:
+  /**
+   * @brief Construct a step size adaptation handler from configuration.
+   *
+   * @param[in] init_chain_cfg The initial configuration for a single chain.
+   * @param[in] warmup_cfg The warmup configuration.
+   */
   StepAdaptHandler(const InitChainConfig& init_chain_cfg,
                    const WarmupConfig& warmup_cfg)
       : adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
@@ -247,10 +253,14 @@ class AdaptiveWalnuts {
    * controlled through the minimum number of micro steps per macro
    * step and adjusted with a mean estimator to achieve this average.
    *
-   * @param[in,out] rng The base random number generator.
-   * @param[in,out] handler Event handler for adaptation and sampling.
+   * @param[in] rng The base random number generator, stored by reference and
+   * modifed.
+   * @param[in,out] handler Event handler for adaptation and sampling, stored by
+   * reference and called back.
    * @param[in] logp_grad The target log density and gradient function.
    * @param[in] theta_init The initial state.
+   * @param[in] init_chain_cfg The initialization configuration for a single
+   * chain.
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected NUTS tree depth.

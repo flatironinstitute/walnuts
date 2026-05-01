@@ -276,9 +276,10 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @tparam D The direction of combination in time (`Forward` or `Backward`).
  * @tparam S The type of scalars.
  * @tparam Rand The type for the source of randomness.
- * @param rng The random number generator used to select a new position.
- * @param span_old The old span.
- * @param span_new The span continuing the old span forward or backward in time.
+ * @param[in,out] rng The random number generator used to select a new position.
+ * @param[in] span_old The old span.
+ * @param[in] span_new The span continuing the old span forward or backward in
+ * time.
  * @return The combined span.
  */
 template <Update U, Direction D, typename S, class Rand>
@@ -527,9 +528,9 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * @param[in] rand The randomizer for HMC, which must persist for the duration
-   of the class
-   * because it is stored by reference.
+   * @param[in,out] rand The randomizer for HMC, which must persist for the
+   duration
+   * of the class because it is stored by reference.
    * @param[in,out] handler The sampling event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
@@ -537,17 +538,17 @@ class WalnutsSampler {
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param[in] macro_step_size The initial (largest) step size.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
-   NUTS.
+   * NUTS.
    * @param[in] max_step_halvings The maximum number of times the step size is
-   halved.
+   * halved.
    * @param[in] min_micro_steps The minimum number of micro steps per macro
-   step.
+   * step.
    * @param[in] max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
    * @throw std::invalid_argument If `inv_mass_matrix` has non-positive or
-   infinite entries.
+   * infinite entries.
    * @throw std::invalid_argument If `macro_step_size` is not positive or not
-   finite.
+   * finite.
    * @throw std::invalid_argument If `max_nuts_depth` is not positive.
    * @throw std::invalid_argument If `max_step_halvings` is not positive.
    * @throw std::invalid_argument If `min_micro_steps` is not positive.

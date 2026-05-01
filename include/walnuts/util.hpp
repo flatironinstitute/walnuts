@@ -82,7 +82,7 @@ class Random {
    * generation. Thus it must be kept in scope as the instance constructed with
    * it is used.  The base generator may be shared with other applications.
    *
-   * @param rng The base random number generator.
+   * @param[in,out] rng The base random number generator.
    */
   explicit Random(RNG& rng)
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
@@ -115,7 +115,7 @@ class Random {
    * component independently from a `normal(0, 1)` distribution.
    *
    * @param[in] n The size of the vector generated.
-   * @param[in,out] out The output vector.
+   * @param[out] out The output vector.
    */
   void standard_normal(std::size_t n, Vec<S>& out) {
     out.resize(static_cast<int64_t>(n));
@@ -131,7 +131,7 @@ class Random {
    * The base random number generator is used to generate each
    * component independently from a `normal(0, 1)` distribution.
    *
-   * @param n The size of the vector generated.
+   * @param[in] n The size of the vector generated.
    * @return A vector generated according to a standard normal distribution.
    */
   Vec<S> standard_normal(std::size_t n) {
@@ -305,7 +305,8 @@ class NoExceptLogpGrad {
    * The log density and gradient function will be stored as a
    * constant reference.
    *
-   * @param logp_grad The base log density and gradient function.
+   * @param[in] logp_grad The base log density and gradient function, called
+   * back.
    */
   NoExceptLogpGrad(const F& logp_grad) : logp_grad_(std::cref(logp_grad)) {}
 

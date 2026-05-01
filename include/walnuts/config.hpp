@@ -27,9 +27,9 @@ class InitChainConfig {
   /**
    * @brief Construct an initialization configuration.
    *
-   * @param step_size The initial step size.
-   * @param position The initial position.
-   * @param mass The initial mass matrix (diagonal).
+   * @param[in] step_size The initial step size.
+   * @param[in] position The initial position.
+   * @param[in] mass The initial mass matrix (diagonal).
    */
   InitChainConfig(double step_size, const Eigen::VectorXd& position,
                   const Eigen::VectorXd& mass)
@@ -102,7 +102,7 @@ class InitConfig {
   /**
    * @brief Return the initial step size for the specified chain.
    *
-   * @param n The chain identifier.
+   * @param[in] n The chain identifier.
    * @return The step size.
    */
   double step_size(std::size_t n) const noexcept { return step_sizes_[n]; }
@@ -119,7 +119,7 @@ class InitConfig {
   /**
    * @brief Return the initial position for the specified chain.
    *
-   * @param n The chain index.
+   * @param[in] n The chain index.
    * @return The positions.
    */
   const Eigen::VectorXd& position(std::size_t n) const noexcept {
@@ -138,7 +138,7 @@ class InitConfig {
   /**
    * @brief Return the mass matrix for the specified chain.
    *
-   * @param n The chain index.
+   * @param[in] n The chain index.
    * @return The mass matrix.
    */
   const Eigen::VectorXd& mass(std::size_t n) const noexcept {
@@ -148,7 +148,7 @@ class InitConfig {
   /**
    * @brief Return the initialization configuration for the specified chain.
    *
-   * @param n The chain index.
+   * @param[in] n The chain index.
    * @return The indexed chain's initialization configuration.
    */
   InitChainConfig init_chain_config(std::size_t n) const {
@@ -177,8 +177,8 @@ class InitConfigBuilder {
   /**
    * @brief Construct an initialization builder of the given sizes.
    *
-   * @param num_chains The number of Markov chains.
-   * @param dims The dimensionality of each chain.
+   * @param[in] num_chains The number of Markov chains.
+   * @param[in] dims The dimensionality of each chain.
    */
   InitConfigBuilder(uint64_t num_chains, uint64_t dims)
       : num_chains_(num_chains), dims_(dims) {
@@ -193,7 +193,7 @@ class InitConfigBuilder {
   /**
    * @brief Set the step sizes to all be the specified value.
    *
-   * @param v The step size.
+   * @param[in] v The step size.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the step size is not finite and positive.
    */
@@ -206,7 +206,7 @@ class InitConfigBuilder {
   /**
    * @brief Set the step sizes to all be the specified values.
    *
-   * @param v The step sizes.
+   * @param[in] v The step sizes.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If any of the step sizes are not finite
    * positive.
@@ -228,7 +228,8 @@ class InitConfigBuilder {
    * scale.
    *
    * @tparam RNG The type of the base random number generator.
-   * @param init_scale The scale of the normal initial values.
+   * @param[in,out] rng The base random number generator.
+   * @param[in] init_scale The scale of the normal initial values.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the initial scale is not finite and
    * positive.
@@ -248,7 +249,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the positions all to the same value.
    *
-   * @param v The initial position.
+   * @param[in] v The initial position.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the dimensionality doesn't match
    * that specified during construction.
@@ -265,7 +266,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the positions to the specified values.
    *
-   * @param vs The initial positions.
+   * @param[in] vs The initial positions.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the number of initial positions doesn't
    * match the number of chains specified in the constructor.
@@ -288,7 +289,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the positions to the specified values via move.
    *
-   * @param vs The initial positions.
+   * @param[in] vs The initial positions.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the number of initial positions doesn't
    * match the number of chains specified in the constructor.
@@ -311,19 +312,18 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the masses using the Nutpie outer product strategy.
    *
-   * The initialization uses a smoothed negative outer product of
-   * gradients, following Nutpie (Seyboldt et al. 2026 \cite
-   * seyboldt2025nutpie).  More specifically, it uses the square root
-   * of the absolute value of the outer proudct of gradients linearly
-   * interpolated with a unit matrix with weight `mass_smoothing` on
-   * the unit matrix and `1 - mass_smoothing` on the regularized outer
-   * product.  This regularization goes beyond Nutpie to do the linear
-   * interpolation and also to take a square root to further
-   * regularize.
+   * Following Nutpie (Seyboldt et al. 2026 \cite seyboldt2025nutpie),
+   * the initialization uses a smoothed negative outer product of
+   * gradients.  More specifically, it uses the square root of the
+   * absolute value of the outer proudct of gradients linearly interpolated with
+   * a unit matrix with weight `mass_smoothing` on the unit matrix and `1 -
+   * mass_smoothing` on the regularized outer product.  This regularization goes
+   * beyond Nutpie to do the linear interpolation and also to take a square root
+   * to further regularize.
    *
    * @tparam LPG The type of the log density and gradient function.
-   * @param logp_grad The log density and gradient function.
-   * @param mass_smoothing The additive smoothing for mass matrices.
+   * @param[in] logp_grad The log density and gradient function, called back.
+   * @param[in] mass_smoothing The additive smoothing for mass matrices.
    * @throw std::invalid_argumet If the mass smoothing is not in (0, 1).
    * @return A reference to this builder for chaining.
    */
@@ -345,7 +345,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the mass matrices all to the same value.
    *
-   * @param v The initial diagonal mass matrix.
+   * @param[in] v The initial diagonal mass matrix.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the dimensionality doesn't match
    * that specified during construction.
@@ -362,7 +362,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the mass matrices to the specified values.
    *
-   * @param vs The initial mass matrices.
+   * @param[in] vs The initial mass matrices.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the number of initial mass
    * matrices doesn't match the number of chains specified in the
@@ -387,7 +387,7 @@ class InitConfigBuilder {
    * @brief Initialize the mass matrices to the specified values via
    * move.
    *
-   * @param vs The initial mass matrices.
+   * @param[in] vs The initial mass matrices.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the number of initial mass
    * matrices doesn't match the number of chains specified in the
@@ -432,8 +432,8 @@ class InitConfigBuilder {
 /**
  * Write a dump of the initial configurations to the specified stream.
  *
- * @param out Stream to which configuration is written.
- * @param cfg The configuration to write.
+ * @param[in,out] out Stream to which configuration is written.
+ * @param[in] cfg The configuration to write.
  * @return A reference to the output stream for chaining.
  */
 inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
@@ -601,8 +601,8 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the minimum and maximum number of warmup iterations.
    *
-   * @param min_iter The minimum number of warmup iterations.
-   * @param max_iter The maximum number of warmup iterations.
+   * @param[in] min_iter The minimum number of warmup iterations.
+   * @param[in] max_iter The maximum number of warmup iterations.
    * @return This builder for chaining.
    * @throw std::invalid_argument If `min_iter` > `max_iter`.
    */
@@ -619,7 +619,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the step size convergence tolerance.
    *
-   * @param v The step size convergence tolerance.
+   * @param[in] v The step size convergence tolerance.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the tolerance is not finite and positive.
    */
@@ -632,7 +632,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the mass matrix L2-norm convergence tolerance.
    *
-   * @param v The mass matrix L2-norm convergence tolerance.
+   * @param[in] v The mass matrix L2-norm convergence tolerance.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the tolerance is not finite and positive.
    */
@@ -645,7 +645,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the mass matrix estimator initial count.
    *
-   * @param v The mass matrix estimator initial count.
+   * @param[in] v The mass matrix estimator initial count.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the initial count is not finite and
    * positive.
@@ -659,7 +659,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the mass matrix estimator additive smoothing.
    *
-   * @param v The mass matrix estimator additive smoothing.
+   * @param[in] v The mass matrix estimator additive smoothing.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the smoothing is not finite and positive.
    */
@@ -672,7 +672,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the target number of macro steps.
    *
-   * @param v The target number of macro steps.
+   * @param[in] v The target number of macro steps.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the target is not finite and positive.
    */
@@ -685,7 +685,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the accept-rate target for step-size estimation.
    *
-   * @param v The accept-rate target.
+   * @param[in] v The accept-rate target.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the accept rate is not in (0, 1).
    */
@@ -698,7 +698,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the step size learning rate.
    *
-   * @param v The step size learning rate.
+   * @param[in] v The step size learning rate.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the learning rate is not finite and
    * positive.
@@ -712,7 +712,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the gradient decay for the step-size estimator.
    *
-   * @param v The gradient decay for the step-size estimator.
+   * @param[in] v The gradient decay for the step-size estimator.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the decay is not in (0, 1).
    */
@@ -725,7 +725,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the squared gradient decay for the step-size estimator.
    *
-   * @param v The squared gradient decay for the step-size estimator.
+   * @param[in] v The squared gradient decay for the step-size estimator.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the decay is not in (0, 1).
    */
@@ -738,7 +738,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the step-size estimator stabilization term.
    *
-   * @param v The step-size estimator stabilization term.
+   * @param[in] v The step-size estimator stabilization term.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the stabilization is not finite and
    * positive.
@@ -752,7 +752,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the learning rate decay exponent for step size.
    *
-   * @param v The learning rate decay exponent.
+   * @param[in] v The learning rate decay exponent.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the decay exponent is not in (0, 1).
    */
@@ -766,7 +766,8 @@ class WarmupConfigBuilder {
    * @brief Set the stride between publishing statistics for convergence
    * monitoring.
    *
-   * @param v The stride for publishing statistics for convergence monitoring.
+   * @param[in] v The stride for publishing statistics for convergence
+   * monitoring.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the stride is not positive.
    */
@@ -780,7 +781,7 @@ class WarmupConfigBuilder {
    * @brief Set the minimum number of microseconds before the controller thread
    * probes the chain threads.
    *
-   * @param v The minimum number of microseconds between probes.
+   * @param[in] v The minimum number of microseconds between probes.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the number of microseconds is not positive.
    */
@@ -793,7 +794,7 @@ class WarmupConfigBuilder {
   /**
    * @brief Set the iteration period between chain threads yielding.
    *
-   * @param v The iteration period between chain threads yielding.
+   * @param[in] v The iteration period between chain threads yielding.
    * @return This builder for chaining.
    * @throw std::invalid_argument If the yield period is not positive.
    */
@@ -818,8 +819,8 @@ class WarmupConfigBuilder {
  * Print the tuning parameters specified by the warmup configuration to the
  * output stream.
  *
- * @param out Output stream to which configuration is printed.
- * @param cfg The sampling configuration.
+ * @param[in,out] out Output stream to which configuration is printed.
+ * @param[in] cfg The sampling configuration.
  * @return The output stream for chained calls.
  */
 inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
@@ -931,8 +932,8 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the minimum and maximum number of iterations.
    *
-   * @param min_iter The minimum number of iterations.
-   * @param max_iter The maximum number of iterations.
+   * @param[in] min_iter The minimum number of iterations.
+   * @param[in] max_iter The maximum number of iterations.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the minimum number of iterations
    * is greater than the maximum number of iterations.
@@ -949,7 +950,7 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the maximum number of trajectory doublings.
    *
-   * @param v The maximum number of trajectory doublings.
+   * @param[in] v The maximum number of trajectory doublings.
    * @return A reference to this builder for chaining.
    */
   SamplingConfigBuilder& max_trajectory_doublings(uint64_t v) noexcept {
@@ -960,7 +961,7 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the maximum number of step size halvings.
    *
-   * @param v The maximum number of step size halvings.
+   * @param[in] v The maximum number of step size halvings.
    * @return A reference to this builder for chaining.
    */
   SamplingConfigBuilder& max_step_halvings(uint64_t v) noexcept {
@@ -971,7 +972,7 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the maximum error in the Hamiltonian for Walnuts.
    *
-   * @param v The maximum error in the Hamiltonian for Walnuts.
+   * @param[in] v The maximum error in the Hamiltonian for Walnuts.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the error is not finite and positive.
    */
@@ -984,7 +985,7 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the minimum number of micro steps per macro step.
    *
-   * @param v The minimum number of micro steps per macro step.
+   * @param[in] v The minimum number of micro steps per macro step.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the minimum number of steps is not
    * positive.
@@ -998,7 +999,7 @@ class SamplingConfigBuilder {
   /**
    * @brief Set the R-hat convergence tolerance.
    *
-   * @param v The R-hat convergence tolerance.
+   * @param[in] v The R-hat convergence tolerance.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the tolerance is not finite and > 1.
    */
@@ -1023,8 +1024,8 @@ class SamplingConfigBuilder {
  * Print the tuning parameters specified by the sampling configuration to the
  * output stream.
  *
- * @param out Output stream to which configuration is printed.
- * @param cfg The sampling configuration.
+ * @param[in,out] out Output stream to which configuration is printed.
+ * @param[in] cfg The sampling configuration.
  * @return The output stream for chained calls.
  */
 inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {

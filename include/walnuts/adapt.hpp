@@ -28,7 +28,7 @@ struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
   /**
    * @brief Construct an adaptation snapshot of the given dimensionality.
    *
-   * @param dim The number of dimensions in the positions.
+   * @param[in] dim The number of dimensions in the positions.
    */
   explicit AdaptSnapshot(std::int64_t dim) : log_mass(dim), mass(dim) {
     log_mass = Eigen::VectorXd::Constant(
@@ -51,14 +51,14 @@ struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
 };
 
 /**
- * A triple buffer of adaptation snapshots. 
+ * A triple buffer of adaptation snapshots.
  *
  * @see TripleBuffer
  * @see AdaptSnapshot
  */
 using Buffer = TripleBuffer<AdaptSnapshot>;
 
-/** 
+/**
  * A padded triple buffer of adaptation snapshots.
  *
  * @see Padded
@@ -69,9 +69,9 @@ using PaddedBuffer = Padded<Buffer>;
 /**
  * @brief Return a padded buffer with the specified dimensionality.
  *
- * @param dim The dimensionality of the positions.
+ * @param[in] dim The dimensionality of the positions.
  * @return A padded buffer of the specified dimensionality.
- */  
+ */
 static PaddedBuffer construct_buffer(std::size_t dim) {
   auto make = [dim] { return AdaptSnapshot(static_cast<std::int64_t>(dim)); };
   return PaddedBuffer{Buffer(make)};
@@ -80,8 +80,8 @@ static PaddedBuffer construct_buffer(std::size_t dim) {
 /**
  * @brief Return a vector of padded buffers of the given sizes.
  *
- * @param num_chains The number of Markov chains.
- * @param dim The number of dimensions.
+ * @param[in] num_chains The number of Markov chains.
+ * @param[in] dim The number of dimensions.
  * @return The padded buffer container.
  */
 static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
@@ -103,15 +103,16 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
 template <class AdaptiveSampler>
 class AdaptWorker {
  public:
-  /** 
+  /**
    * @brief Construct an adaptation worker with the specified configuration.
    *
-   * @param chain_id The identifier for which chain this is.
-   * @param init_cfg The initialization configuragation.
-   * @param warmup_cfg The configuration for warmup.
-   * @param buffer The padded buffer to hold the adaptation states.
-   * @param start_gate A latch to gate work starting uniformly across chains.
-   * @param adapter The base sampler.
+   * @param[in] chain_id The identifier for which chain this is.
+   * @param[in] init_cfg The initialization configuragation.
+   * @param[in] warmup_cfg The configuration for warmup.
+   * @param[in] buffer The padded buffer to hold the adaptation states.
+   * @param[in] start_gate A latch to gate work to start synchronously across
+   * workers.
+   * @param[in] adapter The base sampler, methods of which are later called.
    */
   AdaptWorker(std::uint64_t chain_id, const InitConfig& init_cfg,
               const WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
@@ -125,7 +126,7 @@ class AdaptWorker {
 
   /**
    * @brief The functor doing the work.
-   * 
+   *
    * A call to this function first waits for the latch, then iterates
    * up the warmup config specified max iterations.  If a stop is
    * requested through the stop token, it stops working.  It yields
@@ -135,9 +136,9 @@ class AdaptWorker {
    * specified by the warmup configuration.  When it's done looping, it
    * publishes a final snapshot of the chain's warmup state.
    *
-   * @param st The stop token for stopping the worker thread.
+   * @param[in] st The stop token for stopping the worker thread.
    */
-  void operator()(std::stop_token st) {
+  void operator()(const std::stop_token st) {
     start_gate_.get().arrive_and_wait();
     std::uint64_t last_done = 0;
     publish_snapshot(0);
@@ -191,32 +192,30 @@ class AdaptWorker {
 
 /**
  * @brief A small struct representing the mass matirx, step, and iteration.
- */  
+ */
 struct AdaptResult {
   /**
    * @brief Construct an adaptation result from its components.
    *
-   * @param mass The diagonal of the adapted mass matrix.
-   * @param step The adapted step size.
-   * @param stop_iter The iteration number from which this result was taken.
+   * @param[in] mass The diagonal of the adapted mass matrix.
+   * @param[in] step The adapted step size.
+   * @param[in] stop_iter The iteration number from which this result was taken.
    */
-  AdaptResult(const Eigen::VectorXd& mass, double step,
-              std::uint64_t stop_iter)
+  AdaptResult(const Eigen::VectorXd& mass, double step, std::uint64_t stop_iter)
       : mass_bar(mass), step_bar(step), stop_iter_min(stop_iter) {}
   Eigen::VectorXd mass_bar;
   double step_bar;
   std::uint64_t stop_iter_min;
 };
 
-
 /**
  * @brief Returns the L2 relative distance between the two vectors
- * scaled by the second vector. 
+ * scaled by the second vector.
 
  * The computation is `norm((a - b) / b)`.
- * 
- * @param a The test vector.
- * @param b The baseline vector.
+ *
+ * @param[in] a The test vector.
+ * @param[in] b The baseline vector.
  * @return The relative difference
  */
 static double l2_rel_diff(const Eigen::VectorXd& a,
@@ -229,12 +228,12 @@ static double l2_rel_diff(const Eigen::VectorXd& a,
  * state of each chain and configuration.
  *
  * @tparam Stopper The type of the callback for stopping.
- * @param buffers The adaptation state of all the chains.
- * @param init_cfg The initialization configuration.
- * @param warmup_cfg The warmup configuration.
- * @param stop_all The callback that is called when convergence is detected.
+ * @param[in,out] buffers The adaptation state of all the chains.
+ * @param[in] init_cfg The initialization configuration.
+ * @param[in] warmup_cfg The warmup configuration.
+ * @param[in] stop_all The callback that is called when convergence is detected.
  * @return Statistics for the completed adaptation process.
- */  
+ */
 template <class Stopper>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
                                    const InitConfig& init_cfg,
@@ -314,11 +313,11 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * and samplers.
  *
  * @tparam Adapter The type of adaptive sampler.
- * @param init_cfg The initial configuration.
- * @param warmup_cfg The warmup configuration.
- * @param adapters The adaptive samplers for each chain.
+ * @param[in] init_cfg The initial configuration.
+ * @param[in] warmup_cfg The warmup configuration.
+ * @param[in,out] adapters The adaptive samplers for each chain.
  * @return The completed adaptation configuration.
- */  
+ */
 template <typename Adapter>
 AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
                   std::vector<Adapter>& adapters) {
@@ -347,4 +346,4 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
 }
 
-}  // namespace walnut
+}  // namespace walnuts

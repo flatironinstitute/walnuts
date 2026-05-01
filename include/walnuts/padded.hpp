@@ -43,4 +43,4 @@ struct alignas(Align) Padded {
   std::array<std::byte, PADDING_BYTES> pad{};
 };
 
-}
+}  // namespace walnuts

@@ -39,7 +39,7 @@ class TripleBuffer {
   /**
    * Move the specified buffer into this buffer.
    *
-   * @param other The buffer to move.
+   * @param[in] other The buffer to move.
    */
   TripleBuffer(TripleBuffer&& other) noexcept(
       std::is_nothrow_move_constructible_v<std::array<T, 3>>)
@@ -54,7 +54,7 @@ class TripleBuffer {
 
    * This is only safe before any threading begins producing or consuming.
    *
-   * @param other The buffer to move.
+   * @param[in] other The buffer to move.
    * @return A reference to this buffer.
    */
   TripleBuffer& operator=(TripleBuffer&& other) noexcept(

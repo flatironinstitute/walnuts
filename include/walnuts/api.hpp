@@ -21,20 +21,21 @@ namespace walnuts {
  * seed, sampling event handlers, and configuration.
  *
  * @tparam Handler The type of the event handlers.
- * @param seed The seed for the pseudo-random number generator.
- * @param handlers The collection of chain-specific handlers.
- * @param init_cfg The initialization configuration.
- * @param warmup_cfg The warmup configuration.
- * @param sampling_cfg The sampling configuration.
+ * @param[in] seed The seed for the pseudo-random number generator.
+ * @param[in] handlers The collection of chain-specific handlers, which are
+ * called back.
+ * @param[in] log_p_grad The log density and gradient function, called back.
+ * @param[in] init_cfg The initialization configuration.
+ * @param[in] warmup_cfg The warmup configuration.
+ * @param[in] sampling_cfg The sampling configuration.
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
 template <typename Handler, typename LogProbGrad>
 void walnuts(uint32_t seed, std::vector<Handler>& handlers,
-	     const LogProbGrad& log_p_grad,
-	     const InitConfig& init_cfg,
-	     const WarmupConfig& warmup_cfg,
-	     const SamplingConfig& sampling_cfg) {
+             const LogProbGrad& log_p_grad, const InitConfig& init_cfg,
+             const WarmupConfig& warmup_cfg,
+             const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler =
       AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
   using Sampler = WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
@@ -86,8 +87,8 @@ void walnuts(uint32_t seed, std::vector<Handler>& handlers,
 
   std::size_t num_rhat_evals{0};
   double rhat;
-  sample(samplers, sampling_cfg.rhat_converge_tol(),
-	 sampling_cfg.max_iter(), num_rhat_evals, rhat);
+  sample(samplers, sampling_cfg.rhat_converge_tol(), sampling_cfg.max_iter(),
+         num_rhat_evals, rhat);
 
   // *********************** SAMPLING DEBUG I/O *******************
   std::cout << "\nnum Rhat evals = " << num_rhat_evals << ";  Rhat = " << rhat

@@ -90,7 +90,7 @@ class OnlineMoments {
    * @brief Set the discount factor for previous observations to the specified
    * value.
    *
-   * @param discount_factor The discount factor.
+   * @param[in] discount_factor The discount factor.
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
   void set_discount_factor(S discount_factor) {
@@ -106,7 +106,7 @@ class OnlineMoments {
    * factor.
    *
    * @tparam Derived The type of matrix underlying the observation.
-   * @param y The observed vector.
+   * @param[in] y The observed vector.
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
@@ -125,8 +125,8 @@ class OnlineMoments {
    * and `observe(y)`.
    *
    * @tparam Derived The type of matrix underlying the observation.
-   * @param discount_factor The discount factor.
-   * @param y The observed vector.
+   * @param[in] discount_factor The discount factor.
+   * @param[in] y The observed vector.
    * @throw discount_factor > 0 && discount_factor <= 1
    * @pre y.size() == mean().size()
    */
@@ -174,4 +174,4 @@ class OnlineMoments {
   Vec<S> sum_sq_dev_;
 };
 
-}
+}  // namespace walnuts

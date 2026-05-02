@@ -583,25 +583,21 @@ class WalnutsSampler {
   WalnutsSampler(WalnutsSampler&& sampler) = default;
 
   /**
-   * @brief Return the next draw from the sampler, saving the log
-   * density of the position returned.
-
-   * The returned reference will change on future calls to this
-   * method, so the value must be consumed before calling
-   * `operator()(S&)` again.
+   * @brief Generate the next draw and send it to the handler and return
+   * its log density.
    *
-   * @param[out] logp_pos The log density of the position returned.
-   * @return The next draw.
+   * @return The unnormalized log density of the next draw.
    */
-  const Vec<S>& operator()(S& logp_pos) {
+  S operator()() {
     std::size_t depth;
     Vec<S> grad_next;
+    S logp_pos;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_adapt_handler_);
     handler_.on_sample(theta_, logp_pos);
-    return theta_;
+    return logp_pos;
   }
 
   /**

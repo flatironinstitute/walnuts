@@ -247,8 +247,7 @@ class ChainWorker {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
       }
-      double lp;
-      auto draw = sampler_.get()(lp);
+      double lp = sampler_.get()();
       logp_stats_.observe(lp);
       acs_.get().store(logp_stats_.sample_stats());
     }

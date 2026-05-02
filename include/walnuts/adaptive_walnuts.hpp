@@ -283,22 +283,20 @@ class AdaptiveWalnuts {
         min_micro_estimator_(std::pow(2.0, target_depth)) {}
 
   /**
-   * @brief Return the next state from warmup.
+   * @brief Generate the next state for adaptation and the handler.
    *
    * This method should be called a number of time equal to the number
    * of warmup iterations desired.  These warmup draws are *not* drawn
    * from a Markov chain and are not valid for inference.  After
    * warmup, call `sampler()` to return a sampler that fixes the
    * tuning parameters and provides a proper Markov chain.
-   *
-   * @return The next warmup state.
    */
-  const Vec<S> operator()() {
+  void operator()() {
     Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
     Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
     Vec<S> grad_select;
     S logp_select;
-    std::size_t depth = 0;
+    std::size_t depth;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
@@ -310,7 +308,6 @@ class AdaptiveWalnuts {
     min_micro_estimator_.observe(1 << depth);
     handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);
     ++iteration_;
-    return theta_;
   }
 
   /**

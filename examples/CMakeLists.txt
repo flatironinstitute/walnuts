@@ -1,28 +1,20 @@
-add_executable(examples examples.cpp) 
-target_link_libraries(examples PRIVATE nuts::nuts) 
-target_compile_options(examples PRIVATE -O3 -Wall) 
+add_executable(walnuts_api walnuts_api.cpp) 
+target_link_libraries(walnuts_api PRIVATE Eigen3::Eigen walnuts)
+target_compile_options(walnuts_api PRIVATE -O3 -Wall) 
+target_compile_options(walnuts_api PRIVATE -fsanitize=thread) 
+target_link_options(walnuts_api PRIVATE -fsanitize=thread) 
 
-if(WALNUTS_BUILD_STAN)
-  add_executable(walnuts-api walnuts-api.cpp) 
-  target_link_libraries(walnuts-api PRIVATE nuts::nuts Eigen3::Eigen walnuts)
-  target_compile_options(walnuts-api PRIVATE -O3 -Wall) 
-  target_compile_options(walnuts-api PRIVATE -fsanitize=thread) 
-  target_link_options(walnuts-api PRIVATE -fsanitize=thread) 
+add_executable(examples_stan examples_stan.cpp)
+target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
+target_compile_options(examples_stan PRIVATE -Wall)
 
-  add_executable(examples_stan examples_stan.cpp)
-  target_link_libraries(examples_stan PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan)
-  target_compile_options(examples_stan PRIVATE -Wall)
+FetchContent_Declare(
+  cli11
+  GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+  GIT_TAG v2.5.0
+)
+FetchContent_MakeAvailable(cli11)
 
-
-  FetchContent_Declare(
-    cli11
-    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
-    GIT_TAG v2.5.0
-  )
-
-  FetchContent_MakeAvailable(cli11)
-
-  add_executable(stan_cli stan_cli.cpp)
-  target_link_libraries(stan_cli PRIVATE Eigen3::Eigen nuts::nuts BridgeStan::BridgeStan CLI11::CLI11)
-  target_compile_options(stan_cli PRIVATE -Wall)
-endif()
+add_executable(stan_cli stan_cli.cpp)
+target_link_libraries(stan_cli PRIVATE Eigen3::Eigen walnuts BridgeStan::BridgeStan CLI11::CLI11)
+target_compile_options(stan_cli PRIVATE -Wall)

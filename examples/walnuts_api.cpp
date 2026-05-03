@@ -8,6 +8,14 @@
 #include "walnuts/config.hpp"
 #include "walnuts/validate.hpp"
 
+struct GlobalHandler {
+  void on_r_hat(double r_hat) {
+    r_hats_.push_back(r_hat);
+  }
+
+  std::vector<double> r_hats_;
+};
+
 struct CacheHandler {
   CacheHandler(bool save_warmup = true) : save_warmup_(save_warmup) {}
 
@@ -22,13 +30,13 @@ struct CacheHandler {
     warmup_diag_inv_masses_.push_back(diag_inv_mass);
   }
 
-  void on_warmup_complete(const double stepsize,
+  void on_warmup_complete(double stepsize,
                           const Eigen::VectorXd& diag_inv_mass) {
     stepsize_ = stepsize;
     diag_inv_mass_ = diag_inv_mass;
   }
 
-  void on_sample(const Eigen::VectorXd& position, const double lp) {
+  void on_sample(const Eigen::VectorXd& position, double lp) {
     draws_.push_back(position);
     lps_.push_back(lp);
   }
@@ -153,6 +161,8 @@ struct CacheHandler {
   double stepsize_ = 0;
   Eigen::VectorXd diag_inv_mass_;
 
+  std::vector<double> r_hats_;
+  
   std::vector<Eigen::VectorXd> draws_;
   std::vector<double> lps_;
 
@@ -181,6 +191,7 @@ int main() {
   for (size_t m = 0; m < num_chains; ++m) {
     handlers[m] = CacheHandler();
   }
+  GlobalHandler global_handler;
 
   double init_scale = 0.5;
   double mass_smoothing = 0.1;
@@ -205,18 +216,23 @@ int main() {
   std::cout << warmup_cfg << "\n\n";
   std::cout << sampling_cfg << "\n\n";
 
-  walnuts::walnuts(seed, handlers, logp_grad, init_cfg, warmup_cfg,
+  walnuts::walnuts(seed, handlers, global_handler, logp_grad, init_cfg, warmup_cfg,
                    sampling_cfg);
 
+  std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {
-    std::cout << "CHAIN " << m
+    std::cout << "  Chain " << m
 	      << "; step size = " << handlers[m].stepsize_
 	      << "; ||mass|| = " << handlers[m].diag_inv_mass_.array().inverse().matrix().norm()
               << "; # warmup_draws = " << handlers[m].warmup_draws_.size()
-              << "; # draws = " << handlers[m].draws_.size() << std::endl;
+              << "; # draws = " << handlers[m].draws_.size() << "\n";
   }
+  std::cout << "\n";
 
-  std::cout << "WRITING TO FILES: step_size.csv, mass_matrix.csv, sample.csv\n";
+  std::cout << "NUMBER OF R-HAT EVALS: " << global_handler.r_hats_.size()
+	    << ";  FINAL R-HAT: " << global_handler.r_hats_.back() << "\n\n";
+
+  std::cout << "WRITING TO FILES: step_size.csv, mass_matrix.csv, sample.csv\n\n";
 
   CacheHandler::write_step_size_csv(handlers, "step_size.csv");
   CacheHandler::write_mass_matrix_csv(handlers, "mass_matrix.csv");

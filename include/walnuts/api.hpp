@@ -31,8 +31,9 @@ namespace walnuts {
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
-template <typename Handler, typename LogProbGrad>
+template <typename Handler, typename GlobalHandler, typename LogProbGrad>
 void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
+	     GlobalHandler& global_handler,
              const LogProbGrad& log_p_grad, const InitConfig& init_cfg,
              const WarmupConfig& warmup_cfg,
              const SamplingConfig& sampling_cfg) {
@@ -68,16 +69,8 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }
 
-  std::size_t num_rhat_evals;
-  double rhat;
-  sample(samplers, sampling_cfg.rhat_converge_tol(),
-	 sampling_cfg.min_iter(), sampling_cfg.max_iter(),
-         num_rhat_evals, rhat);
-
-  // *********************** SAMPLING DEBUG I/O *******************
-  std::cout << "\nnum Rhat evals = " << num_rhat_evals << ";  Rhat = " << rhat
-            << "\n";
-  // *****************************************************
+  sample(samplers, global_handler, sampling_cfg.rhat_converge_tol(),
+	 sampling_cfg.min_iter(), sampling_cfg.max_iter());
 }
 
 }  // namespace walnuts

@@ -279,22 +279,18 @@ class ChainWorker {
  * to synchronize starting.
  * @param[in] min_draws_per_chain The minimum number of iterations per chain.
  * @param[in] max_draws_per_chain The maximum number of iterations per chain.
- * @param[in,out] num_rhat_evals The number of times R-hat was evaluated by the
- * controller.
- * @param[in,out] r_hat The final R-hat when sampling terminates.
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
+template <typename GlobalHandler>  
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
+    GlobalHandler& global_handler,
     double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain,
-    std::size_t& num_rhat_evals, double& r_hat,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();  // tell Apple silicon to use second-highest quality thread
-  num_rhat_evals = 0;
-  r_hat = std::numeric_limits<double>::quiet_NaN();
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
   Eigen::VectorXd chain_variances(M);
@@ -317,9 +313,9 @@ static void controller_loop(
     if (achieved_min_draws) {
       double variance_of_means = variance(chain_means);
       double mean_of_variances = chain_variances.mean();
-      r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
+      double r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
+      global_handler.on_r_hat(r_hat);
       std::size_t num_draws = sum(counts);
-      ++num_rhat_evals;
       if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
 	break;
       }
@@ -341,15 +337,12 @@ static void controller_loop(
  * @param[in] rhat_threshold The threshold below which sampling is stopped.
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
- * @param[in,out] num_rhat_evals The number of R-hat evaluations until
- * the threshold was attained.
- * @param[in,out] rhat The final R-hat value.
  */
-template <typename Sampler>
-void sample(std::vector<Sampler>& samplers, double rhat_threshold,
+  template <typename Sampler, typename GlobalHandler>
+void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
+	    double rhat_threshold,
 	    std::size_t min_draws_per_chain,
-            std::size_t max_draws_per_chain, std::size_t& num_rhat_evals,
-            double& rhat) {
+            std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
   std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<int64_t>(M));
@@ -360,8 +353,8 @@ void sample(std::vector<Sampler>& samplers, double rhat_threshold,
 	   min_draws_per_chain, max_draws_per_chain,
 	   samplers[m], stats_by_chain[m].val, start_gate));
   }
-  controller_loop(stats_by_chain, rhat_threshold, start_gate,
-                  min_draws_per_chain, max_draws_per_chain, num_rhat_evals, rhat);
+  controller_loop(stats_by_chain, global_handler, rhat_threshold, start_gate,
+                  min_draws_per_chain, max_draws_per_chain);
 }
 
 }  // namespace walnuts

@@ -35,7 +35,7 @@ inline void validate_open(const Stream& s, const std::string& name) {
  * @throw invalid_argument If the container size is not the specified size.
  */
 template <typename T>
-inline void validate_size(const std::vector<T>& x, uint64_t size,
+inline void validate_size(const std::vector<T>& x, std::size_t size,
                           const std::string& var, const std::string& target) {
   if (x.size() == size) {
     return;
@@ -56,9 +56,9 @@ inline void validate_size(const std::vector<T>& x, uint64_t size,
  * @throw invalid_argument If the container size is not the specified size.
  */
 template <std::floating_point T, int R, int C>
-inline void validate_size(const Eigen::Matrix<T, R, C>& x, uint64_t size,
+inline void validate_size(const Eigen::Matrix<T, R, C>& x, std::size_t size,
                           const std::string& var, const std::string& target) {
-  if (x.size() == static_cast<int64_t>(size)) {
+  if (x.size() == static_cast<Eigen::Index>(size)) {
     return;
   }
   throw std::invalid_argument(var + " size must match " + target);
@@ -187,7 +187,7 @@ inline void validate_finite(T x, const std::string& var) {
 template <std::floating_point T, int R, int C>
 inline void validate_finite(const Eigen::Matrix<T, R, C>& xs,
                             const std::string& var) {
-  for (int64_t i = 0; i < xs.size(); ++i) {
+  for (Eigen::Index i = 0; i < xs.size(); ++i) {
     validate_finite(xs(i), var);
   }
 }

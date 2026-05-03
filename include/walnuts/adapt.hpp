@@ -187,7 +187,7 @@ class AdaptWorker {
 };
 
 /**
- * @brief A struct to hold matrix and step size for a chain.
+ * @brief A struct to hold the diagonal of the mass matrix and a step size.
  */
 struct AdaptResult {
   Eigen::VectorXd mass_bar;

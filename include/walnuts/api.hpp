@@ -32,7 +32,7 @@ namespace walnuts {
  * the initialization configuration's number of chains.
  */
 template <typename Handler, typename LogProbGrad>
-void walnuts(uint32_t seed, std::vector<Handler>& handlers,
+void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
              const LogProbGrad& log_p_grad, const InitConfig& init_cfg,
              const WarmupConfig& warmup_cfg,
              const SamplingConfig& sampling_cfg) {
@@ -51,17 +51,15 @@ void walnuts(uint32_t seed, std::vector<Handler>& handlers,
     std::seed_seq ss{seed, m + 1u};
     rngs.emplace_back(ss);
   }
-
   std::vector<AdaptiveSampler> adapters;
   adapters.reserve(init_cfg.num_chains());
-  for (std::uint64_t m = 0; m < init_cfg.num_chains(); ++m) {
-    adapters.emplace_back(AdaptiveSampler(
+  for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
+    adapters.emplace_back(
         rngs[m], handlers[m], log_p_grad,
-        init_cfg.position(static_cast<size_t>(m)),
-        init_cfg.init_chain_config(static_cast<std::size_t>(m)), warmup_cfg,
-        sampling_cfg, std::log2(warmup_cfg.max_macro_steps_target())));
+        init_cfg.position(m),
+        init_cfg.init_chain_config(m), warmup_cfg,
+        sampling_cfg, std::log2(warmup_cfg.max_macro_steps_target()));
   }
-
   AdaptResult adapt_result =
       adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
 

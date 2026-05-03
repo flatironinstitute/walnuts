@@ -348,4 +348,19 @@ Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
   return g;
 }
 
+/**
+ * @brief Returns the L2 relative distance between the two vectors
+ * scaled by the second vector.
+
+ * The computation is `norm((a - b) / b)`.
+ *
+ * @param[in] a The test vector.
+ * @param[in] b The baseline vector.
+ * @return The relative difference
+ */
+static double l2_rel_diff(const Eigen::VectorXd& a,
+                          const Eigen::VectorXd& b) noexcept {
+  return ((a - b).array() / b.array()).matrix().norm();
+}  
+
 }  // namespace walnuts

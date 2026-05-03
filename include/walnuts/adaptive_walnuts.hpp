@@ -11,11 +11,8 @@
 namespace walnuts {
 
 /**
- * @brief The step-size adaptation handler for WALNUTS.
- *
- * @tparam S The type of scalars.
+ * @brief The step-size adaptation handler for Walnuts.
  */
-template <typename S>
 class StepAdaptHandler {
  public:
   /**
@@ -38,27 +35,24 @@ class StepAdaptHandler {
    *
    * @param[in] accept_prob The observed acceptance probability.
    */
-  void operator()(S accept_prob) noexcept { adam_.observe(accept_prob); }
+  void operator()(double accept_prob) noexcept { adam_.observe(accept_prob); }
 
   /**
    * @brief Return the estimated step size.
    *
    * @return The estimated step size.
    */
-  S step_size() const noexcept { return adam_.step_size(); }
+  double step_size() const noexcept { return adam_.step_size(); }
 
  private:
   /** The Adam instance for step size adaptation. */
-  Adam<S> adam_;
+  Adam<double> adam_;
 };
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
  * and scores (gradients of log densities).
- *
- * @tparam S The type of scalars.
  */
-template <typename S>
 class MassEstimator {
  public:
   /**
@@ -90,20 +84,20 @@ class MassEstimator {
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const WarmupConfig& warmup_cfg, const Vec<S>& theta,
-                const Vec<S>& grad)
+  MassEstimator(const WarmupConfig& warmup_cfg, const Eigen::VectorXd& theta,
+                const Eigen::VectorXd& grad)
       : warmup_cfg_(warmup_cfg) {
     validate_same_size(theta, grad, "theta", "grad");
-    S smoothing = warmup_cfg.mass_additive_smoothing();
-    Vec<S> zero = Vec<S>::Zero(theta.size());
-    Vec<S> smooth_vec = Vec<S>::Constant(theta.size(), smoothing);
-    Vec<S> sqrt_abs_grad_init = grad.array().abs().sqrt();
-    Vec<S> init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
-    Vec<S> init_var = init_prec.array().inverse().matrix();
+    double smoothing = warmup_cfg.mass_additive_smoothing();
+    Eigen::VectorXd zero = Eigen::VectorXd::Zero(theta.size());
+    Eigen::VectorXd smooth_vec = Eigen::VectorXd::Constant(theta.size(), smoothing);
+    Eigen::VectorXd sqrt_abs_grad_init = grad.array().abs().sqrt();
+    Eigen::VectorXd init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
+    Eigen::VectorXd init_var = init_prec.array().inverse().matrix();
     inv_var_estimator_ =
-        OnlineMoments<S>(warmup_cfg.mass_init_count(), zero, init_prec);
+      OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_prec);
     var_estimator_ =
-        OnlineMoments<S>(warmup_cfg.mass_init_count(), zero, init_var);
+        OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_var);
   }
 
   /**
@@ -116,7 +110,7 @@ class MassEstimator {
    * @pre theta.size() = grad.size()
    * @pre iteration >= 0
    */
-  void observe(const Vec<S>& theta, const Vec<S>& grad, std::size_t iteration) {
+  void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad, std::size_t iteration) {
     double discount_factor =
         1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
     var_estimator_.discount_observe(discount_factor, theta);
@@ -130,7 +124,7 @@ class MassEstimator {
    *
    * @return The inverse mass matrix estimate.
    */
-  Vec<S> inv_mass_estimate() const {
+  Eigen::VectorXd inv_mass_estimate() const {
     return (var_estimator_.variance().array() /
             inv_var_estimator_.variance().array())
         .sqrt()
@@ -142,10 +136,10 @@ class MassEstimator {
   WarmupConfig warmup_cfg_;
 
   /** The online variance estimator for draws. */
-  OnlineMoments<S> var_estimator_;
+  OnlineMoments<double> var_estimator_;
 
   /** The online inverse variance estimator for scores. */
-  OnlineMoments<S> inv_var_estimator_;
+  OnlineMoments<double> inv_var_estimator_;
 };
 
 /**
@@ -173,7 +167,7 @@ class MinMicroStepsAdaptHandler {
         count_(1.0) {}
 
   /**
-   * @brief Observe the specified number of macro steps in a NUTS trajectory.
+   * @brief Observe the specified number of macro steps in a Nuts trajectory.
    *
    * @param[in] macro_steps The number of macro steps used in a trajectory.
    */
@@ -203,15 +197,15 @@ class MinMicroStepsAdaptHandler {
 };
 
 /**
- * @brief The adaptive WALNUTS sampler.
+ * @brief The adaptive Walnuts sampler.
  *
- * The adaptive WALNUTS sampler is configured in the constructor, then
+ * The adaptive Walnuts sampler is configured in the constructor, then
  * provides a functor method `operator()()` for returning the next
  * state in warmup.  Warmup can be called externally to be run for any
  * number of iterations.  Warmup continually re-estimates step size
  * and mass matrix each iteration, exponentially discounting the past.
  *
- * After adaptation, the method `sampler()` returns the a WALNUTS
+ * After adaptation, the method `sampler()` returns the a Walnuts
  * sampler configured with the result of adaptation.
  *
  * The target log density and gradient function must implement the signature
@@ -228,28 +222,27 @@ class MinMicroStepsAdaptHandler {
  * `x`, and `grad` set to the gradient of the log density at `x`.
  *
  * @tparam F Type of log density/gradient function.
- * @tparam S Type of scalars.
  * @tparam RNG Type of base random number generator.
  * @tparam Handler Type of adaptation and sampling event handler.
  */
-template <class F, typename S, class RNG, class Handler>
+template <class F, class RNG, class Handler>
 class AdaptiveWalnuts {
  public:
   /**
-   * @brief Construct an adaptive WALNUTS sampler.
+   * @brief Construct an adaptive Walnuts sampler.
    *
    * The target log density and gradient function must implement the signature
    *
    * ```cpp
-   * void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
+   * void normal_logp_grad(const Eigen::VectorXd& x,
    *                       S& logp,
-   *                       Eigen::Matrix<S, -1, 1>& grad);
+   *                       Eigen::VectorXd& grad);
    * ```
    *
    * The configuration objects, the base random number generator, and
    * the log density/gradient function are held by reference.  The RNG
    * changes state every time a random number is generated.  The
-   * target depth specifies the expected NUTS tree depth, which is
+   * target depth specifies the expected Nuts tree depth, which is
    * controlled through the minimum number of micro steps per macro
    * step and adjusted with a mean estimator to achieve this average.
    *
@@ -263,10 +256,10 @@ class AdaptiveWalnuts {
    * chain.
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] sampling_cfg The sampling configuration.
-   * @param[in] target_depth The target expected NUTS tree depth.
+   * @param[in] target_depth The target expected Nuts tree depth.
    */
   AdaptiveWalnuts(RNG& rng, Handler& handler, const F& logp_grad,
-                  const Vec<S>& theta_init,
+                  const Eigen::VectorXd& theta_init,
                   const InitChainConfig& init_chain_cfg,
                   const WarmupConfig& warmup_cfg,
                   const SamplingConfig& sampling_cfg, double target_depth = 3.0)
@@ -292,10 +285,10 @@ class AdaptiveWalnuts {
    * tuning parameters and provides a proper Markov chain.
    */
   void operator()() {
-    Vec<S> inv_mass = mass_estimator_.inv_mass_estimate();
-    Vec<S> chol_mass = inv_mass.array().inverse().sqrt().matrix();
-    Vec<S> grad_select;
-    S logp_select;
+    Eigen::VectorXd inv_mass = mass_estimator_.inv_mass_estimate();
+    Eigen::VectorXd chol_mass = inv_mass.array().inverse().sqrt().matrix();
+    Eigen::VectorXd grad_select;
+    double logp_select;
     std::size_t depth;
     theta_ = transition_w(
         rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
@@ -311,18 +304,18 @@ class AdaptiveWalnuts {
   }
 
   /**
-   * @brief Return a WALNUTS sampler with the current tuning parameter
+   * @brief Return a Walnuts sampler with the current tuning parameter
    * estimates.
    *
    * The returned sampler forms a proper Markov chain.  The method passes
    * along the compound random number generator and log density function and
    * is hence not marked `const`.
    *
-   * @return The WALNUTS sampler with current tuning parameter estimates.
+   * @return The Walnuts sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, S, RNG, Handler> sampler() {
+  WalnutsSampler<F, double, RNG, Handler> sampler() {
     handler_.on_warmup_complete(step_size(), inv_mass());
-    return WalnutsSampler<F, S, RNG, Handler>(
+    return WalnutsSampler<F, double, RNG, Handler>(
         rand_, handler_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
@@ -336,14 +329,14 @@ class AdaptiveWalnuts {
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  Vec<S> inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
+  Eigen::VectorXd inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
 
   /**
    * @brief Return the step size.
    *
    * @return The step size.
    */
-  S step_size() const { return step_adapt_handler_.step_size(); }
+  double step_size() const { return step_adapt_handler_.step_size(); }
 
   /**
    * @brief Return the minimum number of micro steps per macro step.
@@ -374,30 +367,30 @@ class AdaptiveWalnuts {
   /** The warmup configuration. */
   std::reference_wrapper<const WarmupConfig> warmup_cfg_;
 
-  /** The WALNUTS sampler configuration. */
+  /** The Walnuts sampler configuration. */
   std::reference_wrapper<const SamplingConfig> sampling_cfg_;
 
-  /** The random number generator required for NUTS. */
-  Random<S, RNG> rand_;
+  /** The random number generator required for Nuts. */
+  Random<double, RNG> rand_;
 
   /** The adaptation and sampling event handler. */
   Handler& handler_;
 
   /** The target log density/gradient function. */
-  const NoExceptLogpGrad<F, S> logp_grad_;
+  const NoExceptLogpGrad<F, double> logp_grad_;
 
   /** The current state. */
-  Vec<S> theta_;
+  Eigen::VectorXd theta_;
 
   /** The current iteration. */
   std::size_t iteration_;
 
-  /** The handler receiving observations from WALNUTS for step size adaptation.
+  /** The handler receiving observations from Walnuts for step size adaptation.
    */
-  StepAdaptHandler<S> step_adapt_handler_;
+  StepAdaptHandler step_adapt_handler_;
 
   /** The estimator for the mass matrix. */
-  MassEstimator<S> mass_estimator_;
+  MassEstimator mass_estimator_;
 
   /** The estimator for the minimum number of micro steps per macro step. */
   MinMicroStepsAdaptHandler min_micro_estimator_;

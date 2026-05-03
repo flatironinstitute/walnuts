@@ -17,6 +17,7 @@
 #include <walnuts/config.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>
+#include <walnuts/util.hpp>
 
 namespace walnuts {
 
@@ -36,15 +37,14 @@ struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
    *
    * @param[in] dim The number of dimensions in the positions.
    */
-  explicit AdaptSnapshot(std::int64_t dim) : log_mass(dim), mass(dim) {
-    log_mass = Eigen::VectorXd::Constant(
-        dim, std::numeric_limits<double>::quiet_NaN());
-    mass = Eigen::VectorXd::Constant(dim,
-                                     std::numeric_limits<double>::quiet_NaN());
-  }
+  explicit AdaptSnapshot(Eigen::Index dim) :
+    log_mass(Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN())),
+    mass(Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN()))
+    {   }
+
 
   /** The number of iterations carried out in the chain. */
-  std::uint64_t iter = 0;
+  std::size_t iter = 0;
 
   /** The currently adapted log step size. */
   double log_step = std::numeric_limits<double>::quiet_NaN();
@@ -79,7 +79,7 @@ using PaddedBuffer = Padded<Buffer>;
  * @return A padded buffer of the specified dimensionality.
  */
 static PaddedBuffer construct_buffer(std::size_t dim) {
-  auto make = [dim] { return AdaptSnapshot(static_cast<std::int64_t>(dim)); };
+  auto make = [dim] { return AdaptSnapshot(static_cast<Eigen::Index>(dim)); };
   return PaddedBuffer{Buffer(make)};
 }
 
@@ -120,7 +120,7 @@ class AdaptWorker {
    * workers.
    * @param[in] adapter The base sampler, methods of which are later called.
    */
-  AdaptWorker(std::uint64_t chain_id, const InitConfig& init_cfg,
+  AdaptWorker(std::size_t chain_id, const InitConfig& init_cfg,
               const WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
               std::latch& start_gate, AdaptiveSampler& adapter)
       : chain_id_(chain_id),
@@ -146,49 +146,39 @@ class AdaptWorker {
    */
   void operator()(const std::stop_token st) {
     start_gate_.get().arrive_and_wait();
-    std::uint64_t last_done = 0;
     publish_snapshot(0);
-    for (std::uint32_t iter = 1; iter <= warmup_config_.max_iter(); ++iter) {
-      if (st.stop_requested()) {
-        break;
+    std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops don't trigger on first iteration
+    for (; iter <= warmup_config_.max_iter(); ++iter) {
+      if (iter >= warmup_config_.min_iter() && st.stop_requested()) {
+        break;  // should we be waiting for min_iter when stop requested?
       }
-      if (warmup_config_.yield_period() > 0 &&
-          (iter % warmup_config_.yield_period() == 0)) {
+      if (iter % warmup_config_.yield_period() == 0) {
         std::this_thread::yield();
       }
-      adapter_.get()();  // actually do the sampling!
-      adapter_.get().step_size();
-      last_done = iter;
-      if (warmup_config_.publish_stride() > 0 &&
-          (iter % warmup_config_.publish_stride() == 0)) {
+      adapter_.get()();  // do the sampling
+      if (iter % warmup_config_.publish_stride() == 0) {
         publish_snapshot(iter);
       }
     }
-    if (warmup_config_.publish_stride() == 0 ||
-        (last_done % warmup_config_.publish_stride() != 0)) {
-      publish_snapshot(last_done);
+    if (iter % warmup_config_.publish_stride() != 0) {
+      publish_snapshot(iter);
     }
   }
 
  private:
-  void publish_snapshot(std::uint64_t iter) {
+  void publish_snapshot(std::size_t iter) {
     AdaptSnapshot& snap = buffer_.get().write_buffer();
     snap.iter = iter;
-    snap.log_step = (iter == 0) ? std::numeric_limits<double>::quiet_NaN()
-                                : adapter_.get().log_step_size();
-
+    snap.log_step = adapter_.get().log_step_size();
     const auto lm = adapter_.get().log_mass();
-    for (std::int64_t d = 0; d < static_cast<std::int64_t>(init_config_.dims());
-         ++d) {
-      const double v =
-          (iter == 0) ? std::numeric_limits<double>::quiet_NaN() : lm[d];
-      snap.log_mass(d) = v;
-      snap.mass(d) = std::exp(v);
+    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.dims()); ++d) {
+      snap.log_mass(d) = lm[d];
+      snap.mass(d) = std::exp(lm[d]);
     }
     buffer_.get().publish();
   }
 
-  std::uint64_t chain_id_;
+  std::size_t chain_id_;
   const InitConfig& init_config_;
   const WarmupConfig& warmup_config_;
   std::reference_wrapper<Buffer> buffer_;
@@ -197,37 +187,12 @@ class AdaptWorker {
 };
 
 /**
- * @brief A small struct representing the mass matirx, step, and iteration.
+ * @brief A struct to hold matrix and step size for a chain.
  */
 struct AdaptResult {
-  /**
-   * @brief Construct an adaptation result from its components.
-   *
-   * @param[in] mass The diagonal of the adapted mass matrix.
-   * @param[in] step The adapted step size.
-   * @param[in] stop_iter The iteration number from which this result was taken.
-   */
-  AdaptResult(const Eigen::VectorXd& mass, double step, std::uint64_t stop_iter)
-      : mass_bar(mass), step_bar(step), stop_iter_min(stop_iter) {}
   Eigen::VectorXd mass_bar;
   double step_bar;
-  std::uint64_t stop_iter_min;
 };
-
-/**
- * @brief Returns the L2 relative distance between the two vectors
- * scaled by the second vector.
-
- * The computation is `norm((a - b) / b)`.
- *
- * @param[in] a The test vector.
- * @param[in] b The baseline vector.
- * @return The relative difference
- */
-static double l2_rel_diff(const Eigen::VectorXd& a,
-                          const Eigen::VectorXd& b) noexcept {
-  return ((a - b).array() / b.array()).matrix().norm();
-}
 
 /**
  * @brief The implementation of the control monitor with the adaptation
@@ -244,60 +209,46 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
                                    const WarmupConfig& warmup_cfg) {
   const std::size_t M = init_cfg.num_chains();
   const std::size_t D = init_cfg.dims();
-  Eigen::VectorXd mean_log_mass =
-      Eigen::VectorXd::Zero(static_cast<int64_t>(D));
-  Eigen::VectorXd mean_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
-  Eigen::VectorXd scratch_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
-
-  double mean_log_step = 0.0;
-
-  std::uint64_t min_iter = 0;
 
   auto probe_period =
       std::chrono::microseconds(warmup_cfg.probe_microseconds());
-
   auto next = std::chrono::steady_clock::now() + probe_period;
 
+  Eigen::VectorXd mean_log_mass(D);
+  Eigen::VectorXd geom_mean_mass(D);
+  Eigen::VectorXd scratch_mass(D);
   while (true) {
-    std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0);
-    mean_log_step = 0.0;
-    min_iter = std::numeric_limits<std::uint32_t>::max();
+    mean_log_mass.setZero();
+    double mean_log_step = 0.0;
+    std::size_t min_iter = std::numeric_limits<std::size_t>::max();
     for (std::size_t m = 0; m < M; ++m) {
       latest[m] = buffers[m].val.read_latest();
       min_iter = std::min(min_iter, latest[m].iter);
-      mean_log_step += latest[m].log_step;
+      mean_log_step += latest[m].log_step;  // means after division
       mean_log_mass += latest[m].log_mass;
     }
-
     mean_log_step /= static_cast<double>(M);
     mean_log_mass /= static_cast<double>(M);
-    mean_mass = mean_log_mass.array().exp().matrix();
+    geom_mean_mass = mean_log_mass.array().exp().matrix();
 
-    double max_rel_mass = 0.0;
-    double max_rel_step = 0.0;
-
+    double max_rel_diff_mass = 0.0;
+    double max_rel_diff_step = 0.0;
     for (std::size_t m = 0; m < M; ++m) {
-      const AdaptSnapshot& s = latest[m]; 
-
-      const double diff_mass = l2_rel_diff(s.mass, mean_mass);
-      max_rel_mass = std::fmax<double>(max_rel_mass, diff_mass);
-
-      // could stay on log scale longer
-      double s_step = static_cast<double>(std::exp(s.log_step));
-      double m_step = static_cast<double>(std::exp(mean_log_step));
-      double rel_step = (s_step - m_step) / m_step;
-      max_rel_step = std::fmax<double>(max_rel_step, rel_step);
+      double rel_diff_mass = l2_rel_diff(latest[m].mass, geom_mean_mass);
+      max_rel_diff_mass = std::fmax(max_rel_diff_mass, rel_diff_mass);
+      double chain_m_step = static_cast<double>(std::exp(latest[m].log_step));
+      double geom_mean_step = std::exp(mean_log_step);
+      double rel_diff_step = (chain_m_step - geom_mean_step) / geom_mean_step;
+      max_rel_diff_step = std::fmax(max_rel_diff_step, rel_diff_step);
     }
 
-    const bool enough_iters = (min_iter >= warmup_cfg.min_iter());
+    const bool enough_iters = min_iter >= warmup_cfg.min_iter();
     const bool converged = enough_iters &&
-                           max_rel_mass <= warmup_cfg.mass_converge_tol() &&
-                           max_rel_step <= warmup_cfg.step_size_converge_tol();
-
-    const bool hit_max = min_iter >= warmup_cfg.max_iter();
-
-    if (converged || hit_max) {
-      return {mean_mass, std::exp(mean_log_step), min_iter};
+                           max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
+                           max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
+    const bool hit_max_iter = min_iter >= warmup_cfg.max_iter();
+    if (converged || hit_max_iter) {
+      return {geom_mean_mass, std::exp(mean_log_step)};
     }
 
     std::this_thread::sleep_until(next);
@@ -324,15 +275,14 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    std::uint32_t chain_id = static_cast<std::uint32_t>(m);
     threads.emplace_back(AdaptWorker<Adapter>(
-        chain_id, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
+        m, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
   }
   std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   start_gate.arrive_and_wait();
   AdaptResult result = controller_loop(buffers, latest, init_cfg, warmup_cfg);
   for (auto& t : threads) {
-    t.request_stop(); // just in case not stopped by controller
+    t.request_stop();
   }
   for (auto& t : threads) {
     t.join();

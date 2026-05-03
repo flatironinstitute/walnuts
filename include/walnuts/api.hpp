@@ -37,7 +37,7 @@ void walnuts(uint32_t seed, std::vector<Handler>& handlers,
              const WarmupConfig& warmup_cfg,
              const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler =
-      AdaptiveWalnuts<LogProbGrad, double, std::mt19937, Handler>;
+      AdaptiveWalnuts<LogProbGrad, std::mt19937, Handler>;
   using Sampler = WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
 
   if (handlers.size() != init_cfg.num_chains()) {
@@ -67,7 +67,6 @@ void walnuts(uint32_t seed, std::vector<Handler>& handlers,
 
   // ********************ADAPTATION DEBUG I/O*****************************
   std::cout << "\nSHARED ADAPTED RESULT:  "
-            << "stop_iter_min=" << adapt_result.stop_iter_min
             << "  step_bar=" << adapt_result.step_bar
             << "  ||mass_bar||=" << adapt_result.mass_bar.norm() << '\n';
   std::cout << "\nPER CHAIN FINAL STATES:\n";

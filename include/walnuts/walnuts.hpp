@@ -555,7 +555,7 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
    */
-  WalnutsSampler(Random<S, RNG>& rand, Handler& handler, const F& logp_grad,
+  WalnutsSampler(Random<RNG>& rand, Handler& handler, const F& logp_grad,
                  const Vec<S>& theta, const Vec<S>& inv_mass, S macro_step_size,
                  std::size_t max_nuts_depth, std::size_t max_step_halvings,
                  std::size_t min_micro_steps, S max_error)
@@ -632,15 +632,14 @@ class WalnutsSampler {
   }
 
  private:
-  // TODO: audit why there are race conditions if this is taken by reference
-  /** The underlying randomizer (copied to remove race conditions). */
-  Random<S, RNG> rand_;
+  /** The underlying randomizer. */
+  Random<RNG> rand_;
 
   /** Reference to the sampling event handler. */
   Handler& handler_;
 
   /** The target log density/gradient function. */
-  const NoExceptLogpGrad<F, S> logp_grad_;
+  const NoExceptLogpGrad<F> logp_grad_;
 
   /** The current position. */
   Vec<S> theta_;

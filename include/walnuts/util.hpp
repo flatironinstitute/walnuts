@@ -68,10 +68,9 @@ using Forward_t = std::integral_constant<Direction, Direction::Forward>;
  * @brief A class encapsulating the randomizers needed for Hamiltonian Monte
  * Carlo.
  *
- * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
  */
-template <typename S, class RNG>
+template <class RNG>
 class Random {
  public:
   /**
@@ -95,7 +94,7 @@ class Random {
    *
    * @return A number between 0 and 1 generated uniformly at random.
    */
-  S uniform_real_01() { return unif_(rng_); }
+  double uniform_real_01() { return unif_(rng_); }
 
   /**
    * @brief Return `true` or `false` uniformly at random.
@@ -117,8 +116,8 @@ class Random {
    * @param[in] n The size of the vector generated.
    * @param[out] out The output vector.
    */
-  void standard_normal(std::size_t n, Vec<S>& out) {
-    out.resize(static_cast<int64_t>(n));
+  void standard_normal(std::size_t n, Eigen::VectorXd& out) {
+    out.resize(static_cast<Eigen::Index>(n));
     for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
       out[i] = normal_(rng_);
     }
@@ -134,14 +133,14 @@ class Random {
    * @param[in] n The size of the vector generated.
    * @return A vector generated according to a standard normal distribution.
    */
-  Vec<S> standard_normal(std::size_t n) {
-    Vec<S> out;
+  Eigen::VectorXd standard_normal(std::size_t n) {
+    Eigen::VectorXd out;
     standard_normal(n, out);
     return out;
   }
 
-  Vec<S> standard_normal_cwise_product(const Vec<S>& v) {
-    Vec<S> out(v.size());
+  Eigen::VectorXd standard_normal_cwise_product(const Eigen::VectorXd& v) {
+    Eigen::VectorXd out(v.size());
     for (Eigen::Index i = 0; i < v.size(); ++i) {
       out[i] = v[i] * normal_(rng_);
     }
@@ -153,13 +152,13 @@ class Random {
   RNG& rng_;
 
   /** The `uniform([0, 1])` random number generator. */
-  std::uniform_real_distribution<S> unif_;
+  std::uniform_real_distribution<double> unif_;
 
   /** The `uniform({0, 1})` random number generator. */
   std::bernoulli_distribution binary_;
 
   /** The `normal(0, 1)` random number generator. */
-  std::normal_distribution<S> normal_;
+  std::normal_distribution<double> normal_;
 };
 
 /**
@@ -168,15 +167,13 @@ class Random {
  * The mathematical definition is `log_sum_exp(x1, x2) = log(exp(x1) +
  * exp(x2))`.  The implementation is high precision and numerically stable.
  *
- * @tparam S The type of scalars.
  * @param[in] x1 The first argument.
  * @param[in] x2 The second argument.
  * @return The log of the sum of the exponentiations of the arguments.
  */
-template <typename S>
-inline S log_sum_exp(const S& x1, const S& x2) {
+inline double log_sum_exp(const double& x1, const double& x2) {
   using std::fmax, std::log, std::exp;
-  S m = fmax(x1, x2);
+  double m = fmax(x1, x2);
   if (std::isinf(m) && m < 0) {
     return m;  // x1 = x2 = -inf
   }
@@ -190,14 +187,12 @@ inline S log_sum_exp(const S& x1, const S& x2) {
  * The mathematical definition is `log_sum_exp(v) = log(sum(exp(x))`.
  * The implementation is high precision and numerically stable.
  *
- * @tparam S The type of scalars.
  * @param[in] x The vector argument.
  * @return The log of the sum of the exponentiation of the vector's components.
  */
-template <typename S>
-inline S log_sum_exp(const Vec<S>& x) {
+inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
-  S m = x.maxCoeff();
+  double m = x.maxCoeff();
   return m + log((x.array() - m).exp().sum());
 }
 
@@ -210,13 +205,11 @@ inline S log_sum_exp(const Vec<S>& x) {
  * The formula is `-0.5 * rho' .* inv_mass * rho`, which for diagonals works
  * out to `-0.5 * rho**2 * inv_mass` elementwise.
  *
- * @tparam S Type of scalars.
  * @param[in] rho Vector of momenta.
  * @param[in] inv_mass_diag The diagonal of the diagonal inverse mass matrix.
  * @return The log density of the momentum.
  */
-template <typename S>
-inline S logp_momentum(const Vec<S>& rho, const Vec<S>& inv_mass_diag) {
+inline double logp_momentum(const Eigen::VectorXd& rho, const Eigen::VectorXd& inv_mass_diag) {
   // equiv, but with temporaries: -0.5 *
   // rho.dot(inv_mass_diag.cwiseProduct(rho));
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
@@ -271,15 +264,14 @@ inline auto order_forward_backward(T&& x1, T&& x2) {
  * ```
  *
  * @tparam D The direction in which to order the spans.
- * @tparam S The type of scalars.
  * @tparam U The type of spans, which must define begin and end positions.
  * @param[in] span1 The first argument span.
  * @param[in] span2 The second argument span.
  * @param[in] inv_mass The inverse mass matrix to determine distances.
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
-template <Direction D, typename S, class U>
-inline bool uturn(const U& span1, const U& span2, const Vec<S>& inv_mass) {
+template <Direction D, class U>
+inline bool uturn(const U& span1, const U& span2, const Eigen::VectorXd& inv_mass) {
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
@@ -293,9 +285,8 @@ inline bool uturn(const U& span1, const U& span2, const Vec<S>& inv_mass) {
  * exceptions.
  *
  * @tparam F Type of underlying log density function.
- * @tparam S Type of scalars.
  */
-template <typename F, typename S>
+template <typename F>
 class NoExceptLogpGrad {
  public:
   /**
@@ -318,12 +309,12 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  void operator()(const Vec<S>& x, S& logp, Vec<S>& grad) const {
+  void operator()(const Eigen::VectorXd& x, double& logp, Eigen::VectorXd& grad) const {
     try {
       logp_grad_.get()(x, logp, grad);
     } catch (...) {
       // logp_grad failure equivalent to -inf log density: rejects in algorithm
-      logp = -std::numeric_limits<S>::infinity();
+      logp = -std::numeric_limits<double>::infinity();
       grad.setZero(x.size());
     }
   }
@@ -334,16 +325,15 @@ class NoExceptLogpGrad {
 /**
  * @brief Return the gradient of the log density at the specified position.
  *
- * @tparam S The type of scalars.
  * @tparam F The type of the target log density/gradient function.
  * @param[in] logp_grad The target log density/gradient function.
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
-template <typename S, class F>
-Vec<S> grad(const F& logp_grad, const Vec<S>& theta) {
-  Vec<S> g;
-  S logp;
+template <class F>
+Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
+  Eigen::VectorXd g;
+  double logp;
   logp_grad(theta, logp, g);
   return g;
 }

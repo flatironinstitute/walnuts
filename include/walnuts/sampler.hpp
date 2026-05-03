@@ -47,11 +47,12 @@ double variance(const Eigen::VectorXd& xs) noexcept {
 }
 
 /**
- * @brief A simple struct to hold the within chain summary statistics
- * for R-hat.
+ * @brief A struct to hold the within chain summary statistics for
+ * R-hat.
  *
  * Members are defined to be `float` and `uint32_t` in order to make
- * the whole lock-free when wrapped with `std::atomic`.
+ * the whole lock-free on common architectures when wrapped with
+ * `std::atomic`. 
  */
 struct ChainStats {
   /** The within-chain mean. */
@@ -243,7 +244,7 @@ class ChainWorker {
    * requested externally.
    */
   void operator()(const std::stop_token st) {
-    interactive_qos();
+    interactive_qos(); // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 1; iter <= max_draws_
 	   && !(iter >= min_draws_ && st.stop_requested());
@@ -290,7 +291,7 @@ static void controller_loop(
     std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
-  initiated_qos();  // tell Apple silicon to use second-highest quality thread
+  initiated_qos();  // Apple silicon second-highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
   Eigen::VectorXd chain_variances(M);
@@ -306,8 +307,8 @@ static void controller_loop(
       if (counts[m] < min_draws_per_chain) {
 	achieved_min_draws = false;
       }
-      chain_means[static_cast<int64_t>(m)] = static_cast<double>(u.sample_mean);
-      chain_variances[static_cast<int64_t>(m)] =
+      chain_means(static_cast<Eigen::Index>(m)) = static_cast<double>(u.sample_mean);
+      chain_variances(static_cast<Eigen::Index>(m)) =
 	static_cast<double>(u.sample_var);
     }
     if (achieved_min_draws) {
@@ -345,7 +346,7 @@ void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
             std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
   std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
-  std::latch start_gate(static_cast<int64_t>(M));
+  std::latch start_gate(static_cast<std::ptrdiff_t>(M));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
@@ -357,4 +358,4 @@ void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
                   min_draws_per_chain, max_draws_per_chain);
 }
 
-}  // namespace walnuts
+}

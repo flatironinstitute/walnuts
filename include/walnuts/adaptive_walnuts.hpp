@@ -378,13 +378,13 @@ class AdaptiveWalnuts {
   std::reference_wrapper<const SamplingConfig> sampling_cfg_;
 
   /** The random number generator required for Nuts. */
-  Random<double, RNG> rand_;
+  Random<RNG> rand_;
 
   /** The adaptation and sampling event handler. */
   Handler& handler_;
 
   /** The target log density/gradient function. */
-  const NoExceptLogpGrad<F, double> logp_grad_;
+  const NoExceptLogpGrad<F> logp_grad_;
 
   /** The current state. */
   Eigen::VectorXd theta_;

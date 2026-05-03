@@ -12,7 +12,9 @@ namespace walnuts {
 
 /*
  * @brief A lock-free, single-producer, single-consumer queue with triple
- * buffering.
+ * buffering.  See \cite guan2025triplebuffer.
+ *
+ * https://medium.com/@sgn00/triple-buffer-lock-free-concurrency-primitive-611848627a1e
  *
  * @tparam T Type of object buffered.
  */

@@ -299,9 +299,9 @@ class AdaptiveWalnuts {
    *
    * @return The Walnuts sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, double, RNG, Handler> sampler() {
+  WalnutsSampler<F, RNG, Handler> sampler() {
     handler_.on_warmup_complete(step_size(), inv_mass());
-    return WalnutsSampler<F, double, RNG, Handler>(
+    return WalnutsSampler<F, RNG, Handler>(
         rand_, handler_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),

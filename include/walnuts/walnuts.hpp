@@ -21,9 +21,7 @@ namespace walnuts {
  * joint densities on the trajectory. The gradients could be recomputed,
  * but storing them serves as a local cache.
  *
- * @tparam S Type of scalars.
  */
-template <typename S>
 class SpanW {
  public:
   /**
@@ -37,9 +35,9 @@ class SpanW {
    * @param[in] logp_joint The joint log density of the position and momentum.
    * @return The span constructed from the initial point.
    */
-  static SpanW<S> from_initial_point(Vec<S>&& theta, Vec<S>&& rho,
-                                     Vec<S>&& grad_theta, S logp_pos,
-                                     S logp_joint) {
+  static SpanW from_initial_point(Eigen::VectorXd&& theta, Eigen::VectorXd&& rho,
+                                  Eigen::VectorXd&& grad_theta, double logp_pos,
+                                  double logp_joint) {
     return {theta,
             rho,
             grad_theta,
@@ -67,9 +65,9 @@ class SpanW {
    * @param[in] logp_joint_total The log of the sum of the joint densities of
    * positions and momentums on the trajectory.
    */
-  static SpanW<S> from_subspans(SpanW<S>&& span1, SpanW<S>&& span2,
-                                Vec<S>&& theta_select, Vec<S>&& grad_select,
-                                S logp_pos_select, S logp_joint_total) {
+  static SpanW from_subspans(SpanW&& span1, SpanW&& span2,
+			     Eigen::VectorXd&& theta_select, Eigen::VectorXd&& grad_select,
+			     double logp_pos_select, double logp_joint_total) {
     return {std::move(span1.theta_bk_),
             std::move(span1.rho_bk_),
             std::move(span1.grad_theta_bk_),
@@ -85,40 +83,40 @@ class SpanW {
   }
 
   /** The earliest state. */
-  Vec<S> theta_bk_;
+  Eigen::VectorXd theta_bk_;
 
   /** The earliest momentum. */
-  Vec<S> rho_bk_;
+  Eigen::VectorXd rho_bk_;
 
   /** The gradient of the target log density at the earliest state . */
-  Vec<S> grad_theta_bk_;
+  Eigen::VectorXd grad_theta_bk_;
 
   /** The joint log density of the earliest position and momentum. */
-  S logp_bk_;
+  double logp_bk_;
 
   /** The latest state in the trajectory. */
-  Vec<S> theta_fw_;
+  Eigen::VectorXd theta_fw_;
 
   /** The latest momentum in the trajectory. */
-  Vec<S> rho_fw_;
+  Eigen::VectorXd rho_fw_;
 
   /** The gradient of the target log density at the latest position. */
-  Vec<S> grad_theta_fw_;
+  Eigen::VectorXd grad_theta_fw_;
 
   /** The joint log density of the latest position and momentum. */
-  S logp_fw_;
+  double logp_fw_;
 
   /** The selected state. */
-  Vec<S> theta_select_;
+  Eigen::VectorXd theta_select_;
 
   /** The gradient of the log density at the selected state. */
-  Vec<S> grad_select_;
+  Eigen::VectorXd grad_select_;
 
   /** The log density of the selected state. */
-  S logp_pos_select_;
+  double logp_pos_select_;
 
   /** The log of the sum of the joint densities in the trajectory. */
-  S logp_;
+  double logp_;
 };
 
 /**
@@ -138,9 +136,9 @@ class SpanW {
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <typename S, typename F>
-bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
+bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
                       std::size_t num_steps, S max_error, S logp_next,
-                      Vec<S>& theta_next, Vec<S>& rho_next, Vec<S>& grad_next) {
+                      Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next) {
   S half_step = 0.5 * step;
   S logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
@@ -172,19 +170,17 @@ bool within_tolerance(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <typename S, typename F>
-bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
+bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
                 std::size_t num_steps, std::size_t min_micro_steps, S max_error,
-                S logp_next, const Vec<S>& theta, const Vec<S>& rho,
-                const Vec<S>& grad) {
+                S logp_next, const Eigen::VectorXd& theta, const Eigen::VectorXd& rho,
+                const Eigen::VectorXd& grad) {
   if (num_steps == 1) {
     return true;
   }
-  // factor of 2 allows halving of steps, >= to allow num_steps =
-  // min_micro_steps
   while (num_steps >= 2 * min_micro_steps) {
-    Vec<S> theta_next = theta;
-    Vec<S> rho_next = -rho;
-    Vec<S> grad_next = grad;
+    Eigen::VectorXd theta_next = theta;
+    Eigen::VectorXd rho_next = -rho;
+    Eigen::VectorXd grad_next = grad;
     num_steps /= 2;
     step *= 2;
     if (within_tolerance(logp_grad, inv_mass, step, num_steps, max_error,
@@ -201,7 +197,6 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * return whether it conserves the Hamiltonian and is reversible.
  *
  * @tparam D The time direction of Hamiltonian simulation.
- * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
  * @param[in] logp_grad The target log density/gradient function.
@@ -222,25 +217,25 @@ bool reversible(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, typename S, typename F, class A>
-bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
+template <Direction D, typename F, class A>
+bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step,
                 std::size_t max_step_halvings, std::size_t min_micro_steps,
-                S max_error, const SpanW<S>& span, Vec<S>& theta_next,
-                Vec<S>& rho_next, Vec<S>& grad_next, S& logp_pos_next,
-                S& logp_next, A& adapt_handler) {
+                double max_error, const SpanW& span, Eigen::VectorXd& theta_next,
+                Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next, double& logp_pos_next,
+                double& logp_next, A& adapt_handler) {
   using std::fmax, std::fmin;
   constexpr bool is_forward = (D == Direction::Forward);
-  const Vec<S>& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
-  const Vec<S>& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
-  const Vec<S>& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
-  S logp = is_forward ? span.logp_fw_ : span.logp_bk_;
+  const Eigen::VectorXd& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
+  const Eigen::VectorXd& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
+  const Eigen::VectorXd& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
+  double logp = is_forward ? span.logp_fw_ : span.logp_bk_;
   step = is_forward ? step : -step;
   for (std::size_t num_steps = min_micro_steps, halvings = 0;
        halvings < max_step_halvings; ++halvings, num_steps *= 2, step *= 0.5) {
     theta_next = theta;
     rho_next = rho;
     grad_next = grad;
-    S half_step = 0.5 * step;
+    double half_step = 0.5 * step;
     for (std::size_t n = 0; n < num_steps; ++n) {
       rho_next += half_step * grad_next;
       theta_next.array() += step * inv_mass.array() * rho_next.array();
@@ -249,7 +244,7 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
     }
     logp_next = logp_pos_next + logp_momentum(rho_next, inv_mass);
     if (num_steps == min_micro_steps) {
-      S min_accept = std::exp(-std::fabs(logp - logp_next));
+      double min_accept = std::exp(-std::fabs(logp - logp_next));
       adapt_handler(min_accept);
     }
     if (std::fabs(logp - logp_next) <= max_error) {
@@ -274,7 +269,6 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
  *
  * @tparam U The type of update (`Metropolis` or `Barker`).
  * @tparam D The direction of combination in time (`Forward` or `Backward`).
- * @tparam S The type of scalars.
  * @tparam Rand The type for the source of randomness.
  * @param[in,out] rng The random number generator used to select a new position.
  * @param[in] span_old The old span.
@@ -282,24 +276,24 @@ bool macro_step(const F& logp_grad, const Vec<S>& inv_mass, S step,
  * time.
  * @return The combined span.
  */
-template <Update U, Direction D, typename S, class Rand>
-SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
+template <Update U, Direction D, class Rand>
+SpanW combine(Rand& rng, SpanW&& span_old, SpanW&& span_new) {
   using std::log;
-  S logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
-  S log_denominator;
+  double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
+  double log_denominator;
   if constexpr (U == Update::Metropolis) {
     log_denominator = span_old.logp_;
   } else {  // Update::Barker
     log_denominator = logp_total;
   }
-  S update_logprob = span_new.logp_ - log_denominator;
+  double update_logprob = span_new.logp_ - log_denominator;
   bool update = log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   auto& grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
   double logp_pos_select =
       update ? span_new.logp_pos_select_ : span_old.logp_pos_select_;
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
-  return SpanW<S>::from_subspans(std::move(span_bk), std::move(span_fw),
+  return SpanW::from_subspans(std::move(span_bk), std::move(span_fw),
                                  std::move(selected), std::move(grad_selected),
                                  logp_pos_select, logp_total);
 }
@@ -322,7 +316,6 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
  * specified span could not be extended reversibly within the error threshold.
  *
  * @tparam D The direction in time to extend.
- * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
  * @param[in] logp_grad The log density/gradient function.
@@ -336,24 +329,24 @@ SpanW<S> combine(Rand& rng, SpanW<S>&& span_old, SpanW<S>&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, typename S, class F, class A>
-std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
-                                   const Vec<S>& inv_mass, S step,
+template <Direction D, class F, class A>
+std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
+                                   const Eigen::VectorXd& inv_mass, double step,
                                    std::size_t max_step_halvings,
-                                   std::size_t min_micro_steps, S max_error,
+                                   std::size_t min_micro_steps, double max_error,
                                    A& adapt_handler) {
-  Vec<S> theta_next;
-  Vec<S> rho_next;
-  Vec<S> grad_theta_next;
-  S logp_pos_next;
-  S logp_next;
+  Eigen::VectorXd theta_next;
+  Eigen::VectorXd rho_next;
+  Eigen::VectorXd grad_theta_next;
+  double logp_pos_next;
+  double logp_next;
   if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,
                      min_micro_steps, max_error, span, theta_next, rho_next,
                      grad_theta_next, logp_pos_next, logp_next,
                      adapt_handler)) {
     return std::nullopt;
   }
-  return SpanW<S>::from_initial_point(
+  return SpanW::from_initial_point(
       std::move(theta_next), std::move(rho_next), std::move(grad_theta_next),
       logp_pos_next, logp_next);
 }
@@ -363,7 +356,6 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * the specified span, returning `nullopt` if there is a U-turn at any point.
  *
  * @tparam D The direction in time to extend.
- * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam Rand The type for the source of randomness.
  * @tparam A The type of the step-size adaptation callback function.
@@ -379,14 +371,14 @@ std::optional<SpanW<S>> build_leaf(const F& logp_grad, const SpanW<S>& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, typename S, class F, class Rand, class A>
-std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
-                                   const Vec<S>& inv_mass, S step,
-                                   std::size_t depth,
-                                   std::size_t max_step_halvings,
-                                   std::size_t min_micro_steps, S max_error,
-                                   const SpanW<S>& last_span,
-                                   A& adapt_handler) {
+template <Direction D, class F, class Rand, class A>
+std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
+                                const Eigen::VectorXd& inv_mass, double step,
+                                std::size_t depth,
+                                std::size_t max_step_halvings,
+                                std::size_t min_micro_steps, double max_error,
+                                const SpanW& last_span,
+                                A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step,
                          max_step_halvings, min_micro_steps, max_error,
@@ -414,7 +406,6 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
 /**
  * @brief Return the next state in the Markov chain given the previous state.
  *
- * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @tparam Rand The type for the source of randomness.
  * @tparam A The type of the step-size adaptation callback function.
@@ -435,18 +426,18 @@ std::optional<SpanW<S>> build_span(Rand& rng, const F& logp_grad,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <typename S, class F, class Rand, class A>
-Vec<S> transition_w(Rand& rand, const F& logp_grad, const Vec<S>& inv_mass,
-                    const Vec<S>& chol_mass, S step, std::size_t max_depth,
+template <class F, class Rand, class A>
+Eigen::VectorXd transition_w(Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
+                    const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
                     std::size_t max_step_halvings, std::size_t min_micro_steps,
-                    S max_error, Vec<S>&& theta, std::size_t& depth,
-                    Vec<S>& theta_grad, S& logp_pos_select, A& adapt_handler) {
-  Vec<S> rho = rand.standard_normal_cwise_product(chol_mass);
-  Vec<S> grad(theta.size());
-  S logp_pos;
+                    double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
+			     Eigen::VectorXd& theta_grad, double& logp_pos_select, A& adapt_handler) {
+  Eigen::VectorXd rho = rand.standard_normal_cwise_product(chol_mass);
+  Eigen::VectorXd grad(theta.size());
+  double logp_pos;
   logp_grad(theta, logp_pos, grad);
-  S logp_joint = logp_pos + logp_momentum(rho, inv_mass);
-  auto span_accum = SpanW<S>::from_initial_point(
+  double logp_joint = logp_pos + logp_momentum(rho, inv_mass);
+  auto span_accum = SpanW::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp_pos, logp_joint);
   for (depth = 1; depth <= max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
@@ -517,11 +508,10 @@ class NoOpHandler {
  * `x`, and `grad` set to the gradient of the log density at `x`.
  *
  * @tparam F The type of the log density and gradient function.
- * @tparam S The type of scalars.
  * @tparam RNG The type of the base random number generator.
  * @tparam Handler The type of the sampling event handler.
  */
-template <class F, typename S, class RNG, class Handler>
+template <class F, class RNG, class Handler>
 class WalnutsSampler {
  public:
   /**
@@ -556,9 +546,9 @@ class WalnutsSampler {
 
    */
   WalnutsSampler(Random<RNG>& rand, Handler& handler, const F& logp_grad,
-                 const Vec<S>& theta, const Vec<S>& inv_mass, S macro_step_size,
+                 const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass, double macro_step_size,
                  std::size_t max_nuts_depth, std::size_t max_step_halvings,
-                 std::size_t min_micro_steps, S max_error)
+                 std::size_t min_micro_steps, double max_error)
       : rand_(rand),
         handler_(handler),
         logp_grad_(logp_grad),
@@ -588,10 +578,10 @@ class WalnutsSampler {
    *
    * @return The unnormalized log density of the next draw.
    */
-  S operator()() {
+  double operator()() {
     std::size_t depth;
-    Vec<S> grad_next;
-    S logp_pos;
+    Eigen::VectorXd grad_next;
+    double logp_pos;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
@@ -609,7 +599,7 @@ class WalnutsSampler {
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  const Vec<S>& inverse_mass_matrix_diagonal() const noexcept {
+  const Eigen::VectorXd& inverse_mass_matrix_diagonal() const noexcept {
     return inv_mass_;
   }
 
@@ -618,14 +608,14 @@ class WalnutsSampler {
    *
    * @return The largest step size.
    */
-  S macro_step_size() const noexcept { return macro_step_size_; }
+  double macro_step_size() const noexcept { return macro_step_size_; }
 
   /**
    * @brief Return the maximum error allowed among Hamiltonians.
    *
    * @return The maximum error allowed among Hamiltonians.
    */
-  S max_error() const noexcept { return max_error_; }
+  double max_error() const noexcept { return max_error_; }
 
   std::size_t dim() const noexcept {
     return static_cast<std::size_t>(theta_.size());
@@ -642,16 +632,16 @@ class WalnutsSampler {
   const NoExceptLogpGrad<F> logp_grad_;
 
   /** The current position. */
-  Vec<S> theta_;
+  Eigen::VectorXd theta_;
 
   /** The diagonal of the diagonal inverse mass matrix. */
-  Vec<S> inv_mass_;
+  Eigen::VectorXd inv_mass_;
 
   /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
-  Vec<S> cholesky_mass_;
+  Eigen::VectorXd cholesky_mass_;
 
   /** The initial step size. */
-  const S macro_step_size_;
+  const double macro_step_size_;
 
   /** The maximum number of doublings in NUTS trajectories. */
   const std::size_t max_nuts_depth_;
@@ -663,7 +653,7 @@ class WalnutsSampler {
   const std::size_t min_micro_steps_;
 
   /** The max difference of Hamiltonians along a macro step. */
-  const S max_error_;
+  const double max_error_;
 
   /** A handler for adaptation which does nothing. */
   const NoOpHandler no_op_adapt_handler_;

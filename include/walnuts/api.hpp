@@ -39,7 +39,7 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
              const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler =
       AdaptiveWalnuts<LogProbGrad, std::mt19937, Handler>;
-  using Sampler = WalnutsSampler<LogProbGrad, double, std::mt19937, Handler>;
+  using Sampler = WalnutsSampler<LogProbGrad, std::mt19937, Handler>;
 
   if (handlers.size() != init_cfg.num_chains()) {
     throw std::invalid_argument(

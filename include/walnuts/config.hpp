@@ -184,9 +184,10 @@ class InitConfigBuilder {
       : num_chains_(num_chains), dims_(dims) {
     this->step_sizes(0.1);
     Eigen::VectorXd position =
-      Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims));
+        Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims));
     this->positions(position);
-    Eigen::VectorXd mass = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
+    Eigen::VectorXd mass =
+        Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
     this->masses(mass);
   }
 
@@ -606,7 +607,8 @@ class WarmupConfigBuilder {
    * @return This builder for chaining.
    * @throw std::invalid_argument If `min_iter` > `max_iter`.
    */
-  WarmupConfigBuilder& min_max_iter(std::size_t min_iter, std::size_t max_iter) {
+  WarmupConfigBuilder& min_max_iter(std::size_t min_iter,
+                                    std::size_t max_iter) {
     if (min_iter > max_iter) {
       throw std::invalid_argument(
           "min_iter cannot be greater than than max_iter");
@@ -938,7 +940,8 @@ class SamplingConfigBuilder {
    * @throw std::invalid_argument If the minimum number of iterations
    * is greater than the maximum number of iterations.
    */
-  SamplingConfigBuilder& min_max_iter(std::size_t min_iter, std::size_t max_iter) {
+  SamplingConfigBuilder& min_max_iter(std::size_t min_iter,
+                                      std::size_t max_iter) {
     if (min_iter > max_iter) {
       throw std::invalid_argument("min_iter must be <= max_iter");
     }

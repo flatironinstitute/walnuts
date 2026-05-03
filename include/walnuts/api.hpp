@@ -33,12 +33,10 @@ namespace walnuts {
  */
 template <typename Handler, typename GlobalHandler, typename LogProbGrad>
 void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
-	     GlobalHandler& global_handler,
-             const LogProbGrad& log_p_grad, const InitConfig& init_cfg,
-             const WarmupConfig& warmup_cfg,
+             GlobalHandler& global_handler, const LogProbGrad& log_p_grad,
+             const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
              const SamplingConfig& sampling_cfg) {
-  using AdaptiveSampler =
-      AdaptiveWalnuts<LogProbGrad, std::mt19937, Handler>;
+  using AdaptiveSampler = AdaptiveWalnuts<LogProbGrad, std::mt19937, Handler>;
   using Sampler = WalnutsSampler<LogProbGrad, std::mt19937, Handler>;
 
   if (handlers.size() != init_cfg.num_chains()) {
@@ -55,11 +53,10 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
   std::vector<AdaptiveSampler> adapters;
   adapters.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    adapters.emplace_back(
-        rngs[m], handlers[m], log_p_grad,
-        init_cfg.position(m),
-        init_cfg.init_chain_config(m), warmup_cfg,
-        sampling_cfg, std::log2(warmup_cfg.max_macro_steps_target()));
+    adapters.emplace_back(rngs[m], handlers[m], log_p_grad,
+                          init_cfg.position(m), init_cfg.init_chain_config(m),
+                          warmup_cfg, sampling_cfg,
+                          std::log2(warmup_cfg.max_macro_steps_target()));
   }
   AdaptResult adapt_result =
       adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
@@ -70,7 +67,7 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
   }
 
   sample(samplers, global_handler, sampling_cfg.rhat_converge_tol(),
-	 sampling_cfg.min_iter(), sampling_cfg.max_iter());
+         sampling_cfg.min_iter(), sampling_cfg.max_iter());
 }
 
-}
+}  // namespace walnuts

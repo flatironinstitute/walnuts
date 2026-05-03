@@ -191,7 +191,8 @@ inline double log_sum_exp(const Eigen::VectorXd& x) {
  * @param[in] inv_mass_diag The diagonal of the diagonal inverse mass matrix.
  * @return The log density of the momentum.
  */
-inline double logp_momentum(const Eigen::VectorXd& rho, const Eigen::VectorXd& inv_mass_diag) {
+inline double logp_momentum(const Eigen::VectorXd& rho,
+                            const Eigen::VectorXd& inv_mass_diag) {
   // equiv, but with temporaries: -0.5 *
   // rho.dot(inv_mass_diag.cwiseProduct(rho));
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
@@ -253,7 +254,8 @@ inline auto order_forward_backward(T&& x1, T&& x2) {
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
 template <Direction D, class U>
-inline bool uturn(const U& span1, const U& span2, const Eigen::VectorXd& inv_mass) {
+inline bool uturn(const U& span1, const U& span2,
+                  const Eigen::VectorXd& inv_mass) {
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
@@ -291,7 +293,8 @@ class NoExceptLogpGrad {
    * @param[out] logp The log density to set.
    * @param[out] grad The gradient to set.
    */
-  void operator()(const Eigen::VectorXd& x, double& logp, Eigen::VectorXd& grad) const {
+  void operator()(const Eigen::VectorXd& x, double& logp,
+                  Eigen::VectorXd& grad) const {
     try {
       logp_grad_.get()(x, logp, grad);
     } catch (...) {
@@ -333,6 +336,6 @@ Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
 static double l2_rel_diff(const Eigen::VectorXd& a,
                           const Eigen::VectorXd& b) noexcept {
   return ((a - b).array() / b.array()).matrix().norm();
-}  
+}
 
 }  // namespace walnuts

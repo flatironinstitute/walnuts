@@ -96,10 +96,10 @@ class Adam {
   double sq_gradient_decay_pow_;
 
   const double target_accept_rate_;
-  const double learn_rate_;  // Adam: alpha
-  const double gradient_decay_;  // Adam: beta2
+  const double learn_rate_;         // Adam: alpha
+  const double gradient_decay_;     // Adam: beta2
   const double sq_gradient_decay_;  // Adam: beta2
-  const double stabilization_;  // Adam: epsilon
+  const double stabilization_;      // Adam: epsilon
   const double learn_rate_decay_;
 };
 

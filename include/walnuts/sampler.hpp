@@ -52,7 +52,7 @@ double variance(const Eigen::VectorXd& xs) noexcept {
  *
  * Members are defined to be `float` and `uint32_t` in order to make
  * the whole lock-free on common architectures when wrapped with
- * `std::atomic`. 
+ * `std::atomic`.
  */
 struct ChainStats {
   /** The within-chain mean. */
@@ -223,8 +223,8 @@ class ChainWorker {
    * yielding.
    */
   ChainWorker(std::size_t min_draws, std::size_t max_draws, Sampler& sampler,
-	      AtomicChainStats& acs, std::latch& start_gate,
-	      std::size_t yield_period = 1024)
+              AtomicChainStats& acs, std::latch& start_gate,
+              std::size_t yield_period = 1024)
       : min_draws_(min_draws),
         max_draws_(max_draws),
         sampler_(sampler),
@@ -244,10 +244,10 @@ class ChainWorker {
    * requested externally.
    */
   void operator()(const std::stop_token st) {
-    interactive_qos(); // Apple silicon top priority; o.w. no-op
+    interactive_qos();  // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
-    for (std::size_t iter = 1; iter <= max_draws_
-	   && !(iter >= min_draws_ && st.stop_requested());
+    for (std::size_t iter = 1;
+         iter <= max_draws_ && !(iter >= min_draws_ && st.stop_requested());
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
@@ -283,12 +283,11 @@ class ChainWorker {
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
-template <typename GlobalHandler>  
+template <typename GlobalHandler>
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
-    GlobalHandler& global_handler,
-    double rhat_threshold, std::latch& start_gate,
-    std::size_t min_draws_per_chain,
+    GlobalHandler& global_handler, double rhat_threshold,
+    std::latch& start_gate, std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();  // Apple silicon second-highest priority; o.w. no-op
@@ -305,11 +304,12 @@ static void controller_loop(
       ChainStats u = stats_by_chain[m].val.load();
       counts[m] = u.count;
       if (counts[m] < min_draws_per_chain) {
-	achieved_min_draws = false;
+        achieved_min_draws = false;
       }
-      chain_means(static_cast<Eigen::Index>(m)) = static_cast<double>(u.sample_mean);
+      chain_means(static_cast<Eigen::Index>(m)) =
+          static_cast<double>(u.sample_mean);
       chain_variances(static_cast<Eigen::Index>(m)) =
-	static_cast<double>(u.sample_var);
+          static_cast<double>(u.sample_var);
     }
     if (achieved_min_draws) {
       double variance_of_means = variance(chain_means);
@@ -318,7 +318,7 @@ static void controller_loop(
       global_handler.on_r_hat(r_hat);
       std::size_t num_draws = sum(counts);
       if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-	break;
+        break;
       }
     }
     std::this_thread::sleep_until(next);
@@ -339,10 +339,9 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-  template <typename Sampler, typename GlobalHandler>
+template <typename Sampler, typename GlobalHandler>
 void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
-	    double rhat_threshold,
-	    std::size_t min_draws_per_chain,
+            double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
   std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
@@ -350,12 +349,12 @@ void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    threads.emplace_back(ChainWorker<Sampler>(
-	   min_draws_per_chain, max_draws_per_chain,
-	   samplers[m], stats_by_chain[m].val, start_gate));
+    threads.emplace_back(
+        ChainWorker<Sampler>(min_draws_per_chain, max_draws_per_chain,
+                             samplers[m], stats_by_chain[m].val, start_gate));
   }
   controller_loop(stats_by_chain, global_handler, rhat_threshold, start_gate,
                   min_draws_per_chain, max_draws_per_chain);
 }
 
-}
+}  // namespace walnuts

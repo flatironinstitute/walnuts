@@ -90,12 +90,14 @@ class MassEstimator {
     validate_same_size(theta, grad, "theta", "grad");
     double smoothing = warmup_cfg.mass_additive_smoothing();
     Eigen::VectorXd zero = Eigen::VectorXd::Zero(theta.size());
-    Eigen::VectorXd smooth_vec = Eigen::VectorXd::Constant(theta.size(), smoothing);
+    Eigen::VectorXd smooth_vec =
+        Eigen::VectorXd::Constant(theta.size(), smoothing);
     Eigen::VectorXd sqrt_abs_grad_init = grad.array().abs().sqrt();
-    Eigen::VectorXd init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
+    Eigen::VectorXd init_prec =
+        (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Eigen::VectorXd init_var = init_prec.array().inverse().matrix();
     score_var_estimator_ =
-      OnlineMoments(warmup_cfg.mass_init_count(), zero, init_prec);
+        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_prec);
     draw_var_estimator_ =
         OnlineMoments(warmup_cfg.mass_init_count(), zero, init_var);
   }
@@ -110,7 +112,8 @@ class MassEstimator {
    * @pre theta.size() = grad.size()
    * @pre iteration >= 0
    */
-  void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad, std::size_t iteration) {
+  void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad,
+               std::size_t iteration) {
     double discount_factor =
         1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
     draw_var_estimator_.discount_observe(discount_factor, theta);
@@ -315,7 +318,9 @@ class AdaptiveWalnuts {
    *
    * @return The diagonal of the inverse mass matrix.
    */
-  Eigen::VectorXd inv_mass() const { return mass_estimator_.inv_mass_estimate(); }
+  Eigen::VectorXd inv_mass() const {
+    return mass_estimator_.inv_mass_estimate();
+  }
 
   /**
    * @brief Return the step size.
@@ -403,4 +408,4 @@ class AdaptiveWalnuts {
   MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
-}
+}  // namespace walnuts

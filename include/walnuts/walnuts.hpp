@@ -35,7 +35,8 @@ class SpanW {
    * @param[in] logp_joint The joint log density of the position and momentum.
    * @return The span constructed from the initial point.
    */
-  static SpanW from_initial_point(Eigen::VectorXd&& theta, Eigen::VectorXd&& rho,
+  static SpanW from_initial_point(Eigen::VectorXd&& theta,
+                                  Eigen::VectorXd&& rho,
                                   Eigen::VectorXd&& grad_theta, double logp_pos,
                                   double logp_joint) {
     return {theta,
@@ -66,8 +67,9 @@ class SpanW {
    * positions and momentums on the trajectory.
    */
   static SpanW from_subspans(SpanW&& span1, SpanW&& span2,
-			     Eigen::VectorXd&& theta_select, Eigen::VectorXd&& grad_select,
-			     double logp_pos_select, double logp_joint_total) {
+                             Eigen::VectorXd&& theta_select,
+                             Eigen::VectorXd&& grad_select,
+                             double logp_pos_select, double logp_joint_total) {
     return {std::move(span1.theta_bk_),
             std::move(span1.rho_bk_),
             std::move(span1.grad_theta_bk_),
@@ -136,9 +138,10 @@ class SpanW {
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <typename S, typename F>
-bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
-                      std::size_t num_steps, S max_error, S logp_next,
-                      Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next) {
+bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
+                      S step, std::size_t num_steps, S max_error, S logp_next,
+                      Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
+                      Eigen::VectorXd& grad_next) {
   S half_step = 0.5 * step;
   S logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
@@ -172,8 +175,8 @@ bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass, S ste
 template <typename S, typename F>
 bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
                 std::size_t num_steps, std::size_t min_micro_steps, S max_error,
-                S logp_next, const Eigen::VectorXd& theta, const Eigen::VectorXd& rho,
-                const Eigen::VectorXd& grad) {
+                S logp_next, const Eigen::VectorXd& theta,
+                const Eigen::VectorXd& rho, const Eigen::VectorXd& grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -218,16 +221,18 @@ bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, typename F, class A>
-bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step,
-                std::size_t max_step_halvings, std::size_t min_micro_steps,
-                double max_error, const SpanW& span, Eigen::VectorXd& theta_next,
-                Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next, double& logp_pos_next,
-                double& logp_next, A& adapt_handler) {
+bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
+                double step, std::size_t max_step_halvings,
+                std::size_t min_micro_steps, double max_error,
+                const SpanW& span, Eigen::VectorXd& theta_next,
+                Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
+                double& logp_pos_next, double& logp_next, A& adapt_handler) {
   using std::fmax, std::fmin;
   constexpr bool is_forward = (D == Direction::Forward);
   const Eigen::VectorXd& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
   const Eigen::VectorXd& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
-  const Eigen::VectorXd& grad = is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
+  const Eigen::VectorXd& grad =
+      is_forward ? span.grad_theta_fw_ : span.grad_theta_bk_;
   double logp = is_forward ? span.logp_fw_ : span.logp_bk_;
   step = is_forward ? step : -step;
   for (std::size_t num_steps = min_micro_steps, halvings = 0;
@@ -294,8 +299,8 @@ SpanW combine(Rand& rng, SpanW&& span_old, SpanW&& span_new) {
       update ? span_new.logp_pos_select_ : span_old.logp_pos_select_;
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
   return SpanW::from_subspans(std::move(span_bk), std::move(span_fw),
-                                 std::move(selected), std::move(grad_selected),
-                                 logp_pos_select, logp_total);
+                              std::move(selected), std::move(grad_selected),
+                              logp_pos_select, logp_total);
 }
 
 /**
@@ -331,10 +336,10 @@ SpanW combine(Rand& rng, SpanW&& span_old, SpanW&& span_new) {
  */
 template <Direction D, class F, class A>
 std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
-                                   const Eigen::VectorXd& inv_mass, double step,
-                                   std::size_t max_step_halvings,
-                                   std::size_t min_micro_steps, double max_error,
-                                   A& adapt_handler) {
+                                const Eigen::VectorXd& inv_mass, double step,
+                                std::size_t max_step_halvings,
+                                std::size_t min_micro_steps, double max_error,
+                                A& adapt_handler) {
   Eigen::VectorXd theta_next;
   Eigen::VectorXd rho_next;
   Eigen::VectorXd grad_theta_next;
@@ -346,9 +351,9 @@ std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                      adapt_handler)) {
     return std::nullopt;
   }
-  return SpanW::from_initial_point(
-      std::move(theta_next), std::move(rho_next), std::move(grad_theta_next),
-      logp_pos_next, logp_next);
+  return SpanW::from_initial_point(std::move(theta_next), std::move(rho_next),
+                                   std::move(grad_theta_next), logp_pos_next,
+                                   logp_next);
 }
 
 /**
@@ -377,8 +382,7 @@ std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
                                 std::size_t depth,
                                 std::size_t max_step_halvings,
                                 std::size_t min_micro_steps, double max_error,
-                                const SpanW& last_span,
-                                A& adapt_handler) {
+                                const SpanW& last_span, A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step,
                          max_step_halvings, min_micro_steps, max_error,
@@ -427,11 +431,12 @@ std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
  * @return The next position in the Markov chain.
  */
 template <class F, class Rand, class A>
-Eigen::VectorXd transition_w(Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                    const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
-                    std::size_t max_step_halvings, std::size_t min_micro_steps,
-                    double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
-			     Eigen::VectorXd& theta_grad, double& logp_pos_select, A& adapt_handler) {
+Eigen::VectorXd transition_w(
+    Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
+    const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
+    std::size_t max_step_halvings, std::size_t min_micro_steps,
+    double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
+    Eigen::VectorXd& theta_grad, double& logp_pos_select, A& adapt_handler) {
   Eigen::VectorXd rho = rand.standard_normal_cwise_product(chol_mass);
   Eigen::VectorXd grad(theta.size());
   double logp_pos;
@@ -546,9 +551,10 @@ class WalnutsSampler {
 
    */
   WalnutsSampler(Random<RNG>& rand, Handler& handler, const F& logp_grad,
-                 const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass, double macro_step_size,
-                 std::size_t max_nuts_depth, std::size_t max_step_halvings,
-                 std::size_t min_micro_steps, double max_error)
+                 const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass,
+                 double macro_step_size, std::size_t max_nuts_depth,
+                 std::size_t max_step_halvings, std::size_t min_micro_steps,
+                 double max_error)
       : rand_(rand),
         handler_(handler),
         logp_grad_(logp_grad),

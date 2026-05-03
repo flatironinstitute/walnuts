@@ -9,9 +9,7 @@
 #include "walnuts/validate.hpp"
 
 struct GlobalHandler {
-  void on_r_hat(double r_hat) {
-    r_hats_.push_back(r_hat);
-  }
+  void on_r_hat(double r_hat) { r_hats_.push_back(r_hat); }
 
   std::vector<double> r_hats_;
 };
@@ -162,7 +160,7 @@ struct CacheHandler {
   Eigen::VectorXd diag_inv_mass_;
 
   std::vector<double> r_hats_;
-  
+
   std::vector<Eigen::VectorXd> draws_;
   std::vector<double> lps_;
 
@@ -216,23 +214,24 @@ int main() {
   std::cout << warmup_cfg << "\n\n";
   std::cout << sampling_cfg << "\n\n";
 
-  walnuts::walnuts(seed, handlers, global_handler, logp_grad, init_cfg, warmup_cfg,
-                   sampling_cfg);
+  walnuts::walnuts(seed, handlers, global_handler, logp_grad, init_cfg,
+                   warmup_cfg, sampling_cfg);
 
   std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {
-    std::cout << "  Chain " << m
-	      << "; step size = " << handlers[m].stepsize_
-	      << "; ||mass|| = " << handlers[m].diag_inv_mass_.array().inverse().matrix().norm()
+    std::cout << "  Chain " << m << "; step size = " << handlers[m].stepsize_
+              << "; ||mass|| = "
+              << handlers[m].diag_inv_mass_.array().inverse().matrix().norm()
               << "; # warmup_draws = " << handlers[m].warmup_draws_.size()
               << "; # draws = " << handlers[m].draws_.size() << "\n";
   }
   std::cout << "\n";
 
   std::cout << "NUMBER OF R-HAT EVALS: " << global_handler.r_hats_.size()
-	    << ";  FINAL R-HAT: " << global_handler.r_hats_.back() << "\n\n";
+            << ";  FINAL R-HAT: " << global_handler.r_hats_.back() << "\n\n";
 
-  std::cout << "WRITING TO FILES: step_size.csv, mass_matrix.csv, sample.csv\n\n";
+  std::cout
+      << "WRITING TO FILES: step_size.csv, mass_matrix.csv, sample.csv\n\n";
 
   CacheHandler::write_step_size_csv(handlers, "step_size.csv");
   CacheHandler::write_mass_matrix_csv(handlers, "mass_matrix.csv");

@@ -26,22 +26,21 @@ namespace walnuts {
  * in a single chain.
  */
 struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
-
   /**
    * @brief Construct an adaptation snapshot of size 0.
    */
-  AdaptSnapshot() : AdaptSnapshot(0) { }
-  
+  AdaptSnapshot() : AdaptSnapshot(0) {}
+
   /**
    * @brief Construct an adaptation snapshot of the given dimensionality.
    *
    * @param[in] dim The number of dimensions in the positions.
    */
-  explicit AdaptSnapshot(Eigen::Index dim) :
-    log_mass(Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN())),
-    mass(Eigen::VectorXd::Constant(dim, std::numeric_limits<double>::quiet_NaN()))
-    {   }
-
+  explicit AdaptSnapshot(Eigen::Index dim)
+      : log_mass(Eigen::VectorXd::Constant(
+            dim, std::numeric_limits<double>::quiet_NaN())),
+        mass(Eigen::VectorXd::Constant(
+            dim, std::numeric_limits<double>::quiet_NaN())) {}
 
   /** The number of iterations carried out in the chain. */
   std::size_t iter = 0;
@@ -138,14 +137,15 @@ class AdaptWorker {
    * Adaptation terminates when the maximum number of iterations is
    * hit or a stop is requested through the stop token.  The thread
    * will yield based on the yield period specified in the warmup
-   * configuration. 
+   * configuration.
    *
    * @param[in] st The stop token for stopping the worker thread.
    */
   void operator()(const std::stop_token st) {
     start_gate_.get().arrive_and_wait();
     publish_snapshot(0);
-    std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops don't trigger on first iteration
+    std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops
+                           // don't trigger on first iteration
     for (; iter <= warmup_config_.max_iter(); ++iter) {
       if (iter >= warmup_config_.min_iter() && st.stop_requested()) {
         break;  // should we be waiting for min_iter when stop requested?
@@ -169,7 +169,8 @@ class AdaptWorker {
     snap.iter = iter;
     snap.log_step = adapter_.get().log_step_size();
     const auto lm = adapter_.get().log_mass();
-    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.dims()); ++d) {
+    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.dims());
+         ++d) {
       snap.log_mass(d) = lm[d];
       snap.mass(d) = std::exp(lm[d]);
     }
@@ -202,7 +203,7 @@ struct AdaptResult {
  * @return Statistics for the completed adaptation process.
  */
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
-				   std::vector<AdaptSnapshot>& latest,
+                                   std::vector<AdaptSnapshot>& latest,
                                    const InitConfig& init_cfg,
                                    const WarmupConfig& warmup_cfg) {
   std::size_t M = init_cfg.num_chains();
@@ -242,8 +243,8 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 
     bool enough_iters = min_iter >= warmup_cfg.min_iter();
     bool converged = enough_iters &&
-                           max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
-                           max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
+                     max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
+                     max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
     bool hit_max_iter = min_iter >= warmup_cfg.max_iter();
     if (converged || hit_max_iter) {
       return {geom_mean_mass, std::exp(mean_log_step)};
@@ -288,4 +289,4 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   return result;
 }
 
-}
+}  // namespace walnuts

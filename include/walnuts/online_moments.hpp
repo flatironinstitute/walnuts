@@ -51,8 +51,7 @@ class OnlineMoments {
   /**
    * @brief Construct a default online estimator of size zero.
    */
-  OnlineMoments()
-    : weight_(0) { }
+  OnlineMoments() : weight_(0) {}
 
   /**
    * @brief Construct an online estimator of moments with the

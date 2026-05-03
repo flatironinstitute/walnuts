@@ -130,4 +130,4 @@ class TripleBuffer {
   alignas(CACHE_LINE_SIZE) index_t read_;
 };
 
-}
+}  // namespace walnuts

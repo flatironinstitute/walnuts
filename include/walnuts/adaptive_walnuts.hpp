@@ -201,25 +201,8 @@ class MinMicroStepsAdaptHandler {
  *
  * The adaptive Walnuts sampler is configured in the constructor, then
  * provides a functor method `operator()()` for returning the next
- * state in warmup.  Warmup can be called externally to be run for any
- * number of iterations.  Warmup continually re-estimates step size
- * and mass matrix each iteration, exponentially discounting the past.
- *
- * After adaptation, the method `sampler()` returns the a Walnuts
- * sampler configured with the result of adaptation.
- *
- * The target log density and gradient function must implement the signature
- *
- * ```cpp
- * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
- *                              S& logp,
- *                              Eigen::Matrix<S, -1, 1>& grad);
- * ```
- *
- * where `S` is the scalar type parameter of the sampler (the log
- * density function need not be templated itself.  The argument `x`
- * is the position argument, and `logp` is set to the log density of
- * `x`, and `grad` set to the gradient of the log density at `x`.
+ * state in warmup.  Warmup re-estimates step size and mass matrix
+ * each iteration, exponentially discounting the past.
  *
  * @tparam F Type of log density/gradient function.
  * @tparam RNG Type of base random number generator.
@@ -238,6 +221,9 @@ class AdaptiveWalnuts {
    *                       S& logp,
    *                       Eigen::VectorXd& grad);
    * ```
+   *
+   * The variable `x` is the input position.  The output variables
+   * `logp` and `grad` are set to the log density and its gradient.
    *
    * The configuration objects, the base random number generator, and
    * the log density/gradient function are held by reference.  The RNG
@@ -347,17 +333,38 @@ class AdaptiveWalnuts {
     return min_micro_estimator_.min_micro_steps();
   }
 
+  /**
+   * @brief Return the number of dimensions of the position.
+   *
+   * @return The number of dimensions.
+   */
   std::size_t dim() const noexcept {
     return static_cast<std::size_t>(theta_.size());
   }
 
+  /**
+   * @brief Return the natural logarithm of the step size.
+   *
+   * @return The log of the step size.
+   */
   double log_step_size() const noexcept { return std::log(step_size()); }
 
+  /**
+   * @brief Return the natural logarithm of the diagonal of the
+   * diagonal mass matirx.
+   *
+   * @return The log of the diagonal of the mass matrix.
+   */
   Eigen::VectorXd log_mass() const {
     // equiv. inv_mass().array().inverse().log().matrix();
     return -inv_mass().array().log().matrix();
   }
 
+  /**
+   * @brief Return the current iteration.
+   *
+   * @return The iteration.
+   */
   std::size_t iter() const noexcept { return iteration_; }
 
  private:

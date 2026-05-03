@@ -47,13 +47,13 @@ class Adam {
         m_(0),
         v_(0),
         t_(0),
-        beta1_pow_(1),
-        beta2_pow_(1),
+        gradient_decay_pow_(1),
+        sq_gradient_decay_pow_(1),
         target_accept_rate_(accept_rate_target),
         learn_rate_(learning_rate),
-        beta1_(gradient_decay),
-        beta2_(sq_gradient_decay),
-        eps_(stabilization),
+        gradient_decay_(gradient_decay),
+        sq_gradient_decay_(sq_gradient_decay),
+        stabilization_(stabilization),
         learn_rate_decay_(learn_rate_decay) {}
 
   /**
@@ -64,21 +64,20 @@ class Adam {
    */
   void observe(double alpha) noexcept {
     ++t_;
-    beta1_pow_ *= beta1_;
-    beta2_pow_ *= beta2_;
+    gradient_decay_pow_ *= gradient_decay_;
+    sq_gradient_decay_pow_ *= sq_gradient_decay_;
 
     double grad = target_accept_rate_ - alpha;
 
-    m_ = beta1_ * m_ + (1 - beta1_) * grad;
-    v_ = beta2_ * v_ + (1 - beta2_) * grad * grad;
+    m_ = gradient_decay_ * m_ + (1 - gradient_decay_) * grad;
+    v_ = sq_gradient_decay_ * v_ + (1 - sq_gradient_decay_) * grad * grad;
 
-    double m_hat = m_ / (1 - beta1_pow_);
-    double v_hat = v_ / (1 - beta2_pow_);
+    double m_hat = m_ / (1 - gradient_decay_pow_);
+    double v_hat = v_ / (1 - sq_gradient_decay_pow_);
 
-    // standard Adam takes learn_rate_decay_ = 0
-    double effective_lr = learn_rate_ / std::pow(t_, learn_rate_decay_);
-    double denom = std::sqrt(v_hat) + eps_;
-    theta_ -= effective_lr * m_hat / denom;
+    double decayed_learn_rate = learn_rate_ / std::pow(t_, learn_rate_decay_);
+    double denom = std::sqrt(v_hat) + stabilization_;
+    theta_ -= decayed_learn_rate * m_hat / denom;
   }
 
   /**
@@ -93,14 +92,14 @@ class Adam {
   double m_;
   double v_;
   double t_;
-  double beta1_pow_;
-  double beta2_pow_;
+  double gradient_decay_pow_;
+  double sq_gradient_decay_pow_;
 
   const double target_accept_rate_;
-  const double learn_rate_;
-  const double beta1_;
-  const double beta2_;
-  const double eps_;
+  const double learn_rate_;  // Adam: alpha
+  const double gradient_decay_;  // Adam: beta2
+  const double sq_gradient_decay_;  // Adam: beta2
+  const double stabilization_;  // Adam: epsilon
   const double learn_rate_decay_;
 };
 

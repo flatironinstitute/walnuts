@@ -95,9 +95,9 @@ class MassEstimator {
     Eigen::VectorXd init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Eigen::VectorXd init_var = init_prec.array().inverse().matrix();
     score_var_estimator_ =
-      OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_prec);
+      OnlineMoments(warmup_cfg.mass_init_count(), zero, init_prec);
     draw_var_estimator_ =
-        OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_var);
+        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_var);
   }
 
   /**
@@ -136,10 +136,10 @@ class MassEstimator {
   WarmupConfig warmup_cfg_;
 
   /** The online variance estimator for draws. */
-  OnlineMoments<double> draw_var_estimator_;
+  OnlineMoments draw_var_estimator_;
 
   /** The online inverse variance estimator for scores. */
-  OnlineMoments<double> score_var_estimator_;
+  OnlineMoments score_var_estimator_;
 };
 
 /**
@@ -403,4 +403,4 @@ class AdaptiveWalnuts {
   MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
-}  // namespace walnuts
+}

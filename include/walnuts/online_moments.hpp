@@ -45,18 +45,14 @@ namespace walnuts {
  * ```
  * var = sum(weight .* (y - mean)^2) / sum(weight).
  * ```
- *
- * @tparam S The type of scalars.
  */
-template <std::floating_point S>
 class OnlineMoments {
  public:
   /**
-   * @brief Construct a default online estimator of size zero with
-   * default discount factor of 0.98.
+   * @brief Construct a default online estimator of size zero.
    */
   OnlineMoments()
-      : weight_(0), mean_(Vec<S>::Zero(0)), sum_sq_dev_(Vec<S>::Zero(0)) {}
+    : weight_(0) { }
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -77,8 +73,8 @@ class OnlineMoments {
    * @throw std::invalid_argument If the initial mean and variance are not
    * the same size.
    */
-  OnlineMoments(S init_weight, const Vec<S>& init_mean,
-                const Vec<S>& init_variance)
+  OnlineMoments(double init_weight, const Eigen::VectorXd& init_mean,
+                const Eigen::VectorXd& init_variance)
       : weight_(init_weight),
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
@@ -93,7 +89,7 @@ class OnlineMoments {
    * @param[in] discount_factor The discount factor.
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
-  void set_discount_factor(S discount_factor) {
+  void set_discount_factor(double discount_factor) {
     validate_probability_inclusive(discount_factor, "discount_factor");
     discount_factor_ = discount_factor;
   }
@@ -131,7 +127,7 @@ class OnlineMoments {
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
-  void discount_observe(S discount_factor,
+  void discount_observe(double discount_factor,
                         const Eigen::MatrixBase<Derived>& y) {
     set_discount_factor(discount_factor);
     observe(y);
@@ -142,7 +138,7 @@ class OnlineMoments {
    *
    * @return The mean estimate.
    */
-  const Vec<S>& mean() const noexcept { return mean_; }
+  const Eigen::VectorXd& mean() const noexcept { return mean_; }
 
   /**
    * @brief Return the maximum likelihood estimate of the variance, or
@@ -150,9 +146,9 @@ class OnlineMoments {
    *
    * @return The variance estimate.
    */
-  Vec<S> variance() const {
+  Eigen::VectorXd variance() const {
     if (!(weight_ > 0)) {
-      return Vec<S>::Ones(mean_.size());
+      return Eigen::VectorXd::Ones(mean_.size());
     }
     return sum_sq_dev_ / weight_;
   }
@@ -162,16 +158,16 @@ class OnlineMoments {
    *
    * Gets reset before it is used in discounted Welford algorithm.
    */
-  S discount_factor_ = std::numeric_limits<S>::quiet_NaN();
+  double discount_factor_ = std::numeric_limits<double>::quiet_NaN();
 
   /** The combined weight of all previous observations. */
-  S weight_;
+  double weight_;
 
   /** The current mean estimate */
-  Vec<S> mean_;
+  Eigen::VectorXd mean_;
 
   /** The sum of weighted squared deviations from the mean. */
-  Vec<S> sum_sq_dev_;
+  Eigen::VectorXd sum_sq_dev_;
 };
 
 }  // namespace walnuts

@@ -77,7 +77,7 @@ class InitConfig {
    *
    * @return The number of chains.
    */
-  uint64_t num_chains() const noexcept { return step_sizes_.size(); }
+  std::size_t num_chains() const noexcept { return step_sizes_.size(); }
 
   /**
    * @brief Return the dimensionality of the positions.
@@ -86,10 +86,10 @@ class InitConfig {
    *
    * @return The dimensionality.
    */
-  uint64_t dims() const noexcept {
+  std::size_t dims() const noexcept {
     return positions_.empty()
                ? 0u
-               : static_cast<uint64_t>(positions_.front().size());
+               : static_cast<std::size_t>(positions_.front().size());
   }
 
   /**
@@ -180,13 +180,13 @@ class InitConfigBuilder {
    * @param[in] num_chains The number of Markov chains.
    * @param[in] dims The dimensionality of each chain.
    */
-  InitConfigBuilder(uint64_t num_chains, uint64_t dims)
+  InitConfigBuilder(std::size_t num_chains, std::size_t dims)
       : num_chains_(num_chains), dims_(dims) {
     this->step_sizes(0.1);
     Eigen::VectorXd position =
-        Eigen::VectorXd::Zero(static_cast<int64_t>(dims));
+      Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims));
     this->positions(position);
-    Eigen::VectorXd mass = Eigen::VectorXd::Ones(static_cast<int64_t>(dims));
+    Eigen::VectorXd mass = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
     this->masses(mass);
   }
 
@@ -422,8 +422,8 @@ class InitConfigBuilder {
   }
 
  private:
-  uint64_t num_chains_;
-  uint64_t dims_;
+  std::size_t num_chains_;
+  std::size_t dims_;
   std::vector<double> step_sizes_;
   std::vector<Eigen::VectorXd> positions_;
   std::vector<Eigen::VectorXd> masses_;
@@ -462,14 +462,14 @@ class WarmupConfig {
    *
    * @return Minimum warmup iterations.
    */
-  uint64_t min_iter() const { return min_iter_; }
+  std::size_t min_iter() const { return min_iter_; }
 
   /**
    * @brief Return the maximum number of warmup iterations.
    *
    * @return Maximum warmup iterations.
    */
-  uint64_t max_iter() const { return max_iter_; }
+  std::size_t max_iter() const { return max_iter_; }
 
   /**
    * @brief Return the step-size convergence tolerance.
@@ -554,29 +554,29 @@ class WarmupConfig {
    *
    * @return The stride for publishing updates for convergence monitoring.
    */
-  uint64_t publish_stride() const { return publish_stride_; }
+  std::size_t publish_stride() const { return publish_stride_; }
 
   /**
    * @brief Return the delay before starting another probe for convergence.
    *
    * @return The delay before starting another probe for convergence.
    */
-  uint64_t probe_microseconds() const { return probe_microseconds_; }
+  std::size_t probe_microseconds() const { return probe_microseconds_; }
 
   /**
    * @brief Return the period at which threads for chains yield.
    *
    * @return The the period at which threads for chains yield.
    */
-  uint64_t yield_period() const { return yield_period_; }
+  std::size_t yield_period() const { return yield_period_; }
 
  private:
   friend class WarmupConfigBuilder;
 
   WarmupConfig() = default;
 
-  uint64_t min_iter_ = 50;
-  uint64_t max_iter_ = 1000;
+  std::size_t min_iter_ = 50;
+  std::size_t max_iter_ = 1000;
   double step_size_converge_tol_ = 0.1;
   double mass_converge_tol_ = 1.0;
   double mass_init_count_ = 4.0;
@@ -588,9 +588,9 @@ class WarmupConfig {
   double step_sq_gradient_decay_ = 0.9;
   double step_stabilization_ = 1e-4;
   double step_learn_rate_decay_ = 0.5;
-  uint64_t publish_stride_ = 5;
-  uint64_t probe_microseconds_ = 1000;
-  uint64_t yield_period_ = 32;
+  std::size_t publish_stride_ = 5;
+  std::size_t probe_microseconds_ = 1000;
+  std::size_t yield_period_ = 32;
 };
 
 /**
@@ -606,7 +606,7 @@ class WarmupConfigBuilder {
    * @return This builder for chaining.
    * @throw std::invalid_argument If `min_iter` > `max_iter`.
    */
-  WarmupConfigBuilder& min_max_iter(uint64_t min_iter, uint64_t max_iter) {
+  WarmupConfigBuilder& min_max_iter(std::size_t min_iter, std::size_t max_iter) {
     if (min_iter > max_iter) {
       throw std::invalid_argument(
           "min_iter cannot be greater than than max_iter");
@@ -771,7 +771,7 @@ class WarmupConfigBuilder {
    * @return This builder for chaining.
    * @throw std::invalid_argument If the stride is not positive.
    */
-  WarmupConfigBuilder& publish_stride(uint64_t v) {
+  WarmupConfigBuilder& publish_stride(std::size_t v) {
     validate_positive(v, "publish_stride");
     cfg_.publish_stride_ = v;
     return *this;
@@ -785,7 +785,7 @@ class WarmupConfigBuilder {
    * @return This builder for chaining.
    * @throw std::invalid_argument If the number of microseconds is not positive.
    */
-  WarmupConfigBuilder& probe_microseconds(uint64_t v) {
+  WarmupConfigBuilder& probe_microseconds(std::size_t v) {
     validate_positive(v, "probe_microseconds");
     cfg_.probe_microseconds_ = v;
     return *this;
@@ -798,7 +798,7 @@ class WarmupConfigBuilder {
    * @return This builder for chaining.
    * @throw std::invalid_argument If the yield period is not positive.
    */
-  WarmupConfigBuilder& yield_period(uint64_t v) {
+  WarmupConfigBuilder& yield_period(std::size_t v) {
     validate_positive(v, "yield_period");
     cfg_.yield_period_ = v;
     return *this;
@@ -856,14 +856,14 @@ class SamplingConfig {
    *
    * @return The minimum number of sampling iterations.
    */
-  uint64_t min_iter() const noexcept { return min_iter_; }
+  std::size_t min_iter() const noexcept { return min_iter_; }
 
   /**
    * @brief Return the maximum number of sampling iterations.
    *
    * @return The maximum number of sampling iterations.
    */
-  uint64_t max_iter() const noexcept { return max_iter_; }
+  std::size_t max_iter() const noexcept { return max_iter_; }
 
   /**
    * @brief Return the maximum number of trajectory doublings
@@ -871,7 +871,7 @@ class SamplingConfig {
    *
    * @return The maximum number of trajectory doublings.
    */
-  uint64_t max_trajectory_doublings() const noexcept {
+  std::size_t max_trajectory_doublings() const noexcept {
     return max_trajectory_doublings_;
   }
 
@@ -881,7 +881,7 @@ class SamplingConfig {
    *
    * @return The maximum number of trajectory doublings.
    */
-  uint64_t max_step_halvings() const noexcept { return max_step_halvings_; }
+  std::size_t max_step_halvings() const noexcept { return max_step_halvings_; }
 
   /**
    * @brief Return the maximum error in the Hamiltonian allowed for Walnuts.
@@ -897,7 +897,7 @@ class SamplingConfig {
    *
    * @return The minimum number of micro steps per macro step.
    */
-  uint64_t min_micro_steps() const noexcept { return min_micro_steps_; }
+  std::size_t min_micro_steps() const noexcept { return min_micro_steps_; }
 
   /**
    * @brief Return the convergence tolerance for the R-hat statistic.
@@ -911,12 +911,12 @@ class SamplingConfig {
 
   SamplingConfig() = default;
 
-  uint64_t min_iter_ = 50;
-  uint64_t max_iter_ = 1000;
-  uint64_t max_trajectory_doublings_ = 5;
-  uint64_t max_step_halvings_ = 5;
+  std::size_t min_iter_ = 50;
+  std::size_t max_iter_ = 1000;
+  std::size_t max_trajectory_doublings_ = 5;
+  std::size_t max_step_halvings_ = 5;
   double max_hamiltonian_error_ = 0.5;
-  uint64_t min_micro_steps_ = 1;
+  std::size_t min_micro_steps_ = 1;
   double rhat_converge_tol_ = 1.01;
 };
 
@@ -938,7 +938,7 @@ class SamplingConfigBuilder {
    * @throw std::invalid_argument If the minimum number of iterations
    * is greater than the maximum number of iterations.
    */
-  SamplingConfigBuilder& min_max_iter(uint64_t min_iter, uint64_t max_iter) {
+  SamplingConfigBuilder& min_max_iter(std::size_t min_iter, std::size_t max_iter) {
     if (min_iter > max_iter) {
       throw std::invalid_argument("min_iter must be <= max_iter");
     }
@@ -953,7 +953,7 @@ class SamplingConfigBuilder {
    * @param[in] v The maximum number of trajectory doublings.
    * @return A reference to this builder for chaining.
    */
-  SamplingConfigBuilder& max_trajectory_doublings(uint64_t v) noexcept {
+  SamplingConfigBuilder& max_trajectory_doublings(std::size_t v) noexcept {
     cfg_.max_trajectory_doublings_ = v;
     return *this;
   }
@@ -964,7 +964,7 @@ class SamplingConfigBuilder {
    * @param[in] v The maximum number of step size halvings.
    * @return A reference to this builder for chaining.
    */
-  SamplingConfigBuilder& max_step_halvings(uint64_t v) noexcept {
+  SamplingConfigBuilder& max_step_halvings(std::size_t v) noexcept {
     cfg_.max_step_halvings_ = v;
     return *this;
   }
@@ -990,7 +990,7 @@ class SamplingConfigBuilder {
    * @throw std::invalid_argument If the minimum number of steps is not
    * positive.
    */
-  SamplingConfigBuilder& min_micro_steps(uint64_t v) {
+  SamplingConfigBuilder& min_micro_steps(std::size_t v) {
     validate_positive(v, "min_micro_steps");
     cfg_.min_micro_steps_ = v;
     return *this;

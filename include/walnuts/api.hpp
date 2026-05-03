@@ -43,7 +43,7 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
 
   if (handlers.size() != init_cfg.num_chains()) {
     throw std::invalid_argument(
-        "handlers.size() must equal init_cfg.num_chains()");
+        "handlers.size() must be equal to init_cfg.num_chains()");
   }
 
   std::vector<std::mt19937> rngs(0);
@@ -73,4 +73,4 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
 	 sampling_cfg.min_iter(), sampling_cfg.max_iter());
 }
 
-}  // namespace walnuts
+}

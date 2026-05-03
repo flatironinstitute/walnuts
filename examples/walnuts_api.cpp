@@ -196,9 +196,9 @@ int main() {
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
-                          .min_max_iter(10, 200)
+                          .min_max_iter(100, 1000)
                           .max_trajectory_doublings(8)
-                          .rhat_converge_tol(1.001)
+                          .rhat_converge_tol(1.0001)
                           .build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain
@@ -210,6 +210,8 @@ int main() {
 
   for (size_t m = 0; m < num_chains; ++m) {
     std::cout << "CHAIN " << m
+	      << "; step size = " << handlers[m].stepsize_
+	      << "; ||mass|| = " << handlers[m].diag_inv_mass_.array().inverse().matrix().norm()
               << "; # warmup_draws = " << handlers[m].warmup_draws_.size()
               << "; # draws = " << handlers[m].draws_.size() << std::endl;
   }

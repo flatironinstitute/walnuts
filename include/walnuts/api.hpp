@@ -63,26 +63,12 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
   AdaptResult adapt_result =
       adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
 
-  // ********************ADAPTATION DEBUG I/O*****************************
-  std::cout << "\nSHARED ADAPTED RESULT:  "
-            << "  step_bar=" << adapt_result.step_bar
-            << "  ||mass_bar||=" << adapt_result.mass_bar.norm() << '\n';
-  std::cout << "\nPER CHAIN FINAL STATES:\n";
-  for (std::size_t m = 0; m < adapters.size(); ++m) {
-    std::cout << m << ")"
-              << " iter = " << adapters[m].iter()
-              << "  step = " << std::exp(adapters[m].log_step_size())
-              << "  ||log_mass|| = " << adapters[m].log_mass().norm()
-              << std::endl;
-  }
-  // *************************************************
-
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }
 
-  std::size_t num_rhat_evals{0};
+  std::size_t num_rhat_evals;
   double rhat;
   sample(samplers, sampling_cfg.rhat_converge_tol(),
 	 sampling_cfg.min_iter(), sampling_cfg.max_iter(),

@@ -271,7 +271,6 @@ class ChainWorker {
  * @brief The function called by the controller to monitor the threads
  * for the chains.
  *
- * @tparam Stopper The type of the callback for stopping the threads.
  * @param[in,out] stats_by_chain The per-chain objects holding the
  * statistics to monitor.
  * @param[in] rhat_threshold When R-hat falls below this value, sampling
@@ -280,19 +279,17 @@ class ChainWorker {
  * to synchronize starting.
  * @param[in] min_draws_per_chain The minimum number of iterations per chain.
  * @param[in] max_draws_per_chain The maximum number of iterations per chain.
- * @param[in,out] stop_chains The callback for stopping execution of sampling.
  * @param[in,out] num_rhat_evals The number of times R-hat was evaluated by the
  * controller.
  * @param[in,out] r_hat The final R-hat when sampling terminates.
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
-template <typename Stopper>
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
     double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain,
-    std::size_t max_draws_per_chain, Stopper& stop_chains,
+    std::size_t max_draws_per_chain,
     std::size_t& num_rhat_evals, double& r_hat,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();  // tell Apple silicon to use second-highest quality thread
@@ -330,8 +327,6 @@ static void controller_loop(
     std::this_thread::sleep_until(next);
     next += eval_period;
   }
-
-  stop_chains();
 }
 
 /**
@@ -365,16 +360,8 @@ void sample(std::vector<Sampler>& samplers, double rhat_threshold,
 	   min_draws_per_chain, max_draws_per_chain,
 	   samplers[m], stats_by_chain[m].val, start_gate));
   }
-  auto stop_all = [&] {
-    for (auto& t : threads) {
-      t.request_stop();
-    }
-    for (auto& t : threads) {
-      t.join();
-    }
-  };
   controller_loop(stats_by_chain, rhat_threshold, start_gate,
-                  min_draws_per_chain, max_draws_per_chain, stop_all, num_rhat_evals, rhat);
+                  min_draws_per_chain, max_draws_per_chain, num_rhat_evals, rhat);
 }
 
 }  // namespace walnuts

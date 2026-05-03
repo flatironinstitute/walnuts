@@ -131,16 +131,14 @@ class AdaptWorker {
         adapter_(adapter) {}
 
   /**
-   * @brief The functor doing the work.
+   * @brief The functor called by the thread to do the adaptation.
    *
    * A call to this function first waits for the latch, then iterates
-   * up the warmup config specified max iterations.  If a stop is
-   * requested through the stop token, it stops working.  It yields
-   * according to the yield period in the warmup configuration.  Then
-   * it actually does the sampling, gets the step size, gets the mass
-   * matrix, and publishes the adapted state if it matches the stride
-   * specified by the warmup configuration.  When it's done looping, it
-   * publishes a final snapshot of the chain's warmup state.
+   * for a number of iterations between the specified min and max.
+   * Adaptation terminates when the maximum number of iterations is
+   * hit or a stop is requested through the stop token.  The thread
+   * will yield based on the yield period specified in the warmup
+   * configuration. 
    *
    * @param[in] st The stop token for stopping the worker thread.
    */
@@ -207,8 +205,8 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 				   std::vector<AdaptSnapshot>& latest,
                                    const InitConfig& init_cfg,
                                    const WarmupConfig& warmup_cfg) {
-  const std::size_t M = init_cfg.num_chains();
-  const std::size_t D = init_cfg.dims();
+  std::size_t M = init_cfg.num_chains();
+  std::size_t D = init_cfg.dims();
 
   auto probe_period =
       std::chrono::microseconds(warmup_cfg.probe_microseconds());
@@ -242,11 +240,11 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
       max_rel_diff_step = std::fmax(max_rel_diff_step, rel_diff_step);
     }
 
-    const bool enough_iters = min_iter >= warmup_cfg.min_iter();
-    const bool converged = enough_iters &&
+    bool enough_iters = min_iter >= warmup_cfg.min_iter();
+    bool converged = enough_iters &&
                            max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
                            max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
-    const bool hit_max_iter = min_iter >= warmup_cfg.max_iter();
+    bool hit_max_iter = min_iter >= warmup_cfg.max_iter();
     if (converged || hit_max_iter) {
       return {geom_mean_mass, std::exp(mean_log_step)};
     }

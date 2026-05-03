@@ -46,7 +46,7 @@ class StepAdaptHandler {
 
  private:
   /** The Adam instance for step size adaptation. */
-  Adam<double> adam_;
+  Adam adam_;
 };
 
 /**

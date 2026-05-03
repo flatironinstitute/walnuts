@@ -25,6 +25,12 @@ namespace walnuts {
  * in a single chain.
  */
 struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
+
+  /**
+   * @brief Construct an adaptation snapshot of size 0.
+   */
+  AdaptSnapshot() : AdaptSnapshot(0) { }
+  
   /**
    * @brief Construct an adaptation snapshot of the given dimensionality.
    *
@@ -227,21 +233,17 @@ static double l2_rel_diff(const Eigen::VectorXd& a,
  * @brief The implementation of the control monitor with the adaptation
  * state of each chain and configuration.
  *
- * @tparam Stopper The type of the callback for stopping.
  * @param[in,out] buffers The adaptation state of all the chains.
  * @param[in] init_cfg The initialization configuration.
  * @param[in] warmup_cfg The warmup configuration.
- * @param[in] stop_all The callback that is called when convergence is detected.
  * @return Statistics for the completed adaptation process.
  */
-template <class Stopper>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
+				   std::vector<AdaptSnapshot>& latest,
                                    const InitConfig& init_cfg,
-                                   const WarmupConfig& warmup_cfg,
-                                   Stopper stop_all) {
+                                   const WarmupConfig& warmup_cfg) {
   const std::size_t M = init_cfg.num_chains();
   const std::size_t D = init_cfg.dims();
-
   Eigen::VectorXd mean_log_mass =
       Eigen::VectorXd::Zero(static_cast<int64_t>(D));
   Eigen::VectorXd mean_mass = Eigen::VectorXd::Zero(static_cast<int64_t>(D));
@@ -255,11 +257,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
       std::chrono::microseconds(warmup_cfg.probe_microseconds());
 
   auto next = std::chrono::steady_clock::now() + probe_period;
-  std::vector<AdaptSnapshot> latest;
-  latest.reserve(M);
-  for (std::size_t m = 0; m < M; ++m) {
-    latest.push_back(buffers[m].val.read_latest());
-  }
+
   while (true) {
     std::fill(mean_log_mass.begin(), mean_log_mass.end(), 0.0);
     mean_log_step = 0.0;
@@ -279,7 +277,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     double max_rel_step = 0.0;
 
     for (std::size_t m = 0; m < M; ++m) {
-      const AdaptSnapshot& s = buffers[m].val.read_latest();
+      const AdaptSnapshot& s = latest[m]; 
 
       const double diff_mass = l2_rel_diff(s.mass, mean_mass);
       max_rel_mass = std::fmax<double>(max_rel_mass, diff_mass);
@@ -299,7 +297,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     const bool hit_max = min_iter >= warmup_cfg.max_iter();
 
     if (converged || hit_max) {
-      stop_all();
       return {mean_mass, std::exp(mean_log_step), min_iter};
     }
 
@@ -324,7 +321,6 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
-
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
@@ -332,18 +328,16 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
     threads.emplace_back(AdaptWorker<Adapter>(
         chain_id, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
   }
-
+  std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   start_gate.arrive_and_wait();
-
-  auto stop_all = [&] {
-    for (auto& t : threads) {
-      t.request_stop();
-    }
-    for (auto& t : threads) {
-      t.join();
-    }
-  };
-  return controller_loop(buffers, init_cfg, warmup_cfg, stop_all);
+  AdaptResult result = controller_loop(buffers, latest, init_cfg, warmup_cfg);
+  for (auto& t : threads) {
+    t.request_stop(); // just in case not stopped by controller
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+  return result;
 }
 
-}  // namespace walnuts
+}

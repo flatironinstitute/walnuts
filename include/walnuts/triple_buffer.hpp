@@ -97,7 +97,8 @@ class TripleBuffer {
    *
    * @return The latest value.
    */
-  const T& read_latest() noexcept {
+  // TODO: should work as const T& return, but TSan balks
+  const T read_latest() noexcept {
     const int idx = front_.load(std::memory_order_acquire);
     if (idx != read_) {
       const int old = read_;
@@ -127,4 +128,4 @@ class TripleBuffer {
   alignas(CACHE_LINE_SIZE) index_t read_;
 };
 
-}  // namespace walnuts
+}

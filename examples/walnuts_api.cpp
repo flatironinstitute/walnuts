@@ -190,7 +190,7 @@ int main() {
                       .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
-                        .min_max_iter(50, 2000)
+                        .min_max_iter(500, 2000)
                         .step_size_converge_tol(1)
                         .mass_init_count(4.0)
                         .build();

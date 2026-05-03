@@ -87,7 +87,8 @@ void walnuts(uint32_t seed, std::vector<Handler>& handlers,
 
   std::size_t num_rhat_evals{0};
   double rhat;
-  sample(samplers, sampling_cfg.rhat_converge_tol(), sampling_cfg.max_iter(),
+  sample(samplers, sampling_cfg.rhat_converge_tol(),
+	 sampling_cfg.min_iter(), sampling_cfg.max_iter(),
          num_rhat_evals, rhat);
 
   // *********************** SAMPLING DEBUG I/O *******************

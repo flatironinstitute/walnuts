@@ -213,6 +213,7 @@ class ChainWorker {
   /**
    * @brief Construct a woker to embed in a thread for sampling.
    *
+   * @param[in] min_draws The minimum number of draws.
    * @param[in] max_draws The maximum number of draws.
    * @param[in] sampler The sampler.
    * @param[out] acs The atomic chain statistics for this chain.
@@ -220,9 +221,11 @@ class ChainWorker {
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
    */
-  ChainWorker(std::size_t max_draws, Sampler& sampler, AtomicChainStats& acs,
-              std::latch& start_gate, std::size_t yield_period = 1024)
-      : max_draws_(max_draws),
+  ChainWorker(std::size_t min_draws, std::size_t max_draws, Sampler& sampler,
+	      AtomicChainStats& acs, std::latch& start_gate,
+	      std::size_t yield_period = 1024)
+      : min_draws_(min_draws),
+        max_draws_(max_draws),
         sampler_(sampler),
         acs_(acs),
         start_gate_(start_gate),
@@ -242,7 +245,8 @@ class ChainWorker {
   void operator()(const std::stop_token st) {
     interactive_qos();
     start_gate_.get().arrive_and_wait();
-    for (std::size_t iter = 1; iter <= max_draws_ && !st.stop_requested();
+    for (std::size_t iter = 1; iter <= max_draws_
+	   && !(iter >= min_draws_ && st.stop_requested());
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
@@ -254,6 +258,7 @@ class ChainWorker {
   }
 
  private:
+  const std::size_t min_draws_;
   const std::size_t max_draws_;
   std::reference_wrapper<Sampler> sampler_;
   WelfordAccumulator logp_stats_;
@@ -273,6 +278,7 @@ class ChainWorker {
  * terminates.
  * @param[in,out] start_gate The latch gating the monitor and thread workers
  * to synchronize starting.
+ * @param[in] min_draws_per_chain The minimum number of iterations per chain.
  * @param[in] max_draws_per_chain The maximum number of iterations per chain.
  * @param[in,out] stop_chains The callback for stopping execution of sampling.
  * @param[in,out] num_rhat_evals The number of times R-hat was evaluated by the
@@ -285,6 +291,7 @@ template <typename Stopper>
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
     double rhat_threshold, std::latch& start_gate,
+    std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain, Stopper& stop_chains,
     std::size_t& num_rhat_evals, double& r_hat,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -299,20 +306,26 @@ static void controller_loop(
   start_gate.wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
-    for (std::size_t m = 0; m < M; ++m) {
+    bool achieved_min_draws = true;
+    for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
+      counts[m] = u.count;
+      if (counts[m] < min_draws_per_chain) {
+	achieved_min_draws = false;
+      }
       chain_means[static_cast<int64_t>(m)] = static_cast<double>(u.sample_mean);
       chain_variances[static_cast<int64_t>(m)] =
-          static_cast<double>(u.sample_var);
-      counts[m] = u.count;
+	static_cast<double>(u.sample_var);
     }
-    double variance_of_means = variance(chain_means);
-    double mean_of_variances = chain_variances.mean();
-    r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
-    std::size_t num_draws = sum(counts);
-    ++num_rhat_evals;
-    if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-      break;
+    if (achieved_min_draws) {
+      double variance_of_means = variance(chain_means);
+      double mean_of_variances = chain_variances.mean();
+      r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
+      std::size_t num_draws = sum(counts);
+      ++num_rhat_evals;
+      if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
+	break;
+      }
     }
     std::this_thread::sleep_until(next);
     next += eval_period;
@@ -331,6 +344,7 @@ static void controller_loop(
  * @tparam Sampler The type of the sampler.
  * @param[in] samplers The vector of samplers.
  * @param[in] rhat_threshold The threshold below which sampling is stopped.
+ * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  * @param[in,out] num_rhat_evals The number of R-hat evaluations until
  * the threshold was attained.
@@ -338,6 +352,7 @@ static void controller_loop(
  */
 template <typename Sampler>
 void sample(std::vector<Sampler>& samplers, double rhat_threshold,
+	    std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain, std::size_t& num_rhat_evals,
             double& rhat) {
   std::size_t M = samplers.size();
@@ -347,7 +362,8 @@ void sample(std::vector<Sampler>& samplers, double rhat_threshold,
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     threads.emplace_back(ChainWorker<Sampler>(
-        max_draws_per_chain, samplers[m], stats_by_chain[m].val, start_gate));
+	   min_draws_per_chain, max_draws_per_chain,
+	   samplers[m], stats_by_chain[m].val, start_gate));
   }
   auto stop_all = [&] {
     for (auto& t : threads) {
@@ -358,7 +374,7 @@ void sample(std::vector<Sampler>& samplers, double rhat_threshold,
     }
   };
   controller_loop(stats_by_chain, rhat_threshold, start_gate,
-                  max_draws_per_chain, stop_all, num_rhat_evals, rhat);
+                  min_draws_per_chain, max_draws_per_chain, stop_all, num_rhat_evals, rhat);
 }
 
 }  // namespace walnuts

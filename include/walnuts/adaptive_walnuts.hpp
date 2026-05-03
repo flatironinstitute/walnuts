@@ -94,9 +94,9 @@ class MassEstimator {
     Eigen::VectorXd sqrt_abs_grad_init = grad.array().abs().sqrt();
     Eigen::VectorXd init_prec = (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
     Eigen::VectorXd init_var = init_prec.array().inverse().matrix();
-    inv_var_estimator_ =
+    score_var_estimator_ =
       OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_prec);
-    var_estimator_ =
+    draw_var_estimator_ =
         OnlineMoments<double>(warmup_cfg.mass_init_count(), zero, init_var);
   }
 
@@ -113,8 +113,8 @@ class MassEstimator {
   void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad, std::size_t iteration) {
     double discount_factor =
         1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
-    var_estimator_.discount_observe(discount_factor, theta);
-    inv_var_estimator_.discount_observe(discount_factor, grad);
+    draw_var_estimator_.discount_observe(discount_factor, theta);
+    score_var_estimator_.discount_observe(discount_factor, grad);
   }
 
   /**
@@ -125,8 +125,8 @@ class MassEstimator {
    * @return The inverse mass matrix estimate.
    */
   Eigen::VectorXd inv_mass_estimate() const {
-    return (var_estimator_.variance().array() /
-            inv_var_estimator_.variance().array())
+    return (draw_var_estimator_.variance().array() /
+            score_var_estimator_.variance().array())
         .sqrt()
         .matrix();
   }
@@ -136,10 +136,10 @@ class MassEstimator {
   WarmupConfig warmup_cfg_;
 
   /** The online variance estimator for draws. */
-  OnlineMoments<double> var_estimator_;
+  OnlineMoments<double> draw_var_estimator_;
 
   /** The online inverse variance estimator for scores. */
-  OnlineMoments<double> inv_var_estimator_;
+  OnlineMoments<double> score_var_estimator_;
 };
 
 /**

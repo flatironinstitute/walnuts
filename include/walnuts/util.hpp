@@ -28,24 +28,6 @@ WALNUTS_STRONG_INLINE void initiated_qos() {}
 #endif
 
 /**
- * @brief The type of column vectors.
- *
- * The type for dynamic Eigen column vectors with scalar type `S`.
- * @tparam S Type of scalars.
- */
-template <typename S>
-using Vec = Eigen::Matrix<S, Eigen::Dynamic, 1>;
-
-/**
- * @brief The type of matrices.
- *
- * The type for dynamic Eigen matrices with scalar type `S`.
- * @tparam S Type of scalars.
- */
-template <typename S>
-using Matrix = Eigen::Matrix<S, Eigen::Dynamic, Eigen::Dynamic>;
-
-/**
  * @brief Proposal update schemes for MCMC transitions.
  */
 enum class Update {

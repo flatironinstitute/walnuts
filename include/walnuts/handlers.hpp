@@ -180,7 +180,6 @@ class ChainStore {
     return warmup_diag_inv_masses_;
   }
 
-
 private:
   bool save_warmup_;
 

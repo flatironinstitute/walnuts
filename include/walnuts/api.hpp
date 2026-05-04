@@ -24,6 +24,7 @@ namespace walnuts {
  * @param[in] seed The seed for the pseudo-random number generator.
  * @param[in] handlers The collection of chain-specific handlers, which are
  * called back.
+ * @param[in] global_handler The handler for global cross-chain events.
  * @param[in] log_p_grad The log density and gradient function, called back.
  * @param[in] init_cfg The initialization configuration.
  * @param[in] warmup_cfg The warmup configuration.

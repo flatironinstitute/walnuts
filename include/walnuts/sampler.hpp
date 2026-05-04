@@ -330,11 +330,13 @@ static void controller_loop(
  * @brief Sample from the specified samplers in parallel until the
  * R-hat threshold is attained.
  *
- * The `Sampler` object must implement `Eigen::VectorXd operator()(double&
- * lp_pos)` and `size_t dim()`.
+ * The `Sampler` object must implement `double operator()()` to return
+ * log density of latest sample and call chain local handlers, and
+ * also implement `size_t dim()`.
  *
  * @tparam Sampler The type of the sampler.
  * @param[in] samplers The vector of samplers.
+ * @param[in,out] global_handler The global event handler for sampling.
  * @param[in] rhat_threshold The threshold below which sampling is stopped.
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
@@ -357,4 +359,4 @@ void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
                   min_draws_per_chain, max_draws_per_chain);
 }
 
-}  // namespace walnuts
+}

@@ -71,4 +71,4 @@ void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
          sampling_cfg.min_iter(), sampling_cfg.max_iter());
 }
 
-}
+}  // namespace walnuts

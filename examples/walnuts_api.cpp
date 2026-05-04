@@ -59,11 +59,12 @@ int main() {
   // 3) SUMMARIZE ==============================================================
   std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {
-    std::cout << "  Chain " << m << "; step size = " << chain_handlers[m].step_size()
-              << "; ||mass|| = "
-              << chain_handlers[m].diag_inv_mass().array().inverse().matrix().norm()
-              << "; # warmup_draws = " << chain_handlers[m].warmup_draws().size()
-              << "; # draws = " << chain_handlers[m].draws().size() << "\n";
+    std::cout
+        << "  Chain " << m << "; step size = " << chain_handlers[m].step_size()
+        << "; ||mass|| = "
+        << chain_handlers[m].diag_inv_mass().array().inverse().matrix().norm()
+        << "; # warmup_draws = " << chain_handlers[m].warmup_draws().size()
+        << "; # draws = " << chain_handlers[m].draws().size() << "\n";
   }
   std::cout << "\n";
 
@@ -72,14 +73,15 @@ int main() {
 
   // CSV output is slowwwwwww
   // std::cout
-  //     << "WRITING CSV TO FILES: step_size.csv, mass_matrix.csv, sample.csv\n\n";
+  //     << "WRITING CSV TO FILES: step_size.csv, mass_matrix.csv,
+  //     sample.csv\n\n";
 
   // walnuts::write_step_size_csv("step_size.csv", chain_handlers);
   // walnuts::write_mass_matrix_csv("mass_matrix.csv", chain_handlers);
   // walnuts::write_sample_csv("sample.csv", chain_handlers);
 
-  std::cout
-      << "WRITING BINARY TO FILES: step_size.wal, mass_matrix.wal, sample.wal\n\n";
+  std::cout << "WRITING BINARY TO FILES: step_size.wal, mass_matrix.wal, "
+               "sample.wal\n\n";
 
   walnuts::write_step_size("step_size.wal", chain_handlers);
   walnuts::write_mass_matrix("mass_matrix.wal", chain_handlers);

@@ -359,4 +359,4 @@ void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
                   min_draws_per_chain, max_draws_per_chain);
 }
 
-}
+}  // namespace walnuts

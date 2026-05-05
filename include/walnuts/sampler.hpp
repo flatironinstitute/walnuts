@@ -20,6 +20,7 @@
 
 #include <Eigen/Dense>
 
+#include <walnuts/concepts.hpp>
 #include <walnuts/handlers.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/util.hpp>
@@ -209,7 +210,7 @@ class WelfordAccumulator {
  *
  * @tparam Sampler The sampling functor.
  */
-template <class Sampler>
+template <Sampler S>
 class ChainWorker {
  public:
   /**
@@ -223,7 +224,7 @@ class ChainWorker {
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
    */
-  ChainWorker(std::size_t min_draws, std::size_t max_draws, Sampler& sampler,
+  ChainWorker(std::size_t min_draws, std::size_t max_draws, S& sampler,
               AtomicChainStats& acs, std::latch& start_gate,
               std::size_t yield_period = 1024)
       : min_draws_(min_draws),
@@ -262,7 +263,7 @@ class ChainWorker {
  private:
   const std::size_t min_draws_;
   const std::size_t max_draws_;
-  std::reference_wrapper<Sampler> sampler_;
+  std::reference_wrapper<S> sampler_;
   WelfordAccumulator logp_stats_;
   std::reference_wrapper<AtomicChainStats> acs_;
   std::reference_wrapper<std::latch> start_gate_;
@@ -342,8 +343,8 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-template <typename Sampler, GlobalHandler GH>
-void sample(std::vector<Sampler>& samplers, GH& global_handler,
+template <Sampler S, GlobalHandler GH>
+void sample(std::vector<S>& samplers, GH& global_handler,
             double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
@@ -353,8 +354,8 @@ void sample(std::vector<Sampler>& samplers, GH& global_handler,
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     threads.emplace_back(
-        ChainWorker<Sampler>(min_draws_per_chain, max_draws_per_chain,
-                             samplers[m], stats_by_chain[m].val, start_gate));
+        ChainWorker<S>(min_draws_per_chain, max_draws_per_chain,
+		       samplers[m], stats_by_chain[m].val, start_gate));
   }
   controller_loop(stats_by_chain, global_handler, rhat_threshold, start_gate,
                   min_draws_per_chain, max_draws_per_chain);

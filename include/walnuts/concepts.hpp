@@ -70,3 +70,29 @@ concept NestedFloatingPoint =
     FloatingPointLeaf<T> ||
     (std::ranges::range<T> &&
      FloatingPointLeaf<std::ranges::range_value_t<T>>);
+
+/**
+ * @brief Concept for a Markov chain sampler.
+ *
+ * A type `S` satisfies `Sampler` if it provides:
+ *  - `s()` callable on a non-const instance, returning a log density value
+ *    convertible to `double`. Each call advances the chain by one
+ *    iteration and returns the log density of the new draw. The
+ *    sampler is responsible for delivering the draw itself to any
+ *    chain-local handler it holds.
+ *  - `s.dim()` callable on a const instance, returning a value
+ *    convertible to `std::size_t`. This reports the dimensionality
+ *    of the parameter space being sampled.
+ *
+ * The single-argument operator must be invocable through a
+ * `std::reference_wrapper<S>`, which means `operator()` must not be
+ * `const`-only — it should be a non-const member function (or
+ * mutable-callable in some other way), since sampling advances
+ * internal state such as the position, RNG, and any adapted
+ * parameters.
+ */
+template <typename S>
+concept Sampler = requires(S& s, const S& cs) {
+    { s() } -> std::convertible_to<double>;
+    { cs.dim() } -> std::convertible_to<std::size_t>;
+};

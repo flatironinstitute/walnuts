@@ -10,6 +10,17 @@
 
 namespace walnuts {
 
+/**
+ * @brief Concept for a nullary factory producing values convertible to `T`.
+ *
+ * A type `F` satisfies `FactoryFor<F, T>` if it can be invoked with no
+ * arguments and the result is convertible to `T`. This is what
+ * `TripleBuffer<T>` requires of its initializer functor.
+ */
+template <typename F, typename T>
+concept Factory = std::invocable<F> &&
+  std::convertible_to<std::invoke_result_t<F>, T>;
+  
 /*
  * @brief A lock-free, single-producer, single-consumer queue with triple
  * buffering.  See \cite guan2025triplebuffer.
@@ -30,8 +41,8 @@ class TripleBuffer {
    * @tparam Factory The type of initial value generator.
    * @param[in] make The functor to create initial values.
    */
-  template <std::invocable Factory>
-  explicit TripleBuffer(Factory make)
+  template <Factory<T> F>
+  explicit TripleBuffer(F make)
       : buffers_{make(), make(), make()},
         front_(0),
         spare_(1),

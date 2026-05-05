@@ -38,7 +38,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   -Wno-missing-variable-declarations
   -Wno-variadic-macro-arguments-omitted
   -Wno-reserved-identifier -Wno-unused-function
-  -Wno-missing-prototypes)
+  -Wno-missing-prototypes -Wno-documentation)
 
   # Optionally enable IWYU if found
   find_program(IWYU_PATH NAMES include-what-you-use iwyu)

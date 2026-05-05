@@ -328,8 +328,8 @@ class InitConfigBuilder {
    * @throw std::invalid_argumet If the mass smoothing is not in (0, 1).
    * @return A reference to this builder for chaining.
    */
-  template <typename LPG>
-  InitConfigBuilder& masses(const LPG& logp_grad, double mass_smoothing) {
+  template <LogpGrad F>
+  InitConfigBuilder& masses(const F& logp_grad, double mass_smoothing) {
     validate_probability(mass_smoothing, "mass_smoothing");
     Eigen::VectorXd grad;
     double lp;  // needed to calculate gradient, o.w. not used

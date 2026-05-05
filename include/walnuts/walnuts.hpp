@@ -137,7 +137,7 @@ class SpanW {
  * @param[in,out] rho_next Input initial momentum, set to final position.
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
-template <typename S, typename F>
+template <typename S, LogpGrad F>
 bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                       S step, std::size_t num_steps, S max_error, S logp_next,
                       Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
@@ -172,7 +172,7 @@ bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @param[in] grad The final gradient from which to reverse.
  * @return `true` if the path ending in the specified state is reversible.
  */
-template <typename S, typename F>
+template <typename S, LogpGrad F>
 bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
                 std::size_t num_steps, std::size_t min_micro_steps, S max_error,
                 S logp_next, const Eigen::VectorXd& theta,
@@ -220,7 +220,7 @@ bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, typename F, class A>
+template <Direction D, LogpGrad F, class A>
 bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                 double step, std::size_t max_step_halvings,
                 std::size_t min_micro_steps, double max_error,
@@ -334,7 +334,7 @@ SpanW combine(Rand& rng, SpanW&& span_old, SpanW&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, class F, class A>
+template <Direction D, LogpGrad F, class A>
 std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                                 const Eigen::VectorXd& inv_mass, double step,
                                 std::size_t max_step_halvings,
@@ -376,7 +376,7 @@ std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, class F, class Rand, class A>
+template <Direction D, LogpGrad F, class Rand, class A>
 std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
                                 const Eigen::VectorXd& inv_mass, double step,
                                 std::size_t depth,
@@ -430,7 +430,7 @@ std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <class F, class Rand, class A>
+template <LogpGrad F, class Rand, class A>
 Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
@@ -499,24 +499,11 @@ class NoOpHandler {
  * It provides a no-argument functor for generating the next element of the
  * Markov chain.
  *
- * The target log density and gradient function must implement the signature
- *
- * ```cpp
- * static void normal_logp_grad(const Eigen::Matrix<S, -1, 1>& x,
- *                              S& logp,
- *                              Eigen::Matrix<S, -1, 1>& grad);
- * ```
- *
- * where `S` is the scalar type parameter of the sampler (the log
- * density function need not be templated itself).  The argument `x`
- * is the position argument, and `logp` is set to the log density of
- * `x`, and `grad` set to the gradient of the log density at `x`.
- *
  * @tparam F The type of the log density and gradient function.
  * @tparam RNG The type of the base random number generator.
  * @tparam Handler The type of the sampling event handler.
  */
-template <class F, class RNG, class Handler>
+template <LogpGrad F, class RNG, class Handler>
 class WalnutsSampler {
  public:
   /**

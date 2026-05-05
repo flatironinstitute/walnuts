@@ -265,12 +265,32 @@ inline bool uturn(const U& span1, const U& span2,
 }
 
 /**
+ * @brief Concept for a log density and gradient function.
+ *
+ * A type `F` satisfies `LogpGrad` if an object of type `const F&` can be
+ * called with arguments `(const Eigen::VectorXd&, double&, Eigen::VectorXd&)`
+ * and the call returns `void`. The first argument is the position at which
+ * to evaluate, and the second and third are output parameters set to the
+ * log density and its gradient, respectively.
+ *
+ * The callable is permitted to throw exceptions; see `ExceptionFreeLogpGrad`
+ * for the noexcept variant.
+ *
+ * @tparam F The callable type to constrain.
+ */  
+template <typename F>
+concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x,
+                            double& logp, Eigen::VectorXd& grad) {
+    { f(x, logp, grad) } -> std::same_as<void>;
+};
+  
+/**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.
  *
- * @tparam F Type of underlying log density function.
+ * @tparam F Type of underlying log density and gradient function.
  */
-template <typename F>
+template <LogpGrad F>
 class NoExceptLogpGrad {
  public:
   /**
@@ -294,11 +314,12 @@ class NoExceptLogpGrad {
    * @param[out] grad The gradient to set.
    */
   void operator()(const Eigen::VectorXd& x, double& logp,
-                  Eigen::VectorXd& grad) const {
+                  Eigen::VectorXd& grad) const noexcept {
     try {
       logp_grad_.get()(x, logp, grad);
     } catch (...) {
-      // logp_grad failure equivalent to -inf log density: rejects in algorithm
+      // logp_grad failure equivalent to -inf log density
+      // TODO: add logging for this kind of thing
       logp = -std::numeric_limits<double>::infinity();
       grad.setZero(x.size());
     }
@@ -315,7 +336,7 @@ class NoExceptLogpGrad {
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
-template <class F>
+template <LogpGrad F>
 Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
   Eigen::VectorXd g;
   double logp;

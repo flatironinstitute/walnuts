@@ -211,22 +211,11 @@ class MinMicroStepsAdaptHandler {
  * @tparam RNG Type of base random number generator.
  * @tparam Handler Type of adaptation and sampling event handler.
  */
-template <class F, class RNG, class Handler>
+template <LogpGrad F, class RNG, class Handler>
 class AdaptiveWalnuts {
  public:
   /**
    * @brief Construct an adaptive Walnuts sampler.
-   *
-   * The target log density and gradient function must implement the signature
-   *
-   * ```cpp
-   * void normal_logp_grad(const Eigen::VectorXd& x,
-   *                       S& logp,
-   *                       Eigen::VectorXd& grad);
-   * ```
-   *
-   * The variable `x` is the input position.  The output variables
-   * `logp` and `grad` are set to the log density and its gradient.
    *
    * The configuration objects, the base random number generator, and
    * the log density/gradient function are held by reference.  The RNG

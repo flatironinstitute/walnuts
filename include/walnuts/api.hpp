@@ -32,13 +32,13 @@ namespace walnuts {
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
-template <typename Handler, GlobalHandler GH, LogpGrad F>
-void walnuts(std::uint32_t seed, std::vector<Handler>& handlers,
+template <ChainHandler H, GlobalHandler GH, LogpGrad F>
+void walnuts(std::uint32_t seed, std::vector<H>& handlers,
              GH& global_handler, const F& log_p_grad,
              const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
              const SamplingConfig& sampling_cfg) {
-  using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, Handler>;
-  using Sampler = WalnutsSampler<F, std::mt19937, Handler>;
+  using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, H>;
+  using Sampler = WalnutsSampler<F, std::mt19937, H>;
 
   if (handlers.size() != init_cfg.num_chains()) {
     throw std::invalid_argument(

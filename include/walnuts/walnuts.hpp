@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <optional>
+#include <random>
 #include <utility>
 
 #include <Eigen/Dense>
@@ -125,7 +126,6 @@ class SpanW {
  * @brief Return `true` if running the specified number of leapfrog steps
  * is within the maximum error tolerance.
  *
- * @tparam S The type of scalars.
  * @tparam F The type of the log density/gradient function.
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
@@ -137,13 +137,13 @@ class SpanW {
  * @param[in,out] rho_next Input initial momentum, set to final position.
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
-template <typename S, LogpGrad F>
+template <LogpGrad F>
 bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                      S step, std::size_t num_steps, S max_error, S logp_next,
+                      double step, std::size_t num_steps, double max_error, double logp_next,
                       Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
                       Eigen::VectorXd& grad_next) {
-  S half_step = 0.5 * step;
-  S logp = logp_next;
+  double half_step = 0.5 * step;
+  double logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
     rho_next += half_step * grad_next;
     theta_next.array() += step * inv_mass.array() * rho_next.array();
@@ -158,7 +158,6 @@ bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @brief Return `true` if the number of micro steps provided is the one chosen
  * from the input position, moment, and gradient.
  *
- * @tparam S Type of scalars.
  * @tparam F Type of log density/gradient function.
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
@@ -172,10 +171,10 @@ bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @param[in] grad The final gradient from which to reverse.
  * @return `true` if the path ending in the specified state is reversible.
  */
-template <typename S, LogpGrad F>
-bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, S step,
-                std::size_t num_steps, std::size_t min_micro_steps, S max_error,
-                S logp_next, const Eigen::VectorXd& theta,
+template <LogpGrad F>
+bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step,
+                std::size_t num_steps, std::size_t min_micro_steps, double max_error,
+                double logp_next, const Eigen::VectorXd& theta,
                 const Eigen::VectorXd& rho, const Eigen::VectorXd& grad) {
   if (num_steps == 1) {
     return true;
@@ -261,6 +260,31 @@ bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
 }
 
 /**
+ * @brief Return a tuple of the arguments ordered by direction.
+
+ * The arguments are forwarded as is the returned tuple and returned
+ * by reference, so function arguments must stay in scope.  If the
+ * template argument `D` is `Direction::Forward`, then the tuple is
+ * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
+ * `(x2, x1)`.
+ *
+ * @tparam D The `Direction` in which to combine the arguments
+ * (`Forward` or `Backward`).
+ * @tparam T The type of the arguments.
+ * @param[in] x1 The first argument.
+ * @param[in] x2 The second argument.
+ * @return The arguments ordered according to `D`.
+ */
+template <Direction D, typename T>
+inline auto order_forward_backward(T&& x1, T&& x2) {
+  if constexpr (D == Direction::Forward) {
+    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
+  } else {  // Direction::Backward
+    return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
+  }
+}  
+
+/**
  * @brief Return the specified spans combined into a new span and update
  * the selected position.
  *
@@ -281,8 +305,8 @@ bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * time.
  * @return The combined span.
  */
-template <Update U, Direction D, class Rand>
-SpanW combine(Rand& rng, SpanW&& span_old, SpanW&& span_new) {
+template <Update U, Direction D, std::uniform_random_bit_generator RNG>
+SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
   using std::log;
   double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   double log_denominator;
@@ -376,8 +400,8 @@ std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, LogpGrad F, class Rand, class A>
-std::optional<SpanW> build_span(Rand& rng, const F& logp_grad,
+template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG, class A>
+std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
                                 const Eigen::VectorXd& inv_mass, double step,
                                 std::size_t depth,
                                 std::size_t max_step_halvings,

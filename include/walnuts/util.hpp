@@ -202,31 +202,6 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
 }
 
 /**
- * @brief Return a tuple of the arguments ordered by direction.
-
- * The arguments are forwarded as is the returned tuple and returned
- * by reference, so function arguments must stay in scope.  If the
- * template argument `D` is `Direction::Forward`, then the tuple is
- * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
- * `(x2, x1)`.
- *
- * @tparam D The `Direction` in which to combine the arguments
- * (`Forward` or `Backward`).
- * @tparam T The type of the arguments.
- * @param[in] x1 The first argument.
- * @param[in] x2 The second argument.
- * @return The arguments ordered according to `D`.
- */
-template <Direction D, typename T>
-inline auto order_forward_backward(T&& x1, T&& x2) {
-  if constexpr (D == Direction::Forward) {
-    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
-  } else {  // Direction::Backward
-    return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
-  }
-}
-
-/**
  * @brief Return `true` if the two spans ordered as specified form a
  * U-turn in the metric determined by the inverse mass matrix.
  *

@@ -78,6 +78,19 @@ inline void validate_size(const Eigen::Matrix<T, R, C>& x, std::size_t size,
 }
 
 /**
+ * @brief Concept for a type with a `.size()` member function.
+ *
+ * A type `T` satisfies `Sized` if `t.size()` is callable on a const
+ * instance and returns a value comparable for equality. This matches
+ * standard containers, `std::string`, `std::span`, and Eigen vectors
+ * and matrices.
+ */
+template <typename T>
+concept Sized = requires(const T& t) {
+    { t.size() } -> std::equality_comparable;
+};
+  
+/**
  * @brief Throw an exception if the containers do not have the same size.
  *
  * @tparam T1 Type of first container.
@@ -88,7 +101,7 @@ inline void validate_size(const Eigen::Matrix<T, R, C>& x, std::size_t size,
  * @param[in] name2 The second container's name.
  * @throw std::invalid_argument If the containers are not the same size.
  */
-template <typename T1, typename T2>
+template <Sized T1, Sized T2>
 inline void validate_same_size(const T1& x1, const T2& x2,
                                const std::string& name1,
                                const std::string& name2) {

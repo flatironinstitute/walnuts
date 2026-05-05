@@ -5,61 +5,15 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <type_traits>
 #include <vector>
 
 #include <Eigen/Dense>
 
+#include "walnuts/concepts.hpp"
 #include "walnuts/validate.hpp"
 
 namespace walnuts {
-
-/**
- * @brief Concept for a handler of cross-chain events.
- *
- * A type `H` satisfies `Handler` if it provides:
- *  - `on_r_hat(double)` callable on a non-const instance, returning `void`,
- *  - `r_hats()` callable on a const instance, returning a reference to a
- *    `std::vector<double>`.
- *
- * The `r_hats()` accessor must be callable on a const instance so that
- * consumers with only const access to the handler can read the recorded
- * values.
- */
-template <typename H>
-concept GlobalHandler = requires(H& h, const H& ch, double r_hat) {
-  { h.on_r_hat(r_hat) } -> std::same_as<void>;
-  { ch.r_hats() } -> std::same_as<const std::vector<double>&>;
-};
-
-/**
- * @brief Concept for a handler of chain-specific events.
- *
- * A type `C` satisfies `ChainHandler` if it provides the following
- * member functions, each callable on a non-const instance and returning
- * `void`:
- *  - `on_warmup(const Eigen::VectorXd&, double, double, const Eigen::VectorXd&)`
- *    called once per warmup draw with the position, log density, step
- *    size, and diagonal inverse mass matrix.
- *  - `on_warmup_complete(double, const Eigen::VectorXd&)` called once
- *    when warmup finishes, with the final step size and diagonal inverse
- *    mass matrix.
- *  - `on_sample(const Eigen::VectorXd&, double)` called once per
- *    post-warmup draw with the position and log density.
- *  - `on_stop()` called when sampling stops.
- */
-template <typename C>
-concept ChainHandler = requires(C& c,
-                                const Eigen::VectorXd& position,
-                                const Eigen::VectorXd& diag_inv_mass,
-                                double lp,
-                                double step_size) {
-  { c.on_warmup(position, lp, step_size, diag_inv_mass) }
-        -> std::same_as<void>;
-  { c.on_warmup_complete(step_size, diag_inv_mass) }
-        -> std::same_as<void>;
-  { c.on_sample(position, lp) } -> std::same_as<void>;
-  { c.on_stop() } -> std::same_as<void>;
-};  
 
 /**
  * @brief A handler that stores global events.
@@ -259,6 +213,7 @@ private:
  * @param x The value that is written as type `T`.
  */
 template <typename T, typename S>
+    requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
 inline void write_binary(std::ostream& out, S x) {
   auto y = static_cast<T>(x);
   auto bytes = reinterpret_cast<const char*>(&y);

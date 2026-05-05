@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <walnuts/adam.hpp>
+#include <walnuts/handlers.hpp>
 #include <walnuts/online_moments.hpp>
 #include <walnuts/util.hpp>
 #include <walnuts/walnuts.hpp>
@@ -211,7 +212,7 @@ class MinMicroStepsAdaptHandler {
  * @tparam RNG Type of base random number generator.
  * @tparam Handler Type of adaptation and sampling event handler.
  */
-template <LogpGrad F, class RNG, class Handler>
+template <LogpGrad F, std::uniform_random_bit_generator RNG, ChainHandler H>
 class AdaptiveWalnuts {
  public:
   /**
@@ -236,7 +237,7 @@ class AdaptiveWalnuts {
    * @param[in] sampling_cfg The sampling configuration.
    * @param[in] target_depth The target expected Nuts tree depth.
    */
-  AdaptiveWalnuts(RNG& rng, Handler& handler, const F& logp_grad,
+  AdaptiveWalnuts(RNG& rng, H& handler, const F& logp_grad,
                   const Eigen::VectorXd& theta_init,
                   const InitChainConfig& init_chain_cfg,
                   const WarmupConfig& warmup_cfg,
@@ -291,9 +292,9 @@ class AdaptiveWalnuts {
    *
    * @return The Walnuts sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, RNG, Handler> sampler() {
+  WalnutsSampler<F, RNG, H> sampler() {
     handler_.on_warmup_complete(step_size(), inv_mass());
-    return WalnutsSampler<F, RNG, Handler>(
+    return WalnutsSampler<F, RNG, H>(
         rand_, handler_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
@@ -375,7 +376,7 @@ class AdaptiveWalnuts {
   Random<RNG> rand_;
 
   /** The adaptation and sampling event handler. */
-  Handler& handler_;
+  H& handler_;
 
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F> logp_grad_;

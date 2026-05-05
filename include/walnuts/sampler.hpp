@@ -20,13 +20,14 @@
 
 #include <Eigen/Dense>
 
+#include <walnuts/handlers.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
 
 /**
- * @brief Reeturn the sum of the sizes in the vector.
+ * @brief Return the sum of the sizes in the vector.
  *
  * @param[in] xs The vector to sum.
  * @return The sum.
@@ -283,10 +284,10 @@ class ChainWorker {
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
-template <typename GlobalHandler>
+template <GlobalHandler GH>
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
-    GlobalHandler& global_handler, double rhat_threshold,
+    GH& global_handler, double rhat_threshold,
     std::latch& start_gate, std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -331,8 +332,8 @@ static void controller_loop(
  * R-hat threshold is attained.
  *
  * The `Sampler` object must implement `double operator()()` to return
- * log density of latest sample and call chain local handlers, and
- * also implement `size_t dim()`.
+ * log density of latest sample and call chain local handlers
+ * indirectly through the samplers, and also implement `size_t dim()`.
  *
  * @tparam Sampler The type of the sampler.
  * @param[in] samplers The vector of samplers.
@@ -341,8 +342,8 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-template <typename Sampler, typename GlobalHandler>
-void sample(std::vector<Sampler>& samplers, GlobalHandler& global_handler,
+template <typename Sampler, GlobalHandler GH>
+void sample(std::vector<Sampler>& samplers, GH& global_handler,
             double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();

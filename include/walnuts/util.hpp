@@ -52,7 +52,7 @@ using Forward_t = std::integral_constant<Direction, Direction::Forward>;
  *
  * @tparam RNG The type of the base random number generator.
  */
-template <class RNG>
+template <std::uniform_random_bit_generator RNG>
 class Random {
  public:
   /**

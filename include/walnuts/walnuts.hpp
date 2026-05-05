@@ -503,7 +503,7 @@ class NoOpHandler {
  * @tparam RNG The type of the base random number generator.
  * @tparam Handler The type of the sampling event handler.
  */
-template <LogpGrad F, class RNG, class Handler>
+template <LogpGrad F, std::uniform_random_bit_generator RNG, class Handler>
 class WalnutsSampler {
  public:
   /**

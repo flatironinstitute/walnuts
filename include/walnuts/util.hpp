@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random>
+#include <ranges>
 #include <type_traits>
 
 #include <Eigen/Dense>
@@ -27,6 +28,8 @@ WALNUTS_STRONG_INLINE void interactive_qos() {}
 WALNUTS_STRONG_INLINE void initiated_qos() {}
 #endif
 
+
+ 
 /**
  * @brief Proposal update schemes for MCMC transitions.
  */

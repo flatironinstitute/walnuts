@@ -6,6 +6,8 @@
 
 #include <Eigen/Dense>
 
+#include <walnuts/concepts.hpp>
+
 namespace walnuts {
 
 /**
@@ -77,19 +79,6 @@ inline void validate_size(const Eigen::Matrix<T, R, C>& x, std::size_t size,
   throw std::invalid_argument(var + " size must match " + target);
 }
 
-/**
- * @brief Concept for a type with a `.size()` member function.
- *
- * A type `T` satisfies `Sized` if `t.size()` is callable on a const
- * instance and returns a value comparable for equality. This matches
- * standard containers, `std::string`, `std::span`, and Eigen vectors
- * and matrices.
- */
-template <typename T>
-concept Sized = requires(const T& t) {
-    { t.size() } -> std::equality_comparable;
-};
-  
 /**
  * @brief Throw an exception if the containers do not have the same size.
  *
@@ -174,7 +163,7 @@ inline void validate_finite_positive(const Eigen::Matrix<T, R, C>& xs,
  * @throw std::invalid_argument If the container has an element that
  * is not finite and > 0.
  */
-template <typename T>
+template <NestedFloatingPoint T>
 inline void validate_finite_positive(const std::vector<T>& xs,
                                      const std::string& var) {
   for (const auto& x : xs) {
@@ -228,7 +217,7 @@ inline void validate_finite(const Eigen::Matrix<T, R, C>& xs,
  * @throw std::invalid_argument If the container has an element that
  * is not finite.
  */
-template <typename T>
+template <NestedFloatingPoint T>
 inline void validate_finite(const std::vector<T>& xs, const std::string& var) {
   for (const auto& x : xs) {
     validate_finite(x, var);
@@ -238,13 +227,13 @@ inline void validate_finite(const std::vector<T>& xs, const std::string& var) {
 /**
  * @brief Throw an exception if the value is not positive and finite.
  *
- * @tparam S Type of value.
+ * @tparam T Type of value.
  * @param[in] x The variable's value.
  * @param[in] name The variable's name.
  * @throw std::invalid_argument If the value is not positive and finite.
  */
-template <typename S>
-inline void validate_positive(S x, const std::string& name) {
+template <std::floating_point T>
+inline void validate_positive(T x, const std::string& name) {
   if (x > 0 && !std::isinf(x)) {
     return;
   }
@@ -279,7 +268,7 @@ inline void validate_positive(T x, const std::string& name) {
  * @throw std::invalid_argument If the elements of the container are
  * not all positive and finite.
  */
-template <typename T, int R, int C>
+template <std::floating_point T, int R, int C>
 inline void validate_positive(const Eigen::Matrix<T, R, C>& x,
                               const std::string& name) {
   if ((x.array() > 0.0).all() && x.allFinite()) {
@@ -292,13 +281,13 @@ inline void validate_positive(const Eigen::Matrix<T, R, C>& x,
 /**
  * @brief Throw an exception if the value is not in (0, 1).
  *
- * @tparam S Type of value.
+ * @tparam T Type of value.
  * @param[in] x The variable's value.
  * @param[in] name The variable's name.
  * @throw std::invalid_argument If the value is not in (0, 1).
  */
-template <typename S>
-inline void validate_probability(S x, const std::string& name) {
+template <std::floating_point T>
+inline void validate_probability(T x, const std::string& name) {
   if (x > 0 && x < 1) {
     return;
   }
@@ -309,13 +298,13 @@ inline void validate_probability(S x, const std::string& name) {
 /**
  * @brief Throw an exception if the value is not in [0, 1].
  *
- * @tparam S Type of value.
+ * @tparam T Type of value.
  * @param[in] x The variable's value.
  * @param[in] name The variable's name.
  * @throw std::invalid_argument If the value is not in [0, 1].
  */
-template <typename S>
-inline void validate_probability_inclusive(S x, const std::string& name) {
+template <std::floating_point T>
+inline void validate_probability_inclusive(T x, const std::string& name) {
   if (x >= 0 && x <= 1) {
     return;
   }

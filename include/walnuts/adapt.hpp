@@ -3,17 +3,14 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
-#include <iostream>
+#include <functional>
 #include <latch>
 #include <limits>
-#include <memory>
-#include <random>
 #include <stop_token>
 #include <thread>
 #include <vector>
-#include <walnuts/config.hpp>
 
+#include <walnuts/concepts.hpp>
 #include <walnuts/config.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>

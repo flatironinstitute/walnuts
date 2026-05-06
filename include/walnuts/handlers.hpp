@@ -1,16 +1,16 @@
 #pragma once
 
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
+#include <string>
 #include <type_traits>
 #include <vector>
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
 #include "walnuts/validate.hpp"
 
 namespace walnuts {

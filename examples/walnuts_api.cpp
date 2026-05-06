@@ -1,13 +1,15 @@
-
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <random>
+#include <string>
+#include <vector>
 
 #include <Eigen/Dense>
 
 #include "walnuts/api.hpp"
 #include "walnuts/config.hpp"
 #include "walnuts/handlers.hpp"
-#include "walnuts/validate.hpp"
 
 // 0) TARGET DENSITY ===========================================================
 static void std_normal(const Eigen::VectorXd& x, double& lp,

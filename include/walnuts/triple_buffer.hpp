@@ -2,8 +2,8 @@
 
 #include <array>
 #include <atomic>
-#include <concepts>
-#include <cstdint>
+#include <cstddef>
+#include <type_traits>
 #include <utility>
 
 #include <walnuts/concepts.hpp>

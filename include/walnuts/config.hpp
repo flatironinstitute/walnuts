@@ -1,16 +1,16 @@
 #pragma once
 
-#include <cmath>
-#include <concepts>
-#include <cstdint>
+#include <cstddef>
+#include <ostream>
 #include <random>
 #include <stdexcept>
-#include <type_traits>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Dense>
 
-#include <walnuts/config.hpp>
+#include <walnuts/concepts.hpp>
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
 

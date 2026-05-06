@@ -2,8 +2,6 @@
 
 #include <cmath>
 
-#include <walnuts/util.hpp>
-
 namespace walnuts {
 
 /**

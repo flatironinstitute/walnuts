@@ -1,9 +1,13 @@
 #pragma once
 
+#include <cmath>
+#include <cstddef>
 #include <functional>
+#include <limits>
 #include <random>
-#include <ranges>
 #include <type_traits>
+
+#include <sys/qos.h> 
 
 #include <Eigen/Dense>
 
@@ -18,7 +22,6 @@ namespace walnuts {
 #endif
 
 #ifdef __APPLE__
-#include <pthread.h>
 #include <pthread/qos.h>
 WALNUTS_STRONG_INLINE void interactive_qos() {
   pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);  // best

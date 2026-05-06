@@ -1,13 +1,24 @@
 #pragma once
 
+
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <functional>
+#include <random>
+#include <string>
 #include <utility>
 
-#include <walnuts/adam.hpp>
-#include <walnuts/handlers.hpp>
-#include <walnuts/online_moments.hpp>
-#include <walnuts/util.hpp>
-#include <walnuts/walnuts.hpp>
+#include <Eigen/Dense>
+
+#include "walnuts/adam.hpp"
+#include "walnuts/concepts.hpp"
+#include "walnuts/config.hpp"
+#include "walnuts/online_moments.hpp"
+#include "walnuts/util.hpp"
+#include "walnuts/validate.hpp"
+#include "walnuts/walnuts.hpp"
 
 namespace walnuts {
 
@@ -116,7 +127,7 @@ class MassEstimator {
   void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad,
                std::size_t iteration) {
     double discount_factor =
-        1.0 - 1.0 / (warmup_cfg_.mass_init_count() + iteration);
+      1.0 - 1.0 / (warmup_cfg_.mass_init_count() + static_cast<double>(iteration));
     draw_var_estimator_.discount_observe(discount_factor, theta);
     score_var_estimator_.discount_observe(discount_factor, grad);
   }

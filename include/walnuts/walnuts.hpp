@@ -1,15 +1,20 @@
 #pragma once
 
 #include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <optional>
 #include <random>
+#include <stdexcept>
+#include <string>
+#include <tuple>
 #include <utility>
 
 #include <Eigen/Dense>
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/util.hpp>
+#include <walnuts/validate.hpp>
 
 namespace walnuts {
 
@@ -270,7 +275,6 @@ bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                 const SpanW& span, Eigen::VectorXd& theta_next,
                 Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
                 double& logp_pos_next, double& logp_next, A& adapt_handler) {
-  using std::fmax, std::fmin;
   constexpr bool is_forward = (D == Direction::Forward);
   const Eigen::VectorXd& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
   const Eigen::VectorXd& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
@@ -355,7 +359,6 @@ inline std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
  */
 template <Update U, Direction D, std::uniform_random_bit_generator RNG>
 SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
-  using std::log;
   double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   double log_denominator;
   if constexpr (U == Update::Metropolis) {
@@ -364,7 +367,7 @@ SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
     log_denominator = logp_total;
   }
   double update_logprob = span_new.logp_ - log_denominator;
-  bool update = log(rng.uniform_real_01()) < update_logprob;
+  bool update = std::log(rng.uniform_real_01()) < update_logprob;
   auto& selected = update ? span_new.theta_select_ : span_old.theta_select_;
   auto& grad_selected = update ? span_new.grad_select_ : span_old.grad_select_;
   double logp_pos_select =
@@ -567,7 +570,7 @@ class NoOpStepSizeAdapter {
   /**
    * Return an invalid step size.
    */
-  double step_size() const {
+  [[noreturn]] double step_size() const {
     throw std::logic_error("should not call step_size() in NoOpStepSizeAdapter");
   }
 };
@@ -663,7 +666,7 @@ class WalnutsSampler {
                           depth, grad_next, logp_pos, no_op_step_size_adapter_);
     sample_handler_.get().on_sample(theta_, logp_pos);
     return logp_pos;
-  }
+  } 
 
   /**
    * @brief  Return a constant reference the diagonal of the diagonal inverse

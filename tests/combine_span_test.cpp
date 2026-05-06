@@ -15,8 +15,8 @@ namespace span_test {
  * to this function will return spans with different forward/backward/selected
  * points.
  */
-static nuts::SpanW<double> dummy_span(double logp, int size = 2) {
-  return nuts::SpanW<double>{Eigen::VectorXd::Random(size),
+static walnuts::SpanW dummy_span(double logp, int size = 2) {
+  return walnuts::SpanW{Eigen::VectorXd::Random(size),
                              Eigen::VectorXd::Random(size),
                              Eigen::VectorXd::Random(size),
                              -logp,
@@ -29,7 +29,7 @@ static nuts::SpanW<double> dummy_span(double logp, int size = 2) {
                              logp};
 }
 
-/** Mocked nuts::Random that returns a set value deterministically */
+/** Mocked walnuts::Random that returns a set value deterministically */
 struct MockRandom {
   double value;
   double uniform_real_01() { return value; }
@@ -39,12 +39,12 @@ struct MockRandom {
 // but to use non-type template parameters you must first
 // wrap them in a type like std::integral_constant
 using Forward =
-    std::integral_constant<nuts::Direction, nuts::Direction::Forward>;
+    std::integral_constant<walnuts::Direction, walnuts::Direction::Forward>;
 using Backward =
-    std::integral_constant<nuts::Direction, nuts::Direction::Backward>;
+    std::integral_constant<walnuts::Direction, walnuts::Direction::Backward>;
 using Metropolis =
-    std::integral_constant<nuts::Update, nuts::Update::Metropolis>;
-using Barker = std::integral_constant<nuts::Update, nuts::Update::Barker>;
+    std::integral_constant<walnuts::Update, walnuts::Update::Metropolis>;
+using Barker = std::integral_constant<walnuts::Update, walnuts::Update::Barker>;
 
 using ForwardAndMetropolis = std::tuple<Forward, Metropolis>;
 using BackwardAndMetropolis = std::tuple<Backward, Metropolis>;
@@ -85,34 +85,34 @@ TYPED_TEST(CombineSpansUpdateAgnostic, EndpointsCorrectWhenGoingForward) {
   constexpr auto update = TypeParam::value;
 
   span_test::MockRandom rng{0};
-  nuts::SpanW<double> span_from = span_test::dummy_span(0.3);
-  nuts::SpanW<double> span_to = span_test::dummy_span(0.1);
+  walnuts::SpanW span_from = span_test::dummy_span(0.3);
+  walnuts::SpanW span_to = span_test::dummy_span(0.1);
 
-  nuts::SpanW<double> span_old = span_from;
-  nuts::SpanW<double> span_new = span_to;
-  nuts::SpanW<double> combined =
-      nuts::combine<update, nuts::Direction::Forward>(rng, std::move(span_old),
+  walnuts::SpanW span_old = span_from;
+  walnuts::SpanW span_new = span_to;
+  walnuts::SpanW combined =
+      walnuts::combine<update, walnuts::Direction::Forward>(rng, std::move(span_old),
                                                       std::move(span_new));
 
-  EXPECT_BACKWARD_ENDPOINT_EQUAL(span_from, combined);
-  EXPECT_FORWARD_ENDPOINT_EQUAL(span_to, combined);
+  EXPECT_BACKWARD_ENDPOINT_EQUAL(span_from, combined)
+  EXPECT_FORWARD_ENDPOINT_EQUAL(span_to, combined)
 }
 
 TYPED_TEST(CombineSpansUpdateAgnostic, EndpointsCorrectWhenGoingBackward) {
   constexpr auto update = TypeParam::value;
 
   span_test::MockRandom rng{0};
-  nuts::SpanW<double> span_from = span_test::dummy_span(0.3);
-  nuts::SpanW<double> span_to = span_test::dummy_span(0.1);
+  walnuts::SpanW span_from = span_test::dummy_span(0.3);
+  walnuts::SpanW span_to = span_test::dummy_span(0.1);
 
-  nuts::SpanW<double> span_old = span_from;
-  nuts::SpanW<double> span_new = span_to;
-  nuts::SpanW<double> combined =
-      nuts::combine<update, nuts::Direction::Backward>(rng, std::move(span_old),
+  walnuts::SpanW span_old = span_from;
+  walnuts::SpanW span_new = span_to;
+  walnuts::SpanW combined =
+      walnuts::combine<update, walnuts::Direction::Backward>(rng, std::move(span_old),
                                                        std::move(span_new));
 
-  EXPECT_BACKWARD_ENDPOINT_EQUAL(span_to, combined);
-  EXPECT_FORWARD_ENDPOINT_EQUAL(span_from, combined);
+  EXPECT_BACKWARD_ENDPOINT_EQUAL(span_to, combined)
+  EXPECT_FORWARD_ENDPOINT_EQUAL(span_from, combined)
 }
 
 // Tests in the CombineSpansSymmetric suite hold regardless of going forwards or
@@ -128,31 +128,31 @@ TYPED_TEST(CombineSpansSymmetric, MetropolisAcceptsBarkerRejects) {
   constexpr auto direction = TypeParam::value;
 
   span_test::MockRandom rng{0.5};
-  nuts::SpanW<double> span_prev = span_test::dummy_span(1.2);
-  nuts::SpanW<double> span_next = span_test::dummy_span(1.0);
-  double new_logp = nuts::log_sum_exp(span_prev.logp_, span_next.logp_);
+  walnuts::SpanW span_prev = span_test::dummy_span(1.2);
+  walnuts::SpanW span_next = span_test::dummy_span(1.0);
+  double new_logp = walnuts::log_sum_exp(span_prev.logp_, span_next.logp_);
 
   // log(0.5) = -0.3
   // metropolis: 1.2 - 1.0 = 0.2 > -0.3, accepts
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Metropolis, direction>(
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Metropolis, direction>(
             rng, std::move(span_old), std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined)
   }
 
   // barker: 1.2 - logsumexp(1.2, 1.0) = 1.2 - 1.78 = -0.58 < -0.3, rejects
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Barker, direction>(rng, std::move(span_old),
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
                                                        std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
   }
 }
 
@@ -164,30 +164,30 @@ TYPED_TEST(CombineSpansSymmetric, BarkerAndMetropolisBothReject) {
 
   span_test::MockRandom rng{0.5};
 
-  nuts::SpanW<double> span_prev = span_test::dummy_span(1.8);
-  nuts::SpanW<double> span_next = span_test::dummy_span(0.3);
-  double new_logp = nuts::log_sum_exp(span_prev.logp_, span_next.logp_);
+  walnuts::SpanW span_prev = span_test::dummy_span(1.8);
+  walnuts::SpanW span_next = span_test::dummy_span(0.3);
+  double new_logp = walnuts::log_sum_exp(span_prev.logp_, span_next.logp_);
 
   // metropolis: 0.3 - 1.8 = -1.5 < -0.3, rejects
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Metropolis, direction>(
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Metropolis, direction>(
             rng, std::move(span_old), std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
   }
 
   // barker: 0.3 - logsumexp(0.3, 1.8) = 0.3 - 2.00 = -2.00 < -0.3, rejects
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Barker, direction>(rng, std::move(span_old),
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
                                                        std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
   }
 }
 
@@ -195,30 +195,30 @@ TYPED_TEST(CombineSpansSymmetric, BarkerAndMetropolisBothAccept) {
   constexpr auto direction = TypeParam::value;
 
   span_test::MockRandom rng{0.5};
-  nuts::SpanW<double> span_prev = span_test::dummy_span(0.3);
-  nuts::SpanW<double> span_next = span_test::dummy_span(1.8);
-  double new_logp = nuts::log_sum_exp(span_prev.logp_, span_next.logp_);
+  walnuts::SpanW span_prev = span_test::dummy_span(0.3);
+  walnuts::SpanW span_next = span_test::dummy_span(1.8);
+  double new_logp = walnuts::log_sum_exp(span_prev.logp_, span_next.logp_);
 
   // metropolis: 1.8 - 0.3 = 1.5 > -0.3, accepts
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Metropolis, direction>(
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Metropolis, direction>(
             rng, std::move(span_old), std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined)
   }
 
   // barker: 1.8 - logsumexp(0.3, 1.8) = 1.8 - 2.0 = -.2 > -0.3, accepts
   {
-    nuts::SpanW<double> span_old = span_prev;
-    nuts::SpanW<double> span_new = span_next;
-    nuts::SpanW<double> combined =
-        nuts::combine<nuts::Update::Barker, direction>(rng, std::move(span_old),
+    walnuts::SpanW span_old = span_prev;
+    walnuts::SpanW span_new = span_next;
+    walnuts::SpanW combined =
+        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
                                                        std::move(span_new));
 
-    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined);
+    EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined)
   }
 }
 
@@ -238,36 +238,36 @@ TYPED_TEST(CombineSpansUniversal, SelectedPointCameFromSecondSpanOnAcceptance) {
   constexpr auto direction = std::tuple_element_t<0, TypeParam>::value;
   constexpr auto update = std::tuple_element_t<1, TypeParam>::value;
 
-  nuts::SpanW<double> span_prev = span_test::dummy_span(0.3);
-  nuts::SpanW<double> span_next = span_test::dummy_span(0.1);
-  double new_logp = nuts::log_sum_exp(span_prev.logp_, span_next.logp_);
+  walnuts::SpanW span_prev = span_test::dummy_span(0.3);
+  walnuts::SpanW span_next = span_test::dummy_span(0.1);
+  double new_logp = walnuts::log_sum_exp(span_prev.logp_, span_next.logp_);
 
   span_test::MockRandom rng_accept{0};  // always accept
 
-  nuts::SpanW<double> span_old = span_prev;
-  nuts::SpanW<double> span_new = span_next;
-  nuts::SpanW<double> combined = nuts::combine<update, direction>(
+  walnuts::SpanW span_old = span_prev;
+  walnuts::SpanW span_new = span_next;
+  walnuts::SpanW combined = walnuts::combine<update, direction>(
       rng_accept, std::move(span_old), std::move(span_new));
 
-  EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined);
+  EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined)
 }
 
 TYPED_TEST(CombineSpansUniversal, SelectedPointCameFromFirstSpanOnRejection) {
   constexpr auto direction = std::tuple_element_t<0, TypeParam>::value;
   constexpr auto update = std::tuple_element_t<1, TypeParam>::value;
 
-  nuts::SpanW<double> span_prev = span_test::dummy_span(0.3);
-  nuts::SpanW<double> span_next = span_test::dummy_span(0.1);
-  double new_logp = nuts::log_sum_exp(span_prev.logp_, span_next.logp_);
+  walnuts::SpanW span_prev = span_test::dummy_span(0.3);
+  walnuts::SpanW span_next = span_test::dummy_span(0.1);
+  double new_logp = walnuts::log_sum_exp(span_prev.logp_, span_next.logp_);
 
   span_test::MockRandom rng_reject{1};  // always reject
 
-  nuts::SpanW<double> span_old = span_prev;
-  nuts::SpanW<double> span_new = span_next;
-  nuts::SpanW<double> combined = nuts::combine<update, direction>(
+  walnuts::SpanW span_old = span_prev;
+  walnuts::SpanW span_new = span_next;
+  walnuts::SpanW combined = walnuts::combine<update, direction>(
       rng_reject, std::move(span_old), std::move(span_new));
 
-  EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined);
+  EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
 }
 
 // macro clean up

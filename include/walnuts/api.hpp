@@ -1,15 +1,16 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <random>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <walnuts/adapt.hpp>
 #include <walnuts/adaptive_walnuts.hpp>
+#include <walnuts/concepts.hpp>
 #include <walnuts/config.hpp>
 #include <walnuts/sampler.hpp>
 #include <walnuts/walnuts.hpp>

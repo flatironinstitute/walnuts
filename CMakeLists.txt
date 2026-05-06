@@ -14,41 +14,46 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
 endif()
 
 ##########################
-## Cmake Options        ##
+## Topl-Level Options   ##
 ##########################
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
-# Build Types
+option(WALNUTS_USE_IWYU "Enable include-what-you-use analysis" OFF)
+
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
     FORCE)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # Enable -Weverything and other Clang-only warnings
-  # After no-c++98 warnings, rest are to suppress gtest warnings
-  add_compile_options(-Wall -Weverything -Wno-padded
-  -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
-  -Wno-c++98-compat-pedantic -Wno-c++98-compat
-  -Wno-global-constructors -Wno-exit-time-destructors
-  -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
-  -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations
-  -Wno-variadic-macro-arguments-omitted
-  -Wno-reserved-identifier -Wno-unused-function
-  -Wno-missing-prototypes -Wno-documentation)
+  add_compile_options(
+    -Wall -Weverything -Wno-padded
+    -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
+    -Wno-c++98-compat-pedantic -Wno-c++98-compat
+    -Wno-global-constructors -Wno-exit-time-destructors
+    -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
+    -Wno-zero-as-null-pointer-constant -Wno-switch-default
+    -Wno-missing-variable-declarations
+    -Wno-variadic-macro-arguments-omitted
+    -Wno-reserved-identifier -Wno-unused-function
+    -Wno-missing-prototypes -Wno-documentation
+  )
 
-  # Optionally enable IWYU if found
-  find_program(IWYU_PATH NAMES include-what-you-use iwyu)
-  if (IWYU_PATH)
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_PATH};-Xiwyu;--mapping_file=...")
+  if (WALNUTS_USE_IWYU)
+    find_program(IWYU_PATH NAMES include-what-you-use iwyu REQUIRED)
+    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
+      "${IWYU_PATH}"
+      -Xiwyu --no_fwd_decls
+      -Xiwyu --cxx17ns
+      -Xiwyu --quoted_includes_first
+    )
+    message(STATUS "IWYU enabled: ${IWYU_PATH}")
   else()
-    message(STATUS "include-what-you-use not found, skipping IWYU integration.")
+    message(STATUS "IWYU disabled (pass -DWALNUTS_USE_IWYU=ON to enable)")
   endif()
 endif()
-
 
 ##########################
 ## Global Dependencies  ##

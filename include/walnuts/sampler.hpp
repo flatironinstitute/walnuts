@@ -1,27 +1,21 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
 #include <functional>
-#include <iostream>
 #include <latch>
 #include <limits>
-#include <new>
 #include <numeric>
-#include <random>
-#include <stdexcept>
 #include <stop_token>
-#include <string>
 #include <thread>
 #include <vector>
 
 #include <Eigen/Dense>
 
 #include <walnuts/concepts.hpp>
-#include <walnuts/handlers.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/util.hpp>
 
@@ -45,7 +39,8 @@ std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
  * @return The variance.
  */
 double variance(const Eigen::VectorXd& xs) noexcept {
-  return (xs.array() - xs.mean()).square().mean() / (xs.size() - 1);
+  return (xs.array() - xs.mean()).square().mean()
+    / static_cast<double>((xs.size() - 1));
 }
 
 /**

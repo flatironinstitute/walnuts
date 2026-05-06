@@ -22,44 +22,6 @@
 
 namespace walnuts {
 
-/**
- * @brief The step-size adaptation handler for Walnuts.
- */
-class StepAdaptHandler {
- public:
-  /**
-   * @brief Construct a step size adaptation handler from configuration.
-   *
-   * @param[in] init_chain_cfg The initial configuration for a single chain.
-   * @param[in] warmup_cfg The warmup configuration.
-   */
-  StepAdaptHandler(const InitChainConfig& init_chain_cfg,
-                   const WarmupConfig& warmup_cfg)
-      : adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
-              warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
-              warmup_cfg.step_sq_gradient_decay(),
-              warmup_cfg.step_stabilization(),
-              warmup_cfg.step_learn_rate_decay()) {}
-
-  /**
-   * @brief Update with the estimate of step size given the specified
-   * acceptance probability.
-   *
-   * @param[in] accept_prob The observed acceptance probability.
-   */
-  void operator()(double accept_prob) noexcept { adam_.observe(accept_prob); }
-
-  /**
-   * @brief Return the estimated step size.
-   *
-   * @return The estimated step size.
-   */
-  double step_size() const noexcept { return adam_.step_size(); }
-
- private:
-  /** The Adam instance for step size adaptation. */
-  Adam adam_;
-};
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -261,7 +223,11 @@ class AdaptiveWalnuts {
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
-        step_adapt_handler_(init_chain_cfg, warmup_cfg),
+	adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
+              warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
+              warmup_cfg.step_sq_gradient_decay(),
+              warmup_cfg.step_stabilization(),
+              warmup_cfg.step_learn_rate_decay()),
         mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
         min_micro_estimator_(std::pow(2.0, target_depth)) {}
 
@@ -282,12 +248,12 @@ class AdaptiveWalnuts {
     std::size_t depth;
     theta_ = transition_w(
 			  rand_, logp_grad_, inv_mass, chol_mass,
-			  step_adapt_handler_.step_size(),
+			  adam_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
         sampling_cfg_.get().max_hamiltonian_error(), std::move(theta_), depth,
-			  grad_select, logp_select, step_adapt_handler_);
+			  grad_select, logp_select, adam_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(1 << depth);
     handler_.get().on_warmup(theta_, logp_select, step_size(), inv_mass);
@@ -308,7 +274,7 @@ class AdaptiveWalnuts {
     handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
         rand_, handler_, logp_grad_.logp_grad_, theta_,
-        mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
+        inv_mass(), step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
@@ -329,7 +295,7 @@ class AdaptiveWalnuts {
    *
    * @return The step size.
    */
-  double step_size() const { return step_adapt_handler_.step_size(); }
+  double step_size() const { return adam_.step_size(); }
 
   /**
    * @brief Return the minimum number of micro steps per macro step.
@@ -399,9 +365,9 @@ class AdaptiveWalnuts {
   /** The current iteration. */
   std::size_t iteration_;
 
-  /** The handler receiving observations from Walnuts for step size adaptation.
+  /** The Adam optimizer for step size adaptation.
    */
-  StepAdaptHandler step_adapt_handler_;
+  Adam adam_;
 
   /** The estimator for the mass matrix. */
   MassEstimator mass_estimator_;

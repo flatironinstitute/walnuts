@@ -60,7 +60,7 @@ class Adam {
    * @param[in] alpha The acceptance probability.
    * @pre alpha > 0 && alpha < 1
    */
-  void observe(double alpha) noexcept {
+  void operator()(double alpha) noexcept {
     ++t_;
     gradient_decay_pow_ *= gradient_decay_;
     sq_gradient_decay_pow_ *= sq_gradient_decay_;

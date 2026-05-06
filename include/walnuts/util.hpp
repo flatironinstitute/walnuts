@@ -202,8 +202,6 @@ inline double log_sum_exp(const Eigen::VectorXd& x) {
  */
 inline double logp_momentum(const Eigen::VectorXd& rho,
                             const Eigen::VectorXd& inv_mass_diag) {
-  // equiv, but with temporaries: -0.5 *
-  // rho.dot(inv_mass_diag.cwiseProduct(rho));
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
 }
  

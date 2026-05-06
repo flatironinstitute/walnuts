@@ -228,10 +228,13 @@ bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step
   if (num_steps == 1) {
     return true;
   }
+  Eigen::VectorXd theta_next(theta.size()); // declare here to allocate once
+  Eigen::VectorXd rho_next(theta.size());
+  Eigen::VectorXd grad_next(theta.size()); 
   while (num_steps >= 2 * min_micro_steps) {
-    Eigen::VectorXd theta_next = theta;
-    Eigen::VectorXd rho_next = -rho;
-    Eigen::VectorXd grad_next = grad;
+    theta_next = theta;
+    rho_next = -rho;
+    grad_next = grad;
     num_steps /= 2;
     step *= 2;
     if (within_tolerance(logp_grad, inv_mass, step, num_steps, max_error,

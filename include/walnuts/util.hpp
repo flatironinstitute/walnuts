@@ -202,48 +202,6 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
   // rho.dot(inv_mass_diag.cwiseProduct(rho));
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
 }
-
-/**
- * @brief Return `true` if the two spans ordered as specified form a
- * U-turn in the metric determined by the inverse mass matrix.
- *
- * For computing U-turns, the squared distance between two vectors `x` and `y`
- * is defined by the Mahalanobis distance,
- * ```
- * d(x, y)**2 = (x - y)' * inv_mass * (x - y).
- * ```
- * Equivalently, distance is measured in the Euclidean metric with metric
- * tensor given by the mass matrix.
- *
- * If the spans ordered according to `D` are `(span_bk, span_fw)`, let
- * `theta_start` be the first position in `span_bk` and let `theta_end` be
- * the last position of `span_fw`. The U-turn condition will be satisfied if
- * ```
- * theta_start * delta < 0  OR   theta_end * delta < 0,
- * ```
- * where
- * ```
- * delta = inv_mass .* (theta_end - theta_start).
- * ```
- *
- * @tparam D The direction in which to order the spans.
- * @tparam U The type of spans, which must define begin and end positions.
- * @param[in] span1 The first argument span.
- * @param[in] span2 The second argument span.
- * @param[in] inv_mass The inverse mass matrix to determine distances.
- * @return `true` if there is a U-turn between the ends of the ordered spans.
- */
-template <Direction D, class U>
-inline bool uturn(const U& span1, const U& span2,
-                  const Eigen::VectorXd& inv_mass) {
-  auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
-  auto scaled_diff =
-      (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
-          .matrix();
-  return span_fw.rho_fw_.dot(scaled_diff) < 0 ||
-         span_bk.rho_bk_.dot(scaled_diff) < 0;
-}
-
  
 /**
  * @brief A wrapper for a log density and gradient function that traps

@@ -265,16 +265,16 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * @param[in,out] adapters The adaptive samplers for each chain.
  * @return The completed adaptation configuration.
  */
-template <typename Adapter>
+template <AdaptiveSampler A>
 AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-                  std::vector<Adapter>& adapters) {
+                  std::vector<A>& adapters) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    threads.emplace_back(AdaptWorker<Adapter>(
+    threads.emplace_back(AdaptWorker<A>(
         m, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
   }
   std::vector<AdaptSnapshot> latest(init_cfg.num_chains());

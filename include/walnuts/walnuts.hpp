@@ -123,6 +123,48 @@ class SpanW {
   double logp_;
 };
 
+
+/**
+ * @brief Return `true` if the two spans ordered as specified form a
+ * U-turn in the metric determined by the inverse mass matrix.
+ *
+ * For computing U-turns, the squared distance between two vectors `x` and `y`
+ * is defined by the Mahalanobis distance,
+ * ```
+ * d(x, y)**2 = (x - y)' * inv_mass * (x - y).
+ * ```
+ * Equivalently, distance is measured in the Euclidean metric with metric
+ * tensor given by the mass matrix.
+ *
+ * If the spans ordered according to `D` are `(span_bk, span_fw)`, let
+ * `theta_start` be the first position in `span_bk` and let `theta_end` be
+ * the last position of `span_fw`. The U-turn condition will be satisfied if
+ * ```
+ * theta_start * delta < 0  OR   theta_end * delta < 0,
+ * ```
+ * where
+ * ```
+ * delta = inv_mass .* (theta_end - theta_start).
+ * ```
+ *
+ * @tparam D The direction in which to order the spans.
+ * @tparam U The type of spans, which must define begin and end positions.
+ * @param[in] span1 The first argument span.
+ * @param[in] span2 The second argument span.
+ * @param[in] inv_mass The inverse mass matrix to determine distances.
+ * @return `true` if there is a U-turn between the ends of the ordered spans.
+ */
+template <Direction D>
+inline bool uturn(const SpanW& span1, const SpanW& span2,
+                  const Eigen::VectorXd& inv_mass) {
+  auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
+  auto scaled_diff =
+      (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
+          .matrix();
+  return span_fw.rho_fw_.dot(scaled_diff) < 0 ||
+         span_bk.rho_bk_.dot(scaled_diff) < 0;
+}  
+
 /**
  * @brief Return `true` if running the specified number of leapfrog steps
  * is within the maximum error tolerance.
@@ -359,7 +401,7 @@ SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, LogpGrad F, class A>
+template <Direction D, LogpGrad F, StepSizeAdapter A>
 std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                                 const Eigen::VectorXd& inv_mass, double step,
                                 std::size_t max_step_halvings,
@@ -401,7 +443,8 @@ std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
-template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG, class A>
+template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
+	  StepSizeAdapter A>
 std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
                                 const Eigen::VectorXd& inv_mass, double step,
                                 std::size_t depth,
@@ -455,13 +498,14 @@ std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <LogpGrad F, class Rand, class A>
+template <LogpGrad F, class Rand, StepSizeAdapter A>
 Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
     std::size_t max_step_halvings, std::size_t min_micro_steps,
     double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
-    Eigen::VectorXd& theta_grad, double& logp_pos_select, A& adapt_handler) {
+    Eigen::VectorXd& theta_grad, double& logp_pos_select,
+    A& step_size_adapter) {
   Eigen::VectorXd rho = rand.standard_normal_cwise_product(chol_mass);
   Eigen::VectorXd grad(theta.size());
   double logp_pos;
@@ -475,7 +519,7 @@ Eigen::VectorXd transition_w(
       constexpr Direction D = direction;
       auto maybe_next_span = build_span<D>(
           rand, logp_grad, inv_mass, step, depth - 1, max_step_halvings,
-          min_micro_steps, max_error, span_accum, adapt_handler);
+          min_micro_steps, max_error, span_accum, step_size_adapter);
       if (!maybe_next_span) {
         return true;
       }
@@ -505,15 +549,13 @@ Eigen::VectorXd transition_w(
  * it has no body, it will be inlined away at optimization level `-O2` or
  * above.
  */
-class NoOpHandler {
+class NoOpStepSizeAdapter {
  public:
   /**
-   * Do nothing.
+   * Do nothing, ignoring the step size acceptance argument.
    *
-   * @tparam T The type of the functor argument.
    */
-  template <typename T>
-  constexpr void operator()(const T&) const noexcept {
+  constexpr void operator()(double) const noexcept {
     // do nothing
   }
 
@@ -521,7 +563,7 @@ class NoOpHandler {
    * Return an invalid step size.
    */
   double step_size() const {
-    throw std::logic_error("should not call step_size() in NoOpHandler");
+    throw std::logic_error("should not call step_size() in NoOpStepSizeAdapter");
   }
 };
 
@@ -588,7 +630,7 @@ class WalnutsSampler {
         max_step_halvings_(max_step_halvings),
         min_micro_steps_(min_micro_steps),
         max_error_(max_error),
-        no_op_adapt_handler_() {
+        no_op_step_size_adapter_() {
     validate_positive(inv_mass, "inv_mass");
     validate_positive(macro_step_size, "macro_step_size");
     validate_positive(max_nuts_depth, "max_nuts_depth");
@@ -613,7 +655,7 @@ class WalnutsSampler {
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
-                          depth, grad_next, logp_pos, no_op_adapt_handler_);
+                          depth, grad_next, logp_pos, no_op_step_size_adapter_);
     sample_handler_.on_sample(theta_, logp_pos);
     return logp_pos;
   }
@@ -684,7 +726,7 @@ class WalnutsSampler {
   const double max_error_;
 
   /** A handler for adaptation which does nothing. */
-  const NoOpHandler no_op_adapt_handler_;
+  const NoOpStepSizeAdapter no_op_step_size_adapter_;
 };
 
 }  // namespace walnuts

@@ -223,3 +223,48 @@ concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
     { h(accept_prob) } -> std::same_as<void>;
     { ch.step_size() } -> std::convertible_to<double>;
 };
+
+
+
+/**
+ * @brief Concept for an adaptive sampler that tunes parameters during
+ * warmup and produces a fixed-parameter sampler for post-warmup
+ * draws.
+ *
+ * A type `A` satisfies `AdaptiveSampler` if it provides the following
+ * members:
+ *  - `a()` callable on a non-const instance, returning `void`. Each
+ *    call advances the adaptation by one iteration, updating tuning
+ *    parameters and calling back on any chain-local handler.
+ *  - `a.sampler()` callable on a non-const instance, returning a type
+ *    that satisfies the `Sampler` concept. This finalizes adaptation
+ *    and produces a sampler with fixed tuning parameters.
+ *  - `a.step_size()` callable on a const instance, returning a value
+ *    convertible to `double`. Reports the current adapted step size.
+ *  - `a.inv_mass()` callable on a const instance, returning a type
+ *    convertible to `Eigen::VectorXd`. Reports the current diagonal
+ *    inverse mass matrix estimate.
+ *  - `a.dim()` callable on a const instance, returning a value
+ *    convertible to `std::size_t`. Reports the dimensionality of the
+ *    parameter space.
+ *  - `a.iter()` callable on a const instance, returning a value
+ *    convertible to `std::size_t`. Reports the current iteration
+ *    count.
+ *  - `a.log_step_size()` callable on a const instance, returning a
+ *    value convertible to `double`. Reports the log of the current
+ *    adapted step size.
+ *  - `a.log_mass()` callable on a const instance, returning a type
+ *    convertible to `Eigen::VectorXd`. Reports the log of the
+ *    diagonal mass matrix.
+ */
+template <typename A>
+concept AdaptiveSampler = requires(A& a, const A& ca) {
+    { a() } -> std::same_as<void>;
+    { a.sampler() } -> Sampler;
+    { ca.step_size() } -> std::convertible_to<double>;
+    { ca.inv_mass() } -> std::convertible_to<Eigen::VectorXd>;
+    { ca.dim() } -> std::convertible_to<std::size_t>;
+    { ca.iter() } -> std::convertible_to<std::size_t>;
+    { ca.log_step_size() } -> std::convertible_to<double>;
+    { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
+};

@@ -105,7 +105,7 @@ static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
  *
  * @tparam AdaptiveSampler The base sampler being adapted.
  */
-template <class AdaptiveSampler>
+template <AdaptiveSampler A>
 class AdaptWorker {
  public:
   /**
@@ -121,7 +121,7 @@ class AdaptWorker {
    */
   AdaptWorker(std::size_t chain_id, const InitConfig& init_cfg,
               const WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
-              std::latch& start_gate, AdaptiveSampler& adapter)
+              std::latch& start_gate, A& adapter)
       : chain_id_(chain_id),
         init_config_(init_cfg),
         warmup_config_(warmup_cfg),
@@ -182,7 +182,7 @@ class AdaptWorker {
   const WarmupConfig& warmup_config_;
   std::reference_wrapper<Buffer> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
-  std::reference_wrapper<AdaptiveSampler> adapter_;
+  std::reference_wrapper<A> adapter_;
 };
 
 /**

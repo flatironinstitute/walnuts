@@ -157,7 +157,7 @@ class SpanW {
 template <Direction D>
 inline bool uturn(const SpanW& span1, const SpanW& span2,
                   const Eigen::VectorXd& inv_mass) {
-  auto&& [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
+  auto [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   auto scaled_diff =
       (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
           .matrix();
@@ -311,6 +311,10 @@ bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
  * `(x2, x1)`.
  *
+ * The template parameter `T` is generic in order to allow reference
+ * collapsing in callers.  Working through all of the types and forwarding
+ * here, the type of the return 
+ *
  * @tparam D The `Direction` in which to combine the arguments
  * (`Forward` or `Backward`).
  * @tparam T The type of the arguments.
@@ -319,7 +323,7 @@ bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @return The arguments ordered according to `D`.
  */
 template <Direction D, typename T>
-inline auto order_forward_backward(T&& x1, T&& x2) {
+inline std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
   if constexpr (D == Direction::Forward) {
     return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
   } else {  // Direction::Backward

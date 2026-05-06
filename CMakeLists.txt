@@ -158,7 +158,6 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )
-list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "/\\.[^/]*$")
 
 
 find_program(CLANG_FORMAT_BIN clang-format)

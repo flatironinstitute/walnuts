@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <random>
 #include <utility>
@@ -660,7 +661,7 @@ class WalnutsSampler {
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_step_size_adapter_);
-    sample_handler_.on_sample(theta_, logp_pos);
+    sample_handler_.get().on_sample(theta_, logp_pos);
     return logp_pos;
   }
 
@@ -700,7 +701,7 @@ class WalnutsSampler {
   Random<RNG> rand_;
 
   /** Reference to the sampling event handler. */
-  H& sample_handler_;
+  std::reference_wrapper<H> sample_handler_;
 
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F> logp_grad_;

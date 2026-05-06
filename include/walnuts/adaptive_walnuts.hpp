@@ -270,15 +270,16 @@ class AdaptiveWalnuts {
     double logp_select;
     std::size_t depth;
     theta_ = transition_w(
-        rand_, logp_grad_, inv_mass, chol_mass, step_adapt_handler_.step_size(),
+			  rand_, logp_grad_, inv_mass, chol_mass,
+			  step_adapt_handler_.step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
         sampling_cfg_.get().max_hamiltonian_error(), std::move(theta_), depth,
-        grad_select, logp_select, step_adapt_handler_);
+			  grad_select, logp_select, step_adapt_handler_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(1 << depth);
-    handler_.on_warmup(theta_, logp_select, step_size(), inv_mass);
+    handler_.get().on_warmup(theta_, logp_select, step_size(), inv_mass);
     ++iteration_;
   }
 
@@ -293,7 +294,7 @@ class AdaptiveWalnuts {
    * @return The Walnuts sampler with current tuning parameter estimates.
    */
   WalnutsSampler<F, RNG, H> sampler() {
-    handler_.on_warmup_complete(step_size(), inv_mass());
+    handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
         rand_, handler_, logp_grad_.logp_grad_, theta_,
         mass_estimator_.inv_mass_estimate(), step_adapt_handler_.step_size(),
@@ -376,7 +377,7 @@ class AdaptiveWalnuts {
   Random<RNG> rand_;
 
   /** The adaptation and sampling event handler. */
-  H& handler_;
+  std::reference_wrapper<H> handler_;
 
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F> logp_grad_;

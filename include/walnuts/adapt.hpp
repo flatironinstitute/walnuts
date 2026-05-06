@@ -146,19 +146,19 @@ class AdaptWorker {
     publish_snapshot(0);
     std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops
                            // don't trigger on first iteration
-    for (; iter <= warmup_config_.max_iter(); ++iter) {
-      if (iter >= warmup_config_.min_iter() && st.stop_requested()) {
+    for (; iter <= warmup_config_.get().max_iter(); ++iter) {
+      if (iter >= warmup_config_.get().min_iter() && st.stop_requested()) {
         break;  // should we be waiting for min_iter when stop requested?
       }
-      if (iter % warmup_config_.yield_period() == 0) {
+      if (iter % warmup_config_.get().yield_period() == 0) {
         std::this_thread::yield();
       }
       adapter_.get()();  // do the sampling
-      if (iter % warmup_config_.publish_stride() == 0) {
+      if (iter % warmup_config_.get().publish_stride() == 0) {
         publish_snapshot(iter);
       }
     }
-    if (iter % warmup_config_.publish_stride() != 0) {
+    if (iter % warmup_config_.get().publish_stride() != 0) {
       publish_snapshot(iter);
     }
   }
@@ -169,7 +169,7 @@ class AdaptWorker {
     snap.iter = iter;
     snap.log_step = adapter_.get().log_step_size();
     const auto lm = adapter_.get().log_mass();
-    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.dims());
+    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.get().dims());
          ++d) {
       snap.log_mass(d) = lm[d];
       snap.mass(d) = std::exp(lm[d]);
@@ -178,8 +178,8 @@ class AdaptWorker {
   }
 
   std::size_t chain_id_;
-  const InitConfig& init_config_;
-  const WarmupConfig& warmup_config_;
+  std::reference_wrapper<const InitConfig> init_config_;
+  std::reference_wrapper<const WarmupConfig> warmup_config_;
   std::reference_wrapper<Buffer> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   std::reference_wrapper<A> adapter_;

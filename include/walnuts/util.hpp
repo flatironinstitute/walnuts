@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <random>
 #include <ranges>
 #include <type_traits>
@@ -81,7 +82,7 @@ class Random {
    *
    * @return A number between 0 and 1 generated uniformly at random.
    */
-  double uniform_real_01() { return unif_(rng_); }
+  double uniform_real_01() { return unif_(rng_.get()); }
 
   /**
    * @brief Return `true` or `false` uniformly at random.
@@ -91,7 +92,7 @@ class Random {
    *
    * @return A boolean value generated uniformly at random.
    */
-  bool uniform_binary() { return binary_(rng_); }
+  bool uniform_binary() { return binary_(rng_.get()); }
 
   /**
    * @brief Write a vector of random standard normal variables into the out
@@ -106,7 +107,7 @@ class Random {
   void standard_normal(std::size_t n, Eigen::VectorXd& out) {
     out.resize(static_cast<Eigen::Index>(n));
     for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
-      out[i] = normal_(rng_);
+      out[i] = normal_(rng_.get());
     }
   }
 
@@ -129,14 +130,14 @@ class Random {
   Eigen::VectorXd standard_normal_cwise_product(const Eigen::VectorXd& v) {
     Eigen::VectorXd out(v.size());
     for (Eigen::Index i = 0; i < v.size(); ++i) {
-      out[i] = v[i] * normal_(rng_);
+      out[i] = v[i] * normal_(rng_.get());
     }
     return out;
   }
 
  private:
   /** The base random number generator reference. */
-  RNG& rng_;
+  std::reference_wrapper<RNG> rng_;
 
   /** The `uniform([0, 1])` random number generator. */
   std::uniform_real_distribution<double> unif_;

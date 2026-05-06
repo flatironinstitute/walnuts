@@ -22,7 +22,7 @@ function(add_nuts_test TEST_NAME TEST_SOURCE)
     PRIVATE
       gtest_main
       Eigen3::Eigen
-      nuts::nuts
+      walnuts
   )
 
   #  register it with CTest

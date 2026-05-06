@@ -4,9 +4,6 @@ target_compile_options(walnuts_api PRIVATE -O3 -Wall)
 target_compile_options(walnuts_api PRIVATE -fsanitize=thread) 
 target_link_options(walnuts_api PRIVATE -fsanitize=thread) 
 
-get_target_property(IWYU_CHECK walnuts_api CXX_INCLUDE_WHAT_YOU_USE) 
-message(STATUS "walnuts_api IWYU property: ${IWYU_CHECK}") 
-
 if(WALNUTS_BUILD_STAN)
   FetchContent_Declare(
     cli11

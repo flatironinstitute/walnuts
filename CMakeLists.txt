@@ -21,7 +21,6 @@ option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
-option(WALNUTS_USE_IWYU "Enable include-what-you-use analysis" OFF)
 
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
@@ -41,18 +40,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-missing-prototypes -Wno-documentation
   )
 
-  if (WALNUTS_USE_IWYU)
-    find_program(IWYU_PATH NAMES include-what-you-use iwyu REQUIRED)
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
-      "${IWYU_PATH}"
-      -Xiwyu --no_fwd_decls
-      -Xiwyu --cxx17ns
-      -Xiwyu --quoted_includes_first
-    )
-    message(STATUS "IWYU enabled: ${IWYU_PATH}")
-  else()
-    message(STATUS "IWYU disabled (pass -DWALNUTS_USE_IWYU=ON to enable)")
-  endif()
 endif()
 
 ##########################
@@ -116,7 +103,6 @@ endif()
 ## Making Walnuts Library  ##
 #############################
 
-# 1) Define your header-only interface target
 add_library(walnuts INTERFACE)
 target_include_directories(walnuts INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
@@ -129,8 +115,6 @@ if (WALNUTS_USE_MIMALLOC)
     target_link_libraries(walnuts INTERFACE mimalloc-static)
 endif()
 
-# 2) Create the “namespace” alias
-add_library(nuts::nuts ALIAS walnuts)
 
 ##########################
 ##       Examples       ##

@@ -6,21 +6,11 @@
 #include <cstdint>
 #include <utility>
 
+#include <walnuts/concepts.hpp>
 #include <walnuts/padded.hpp>
 
 namespace walnuts {
 
-/**
- * @brief Concept for a nullary factory producing values convertible to `T`.
- *
- * A type `F` satisfies `FactoryFor<F, T>` if it can be invoked with no
- * arguments and the result is convertible to `T`. This is what
- * `TripleBuffer<T>` requires of its initializer functor.
- */
-template <typename F, typename T>
-concept Factory = std::invocable<F> &&
-  std::convertible_to<std::invoke_result_t<F>, T>;
-  
 /*
  * @brief A lock-free, single-producer, single-consumer queue with triple
  * buffering.  See \cite guan2025triplebuffer.

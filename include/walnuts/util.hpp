@@ -6,6 +6,8 @@
 
 #include <Eigen/Dense>
 
+#include <walnuts/concepts.hpp>
+
 namespace walnuts {
 
 #if defined(__has_attribute) && __has_attribute(always_inline)
@@ -242,26 +244,7 @@ inline bool uturn(const U& span1, const U& span2,
          span_bk.rho_bk_.dot(scaled_diff) < 0;
 }
 
-/**
- * @brief Concept for a log density and gradient function.
- *
- * A type `F` satisfies `LogpGrad` if an object of type `const F&` can be
- * called with arguments `(const Eigen::VectorXd&, double&, Eigen::VectorXd&)`
- * and the call returns `void`. The first argument is the position at which
- * to evaluate, and the second and third are output parameters set to the
- * log density and its gradient, respectively.
- *
- * The callable is permitted to throw exceptions; see `ExceptionFreeLogpGrad`
- * for the noexcept variant.
- *
- * @tparam F The callable type to constrain.
- */  
-template <typename F>
-concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x,
-                            double& logp, Eigen::VectorXd& grad) {
-    { f(x, logp, grad) } -> std::same_as<void>;
-};
-  
+ 
 /**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.

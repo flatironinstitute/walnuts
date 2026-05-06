@@ -220,7 +220,7 @@ bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, LogpGrad F, class A>
+template <Direction D, LogpGrad F, StepSizeAdapter A>
 bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                 double step, std::size_t max_step_halvings,
                 std::size_t min_micro_steps, double max_error,
@@ -513,8 +513,18 @@ class NoOpHandler {
    * @tparam T The type of the functor argument.
    */
   template <typename T>
-  constexpr void operator()(const T&) const noexcept {}
+  constexpr void operator()(const T&) const noexcept {
+    // do nothing
+  }
+
+  /**
+   * Return an invalid step size.
+   */
+  double step_size() const {
+    throw std::logic_error("should not call step_size() in NoOpHandler");
+  }
 };
+
 
 /**
  * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.

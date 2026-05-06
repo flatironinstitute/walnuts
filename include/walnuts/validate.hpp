@@ -10,19 +10,7 @@
 
 namespace walnuts {
 
-/**
- * @brief Concept for a stream that reports whether it is open.
- *
- * A type `S` satisfies `OpenableStream` if `s.is_open()` is callable on
- * a const instance and returns a value convertible to `bool`. This
- * matches the interface of standard file streams (`std::ifstream`,
- * `std::ofstream`, `std::fstream`).
- */
-template <typename S>
-concept OpenableStream = requires(const S& s) {
-    { s.is_open() } -> std::convertible_to<bool>;
-};
-  
+ 
 /**
  * @brief Validate that the specified stream is open.
  *

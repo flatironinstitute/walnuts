@@ -162,3 +162,64 @@ concept SampleHandler = requires(H& h,
     { h.on_sample(position, lp) } -> std::same_as<void>;
     { h.on_stop() } -> std::same_as<void>;
 };
+
+/**
+ * @brief Concept for a nullary factory producing values convertible to `T`.
+ *
+ * A type `F` satisfies `FactoryFor<F, T>` if it can be invoked with no
+ * arguments and the result is convertible to `T`. This is what
+ * `TripleBuffer<T>` requires of its initializer functor.
+ */
+template <typename F, typename T>
+concept Factory = std::invocable<F> &&
+  std::convertible_to<std::invoke_result_t<F>, T>;
+  
+/**
+ * @brief Concept for a stream that reports whether it is open.
+ *
+ * A type `S` satisfies `OpenableStream` if `s.is_open()` is callable on
+ * a const instance and returns a value convertible to `bool`. This
+ * matches the interface of standard file streams (`std::ifstream`,
+ * `std::ofstream`, `std::fstream`).
+ */
+template <typename S>
+concept OpenableStream = requires(const S& s) {
+    { s.is_open() } -> std::convertible_to<bool>;
+};
+
+/**
+ * @brief Concept for a log density and gradient function.
+ *
+ * A type `F` satisfies `LogpGrad` if an object of type `const F&` can be
+ * called with arguments `(const Eigen::VectorXd&, double&, Eigen::VectorXd&)`
+ * and the call returns `void`. The first argument is the position at which
+ * to evaluate, and the second and third are output parameters set to the
+ * log density and its gradient, respectively.
+ *
+ * The callable is permitted to throw exceptions; see `ExceptionFreeLogpGrad`
+ * for the noexcept variant.
+ *
+ * @tparam F The callable type to constrain.
+ */  
+template <typename F>
+concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x,
+                            double& logp, Eigen::VectorXd& grad) {
+    { f(x, logp, grad) } -> std::same_as<void>;
+};
+
+/**
+ * @brief Concept for a step size adaptation handler.
+ *
+ * A type `H` satisfies `StepSizeAdapter` if it provides:
+ *  - `h(accept_prob)` callable on a non-const instance with a
+ *    `double` argument, returning `void`. Each call observes one
+ *    acceptance probability and updates the internal estimate.
+ *  - `h.step_size()` callable on a const instance, returning a
+ *    value convertible to `double`. Reports the current adapted
+ *    step size.
+ */
+template <typename H>
+concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
+    { h(accept_prob) } -> std::same_as<void>;
+    { ch.step_size() } -> std::convertible_to<double>;
+};

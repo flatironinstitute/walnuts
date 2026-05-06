@@ -7,6 +7,7 @@
 
 #include <Eigen/Dense>
 
+#include <walnuts/concepts.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
@@ -527,7 +528,7 @@ class NoOpHandler {
  * @tparam RNG The type of the base random number generator.
  * @tparam Handler The type of the sampling event handler.
  */
-template <LogpGrad F, std::uniform_random_bit_generator RNG, class Handler>
+template <LogpGrad F, std::uniform_random_bit_generator RNG, SampleHandler H>
 class WalnutsSampler {
  public:
   /**
@@ -537,7 +538,7 @@ class WalnutsSampler {
    * @param[in,out] rand The randomizer for HMC, which must persist for the
    duration
    * of the class because it is stored by reference.
-   * @param[in,out] handler The sampling event handler.
+   * @param[in,out] sample_handler The sampling and on-stop event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
    * @param[in] theta The initial position.
@@ -561,13 +562,13 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
    */
-  WalnutsSampler(Random<RNG>& rand, Handler& handler, const F& logp_grad,
+  WalnutsSampler(Random<RNG>& rand, H& sample_handler, const F& logp_grad,
                  const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass,
                  double macro_step_size, std::size_t max_nuts_depth,
                  std::size_t max_step_halvings, std::size_t min_micro_steps,
                  double max_error)
       : rand_(rand),
-        handler_(handler),
+        sample_handler_(sample_handler),
         logp_grad_(logp_grad),
         theta_(theta),
         inv_mass_(inv_mass),
@@ -603,7 +604,7 @@ class WalnutsSampler {
                           macro_step_size_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_adapt_handler_);
-    handler_.on_sample(theta_, logp_pos);
+    sample_handler_.on_sample(theta_, logp_pos);
     return logp_pos;
   }
 
@@ -643,7 +644,7 @@ class WalnutsSampler {
   Random<RNG> rand_;
 
   /** Reference to the sampling event handler. */
-  Handler& handler_;
+  H& sample_handler_;
 
   /** The target log density/gradient function. */
   const NoExceptLogpGrad<F> logp_grad_;

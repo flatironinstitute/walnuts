@@ -144,3 +144,21 @@ concept ChainHandler = requires(C& c,
   { c.on_sample(position, lp) } -> std::same_as<void>;
   { c.on_stop() } -> std::same_as<void>;
 };  
+
+/**
+ * @brief Concept for a handler of sampling events.
+ *
+ * A type `H` satisfies `SampleHandler` if it provides the following
+ * member functions, each callable on a non-const instance and
+ * returning `void`:
+ *  - `on_sample(const Eigen::VectorXd&, double)` called once per
+ *    draw with the position and log density.
+ *  - `on_stop()` called when sampling stops.
+ */
+template <typename H>
+concept SampleHandler = requires(H& h,
+                                 const Eigen::VectorXd& position,
+                                 double lp) {
+    { h.on_sample(position, lp) } -> std::same_as<void>;
+    { h.on_stop() } -> std::same_as<void>;
+};

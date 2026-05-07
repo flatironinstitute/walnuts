@@ -280,10 +280,12 @@ class ChainWorker {
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
-template <GlobalHandler GH>
+template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
     std::vector<Padded<AtomicChainStats>>& stats_by_chain,
-    GH& global_handler, double rhat_threshold,
+    GH& global_handler,
+    const IC& interrupt_callback,
+    double rhat_threshold,
     std::latch& start_gate, std::size_t min_draws_per_chain,
     std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -296,6 +298,7 @@ static void controller_loop(
   start_gate.wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
+    interrupt_callback.throw_if_interrupted();
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
@@ -338,8 +341,9 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-template <Sampler S, GlobalHandler GH>
+template <Sampler S, GlobalHandler GH, InterruptCallback IC>
 void sample(std::vector<S>& samplers, GH& global_handler,
+	    const IC& interrupt_callback,
             double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
@@ -352,8 +356,16 @@ void sample(std::vector<S>& samplers, GH& global_handler,
         ChainWorker<S>(min_draws_per_chain, max_draws_per_chain,
 		       samplers[m], stats_by_chain[m].val, start_gate));
   }
-  controller_loop(stats_by_chain, global_handler, rhat_threshold, start_gate,
-                  min_draws_per_chain, max_draws_per_chain);
+  try {
+    controller_loop(stats_by_chain, global_handler, interrupt_callback,
+		    rhat_threshold, start_gate,
+		    min_draws_per_chain, max_draws_per_chain);
+  } catch (const std::exception& e) {
+      for (auto& t : threads) {
+	t.request_stop();
+      }
+      throw(e);
+  }
 }
 
 }  // namespace walnuts

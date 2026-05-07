@@ -119,16 +119,16 @@ class TripleBuffer {
   std::array<T, 3> buffers_;
 
   /** Current front of the buffer, aligned to avoid cache line conflicts. */
-  alignas(CACHE_LINE_SIZE) std::atomic<index_t> front_;
+  alignas(FALSE_SHARING_GUARD_SIZE) std::atomic<index_t> front_;
 
   /** Current spare buffer, aligned to avoid cache line conflicts. */
-  alignas(CACHE_LINE_SIZE) std::atomic<index_t> spare_;
+  alignas(FALSE_SHARING_GUARD_SIZE) std::atomic<index_t> spare_;
 
   /** Current back buffer---only used by writer. */
-  alignas(CACHE_LINE_SIZE) index_t back_;
+  alignas(FALSE_SHARING_GUARD_SIZE) index_t back_;
 
   /** Current read buffer---only used by reader. */
-  alignas(CACHE_LINE_SIZE) index_t read_;
+  alignas(FALSE_SHARING_GUARD_SIZE) index_t read_;
 };
 
 }  // namespace walnuts

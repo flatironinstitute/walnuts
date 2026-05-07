@@ -28,6 +28,7 @@ int main() {
   uint64_t num_chains = 32;
   uint64_t dims = 100;
 
+  walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
@@ -55,10 +56,15 @@ int main() {
   std::cout << sampling_cfg << "\n\n";
 
   // 2) SAMPLE =================================================================
-  walnuts::walnuts(seed, chain_handlers, global_handler, logp_grad, init_cfg,
-                   warmup_cfg, sampling_cfg);
+  walnuts::AdaptResult result
+    = walnuts::walnuts(seed, chain_handlers, global_handler, interrupt_callback,
+		       logp_grad, init_cfg, warmup_cfg, sampling_cfg);
 
   // 3) SUMMARIZE ==============================================================
+  std::cout << "ADAPTATION RESULT: " << "\n";
+  std::cout << "  step_bar = " << result.step_bar << "\n";
+  std::cout << "  mass_bar = " << result.mass_bar.transpose() << "\n\n";
+  
   std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {
     std::cout

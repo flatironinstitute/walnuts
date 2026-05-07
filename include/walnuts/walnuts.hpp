@@ -187,10 +187,11 @@ inline bool uturn(const SpanW& span1, const SpanW& span2,
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <LogpGrad F>
-bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                      double step, std::size_t num_steps, double max_error, double logp_next,
-                      Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
-                      Eigen::VectorXd& grad_next) {
+inline bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
+			     double step, std::size_t num_steps, double max_error,
+			     double logp_next,
+			     Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
+			     Eigen::VectorXd& grad_next) {
   double half_step = 0.5 * step;
   double logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
@@ -221,10 +222,12 @@ bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <LogpGrad F>
-bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step,
-                std::size_t num_steps, std::size_t min_micro_steps, double max_error,
-                double logp_next, const Eigen::VectorXd& theta,
-                const Eigen::VectorXd& rho, const Eigen::VectorXd& grad) {
+inline bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
+		       double step,
+		       std::size_t num_steps, std::size_t min_micro_steps,
+		       double max_error,
+		       double logp_next, const Eigen::VectorXd& theta,
+		       const Eigen::VectorXd& rho, const Eigen::VectorXd& grad) {
   if (num_steps == 1) {
     return true;
   }
@@ -272,7 +275,7 @@ bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass, double step
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
-bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
+inline bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                 double step, std::size_t max_step_halvings,
                 std::size_t min_micro_steps, double max_error,
                 const SpanW& span, Eigen::VectorXd& theta_next,
@@ -361,7 +364,7 @@ inline std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
  * @return The combined span.
  */
 template <Update U, Direction D, std::uniform_random_bit_generator RNG>
-SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
+inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
   double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   double log_denominator;
   if constexpr (U == Update::Metropolis) {
@@ -510,7 +513,7 @@ std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @return The next position in the Markov chain.
  */
 template <LogpGrad F, class Rand, StepSizeAdapter A>
-Eigen::VectorXd transition_w(
+inline Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
     std::size_t max_step_halvings, std::size_t min_micro_steps,

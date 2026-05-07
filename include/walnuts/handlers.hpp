@@ -1,10 +1,12 @@
 #pragma once
 
 #include <concepts>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -15,6 +17,40 @@
 
 namespace walnuts {
 
+// namespace for internal linkage; static undefined with extern "C"
+namespace {  
+  /**
+   * @brief Internal flag with value `true` if C++ received `SIGINT`.
+   */
+  std::atomic<bool> interrupted{false};
+
+  extern "C" void handle_sigint(int) {
+    interrupted = true;
+  }
+}
+
+  
+/**
+ * @brief An interrupt callback for C++.
+ */
+class CppInterruptCallback {
+public:
+  /**
+   * @brief Construct an interrupt callback for C++.
+   */
+  CppInterruptCallback() {
+    std::signal(SIGINT, handle_sigint);
+  }
+  /**
+   * @brief Throw an exception if C++ signaled an interrupt.
+   */
+  void throw_if_interrupted() const {
+    if (interrupted.load()) {
+      throw std::runtime_error("C++ was interrupted with SIGINT");
+    }	
+  }
+};
+  
 /**
  * @brief A handler that stores global events.
  */

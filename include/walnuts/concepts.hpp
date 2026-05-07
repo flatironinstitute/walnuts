@@ -102,23 +102,49 @@ concept Sampler = requires(S& s, const S& cs) {
 /**
  * @brief Concept for a handler of cross-chain events.
  *
+ * This only handles R-hat updates now.
+ *
  * A type `H` satisfies `Handler` if it provides:
  *  - `on_r_hat(double)` callable on a non-const instance, returning `void`,
- *  - `r_hats()` callable on a const instance, returning a reference to a
- *    `std::vector<double>`.
- *
- * The `r_hats()` accessor must be callable on a const instance so that
- * consumers with only const access to the handler can read the recorded
- * values.
+ *  - `received_interrupt()` called when sampling or warmup should stop.
  */
 template <typename H>
 concept GlobalHandler = requires(H& h, const H& ch, double r_hat) {
   { h.on_r_hat(r_hat) } -> std::same_as<void>;
-  { ch.r_hats() } -> std::same_as<const std::vector<double>&>;
 };
 
 /**
- * @brief Concept for a handler of chain-specific events.
+ * @brief Concept for an interrupt callback.
+ *
+ * A type `H` satisfies `Handler` if it provides:
+ *  - `received_interrupt()` will return `true` if the process should
+ *    be interrupted.
+ */
+template <typename H>
+concept InterruptCallback = requires(H& h, const H& ch, double r_hat) {
+  { h.throw_if_interrupted() } -> std::same_as<void>;
+};
+
+/**
+ * @brief Concept for a handler of sampling events.
+ *
+ * A type `H` satisfies `SampleHandler` if it provides the following
+ * member functions, each callable on a non-const instance and
+ * returning `void`:
+ *  - `on_sample(const Eigen::VectorXd&, double)` called once per
+ *    draw with the position and log density.
+ */
+template <typename H>
+concept SampleHandler = requires(H& h,
+                                 const Eigen::VectorXd& position,
+                                 double lp) {
+    { h.on_sample(position, lp) } -> std::same_as<void>;
+};
+
+/**
+ * @brief An extension of the `SampleHandler` concept for additionally
+ * handling warmup events.
+ * 
  *
  * A type `C` satisfies `ChainHandler` if it provides the following
  * member functions, each callable on a non-const instance and returning
@@ -131,39 +157,19 @@ concept GlobalHandler = requires(H& h, const H& ch, double r_hat) {
  *    mass matrix.
  *  - `on_sample(const Eigen::VectorXd&, double)` called once per
  *    post-warmup draw with the position and log density.
- *  - `on_stop()` called when sampling stops.
  */
 template <typename C>
-concept ChainHandler = requires(C& c,
-                                const Eigen::VectorXd& position,
-                                const Eigen::VectorXd& diag_inv_mass,
-                                double lp,
-                                double step_size) {
+concept ChainHandler = SampleHandler<C>
+                       && requires(C& c,
+				   const Eigen::VectorXd& position,
+				   const Eigen::VectorXd& diag_inv_mass,
+				   double lp,
+				   double step_size) {
   { c.on_warmup(position, lp, step_size, diag_inv_mass) }
         -> std::same_as<void>;
   { c.on_warmup_complete(step_size, diag_inv_mass) }
         -> std::same_as<void>;
-  { c.on_sample(position, lp) } -> std::same_as<void>;
-  { c.on_stop() } -> std::same_as<void>;
 };  
-
-/**
- * @brief Concept for a handler of sampling events.
- *
- * A type `H` satisfies `SampleHandler` if it provides the following
- * member functions, each callable on a non-const instance and
- * returning `void`:
- *  - `on_sample(const Eigen::VectorXd&, double)` called once per
- *    draw with the position and log density.
- *  - `on_stop()` called when sampling stops.
- */
-template <typename H>
-concept SampleHandler = requires(H& h,
-                                 const Eigen::VectorXd& position,
-                                 double lp) {
-    { h.on_sample(position, lp) } -> std::same_as<void>;
-    { h.on_stop() } -> std::same_as<void>;
-};
 
 /**
  * @brief Concept for a nullary factory producing values convertible to `T`.

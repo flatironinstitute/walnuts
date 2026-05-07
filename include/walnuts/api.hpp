@@ -33,17 +33,18 @@ namespace walnuts {
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
-template <ChainHandler H, GlobalHandler GH, LogpGrad F>
-void walnuts(std::uint32_t seed, std::vector<H>& handlers,
-             GH& global_handler, const F& log_p_grad,
-             const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-             const SamplingConfig& sampling_cfg) {
+template <ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
+AdaptResult walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
+		    GH& global_handler, const IC& interrupt_callback,
+		    const F& log_p_grad,
+		    const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
+		    const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, H>;
   using Sampler = WalnutsSampler<F, std::mt19937, H>;
 
-  if (handlers.size() != init_cfg.num_chains()) {
+  if (chain_handlers.size() != init_cfg.num_chains()) {
     throw std::invalid_argument(
-        "handlers.size() must be equal to init_cfg.num_chains()");
+        "chain_handlers.size() must be equal to init_cfg.num_chains()");
   }
 
   std::vector<std::mt19937> rngs(0);
@@ -55,21 +56,24 @@ void walnuts(std::uint32_t seed, std::vector<H>& handlers,
   std::vector<AdaptiveSampler> adapters;
   adapters.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    adapters.emplace_back(rngs[m], handlers[m], log_p_grad,
+    adapters.emplace_back(rngs[m], chain_handlers[m], log_p_grad,
                           init_cfg.position(m), init_cfg.init_chain_config(m),
                           warmup_cfg, sampling_cfg,
                           std::log2(warmup_cfg.max_macro_steps_target()));
   }
   AdaptResult adapt_result =
-      adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters);
+    adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }
 
-  sample(samplers, global_handler, sampling_cfg.rhat_converge_tol(),
+  sample(samplers, global_handler, interrupt_callback,
+	 sampling_cfg.rhat_converge_tol(),
          sampling_cfg.min_iter(), sampling_cfg.max_iter());
+
+  return adapt_result;
 }
 
 }  // namespace walnuts

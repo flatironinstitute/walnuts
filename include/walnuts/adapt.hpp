@@ -22,7 +22,7 @@ namespace walnuts {
  * @brief A struct to represent a snapshot of the adaptation process
  * in a single chain.
  */
-struct alignas(CACHE_LINE_SIZE) AdaptSnapshot {
+struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
   /**
    * @brief Construct an adaptation snapshot of size 0.
    */
@@ -144,8 +144,8 @@ class AdaptWorker {
     std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops
                            // don't trigger on first iteration
     for (; iter <= warmup_config_.get().max_iter(); ++iter) {
-      if (iter >= warmup_config_.get().min_iter() && st.stop_requested()) {
-        break;  // should we be waiting for min_iter when stop requested?
+      if (st.stop_requested()) {
+        break;
       }
       if (iter % warmup_config_.get().yield_period() == 0) {
         std::this_thread::yield();
@@ -199,21 +199,24 @@ struct AdaptResult {
  * @param[in] warmup_cfg The warmup configuration.
  * @return Statistics for the completed adaptation process.
  */
+template <InterruptCallback IC>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
                                    std::vector<AdaptSnapshot>& latest,
+				   const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
-                                   const WarmupConfig& warmup_cfg) {
+                                   const WarmupConfig& warmup_cfg) { 
+  // const InterruptCallBack& global_handler) {
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
 
-  auto probe_period =
-      std::chrono::microseconds(warmup_cfg.probe_microseconds());
+  auto probe_period = warmup_cfg.probe_duration();
   auto next = std::chrono::steady_clock::now() + probe_period;
 
   Eigen::VectorXd mean_log_mass(D);
   Eigen::VectorXd geom_mean_mass(D);
   Eigen::VectorXd scratch_mass(D);
   while (true) {
+    interrupt_callback.throw_if_interrupted();
     mean_log_mass.setZero();
     double mean_log_step = 0.0;
     std::size_t min_iter = std::numeric_limits<std::size_t>::max();
@@ -242,7 +245,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     bool converged = enough_iters &&
                      max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
                      max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
-    bool hit_max_iter = min_iter >= warmup_cfg.max_iter();
+    bool hit_max_iter = min_iter == warmup_cfg.max_iter();
     if (converged || hit_max_iter) {
       return {geom_mean_mass, std::exp(mean_log_step)};
     }
@@ -262,9 +265,9 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * @param[in,out] adapters The adaptive samplers for each chain.
  * @return The completed adaptation configuration.
  */
-template <AdaptiveSampler A>
+template <AdaptiveSampler A, InterruptCallback IC>
 AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-                  std::vector<A>& adapters) {
+                  std::vector<A>& adapters, const IC& interrupt_callback) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
@@ -276,12 +279,18 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   }
   std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   start_gate.arrive_and_wait();
-  AdaptResult result = controller_loop(buffers, latest, init_cfg, warmup_cfg);
-  for (auto& t : threads) {
-    t.request_stop();
+  AdaptResult result;
+  try {
+    result = controller_loop(buffers, latest, interrupt_callback,
+			     init_cfg, warmup_cfg);
+  } catch (const std::exception& e) {
+    for (auto& t : threads) {
+      t.request_stop();
+    }
+    throw(e);
   }
   for (auto& t : threads) {
-    t.join();
+    t.request_stop();
   }
   return result;
 }

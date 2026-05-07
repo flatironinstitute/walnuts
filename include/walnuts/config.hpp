@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <ostream>
 #include <random>
@@ -72,6 +73,7 @@ class InitChainConfig {
  */
 class InitConfig {
  public:
+
   /**
    * @brief Return the number of chains.
    *
@@ -158,6 +160,25 @@ class InitConfig {
  private:
   friend class InitConfigBuilder;
 
+  /**
+   * @brief Construct an initialization configuration.
+   *
+   * This constructor does not validate arguments because it is only
+   * called internally.  It only implements rvalue moves because that
+   * is the only way it is called.
+   *
+   * @param step_sizes The step sizes.
+   * @param positions The positions.
+   * @param masses The diagonals of the diagonal mass matrixes.
+   */
+  InitConfig(std::vector<double>&& step_sizes,
+	     std::vector<Eigen::VectorXd>&& positions,
+	     std::vector<Eigen::VectorXd>&& masses):
+    step_sizes_(std::move(step_sizes)),
+    positions_(std::move(positions)),
+    masses_(std::move(masses)) {
+  }
+      
   InitConfig() = default;
 
   std::vector<double> step_sizes_;
@@ -415,11 +436,9 @@ class InitConfigBuilder {
    * @return The initialization configuration.
    */
   InitConfig build() {
-    InitConfig cfg;
-    cfg.step_sizes_ = std::move(step_sizes_);
-    cfg.positions_ = std::move(positions_);
-    cfg.masses_ = std::move(masses_);
-    return cfg;
+    return InitConfig{std::move(step_sizes_),
+	std::move(positions_),
+	std::move(masses_)};
   }
 
  private:
@@ -564,6 +583,20 @@ class WarmupConfig {
    */
   std::size_t probe_microseconds() const { return probe_microseconds_; }
 
+  /**
+   * @brief Return the delay before starting another probe for convergence
+   * as a duration. 
+   *
+   * The type of return is an the return `std::delay` type used as the
+   * return type of `std::chrono::microseconds`.
+   *
+   * @return The delay before starting another probe for convergence
+   * as a duration. 
+   */
+  auto probe_duration() const {
+    return std::chrono::microseconds(probe_microseconds());
+  }
+  
   /**
    * @brief Return the period at which threads for chains yield.
    *

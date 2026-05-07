@@ -22,28 +22,6 @@
 namespace walnuts {
 
 /**
- * @brief Return the sum of the sizes in the vector.
- *
- * @param[in] xs The vector to sum.
- * @return The sum.
- */
-std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
-  return std::transform_reduce(xs.begin(), xs.end(), std::size_t(0),
-                               std::plus<>{}, std::identity());
-}
-
-/**
- * @brief Return the bias-adjusted sample variance estimate.
- *
- * @param[in] xs The vector whose variance is required.
- * @return The variance.
- */
-double variance(const Eigen::VectorXd& xs) noexcept {
-  return (xs.array() - xs.mean()).square().mean()
-    / static_cast<double>((xs.size() - 1));
-}
-
-/**
  * @brief A struct to hold the within chain summary statistics for
  * R-hat.
  *
@@ -342,7 +320,7 @@ static void controller_loop(
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
 template <Sampler S, GlobalHandler GH, InterruptCallback IC>
-void sample(std::vector<S>& samplers, GH& global_handler,
+inline void sample(std::vector<S>& samplers, GH& global_handler,
 	    const IC& interrupt_callback,
             double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {

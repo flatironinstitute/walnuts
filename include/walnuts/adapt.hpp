@@ -266,7 +266,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * @return The completed adaptation configuration.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
-AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
+inline AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
                   std::vector<A>& adapters, const IC& interrupt_callback) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());

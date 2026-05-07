@@ -7,8 +7,6 @@
 #include <random>
 #include <type_traits>
 
-#include <sys/qos.h> 
-
 #include <Eigen/Dense>
 
 #include <walnuts/concepts.hpp>
@@ -258,7 +256,7 @@ class NoExceptLogpGrad {
  * @return The gradient of the log density at `theta`.
  */
 template <LogpGrad F>
-Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
+inline Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
   Eigen::VectorXd g;
   double logp;
   logp_grad(theta, logp, g);
@@ -275,9 +273,31 @@ Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
  * @param[in] b The baseline vector.
  * @return The relative difference
  */
-static double l2_rel_diff(const Eigen::VectorXd& a,
+inline double l2_rel_diff(const Eigen::VectorXd& a,
                           const Eigen::VectorXd& b) noexcept {
   return ((a - b).array() / b.array()).matrix().norm();
 }
 
+/**
+ * @brief Return the sum of the sizes in the vector.
+ *
+ * @param[in] xs The vector to sum.
+ * @return The sum.
+ */
+inline std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
+  return std::transform_reduce(xs.begin(), xs.end(), std::size_t(0),
+                               std::plus<>{}, std::identity());
+}
+
+/**
+ * @brief Return the bias-adjusted sample variance estimate.
+ *
+ * @param[in] xs The vector whose variance is required.
+ * @return The variance.
+ */
+inline double variance(const Eigen::VectorXd& xs) noexcept {
+  return (xs.array() - xs.mean()).square().mean()
+    / static_cast<double>((xs.size() - 1));
+}
+  
 }  // namespace walnuts

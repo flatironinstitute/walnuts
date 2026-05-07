@@ -9,6 +9,82 @@
 
 namespace walnuts {
 
+
+/**
+ * @brief Accumulator for online mean and smaple variance calculations.
+ *
+ * Welford's algorithm stores sufficient statistics with which to
+ * compute a running mean and sample variance The accumulator stores
+ * only three sufficient statistics: a `std::size_t` and two `double`
+ * values.  The algorithm is more numerically stable for variance
+ * calculations than the naive algorithm.
+ */
+class WelfordAccumulator {
+ public:
+  /**
+   * @brief Construct an accumulator with no observed values.
+   */
+  WelfordAccumulator() : n_(0), mean_(0.0), M2_(0.0) {}
+
+  /**
+   * @brief Observe a value.
+   *
+   * @param[in] x The observed value.
+   */
+  void observe(double x) {
+    ++n_;
+    const double delta = x - mean_;
+    mean_ += delta / static_cast<double>(n_);
+    const double delta2 = x - mean_;
+    M2_ += delta * delta2;
+  }
+
+  /**
+   * @brief Return the number of values observed.
+   *
+   * @return The number of values observed.
+   */
+  std::size_t count() const { return n_; }
+
+  /**
+   * @brief Return the mean of all of the values observed, or 0
+   * if no values have been observed.
+   *
+   * @return The mean of the observed values.
+   */
+  double mean() const { return mean_; }
+
+  /**
+   * @brief Return the sample variance of the observed values.
+   *
+   * The sample variance is the unbiased estimator of variance.
+   * It divides by number of observations minus one.  Thus if
+   * there have been fewer than two observations, the sample
+   * variance is undefined and `NaN` will be returned.
+   *
+   * @return The sample variance of the observed values.
+   */
+  double sample_variance() const {
+    return n_ > 1 ? (M2_ / static_cast<double>(n_ - 1))
+                  : std::numeric_limits<double>::quiet_NaN();
+  }
+
+  /**
+   * @brief Reset the accumulator to its initial state of having seen
+   * zero observations.
+   */
+  void reset() {
+    n_ = 0;
+    mean_ = 0.0;
+    M2_ = 0.0;
+  }
+
+ private:
+  std::size_t n_;
+  double mean_;
+  double M2_;
+};
+  
 /**
  * @brief An accumulator estimating discounted means and variances online.
  *

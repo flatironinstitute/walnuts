@@ -135,7 +135,7 @@ class ChainWorker {
     interactive_qos();  // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 1;
-         iter <= max_draws_ && !(iter >= min_draws_ && st.stop_requested());
+         iter <= max_draws_ && !st.stop_requested();
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
@@ -192,7 +192,6 @@ static void controller_loop(
   start_gate.wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
-    interrupt_callback.throw_if_interrupted();
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
@@ -212,9 +211,10 @@ static void controller_loop(
       global_handler.on_r_hat(r_hat);
       std::size_t num_draws = sum(counts);
       if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-        break;
+        return;
       }
     }
+    interrupt_callback.throw_if_interrupted();
     std::this_thread::sleep_until(next);
     next += eval_period;
   }

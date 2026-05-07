@@ -83,7 +83,7 @@ class Random {
    *
    * @return A number between 0 and 1 generated uniformly at random.
    */
-  double uniform_real_01() { return unif_(rng_.get()); }
+  double uniform_real_01() { return unif_(rng_); }
 
   /**
    * @brief Return `true` or `false` uniformly at random.
@@ -93,7 +93,7 @@ class Random {
    *
    * @return A boolean value generated uniformly at random.
    */
-  bool uniform_binary() { return binary_(rng_.get()); }
+  bool uniform_binary() { return binary_(rng_); }
 
   /**
    * @brief Write a vector of random standard normal variables into the out
@@ -108,7 +108,7 @@ class Random {
   void standard_normal(std::size_t n, Eigen::VectorXd& out) {
     out.resize(static_cast<Eigen::Index>(n));
     for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
-      out[i] = normal_(rng_.get());
+      out[i] = normal_(rng_);
     }
   }
 
@@ -131,14 +131,14 @@ class Random {
   Eigen::VectorXd standard_normal_cwise_product(const Eigen::VectorXd& v) {
     Eigen::VectorXd out(v.size());
     for (Eigen::Index i = 0; i < v.size(); ++i) {
-      out[i] = v[i] * normal_(rng_.get());
+      out[i] = v[i] * normal_(rng_);
     }
     return out;
   }
 
  private:
   /** The base random number generator reference. */
-  std::reference_wrapper<RNG> rng_;
+  RNG& rng_;  // not std::reference_wrapper to prevent copying
 
   /** The `uniform([0, 1])` random number generator. */
   std::uniform_real_distribution<double> unif_;
@@ -182,6 +182,9 @@ inline double log_sum_exp(const double& x1, const double& x2) {
 inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
   double m = x.maxCoeff();
+  if (std::isinf(m) && m < 0) {
+    return m; // all x[i] = -inf
+  }
   return m + log((x.array() - m).exp().sum());
 }
 
@@ -255,8 +258,7 @@ class NoExceptLogpGrad {
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
-template <LogpGrad F>
-inline Eigen::VectorXd grad(const F& logp_grad, const Eigen::VectorXd& theta) {
+inline Eigen::VectorXd grad(const LogpGrad auto& logp_grad, const Eigen::VectorXd& theta) {
   Eigen::VectorXd g;
   double logp;
   logp_grad(theta, logp, g);

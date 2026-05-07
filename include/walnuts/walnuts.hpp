@@ -131,6 +131,35 @@ class SpanW {
 
 
 /**
+ * @brief Return a tuple of the arguments ordered by direction.
+
+ * The arguments are forwarded as is the returned tuple and returned
+ * by reference, so function arguments must stay in scope.  If the
+ * template argument `D` is `Direction::Forward`, then the tuple is
+ * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
+ * `(x2, x1)`.
+ *
+ * The template parameter `T` is generic in order to allow reference
+ * collapsing in callers.  Working through all of the types and forwarding
+ * here, the type of the return 
+ *
+ * @tparam D The `Direction` in which to combine the arguments
+ * (`Forward` or `Backward`).
+ * @tparam T The type of the arguments.
+ * @param[in] x1 The first argument.
+ * @param[in] x2 The second argument.
+ * @return The arguments ordered according to `D`.
+ */
+template <Direction D, typename T>
+static std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
+  if constexpr (D == Direction::Forward) {
+    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
+  } else {  // Direction::Backward
+    return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
+  }
+}
+
+/**
  * @brief Return `true` if the two spans ordered as specified form a
  * U-turn in the metric determined by the inverse mass matrix.
  *
@@ -314,35 +343,6 @@ static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
 }
 
 /**
- * @brief Return a tuple of the arguments ordered by direction.
-
- * The arguments are forwarded as is the returned tuple and returned
- * by reference, so function arguments must stay in scope.  If the
- * template argument `D` is `Direction::Forward`, then the tuple is
- * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
- * `(x2, x1)`.
- *
- * The template parameter `T` is generic in order to allow reference
- * collapsing in callers.  Working through all of the types and forwarding
- * here, the type of the return 
- *
- * @tparam D The `Direction` in which to combine the arguments
- * (`Forward` or `Backward`).
- * @tparam T The type of the arguments.
- * @param[in] x1 The first argument.
- * @param[in] x2 The second argument.
- * @return The arguments ordered according to `D`.
- */
-template <Direction D, typename T>
-static std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
-  if constexpr (D == Direction::Forward) {
-    return std::forward_as_tuple(std::forward<T>(x1), std::forward<T>(x2));
-  } else {  // Direction::Backward
-    return std::forward_as_tuple(std::forward<T>(x2), std::forward<T>(x1));
-  }
-}  
-
-/**
  * @brief Return the specified spans combined into a new span and update
  * the selected position.
  *
@@ -513,7 +513,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @return The next position in the Markov chain.
  */
 template <LogpGrad F, class Rand, StepSizeAdapter A>
-static inline Eigen::VectorXd transition_w(
+inline Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
     std::size_t max_step_halvings, std::size_t min_micro_steps,
@@ -609,7 +609,7 @@ class WalnutsSampler {
    * class documentation.
    * @param[in] theta The initial position.
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
-   * @param[in] macro_step_size The initial (largest) step size.
+   * @param[in] macro_time The macro time discretization interval.  
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
    * NUTS.
    * @param[in] max_step_halvings The maximum number of times the step size is
@@ -620,7 +620,7 @@ class WalnutsSampler {
    * allowed in Hamiltonian trajectories.
    * @throw std::invalid_argument If `inv_mass_matrix` has non-positive or
    * infinite entries.
-   * @throw std::invalid_argument If `macro_step_size` is not positive or not
+   * @throw std::invalid_argument If `macro_time` is not positive or not
    * finite.
    * @throw std::invalid_argument If `max_nuts_depth` is not positive.
    * @throw std::invalid_argument If `max_step_halvings` is not positive.
@@ -630,7 +630,7 @@ class WalnutsSampler {
    */
   WalnutsSampler(Random<RNG>& rand, H& sample_handler, const F& logp_grad,
                  const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass,
-                 double macro_step_size, std::size_t max_nuts_depth,
+                 double macro_time, std::size_t max_nuts_depth,
                  std::size_t max_step_halvings, std::size_t min_micro_steps,
                  double max_error)
       : rand_(rand),
@@ -639,14 +639,14 @@ class WalnutsSampler {
         theta_(theta),
         inv_mass_(inv_mass),
         cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
-        macro_step_size_(macro_step_size),
+        macro_time_(macro_time),
         max_nuts_depth_(max_nuts_depth),
         max_step_halvings_(max_step_halvings),
         min_micro_steps_(min_micro_steps),
         max_error_(max_error),
         no_op_step_size_adapter_() {
     validate_positive(inv_mass, "inv_mass");
-    validate_positive(macro_step_size, "macro_step_size");
+    validate_positive(macro_time, "macro_time");
     validate_positive(max_nuts_depth, "max_nuts_depth");
     validate_positive(max_step_halvings, "max_step_halvings");
     validate_positive(min_micro_steps, "min_micro_steps");
@@ -667,7 +667,7 @@ class WalnutsSampler {
     Eigen::VectorXd grad_next;
     double logp_pos;
     theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
-                          macro_step_size_, max_nuts_depth_, max_step_halvings_,
+                          macro_time_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_step_size_adapter_);
     sample_handler_.get().on_sample(theta_, logp_pos);
@@ -688,11 +688,11 @@ class WalnutsSampler {
   }
 
   /**
-   * @brief Return the macro (largest) step size.
+   * @brief Return the macro time discretization interval for Nuts.
    *
-   * @return The largest step size.
+   * @return The time discretization interval for Nuts.
    */
-  double macro_step_size() const noexcept { return macro_step_size_; }
+  double macro_time() const noexcept { return macro_time_; }
 
   /**
    * @brief Return the maximum error allowed among Hamiltonians.
@@ -724,8 +724,8 @@ class WalnutsSampler {
   /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
   Eigen::VectorXd cholesky_mass_;
 
-  /** The initial step size. */
-  const double macro_step_size_;
+  /** The macro time discretization interval for Nuts. */
+  const double macro_time_;
 
   /** The maximum number of doublings in NUTS trajectories. */
   const std::size_t max_nuts_depth_;

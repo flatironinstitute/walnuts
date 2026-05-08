@@ -34,11 +34,11 @@ namespace walnuts {
  * the initialization configuration's number of chains.
  */
 template <ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
-AdaptResult walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
-		    GH& global_handler, const IC& interrupt_callback,
-		    const F& log_p_grad,
-		    const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-		    const SamplingConfig& sampling_cfg) {
+void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
+	     GH& global_handler, const IC& interrupt_callback,
+	     const F& log_p_grad,
+	     const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
+	     const SamplingConfig& sampling_cfg) {
   using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, H>;
   using Sampler = WalnutsSampler<F, std::mt19937, H>;
 
@@ -61,8 +61,7 @@ AdaptResult walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
                           warmup_cfg, sampling_cfg,
                           std::log2(warmup_cfg.max_macro_steps_target()));
   }
-  AdaptResult adapt_result =
-    adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters, interrupt_callback);
+  adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
@@ -72,8 +71,6 @@ AdaptResult walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
   sample(samplers, global_handler, interrupt_callback,
 	 sampling_cfg.rhat_converge_tol(),
          sampling_cfg.min_iter(), sampling_cfg.max_iter());
-
-  return adapt_result;
 }
 
 }  // namespace walnuts

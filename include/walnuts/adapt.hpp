@@ -263,11 +263,10 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * @param[in] init_cfg The initial configuration.
  * @param[in] warmup_cfg The warmup configuration.
  * @param[in,out] adapters The adaptive samplers for each chain.
- * @return The completed adaptation configuration.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
-AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-                  std::vector<A>& adapters, const IC& interrupt_callback) {
+void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
+	   std::vector<A>& adapters, const IC& interrupt_callback) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
@@ -292,7 +291,6 @@ AdaptResult adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   for (auto& t : threads) {
     t.request_stop();
   }
-  return result;
 }
 
 }  // namespace walnuts

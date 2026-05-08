@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -10,6 +11,29 @@
 #include "walnuts/api.hpp"
 #include "walnuts/config.hpp"
 #include "walnuts/handlers.hpp"
+
+double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
+  if (handlers.size() == 0) {
+    return 0.0;
+  }
+  double sum = 0;
+  for (const auto& handler : handlers) {
+    sum += std::log(handler.step_size());
+  }
+  return std::exp(sum / handlers.size());
+}
+
+Eigen::VectorXd geom_mean_inv_mass(const std::vector<walnuts::ChainStore>& handlers) {
+  if (handlers.size() == 0) {
+    return{};
+  }
+  Eigen::VectorXd sum(handlers[0].diag_inv_mass().rows());
+  for (const auto& handler : handlers) {
+    sum += handler.diag_inv_mass().array().log().matrix();
+  }
+  return (sum / handlers.size()).array().exp().matrix();
+}
+
 
 // 0) TARGET DENSITY ===========================================================
 static void std_normal(const Eigen::VectorXd& x, double& lp,
@@ -56,14 +80,16 @@ int main() {
   std::cout << sampling_cfg << "\n\n";
 
   // 2) SAMPLE =================================================================
-  walnuts::AdaptResult result
-    = walnuts::walnuts(seed, chain_handlers, global_handler, interrupt_callback,
-		       logp_grad, init_cfg, warmup_cfg, sampling_cfg);
+  // output sent to handlers
+  walnuts::walnuts(seed, chain_handlers, global_handler, interrupt_callback,
+		   logp_grad, init_cfg, warmup_cfg, sampling_cfg);
 
   // 3) SUMMARIZE ==============================================================
   std::cout << "ADAPTATION RESULT: " << "\n";
-  std::cout << "  step_bar = " << result.step_bar << "\n";
-  std::cout << "  mass_bar = " << result.mass_bar.transpose() << "\n\n";
+  std::cout << "  geom_mean(step_size) = "
+	    << geom_mean_step(chain_handlers) << "\n";
+  std::cout << "  geom_mean(inv_mass) = "
+	    << geom_mean_inv_mass(chain_handlers).transpose() << "\n\n";
   
   std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {

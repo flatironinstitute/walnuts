@@ -34,7 +34,7 @@ namespace walnuts {
  * the initialization configuration's number of chains.
  */
 template <ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
-void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
+inline void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
 	     GH& global_handler, const IC& interrupt_callback,
 	     const F& log_p_grad,
 	     const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,

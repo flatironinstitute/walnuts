@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -21,7 +19,6 @@
 #include "walnuts/walnuts.hpp"
 
 namespace walnuts {
-
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws

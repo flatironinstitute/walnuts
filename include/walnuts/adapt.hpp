@@ -216,7 +216,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
   Eigen::VectorXd geom_mean_mass(D);
   Eigen::VectorXd scratch_mass(D);
   while (true) {
-    interrupt_callback.throw_if_interrupted();
     mean_log_mass.setZero();
     double mean_log_step = 0.0;
     std::size_t min_iter = std::numeric_limits<std::size_t>::max();
@@ -250,6 +249,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
       return {geom_mean_mass, std::exp(mean_log_step)};
     }
 
+    interrupt_callback.throw_if_interrupted();
     std::this_thread::sleep_until(next);
     next += probe_period;
   }
@@ -265,7 +265,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * @param[in,out] adapters The adaptive samplers for each chain.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
-void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
+inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
 	   std::vector<A>& adapters, const IC& interrupt_callback) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());

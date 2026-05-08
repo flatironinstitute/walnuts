@@ -250,7 +250,7 @@ private:
  */
 template <typename T, typename S>
     requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
-inline void write_binary(std::ostream& out, S x) {
+static void write_binary(std::ostream& out, S x) {
   auto y = static_cast<T>(x);
   auto bytes = reinterpret_cast<const char*>(&y);
   out.write(bytes, sizeof(y));
@@ -262,7 +262,7 @@ inline void write_binary(std::ostream& out, S x) {
  * @param[in] os Output stream to which the vector is written.
  * @param[in] v The vector to write.
  */
-inline void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
+static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
   const char* data = reinterpret_cast<const char*>(v.data());
   std::size_t dim = static_cast<std::size_t>(v.size());
   std::streamsize size = static_cast<std::streamsize>(dim * sizeof(double));
@@ -278,7 +278,7 @@ inline void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
  * @param[out] os The output stream.
  * @param[out] handlers The storage handlers for the chains.
  */
-inline void write_step_size(std::ostream& os,
+static void write_step_size(std::ostream& os,
 			    const std::vector<ChainStore>& handlers) {
 
   if (handlers.empty()) {
@@ -302,7 +302,7 @@ inline void write_step_size(std::ostream& os,
  * @param[out] os The output stream.
  * @param[out] handlers The storage handlers for the chains.
  */
-inline void write_mass_matrix(std::ostream& os,
+static void write_mass_matrix(std::ostream& os,
 			      const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
@@ -336,7 +336,7 @@ inline void write_mass_matrix(std::ostream& os,
  * @param[in] draws The draws to write.
  * @param[in] log_probs The log densities to write with the draws.
  */
-inline void write_draws(std::ostream& os,
+static void write_draws(std::ostream& os,
 			bool is_sampling,
 			const std::vector<Eigen::VectorXd>& draws,
 			const std::vector<double>& log_probs) {
@@ -362,7 +362,7 @@ inline void write_draws(std::ostream& os,
  * @param[out] handlers The storage handlers for the chains.
  * @param[in] include_warmup `true` if warmup draws are included in output.
  */
-inline void write_sample(std::ostream& os,
+static void write_sample(std::ostream& os,
 			 const std::vector<ChainStore>& handlers,
 			 bool include_warmup = false) {
   // get dims from first real draw---roundabout for possible zero sizes
@@ -400,7 +400,7 @@ inline void write_sample(std::ostream& os,
  * @param[out] handlers The storage handlers for the chains.
  * @param[in] precision The number of significant digits in scalar output.
  */
-inline void write_step_size_csv(std::ostream& os,
+static void write_step_size_csv(std::ostream& os,
 				const std::vector<ChainStore>& handlers,
 				int precision = 8) {
   if (handlers.empty()) {
@@ -420,7 +420,7 @@ inline void write_step_size_csv(std::ostream& os,
  * @param[out] os The output stream.
  * @param[in] precision The number of significant digits in scalar output.
  */
-inline void write_mass_matrix_csv( std::ostream& os,
+static void write_mass_matrix_csv( std::ostream& os,
 				   const std::vector<ChainStore>& handlers,
 				   int precision = 8) {
   if (handlers.empty()) {
@@ -454,7 +454,7 @@ inline void write_mass_matrix_csv( std::ostream& os,
  * @param[in] include_warmup `true` if warmup draws are included in output.
  * @param[in] precision The number of significant digits in scalar output.
  */
-inline void write_sample_csv(std::ostream& os,
+static void write_sample_csv(std::ostream& os,
 			     const std::vector<ChainStore>& handlers,
 			     bool include_warmup = false,
 			     int precision = 8) {
@@ -514,7 +514,7 @@ inline void write_sample_csv(std::ostream& os,
  * @param[in] precision The number of significant digits in scalar output.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */  
-inline void write_step_size_csv(const std::string& file_name,
+static void write_step_size_csv(const std::string& file_name,
 				const std::vector<ChainStore>& handlers,
 				int precision = 8) {
   std::ofstream os(file_name);
@@ -530,7 +530,7 @@ inline void write_step_size_csv(const std::string& file_name,
  * @param[in] precision The number of significant digits in scalar output.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */  
-inline void write_mass_matrix_csv(const std::string& file_name,
+static void write_mass_matrix_csv(const std::string& file_name,
 				  const std::vector<ChainStore>& handlers,
 				  int precision = 8) {
   std::ofstream os(file_name);
@@ -548,7 +548,7 @@ inline void write_mass_matrix_csv(const std::string& file_name,
  * @param[in] precision The number of significant digits in scalar output.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
-inline void write_sample_csv(const std::string& file_name,
+static void write_sample_csv(const std::string& file_name,
 			     const std::vector<ChainStore>& handlers,
 			     bool include_warmup = false, int precision = 8) {
   std::ofstream os(file_name);
@@ -567,7 +567,7 @@ inline void write_sample_csv(const std::string& file_name,
  * @param[out] handlers The storage handlers for the chains.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
-inline void write_step_size(const std::string& file_name,
+static void write_step_size(const std::string& file_name,
 			    const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
@@ -587,7 +587,7 @@ inline void write_step_size(const std::string& file_name,
  * @param[out] handlers The storage handlers for the chains.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
-  inline void write_mass_matrix(const std::string& file_name,
+static void write_mass_matrix(const std::string& file_name,
 				const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
@@ -608,7 +608,7 @@ inline void write_step_size(const std::string& file_name,
  * @param[out] handlers The storage handlers for the chains.
  * @param[in] include_warmup `true` if warmup draws are included in output.
  */
-inline void write_sample(const std::string& file_name,
+static void write_sample(const std::string& file_name,
 			 const std::vector<ChainStore>& handlers,
 			 bool include_warmup = false) {
   if (handlers.empty()) {

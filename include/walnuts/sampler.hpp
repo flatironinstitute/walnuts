@@ -16,32 +16,11 @@
 #include <Eigen/Dense>
 
 #include <walnuts/concepts.hpp>
+#include <walnuts/online_moments.hpp>
 #include <walnuts/padded.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
-
-/**
- * @brief Return the sum of the sizes in the vector.
- *
- * @param[in] xs The vector to sum.
- * @return The sum.
- */
-std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
-  return std::transform_reduce(xs.begin(), xs.end(), std::size_t(0),
-                               std::plus<>{}, std::identity());
-}
-
-/**
- * @brief Return the bias-adjusted sample variance estimate.
- *
- * @param[in] xs The vector whose variance is required.
- * @return The variance.
- */
-double variance(const Eigen::VectorXd& xs) noexcept {
-  return (xs.array() - xs.mean()).square().mean()
-    / static_cast<double>((xs.size() - 1));
-}
 
 /**
  * @brief A struct to hold the within chain summary statistics for
@@ -112,94 +91,6 @@ class AtomicChainStats {
 };
 
 /**
- * @brief Accumulator for online mean and smaple variance calculations.
- *
- * Welford's algorithm stores sufficient statistics with which to
- * compute a running mean and sample variance The accumulator stores
- * only three sufficient statistics: a `std::size_t` and two `double`
- * values.  The algorithm is more numerically stable for variance
- * calculations than the naive algorithm.
- */
-class WelfordAccumulator {
- public:
-  /**
-   * @brief Construct an accumulator with no observed values.
-   */
-  WelfordAccumulator() : n_(0), mean_(0.0), M2_(0.0) {}
-
-  /**
-   * @brief Observe a value.
-   *
-   * @param[in] x The observed value.
-   */
-  void observe(double x) {
-    ++n_;
-    const double delta = x - mean_;
-    mean_ += delta / static_cast<double>(n_);
-    const double delta2 = x - mean_;
-    M2_ += delta * delta2;
-  }
-
-  /**
-   * @brief Return the number of values observed.
-   *
-   * @return The number of values observed.
-   */
-  std::size_t count() const { return n_; }
-
-  /**
-   * @brief Return the mean of all of the values observed, or 0
-   * if no values have been observed.
-   *
-   * @return The mean of the observed values.
-   */
-  double mean() const { return mean_; }
-
-  /**
-   * @brief Return the sample variance of the observed values.
-   *
-   * The sample variance is the unbiased estimator of variance.
-   * It divides by number of observations minus one.  Thus if
-   * there have been fewer than two observations, the sample
-   * variance is undefined and `NaN` will be returned.
-   *
-   * @return The sample variance of the observed values.
-   */
-  double sample_variance() const {
-    return n_ > 1 ? (M2_ / static_cast<double>(n_ - 1))
-                  : std::numeric_limits<double>::quiet_NaN();
-  }
-
-  /**
-   * @brief Return the sample statistics object for a chain.
-   *
-   * The returned object has reduced precision: `float` instead of
-   * `double` and `uint32_t` instead of `std::size_t`).
-   *
-   * @return The sample statistics object for a chain.
-   */
-  ChainStats sample_stats() {
-    return {static_cast<float>(mean()), static_cast<float>(sample_variance()),
-            static_cast<uint32_t>(count())};
-  }
-
-  /**
-   * @brief Reset the accumulator to its initial state of having seen
-   * zero observations.
-   */
-  void reset() {
-    n_ = 0;
-    mean_ = 0.0;
-    M2_ = 0.0;
-  }
-
- private:
-  std::size_t n_;
-  double mean_;
-  double M2_;
-};
-
-/**
  * @brief The worker functor for threads that calls the sampler and updates
  * the accumulator.
  *
@@ -244,14 +135,17 @@ class ChainWorker {
     interactive_qos();  // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
     for (std::size_t iter = 1;
-         iter <= max_draws_ && !(iter >= min_draws_ && st.stop_requested());
+         iter <= max_draws_ && !st.stop_requested();
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
       }
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
-      acs_.get().store(logp_stats_.sample_stats());
+      ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
+	  static_cast<float>(logp_stats_.sample_variance()),
+	  static_cast<uint32_t>(logp_stats_.count())};
+      acs_.get().store(chain_stats);
     }
   }
 
@@ -298,7 +192,6 @@ static void controller_loop(
   start_gate.wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
-    interrupt_callback.throw_if_interrupted();
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       ChainStats u = stats_by_chain[m].val.load();
@@ -318,9 +211,10 @@ static void controller_loop(
       global_handler.on_r_hat(r_hat);
       std::size_t num_draws = sum(counts);
       if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
-        break;
+        return;
       }
     }
+    interrupt_callback.throw_if_interrupted();
     std::this_thread::sleep_until(next);
     next += eval_period;
   }
@@ -342,7 +236,7 @@ static void controller_loop(
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
 template <Sampler S, GlobalHandler GH, InterruptCallback IC>
-void sample(std::vector<S>& samplers, GH& global_handler,
+inline void sample(std::vector<S>& samplers, GH& global_handler,
 	    const IC& interrupt_callback,
             double rhat_threshold, std::size_t min_draws_per_chain,
             std::size_t max_draws_per_chain) {

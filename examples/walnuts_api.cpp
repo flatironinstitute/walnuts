@@ -46,11 +46,11 @@ int main() {
   // 1) CONFIGUFRE =============================================================
   auto logp_grad = std_normal;
 
-  uint32_t seed = 48;
-  std::seed_seq seed_seq_for_init{seed, 0u};
+  std::size_t seed = 48;
+  std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
-  uint64_t num_chains = 32;
-  uint64_t dims = 100;
+  std::size_t num_chains = 32;
+  std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
@@ -82,8 +82,8 @@ int main() {
   // 2) SAMPLE =================================================================
   // output sent to handlers
   walnuts::WalnutsConfig config{init_cfg, warmup_cfg, sampling_cfg};
-  walnuts::walnuts(seed, chain_handlers, global_handler, interrupt_callback,
-		   logp_grad, config);
+  walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler, interrupt_callback,
+				    logp_grad, config);
 
   // 3) SUMMARIZE ==============================================================
   std::cout << "ADAPTATION RESULT: " << "\n";

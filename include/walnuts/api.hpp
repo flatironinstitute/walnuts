@@ -44,21 +44,22 @@ struct WalnutsConfig {
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
-template <ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
-inline void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
+  template <std::uniform_random_bit_generator RNG,
+	    ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
+inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
 	     GH& global_handler, const IC& interrupt_callback,
              const F& log_p_grad, const WalnutsConfig& config) {
-  using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, H>;
-  using Sampler = WalnutsSampler<F, std::mt19937, H>;
+  using AdaptiveSampler = AdaptiveWalnuts<F, RNG, H>;
+  using Sampler = WalnutsSampler<F, RNG, H>;
 
   if (chain_handlers.size() != config.init_.num_chains()) {
     throw std::invalid_argument(
         "chain_handlers.size() must be equal to config.init_.num_chains()");
   }
 
-  std::vector<std::mt19937> rngs(0);
+  std::vector<RNG> rngs(0);
   rngs.reserve(config.init_.num_chains());
-  for (std::uint32_t m = 0; m < config.init_.num_chains(); ++m) {
+  for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
     std::seed_seq ss{seed, m + 1u};
     rngs.emplace_back(ss);
   }

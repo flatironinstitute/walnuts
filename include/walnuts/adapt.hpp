@@ -232,7 +232,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     for (std::size_t m = 0; m < M; ++m) {
       double rel_diff_mass = l2_rel_diff(latest[m].mass, geom_mean_mass);
       max_rel_diff_mass = std::fmax(max_rel_diff_mass, rel_diff_mass);
-      double chain_m_step = static_cast<double>(std::exp(latest[m].log_step));
+      double chain_m_step = std::exp(latest[m].log_step);
       double geom_mean_step = std::exp(mean_log_step);
       double rel_diff_step = (chain_m_step - geom_mean_step) / geom_mean_step;
       max_rel_diff_step = std::fmax(max_rel_diff_step, rel_diff_step);

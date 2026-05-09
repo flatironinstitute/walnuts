@@ -32,8 +32,15 @@ WALNUTS_STRONG_INLINE void interactive_qos() {}
 WALNUTS_STRONG_INLINE void initiated_qos() {}
 #endif
 
+/**
+ * @brief A conservative constant destructive interference size.
+ *
+ * The std::hardware_destructive_interference_size is not universally supported
+ * and can underreport when it is supported.  128 is safe for ARM and Intel
+ * hardware.
+ */
+inline constexpr std::size_t FALSE_SHARING_GUARD_SIZE = 128;
 
- 
 /**
  * @brief Proposal update schemes for MCMC transitions.
  */

@@ -28,12 +28,10 @@ class TripleBuffer {
    * be a functor that takes no arguments and returns an object
    * of type `T`.
    *
-   * @tparam Factory The type of initial value generator.
-   * @param[in] make The functor to create initial values.
+   * @param[in] t Template instance to copy into buffers.
    */
-  template <Factory<T> F>
-  explicit TripleBuffer(F make)
-      : buffers_{make(), make(), make()},
+  explicit TripleBuffer(const T& t)
+    : buffers_{t, t, t},
         front_(0),
         spare_(1),
         back_(2),

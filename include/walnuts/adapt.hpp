@@ -75,8 +75,8 @@ using PaddedBuffer = Padded<Buffer>;
  * @return A padded buffer of the specified dimensionality.
  */
 static PaddedBuffer construct_buffer(std::size_t dim) {
-  auto make = [dim] { return AdaptSnapshot(static_cast<Eigen::Index>(dim)); };
-  return PaddedBuffer{Buffer(make)};
+  auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
+  return PaddedBuffer{Buffer(snapshot)};
 }
 
 /**

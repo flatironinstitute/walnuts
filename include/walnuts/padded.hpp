@@ -3,16 +3,9 @@
 #include <array>
 #include <cstddef>
 
-namespace walnuts {
+#include <walnuts/util.hpp>
 
-/**
- * @brief Go with a conservative constant destructive interference size.
- *
- * The std::hardware_destructive_interference_size is not universally supported
- * and can underreport when it is supported.  128 is safe for ARM and Intel
- * hardware.
- */
-inline constexpr std::size_t FALSE_SHARING_GUARD_SIZE = 128;
+namespace walnuts {
 
 /**
  * @brief A wrapper of `T` aligned to `FALSE_SHARING_GUARD_SIZE` and

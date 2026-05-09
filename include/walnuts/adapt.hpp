@@ -167,11 +167,8 @@ class AdaptWorker {
     snap.iter = iter;
     snap.log_step = adapter_.get().log_step_size();
     const auto lm = adapter_.get().log_mass();
-    for (Eigen::Index d = 0; d < static_cast<Eigen::Index>(init_config_.get().dims());
-         ++d) {
-      snap.log_mass(d) = lm[d];
-      snap.mass(d) = std::exp(lm[d]);
-    }
+    snap.log_mass = lm;
+    snap.mass = lm.array().exp().matrix();
     buffer_.get().publish();
   }
 

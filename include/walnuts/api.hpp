@@ -17,6 +17,19 @@
 
 namespace walnuts {
 
+
+
+struct WalnutsConfig {
+  /** The initialization configuration for all chains. */
+  InitConfig init_;
+
+  /** The warmup configuration shared by all chains. */
+  WarmupConfig warmup_;
+
+  /** The sampling configuration shared by all chains for warmup and sampling. */
+  SamplingConfig sampling_;
+};
+
 /**
  * Return the chain records from running Walnuts with the specified
  * seed, sampling event handlers, and configuration.
@@ -27,41 +40,37 @@ namespace walnuts {
  * called back.
  * @param[in] global_handler The handler for global cross-chain events.
  * @param[in] log_p_grad The log density and gradient function, called back.
- * @param[in] init_cfg The initialization configuration.
- * @param[in] warmup_cfg The warmup configuration.
- * @param[in] sampling_cfg The sampling configuration.
+ * @param[in] config The configuration for Walnuts.
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
 template <ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
 inline void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
 	     GH& global_handler, const IC& interrupt_callback,
-	     const F& log_p_grad,
-	     const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-	     const SamplingConfig& sampling_cfg) {
+             const F& log_p_grad, const WalnutsConfig& config) {
   using AdaptiveSampler = AdaptiveWalnuts<F, std::mt19937, H>;
   using Sampler = WalnutsSampler<F, std::mt19937, H>;
 
-  if (chain_handlers.size() != init_cfg.num_chains()) {
+  if (chain_handlers.size() != config.init_.num_chains()) {
     throw std::invalid_argument(
-        "chain_handlers.size() must be equal to init_cfg.num_chains()");
+        "chain_handlers.size() must be equal to config.init_.num_chains()");
   }
 
   std::vector<std::mt19937> rngs(0);
-  rngs.reserve(init_cfg.num_chains());
-  for (std::uint32_t m = 0; m < init_cfg.num_chains(); ++m) {
+  rngs.reserve(config.init_.num_chains());
+  for (std::uint32_t m = 0; m < config.init_.num_chains(); ++m) {
     std::seed_seq ss{seed, m + 1u};
     rngs.emplace_back(ss);
   }
   std::vector<AdaptiveSampler> adapters;
-  adapters.reserve(init_cfg.num_chains());
-  for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
+  adapters.reserve(config.init_.num_chains());
+  for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
     adapters.emplace_back(rngs[m], chain_handlers[m], log_p_grad,
-                          init_cfg.position(m), init_cfg.init_chain_config(m),
-                          warmup_cfg, sampling_cfg,
-                          std::log2(warmup_cfg.max_macro_steps_target()));
+                          config.init_.position(m), config.init_.init_chain_config(m),
+                          config.warmup_, config.sampling_,
+                          std::log2(config.warmup_.max_macro_steps_target()));
   }
-  adapt<AdaptiveSampler>(init_cfg, warmup_cfg, adapters, interrupt_callback);
+  adapt<AdaptiveSampler>(config.init_, config.warmup_, adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
@@ -69,8 +78,8 @@ inline void walnuts(std::uint32_t seed, std::vector<H>& chain_handlers,
   }
 
   sample(samplers, global_handler, interrupt_callback,
-	 sampling_cfg.rhat_converge_tol(),
-         sampling_cfg.min_iter(), sampling_cfg.max_iter());
+	 config.sampling_.rhat_converge_tol(),
+         config.sampling_.min_iter(), config.sampling_.max_iter());
 }
 
 }  // namespace walnuts

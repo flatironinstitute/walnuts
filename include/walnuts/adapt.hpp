@@ -139,6 +139,7 @@ class AdaptWorker {
    * @param[in] st The stop token for stopping the worker thread.
    */
   void operator()(const std::stop_token st) {
+    interactive_qos();  // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
     publish_snapshot(0);
     std::size_t iter = 1;  // from 1 so modulo ops don't rstart at 1 so % ops

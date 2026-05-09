@@ -81,8 +81,9 @@ int main() {
 
   // 2) SAMPLE =================================================================
   // output sent to handlers
+  walnuts::WalnutsConfig config{init_cfg, warmup_cfg, sampling_cfg};
   walnuts::walnuts(seed, chain_handlers, global_handler, interrupt_callback,
-		   logp_grad, init_cfg, warmup_cfg, sampling_cfg);
+		   logp_grad, config);
 
   // 3) SUMMARIZE ==============================================================
   std::cout << "ADAPTATION RESULT: " << "\n";

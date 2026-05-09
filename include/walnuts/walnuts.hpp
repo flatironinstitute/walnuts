@@ -520,7 +520,9 @@ inline Eigen::VectorXd transition_w(
     double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
     Eigen::VectorXd& theta_grad, double& logp_pos_select,
     A& step_size_adapter) {
-  Eigen::VectorXd rho = rand.standard_normal_cwise_product(chol_mass);
+  auto z = rand.standard_normal(chol_mass.size());
+  Eigen::VectorXd rho = (chol_mass.array() * z.array()).matrix();
+  // rand.standard_normal_cwise_product(chol_mass);
   Eigen::VectorXd grad(theta.size());
   double logp_pos;
   logp_grad(theta, logp_pos, grad);

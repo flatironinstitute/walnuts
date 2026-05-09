@@ -103,6 +103,23 @@ class Random {
   bool uniform_binary() { return binary_(rng_); }
 
   /**
+   * @brief Return a vector of values generated according to a
+   * standard normal distribution.
+   *
+   * The base random number generator is used to generate each
+   * component independently from a `normal(0, 1)` distribution.
+   *
+   * @param[in] n The size of the vector generated.
+   * @return An expression template for a standard normal vector.
+   */
+  auto standard_normal(Eigen::Index n) {
+    return Eigen::VectorXd::NullaryExpr(n,
+					[this](Eigen::Index /*i*/) {
+					  return this->normal_(rng_);
+					});
+  }
+
+  /**
    * @brief Write a vector of random standard normal variables into the out
    * vector.
    *
@@ -112,37 +129,10 @@ class Random {
    * @param[in] n The size of the vector generated.
    * @param[out] out The output vector.
    */
-  void standard_normal(std::size_t n, Eigen::VectorXd& out) {
-    out.resize(static_cast<Eigen::Index>(n));
-    for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
-      out[i] = normal_(rng_);
-    }
+  void standard_normal(Eigen::Index n, Eigen::VectorXd& out) {
+    out = standard_normal(n);
   }
-
-  /**
-   * @brief Return a vector of values generated according to a
-   * standard normal distribution.
-   *
-   * The base random number generator is used to generate each
-   * component independently from a `normal(0, 1)` distribution.
-   *
-   * @param[in] n The size of the vector generated.
-   * @return A vector generated according to a standard normal distribution.
-   */
-  Eigen::VectorXd standard_normal(std::size_t n) {
-    Eigen::VectorXd out;
-    standard_normal(n, out);
-    return out;
-  }
-
-  Eigen::VectorXd standard_normal_cwise_product(const Eigen::VectorXd& v) {
-    Eigen::VectorXd out(v.size());
-    for (Eigen::Index i = 0; i < v.size(); ++i) {
-      out[i] = v[i] * normal_(rng_);
-    }
-    return out;
-  }
-
+  
  private:
   /** The base random number generator reference. */
   RNG& rng_;  // not std::reference_wrapper to prevent copying

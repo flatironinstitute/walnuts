@@ -8,9 +8,11 @@
 namespace walnuts {
 
 /**
- * @brief A wrapper of `T` aligned to `FALSE_SHARING_GUARD_SIZE` and
- * padded to minimum multiple of `FALSE_SHARING_GUARD_SIZE` big enough
- * to hold value.
+ * @brief A wrapper of `T` aligned to `FALSE_SHARING_GUARD_SIZE`.
+ *
+ * Warning: the padding bytes after `T` are uninitialized and
+ * therefore should not be used with `memcmp` or be serialized (to
+ * avoid data leakage from the heap).
  *
  * @tparam T The type of value.
  */
@@ -20,21 +22,9 @@ struct alignas(Align) Padded {
   static_assert(Align >= alignof(T), "Align must be >= alignof(T)");
 
   /**
-   * @brief Padding bytes required to make `sizeof(Padded<T>)` at least
-   * `Align` and a multiple of `Align`.
-   */
-  static constexpr std::size_t PADDING_BYTES =
-      (Align - (sizeof(T) % Align)) % Align;
-
-  /**
    * @brief The value.
    */
   T val{};
-
-  /**
-   * @brief The unused padding bytes.
-   */
-  std::array<std::byte, PADDING_BYTES> pad{};
 };
 
 }  // namespace walnuts

@@ -202,15 +202,19 @@ class InitConfigBuilder {
    * @param[in] dims The dimensionality of each chain.
    */
   InitConfigBuilder(std::size_t num_chains, std::size_t dims)
-      : num_chains_(num_chains), dims_(dims) {
-    this->step_sizes(0.1);
-    Eigen::VectorXd position =
-        Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims));
-    this->positions(position);
-    Eigen::VectorXd mass =
-        Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
-    this->masses(mass);
+    : num_chains_(num_chains), dims_(dims),
+      step_sizes_(std::vector<double>(num_chains, 0.1)),
+      positions_(std::vector<Eigen::VectorXd>(num_chains, Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims)))),
+      masses_(std::vector<Eigen::VectorXd>(num_chains, Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims)))) {
   }
+		 
+  //   Eigen::VectorXd position =
+  //       );
+  //   this->positions(position);
+  //   Eigen::VectorXd mass =
+  //       Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
+  //   this->masses(mass);
+  // }
 
   /**
    * @brief Set the step sizes to all be the specified value.
@@ -262,7 +266,7 @@ class InitConfigBuilder {
     Random<RNG> rand(rng);
     positions_.resize(num_chains_);
     for (std::size_t c = 0; c < num_chains_; ++c) {
-      rand.standard_normal(dims_, positions_[c]);
+      rand.standard_normal(static_cast<Eigen::Index>(dims_), positions_[c]);
       positions_[c] *= init_scale;
     }
     return *this;

@@ -1,6 +1,10 @@
-add_executable(examples examples.cpp)
-target_link_libraries(examples PRIVATE nuts::nuts)
-target_compile_options(examples PRIVATE -O3 -Wall)
+add_executable(examples examples.cpp) 
+target_link_libraries(examples PRIVATE nuts::nuts) 
+target_compile_options(examples PRIVATE -O3 -Wall) 
+
+add_executable(summary-example summary-example.cpp)
+target_link_libraries(summary-example PRIVATE nuts::nuts) 
+target_compile_options(summary-example PRIVATE -O3 -Wall) 
 
 
 

@@ -18,44 +18,39 @@
 namespace walnuts {
 
 // namespace for internal linkage; static undefined with extern "C"
-namespace {  
-  /**
-   * @brief Internal flag with value `true` if C++ received `SIGINT`.
-   */
-  std::atomic<bool> interrupted{false};
+namespace {
+/**
+ * @brief Internal flag with value `true` if C++ received `SIGINT`.
+ */
+std::atomic<bool> interrupted{false};
 
-  extern "C" void handle_sigint(int) {
-    interrupted = true;
-  }
-}
+extern "C" void handle_sigint(int) { interrupted = true; }
+}  // namespace
 
-  
 /**
  * @brief An interrupt callback for C++.
  */
 class CppInterruptCallback {
-public:
+ public:
   /**
    * @brief Construct an interrupt callback for C++.
    */
-  CppInterruptCallback() {
-    std::signal(SIGINT, handle_sigint);
-  }
+  CppInterruptCallback() { std::signal(SIGINT, handle_sigint); }
   /**
    * @brief Throw an exception if C++ signaled an interrupt.
    */
   void throw_if_interrupted() const {
     if (interrupted.load()) {
       throw std::runtime_error("C++ was interrupted with SIGINT");
-    }	
+    }
   }
 };
-  
+
 /**
  * @brief A handler that stores global events.
  */
 class GlobalStore {
-public: 
+ public:
   /**
    * @brief Handle the R-hat value.
    *
@@ -70,10 +65,9 @@ public:
    */
   const std::vector<double>& r_hats() const noexcept { return r_hats_; }
 
-private: 
+ private:
   std::vector<double> r_hats_;
 };
-
 
 /**
  * @brief A handler that stores chain-local events.
@@ -93,7 +87,7 @@ class ChainStore {
    * If `save_warmup()` is `true`, this operation appends the values
    * to vectors for later use.  Otherwise, it does nothing if
    * `save_warmup()` is `false`.
-   * 
+   *
    * @param[in] position The position observed.
    * @param[in] lp The log density of the position observed.
    * @param[in] step_size The step size observed.
@@ -112,7 +106,7 @@ class ChainStore {
 
   /**
    * @brief Handle the warmup completion event.
-   * 
+   *
    * @param step_size The step size.
    * @param diag_inv_mass The diagonal inverse mass matrix.
    */
@@ -145,9 +139,7 @@ class ChainStore {
    *
    * @return `true` if warmup iterations are saved.
    */
-  bool save_warmup() const noexcept {
-    return save_warmup_;
-  }
+  bool save_warmup() const noexcept { return save_warmup_; }
 
   /**
    * @brief Return the step size.
@@ -156,9 +148,7 @@ class ChainStore {
    *
    * @return The step size.
    */
-  double step_size() const noexcept {
-    return stepsize_;
-  }
+  double step_size() const noexcept { return stepsize_; }
 
   /**
    * @brief Return the diagonal inverse mass matrix.
@@ -174,18 +164,14 @@ class ChainStore {
    *
    * @return The sampling draws.
    */
-  const std::vector<Eigen::VectorXd>& draws() const noexcept {
-    return draws_;
-  }
+  const std::vector<Eigen::VectorXd>& draws() const noexcept { return draws_; }
 
   /**
    * @brief Return the log densities for the draws from sampling.
    *
    * @return The sampling log densities.
    */
-  const std::vector<double>& log_probs() const noexcept {
-    return lps_;
-  }
+  const std::vector<double>& log_probs() const noexcept { return lps_; }
 
   /**
    * @brief Return the draws from warmup.
@@ -201,9 +187,7 @@ class ChainStore {
    *
    * @return The warmup log densities.
    */
-  const std::vector<double>& warmup_log_probs() const noexcept {
-    return lps_;
-  }
+  const std::vector<double>& warmup_log_probs() const noexcept { return lps_; }
 
   /**
    * @brief Return the step sizes from warmup.
@@ -223,7 +207,7 @@ class ChainStore {
     return warmup_diag_inv_masses_;
   }
 
-private:
+ private:
   bool save_warmup_;
 
   double stepsize_ = 0;
@@ -249,7 +233,7 @@ private:
  * @param x The value that is written as type `T`.
  */
 template <typename T, typename S>
-    requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
+  requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
 static void write_binary(std::ostream& out, S x) {
   auto y = static_cast<T>(x);
   auto bytes = reinterpret_cast<const char*>(&y);
@@ -279,8 +263,7 @@ static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
  * @param[out] handlers The storage handlers for the chains.
  */
 static void write_step_size(std::ostream& os,
-			    const std::vector<ChainStore>& handlers) {
-
+                            const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
   }
@@ -303,7 +286,7 @@ static void write_step_size(std::ostream& os,
  * @param[out] handlers The storage handlers for the chains.
  */
 static void write_mass_matrix(std::ostream& os,
-			      const std::vector<ChainStore>& handlers) {
+                              const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
   }
@@ -332,14 +315,14 @@ static void write_mass_matrix(std::ostream& os,
  * number of draws.
  *
  * @param[in] os Output stream to which values are written.
- * @param[in] is_sampling `true` if these draws are sampling draws, `false` if warmup.
+ * @param[in] is_sampling `true` if these draws are sampling draws, `false` if
+ * warmup.
  * @param[in] draws The draws to write.
  * @param[in] log_probs The log densities to write with the draws.
  */
-static void write_draws(std::ostream& os,
-			bool is_sampling,
-			const std::vector<Eigen::VectorXd>& draws,
-			const std::vector<double>& log_probs) {
+static void write_draws(std::ostream& os, bool is_sampling,
+                        const std::vector<Eigen::VectorXd>& draws,
+                        const std::vector<double>& log_probs) {
   write_binary<std::uint64_t>(os, draws.size());
   for (std::size_t m = 0; m < draws.size(); ++m) {
     write_binary<uint64_t>(os, is_sampling);
@@ -363,8 +346,8 @@ static void write_draws(std::ostream& os,
  * @param[in] include_warmup `true` if warmup draws are included in output.
  */
 static void write_sample(std::ostream& os,
-			 const std::vector<ChainStore>& handlers,
-			 bool include_warmup = false) {
+                         const std::vector<ChainStore>& handlers,
+                         bool include_warmup = false) {
   // get dims from first real draw---roundabout for possible zero sizes
   Eigen::Index D = 0;
   for (const auto& h : handlers) {
@@ -390,7 +373,7 @@ static void write_sample(std::ostream& os,
   }
   for (const auto& h : handlers) {
     write_draws(os, true, h.draws(), h.log_probs());
-  }	
+  }
 }
 
 /**
@@ -401,8 +384,8 @@ static void write_sample(std::ostream& os,
  * @param[in] precision The number of significant digits in scalar output.
  */
 static void write_step_size_csv(std::ostream& os,
-				const std::vector<ChainStore>& handlers,
-				int precision = 8) {
+                                const std::vector<ChainStore>& handlers,
+                                int precision = 8) {
   if (handlers.empty()) {
     return;
   }
@@ -420,9 +403,9 @@ static void write_step_size_csv(std::ostream& os,
  * @param[out] os The output stream.
  * @param[in] precision The number of significant digits in scalar output.
  */
-static void write_mass_matrix_csv( std::ostream& os,
-				   const std::vector<ChainStore>& handlers,
-				   int precision = 8) {
+static void write_mass_matrix_csv(std::ostream& os,
+                                  const std::vector<ChainStore>& handlers,
+                                  int precision = 8) {
   if (handlers.empty()) {
     return;
   }
@@ -455,9 +438,8 @@ static void write_mass_matrix_csv( std::ostream& os,
  * @param[in] precision The number of significant digits in scalar output.
  */
 static void write_sample_csv(std::ostream& os,
-			     const std::vector<ChainStore>& handlers,
-			     bool include_warmup = false,
-			     int precision = 8) {
+                             const std::vector<ChainStore>& handlers,
+                             bool include_warmup = false, int precision = 8) {
   os << std::setprecision(precision);
 
   // get dims D from first draw
@@ -488,18 +470,18 @@ static void write_sample_csv(std::ostream& os,
 
     if (include_warmup) {
       for (std::size_t n = 0; n < h.warmup_draws().size(); ++n, ++iteration) {
-	os << c << ",1," << iteration << ',' << h.warmup_log_probs()[n];
-	for (int d = 0; d < D; ++d) {
-	  os << ',' << h.warmup_draws()[n](d);
-	}
-	os << '\n';
+        os << c << ",1," << iteration << ',' << h.warmup_log_probs()[n];
+        for (int d = 0; d < D; ++d) {
+          os << ',' << h.warmup_draws()[n](d);
+        }
+        os << '\n';
       }
     }
 
     for (std::size_t n = 0; n < h.draws().size(); ++n, ++iteration) {
       os << c << ",0," << iteration << ',' << h.log_probs()[n];
       for (int d = 0; d < D; ++d) {
-	os << ',' << h.draws()[n](d);
+        os << ',' << h.draws()[n](d);
       }
       os << '\n';
     }
@@ -513,10 +495,10 @@ static void write_sample_csv(std::ostream& os,
  * @param[out] handlers The storage handlers for the chains.
  * @param[in] precision The number of significant digits in scalar output.
  * @throw std::invalid_argument If the file cannot be opened for writing.
- */  
+ */
 static void write_step_size_csv(const std::string& file_name,
-				const std::vector<ChainStore>& handlers,
-				int precision = 8) {
+                                const std::vector<ChainStore>& handlers,
+                                int precision = 8) {
   std::ofstream os(file_name);
   validate_open(os, file_name);
   write_step_size_csv(os, handlers, precision);
@@ -529,10 +511,10 @@ static void write_step_size_csv(const std::string& file_name,
  * @param[out] handlers The storage handlers for the chains.
  * @param[in] precision The number of significant digits in scalar output.
  * @throw std::invalid_argument If the file cannot be opened for writing.
- */  
+ */
 static void write_mass_matrix_csv(const std::string& file_name,
-				  const std::vector<ChainStore>& handlers,
-				  int precision = 8) {
+                                  const std::vector<ChainStore>& handlers,
+                                  int precision = 8) {
   std::ofstream os(file_name);
   validate_open(os, file_name);
   write_mass_matrix_csv(os, handlers, precision);
@@ -549,13 +531,12 @@ static void write_mass_matrix_csv(const std::string& file_name,
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
 static void write_sample_csv(const std::string& file_name,
-			     const std::vector<ChainStore>& handlers,
-			     bool include_warmup = false, int precision = 8) {
+                             const std::vector<ChainStore>& handlers,
+                             bool include_warmup = false, int precision = 8) {
   std::ofstream os(file_name);
   validate_open(os, file_name);
   write_sample_csv(os, handlers, include_warmup, precision);
-}  
-
+}
 
 /**
  * @brief Write the step sizes in binary format.
@@ -563,12 +544,13 @@ static void write_sample_csv(const std::string& file_name,
  * The binary format is a single `uint64_t` indicating the number of
  * chains and then one `double` per chain for the step sizes in order.
  *
- * @param[in] file_name The name of the file to which the step sizes are written.
+ * @param[in] file_name The name of the file to which the step sizes are
+ * written.
  * @param[out] handlers The storage handlers for the chains.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
 static void write_step_size(const std::string& file_name,
-			    const std::vector<ChainStore>& handlers) {
+                            const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
   }
@@ -583,12 +565,13 @@ static void write_step_size(const std::string& file_name,
  * See `write_mass_matrix(const std::vector<ChainStore>&, std::ostream&)` for
  * a description of the format.
  *
- * @param[out] file_name The anme of the file to which the step sizes are written.
+ * @param[out] file_name The anme of the file to which the step sizes are
+ * written.
  * @param[out] handlers The storage handlers for the chains.
  * @throw std::invalid_argument If the file cannot be opened for writing.
  */
 static void write_mass_matrix(const std::string& file_name,
-				const std::vector<ChainStore>& handlers) {
+                              const std::vector<ChainStore>& handlers) {
   if (handlers.empty()) {
     return;
   }
@@ -609,17 +592,18 @@ static void write_mass_matrix(const std::string& file_name,
  * @param[in] include_warmup `true` if warmup draws are included in output.
  */
 static void write_sample(const std::string& file_name,
-			 const std::vector<ChainStore>& handlers,
-			 bool include_warmup = false) {
+                         const std::vector<ChainStore>& handlers,
+                         bool include_warmup = false) {
   if (handlers.empty()) {
     return;
   }
   std::vector<char> filebuf(8u << 20);  // bigger than default buffer
   std::ofstream os;
-  os.rdbuf()->pubsetbuf(filebuf.data(), static_cast<std::streamsize>(filebuf.size()));
+  os.rdbuf()->pubsetbuf(filebuf.data(),
+                        static_cast<std::streamsize>(filebuf.size()));
   os.open(file_name, std::ios::binary);
   validate_open(os, file_name);
   write_sample(os, handlers, include_warmup);
 }
 
-}
+}  // namespace walnuts

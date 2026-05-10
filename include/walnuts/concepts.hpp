@@ -18,7 +18,7 @@
  */
 template <typename T>
 concept Sized = requires(const T& t) {
-    { t.size() } -> std::equality_comparable;
+  { t.size() } -> std::equality_comparable;
 };
 
 /**
@@ -36,9 +36,9 @@ concept Sized = requires(const T& t) {
  */
 template <typename T>
 concept EigenDenseType = requires(const T& t) {
-    typename T::Scalar;
-    { t.size() } -> std::convertible_to<Eigen::Index>;
-    { t(0) } -> std::convertible_to<typename T::Scalar>;
+  typename T::Scalar;
+  { t.size() } -> std::convertible_to<Eigen::Index>;
+  { t(0) } -> std::convertible_to<typename T::Scalar>;
 } && std::floating_point<typename T::Scalar>;
 
 /**
@@ -70,8 +70,7 @@ concept FloatingPointLeaf = std::floating_point<T> || EigenDenseType<T>;
 template <typename T>
 concept NestedFloatingPoint =
     FloatingPointLeaf<T> ||
-    (std::ranges::range<T> &&
-     FloatingPointLeaf<std::ranges::range_value_t<T>>);
+    (std::ranges::range<T> && FloatingPointLeaf<std::ranges::range_value_t<T>>);
 
 /**
  * @brief Concept for a Markov chain sampler.
@@ -95,8 +94,8 @@ concept NestedFloatingPoint =
  */
 template <typename S>
 concept Sampler = requires(S& s, const S& cs) {
-    { s() } -> std::convertible_to<double>;
-    { cs.dim() } -> std::convertible_to<std::size_t>;
+  { s() } -> std::convertible_to<double>;
+  { cs.dim() } -> std::convertible_to<std::size_t>;
 };
 
 /**
@@ -135,23 +134,22 @@ concept InterruptCallback = requires(H& h, const H& ch, double r_hat) {
  *    draw with the position and log density.
  */
 template <typename H>
-concept SampleHandler = requires(H& h,
-                                 const Eigen::VectorXd& position,
-                                 double lp) {
-    { h.on_sample(position, lp) } -> std::same_as<void>;
-};
+concept SampleHandler =
+    requires(H& h, const Eigen::VectorXd& position, double lp) {
+      { h.on_sample(position, lp) } -> std::same_as<void>;
+    };
 
 /**
  * @brief An extension of the `SampleHandler` concept for additionally
  * handling warmup events.
- * 
+ *
  *
  * A type `C` satisfies `ChainHandler` if it provides the following
  * member functions, each callable on a non-const instance and returning
  * `void`:
- *  - `on_warmup(const Eigen::VectorXd&, double, double, const Eigen::VectorXd&)`
- *    called once per warmup draw with the position, log density, step
- *    size, and diagonal inverse mass matrix.
+ *  - `on_warmup(const Eigen::VectorXd&, double, double, const
+ * Eigen::VectorXd&)` called once per warmup draw with the position, log
+ * density, step size, and diagonal inverse mass matrix.
  *  - `on_warmup_complete(double, const Eigen::VectorXd&)` called once
  *    when warmup finishes, with the final step size and diagonal inverse
  *    mass matrix.
@@ -159,17 +157,15 @@ concept SampleHandler = requires(H& h,
  *    post-warmup draw with the position and log density.
  */
 template <typename C>
-concept ChainHandler = SampleHandler<C>
-                       && requires(C& c,
-				   const Eigen::VectorXd& position,
-				   const Eigen::VectorXd& diag_inv_mass,
-				   double lp,
-				   double step_size) {
-  { c.on_warmup(position, lp, step_size, diag_inv_mass) }
-        -> std::same_as<void>;
-  { c.on_warmup_complete(step_size, diag_inv_mass) }
-        -> std::same_as<void>;
-};  
+concept ChainHandler =
+    SampleHandler<C> && requires(C& c, const Eigen::VectorXd& position,
+                                 const Eigen::VectorXd& diag_inv_mass,
+                                 double lp, double step_size) {
+      {
+        c.on_warmup(position, lp, step_size, diag_inv_mass)
+      } -> std::same_as<void>;
+      { c.on_warmup_complete(step_size, diag_inv_mass) } -> std::same_as<void>;
+    };
 
 /**
  * @brief Concept for a stream that reports whether it is open.
@@ -181,7 +177,7 @@ concept ChainHandler = SampleHandler<C>
  */
 template <typename S>
 concept OpenableStream = requires(const S& s) {
-    { s.is_open() } -> std::convertible_to<bool>;
+  { s.is_open() } -> std::convertible_to<bool>;
 };
 
 /**
@@ -197,11 +193,11 @@ concept OpenableStream = requires(const S& s) {
  * for the noexcept variant.
  *
  * @tparam F The callable type to constrain.
- */  
+ */
 template <typename F>
-concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x,
-                            double& logp, Eigen::VectorXd& grad) {
-    { f(x, logp, grad) } -> std::same_as<void>;
+concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x, double& logp,
+                            Eigen::VectorXd& grad) {
+  { f(x, logp, grad) } -> std::same_as<void>;
 };
 
 /**
@@ -217,11 +213,9 @@ concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x,
  */
 template <typename H>
 concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
-    { h(accept_prob) } -> std::same_as<void>;
-    { ch.step_size() } -> std::convertible_to<double>;
+  { h(accept_prob) } -> std::same_as<void>;
+  { ch.step_size() } -> std::convertible_to<double>;
 };
-
-
 
 /**
  * @brief Concept for an adaptive sampler that tunes parameters during
@@ -256,12 +250,12 @@ concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
  */
 template <typename A>
 concept AdaptiveSampler = requires(A& a, const A& ca) {
-    { a() } -> std::same_as<void>;
-    { a.sampler() } -> Sampler;
-    { ca.step_size() } -> std::convertible_to<double>;
-    { ca.inv_mass() } -> std::convertible_to<Eigen::VectorXd>;
-    { ca.dim() } -> std::convertible_to<std::size_t>;
-    { ca.iter() } -> std::convertible_to<std::size_t>;
-    { ca.log_step_size() } -> std::convertible_to<double>;
-    { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
+  { a() } -> std::same_as<void>;
+  { a.sampler() } -> Sampler;
+  { ca.step_size() } -> std::convertible_to<double>;
+  { ca.inv_mass() } -> std::convertible_to<Eigen::VectorXd>;
+  { ca.dim() } -> std::convertible_to<std::size_t>;
+  { ca.iter() } -> std::convertible_to<std::size_t>;
+  { ca.log_step_size() } -> std::convertible_to<double>;
+  { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };

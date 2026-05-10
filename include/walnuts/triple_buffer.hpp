@@ -31,11 +31,7 @@ class TripleBuffer {
    * @param[in] t Template instance to copy into buffers.
    */
   explicit TripleBuffer(const T& t)
-    : buffers_{t, t, t},
-        front_(0),
-        spare_(1),
-        back_(2),
-        read_(0) {}
+      : buffers_{t, t, t}, front_(0), spare_(1), back_(2), read_(0) {}
 
   /**
    * Move the specified buffer into this buffer.

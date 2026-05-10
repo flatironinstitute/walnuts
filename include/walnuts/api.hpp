@@ -17,8 +17,6 @@
 
 namespace walnuts {
 
-
-
 struct WalnutsConfig {
   /** The initialization configuration for all chains. */
   InitConfig init_;
@@ -26,7 +24,8 @@ struct WalnutsConfig {
   /** The warmup configuration shared by all chains. */
   WarmupConfig warmup_;
 
-  /** The sampling configuration shared by all chains for warmup and sampling. */
+  /** The sampling configuration shared by all chains for warmup and sampling.
+   */
   SamplingConfig sampling_;
 };
 
@@ -44,11 +43,11 @@ struct WalnutsConfig {
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
-  template <std::uniform_random_bit_generator RNG,
-	    ChainHandler H, GlobalHandler GH, InterruptCallback IC, LogpGrad F>
+template <std::uniform_random_bit_generator RNG, ChainHandler H,
+          GlobalHandler GH, InterruptCallback IC, LogpGrad F>
 inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
-	     GH& global_handler, const IC& interrupt_callback,
-             const F& log_p_grad, const WalnutsConfig& config) {
+                    GH& global_handler, const IC& interrupt_callback,
+                    const F& log_p_grad, const WalnutsConfig& config) {
   using AdaptiveSampler = AdaptiveWalnuts<F, RNG, H>;
   using Sampler = WalnutsSampler<F, RNG, H>;
 
@@ -66,10 +65,10 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   std::vector<AdaptiveSampler> adapters;
   adapters.reserve(config.init_.num_chains());
   for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
-    adapters.emplace_back(rngs[m], chain_handlers[m], log_p_grad,
-                          config.init_.position(m), config.init_.init_chain_config(m),
-                          config.warmup_, config.sampling_,
-                          std::log2(config.warmup_.max_macro_steps_target()));
+    adapters.emplace_back(
+        rngs[m], chain_handlers[m], log_p_grad, config.init_.position(m),
+        config.init_.init_chain_config(m), config.warmup_, config.sampling_,
+        std::log2(config.warmup_.max_macro_steps_target()));
   }
   adapt(config.init_, config.warmup_, adapters, interrupt_callback);
 
@@ -79,8 +78,8 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   }
 
   sample(samplers, global_handler, interrupt_callback,
-	 config.sampling_.rhat_converge_tol(),
-         config.sampling_.min_iter(), config.sampling_.max_iter());
+         config.sampling_.rhat_converge_tol(), config.sampling_.min_iter(),
+         config.sampling_.max_iter());
 }
 
 }  // namespace walnuts

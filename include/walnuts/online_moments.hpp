@@ -9,7 +9,6 @@
 
 namespace walnuts {
 
-
 /**
  * @brief Accumulator for online mean and smaple variance calculations.
  *
@@ -84,7 +83,7 @@ class WelfordAccumulator {
   double mean_;
   double M2_;
 };
-  
+
 /**
  * @brief An accumulator estimating discounted means and variances online.
  *

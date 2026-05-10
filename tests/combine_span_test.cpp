@@ -17,16 +17,16 @@ namespace span_test {
  */
 static walnuts::SpanW dummy_span(double logp, int size = 2) {
   return walnuts::SpanW{Eigen::VectorXd::Random(size),
-                             Eigen::VectorXd::Random(size),
-                             Eigen::VectorXd::Random(size),
-                             -logp,
-                             Eigen::VectorXd::Random(size),
-                             Eigen::VectorXd::Random(size),
-                             Eigen::VectorXd::Random(size),
-                             logp + 10,
-                             Eigen::VectorXd::Random(size),
-                             Eigen::VectorXd::Random(size),
-                             logp};
+                        Eigen::VectorXd::Random(size),
+                        Eigen::VectorXd::Random(size),
+                        -logp,
+                        Eigen::VectorXd::Random(size),
+                        Eigen::VectorXd::Random(size),
+                        Eigen::VectorXd::Random(size),
+                        logp + 10,
+                        Eigen::VectorXd::Random(size),
+                        Eigen::VectorXd::Random(size),
+                        logp};
 }
 
 /** Mocked walnuts::Random that returns a set value deterministically */
@@ -91,8 +91,8 @@ TYPED_TEST(CombineSpansUpdateAgnostic, EndpointsCorrectWhenGoingForward) {
   walnuts::SpanW span_old = span_from;
   walnuts::SpanW span_new = span_to;
   walnuts::SpanW combined =
-      walnuts::combine<update, walnuts::Direction::Forward>(rng, std::move(span_old),
-                                                      std::move(span_new));
+      walnuts::combine<update, walnuts::Direction::Forward>(
+          rng, std::move(span_old), std::move(span_new));
 
   EXPECT_BACKWARD_ENDPOINT_EQUAL(span_from, combined)
   EXPECT_FORWARD_ENDPOINT_EQUAL(span_to, combined)
@@ -108,8 +108,8 @@ TYPED_TEST(CombineSpansUpdateAgnostic, EndpointsCorrectWhenGoingBackward) {
   walnuts::SpanW span_old = span_from;
   walnuts::SpanW span_new = span_to;
   walnuts::SpanW combined =
-      walnuts::combine<update, walnuts::Direction::Backward>(rng, std::move(span_old),
-                                                       std::move(span_new));
+      walnuts::combine<update, walnuts::Direction::Backward>(
+          rng, std::move(span_old), std::move(span_new));
 
   EXPECT_BACKWARD_ENDPOINT_EQUAL(span_to, combined)
   EXPECT_FORWARD_ENDPOINT_EQUAL(span_from, combined)
@@ -149,8 +149,8 @@ TYPED_TEST(CombineSpansSymmetric, MetropolisAcceptsBarkerRejects) {
     walnuts::SpanW span_old = span_prev;
     walnuts::SpanW span_new = span_next;
     walnuts::SpanW combined =
-        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
-                                                       std::move(span_new));
+        walnuts::combine<walnuts::Update::Barker, direction>(
+            rng, std::move(span_old), std::move(span_new));
 
     EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
   }
@@ -184,8 +184,8 @@ TYPED_TEST(CombineSpansSymmetric, BarkerAndMetropolisBothReject) {
     walnuts::SpanW span_old = span_prev;
     walnuts::SpanW span_new = span_next;
     walnuts::SpanW combined =
-        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
-                                                       std::move(span_new));
+        walnuts::combine<walnuts::Update::Barker, direction>(
+            rng, std::move(span_old), std::move(span_new));
 
     EXPECT_SELECTED_POINT_EQUAL(span_prev, new_logp, combined)
   }
@@ -215,8 +215,8 @@ TYPED_TEST(CombineSpansSymmetric, BarkerAndMetropolisBothAccept) {
     walnuts::SpanW span_old = span_prev;
     walnuts::SpanW span_new = span_next;
     walnuts::SpanW combined =
-        walnuts::combine<walnuts::Update::Barker, direction>(rng, std::move(span_old),
-                                                       std::move(span_new));
+        walnuts::combine<walnuts::Update::Barker, direction>(
+            rng, std::move(span_old), std::move(span_new));
 
     EXPECT_SELECTED_POINT_EQUAL(span_next, new_logp, combined)
   }

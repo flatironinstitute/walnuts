@@ -85,8 +85,8 @@ class MassEstimator {
    */
   void observe(const Eigen::VectorXd& theta, const Eigen::VectorXd& grad,
                std::size_t iteration) {
-    double discount_factor =
-      1.0 - 1.0 / (warmup_cfg_.mass_init_count() + static_cast<double>(iteration));
+    double discount_factor = 1.0 - 1.0 / (warmup_cfg_.mass_init_count() +
+                                          static_cast<double>(iteration));
     draw_var_estimator_.discount_observe(discount_factor, theta);
     score_var_estimator_.discount_observe(discount_factor, grad);
   }
@@ -220,7 +220,7 @@ class AdaptiveWalnuts {
         logp_grad_(logp_grad),
         theta_(theta_init),
         iteration_(0),
-	adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
+        adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
               warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
               warmup_cfg.step_sq_gradient_decay(),
               warmup_cfg.step_stabilization(),
@@ -243,14 +243,13 @@ class AdaptiveWalnuts {
     Eigen::VectorXd grad_select;
     double logp_select;
     std::size_t depth;
-    theta_ = transition_w(
-			  rand_, logp_grad_, inv_mass, chol_mass,
-			  adam_.step_size(),
-        sampling_cfg_.get().max_trajectory_doublings(),
-        sampling_cfg_.get().max_step_halvings(),
-        min_micro_estimator_.min_micro_steps(),
-        sampling_cfg_.get().max_hamiltonian_error(), std::move(theta_), depth,
-			  grad_select, logp_select, adam_);
+    theta_ =
+        transition_w(rand_, logp_grad_, inv_mass, chol_mass, adam_.step_size(),
+                     sampling_cfg_.get().max_trajectory_doublings(),
+                     sampling_cfg_.get().max_step_halvings(),
+                     min_micro_estimator_.min_micro_steps(),
+                     sampling_cfg_.get().max_hamiltonian_error(),
+                     std::move(theta_), depth, grad_select, logp_select, adam_);
     mass_estimator_.observe(theta_, grad_select, iteration_);
     min_micro_estimator_.observe(1 << depth);
     handler_.get().on_warmup(theta_, logp_select, step_size(), inv_mass);
@@ -270,8 +269,7 @@ class AdaptiveWalnuts {
   WalnutsSampler<F, RNG, H> sampler() {
     handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
-        rand_, handler_, logp_grad_.logp_grad_, theta_,
-        inv_mass(), step_size(),
+        rand_, handler_, logp_grad_.logp_grad_, theta_, inv_mass(), step_size(),
         sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),

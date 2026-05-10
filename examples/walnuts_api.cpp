@@ -23,9 +23,10 @@ double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
   return std::exp(sum / handlers.size());
 }
 
-Eigen::VectorXd geom_mean_inv_mass(const std::vector<walnuts::ChainStore>& handlers) {
+Eigen::VectorXd geom_mean_inv_mass(
+    const std::vector<walnuts::ChainStore>& handlers) {
   if (handlers.size() == 0) {
-    return{};
+    return {};
   }
   Eigen::VectorXd sum(handlers[0].diag_inv_mass().rows());
   for (const auto& handler : handlers) {
@@ -33,7 +34,6 @@ Eigen::VectorXd geom_mean_inv_mass(const std::vector<walnuts::ChainStore>& handl
   }
   return (sum / handlers.size()).array().exp().matrix();
 }
-
 
 // 0) TARGET DENSITY ===========================================================
 static void std_normal(const Eigen::VectorXd& x, double& lp,
@@ -82,16 +82,16 @@ int main() {
   // 2) SAMPLE =================================================================
   // output sent to handlers
   walnuts::WalnutsConfig config{init_cfg, warmup_cfg, sampling_cfg};
-  walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler, interrupt_callback,
-				    logp_grad, config);
+  walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler,
+                                    interrupt_callback, logp_grad, config);
 
   // 3) SUMMARIZE ==============================================================
   std::cout << "ADAPTATION RESULT: " << "\n";
-  std::cout << "  geom_mean(step_size) = "
-	    << geom_mean_step(chain_handlers) << "\n";
+  std::cout << "  geom_mean(step_size) = " << geom_mean_step(chain_handlers)
+            << "\n";
   std::cout << "  geom_mean(inv_mass) = "
-	    << geom_mean_inv_mass(chain_handlers).transpose() << "\n\n";
-  
+            << geom_mean_inv_mass(chain_handlers).transpose() << "\n\n";
+
   std::cout << "PER-CHAIN STATISTICS: " << "\n";
   for (size_t m = 0; m < num_chains; ++m) {
     std::cout

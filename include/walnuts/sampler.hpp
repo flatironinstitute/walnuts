@@ -134,8 +134,7 @@ class ChainWorker {
   void operator()(const std::stop_token st) {
     interactive_qos();  // Apple silicon top priority; o.w. no-op
     start_gate_.get().arrive_and_wait();
-    for (std::size_t iter = 1;
-         iter <= max_draws_ && !st.stop_requested();
+    for (std::size_t iter = 1; iter <= max_draws_ && !st.stop_requested();
          ++iter) {
       if (iter % yield_period_ == 0) {
         std::this_thread::yield();
@@ -143,8 +142,8 @@ class ChainWorker {
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
       ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
-	  static_cast<float>(logp_stats_.sample_variance()),
-	  static_cast<uint32_t>(logp_stats_.count())};
+                             static_cast<float>(logp_stats_.sample_variance()),
+                             static_cast<uint32_t>(logp_stats_.count())};
       acs_.get().store(chain_stats);
     }
   }
@@ -176,12 +175,9 @@ class ChainWorker {
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
-    std::vector<Padded<AtomicChainStats>>& stats_by_chain,
-    GH& global_handler,
-    const IC& interrupt_callback,
-    double rhat_threshold,
-    std::latch& start_gate, std::size_t min_draws_per_chain,
-    std::size_t max_draws_per_chain,
+    std::vector<Padded<AtomicChainStats>>& stats_by_chain, GH& global_handler,
+    const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
+    std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
   initiated_qos();  // Apple silicon second-highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
@@ -237,28 +233,28 @@ static void controller_loop(
  */
 template <Sampler S, GlobalHandler GH, InterruptCallback IC>
 inline void sample(std::vector<S>& samplers, GH& global_handler,
-	    const IC& interrupt_callback,
-            double rhat_threshold, std::size_t min_draws_per_chain,
-            std::size_t max_draws_per_chain) {
+                   const IC& interrupt_callback, double rhat_threshold,
+                   std::size_t min_draws_per_chain,
+                   std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
   std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<std::ptrdiff_t>(M));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    threads.emplace_back(
-        ChainWorker<S>(min_draws_per_chain, max_draws_per_chain,
-		       samplers[m], stats_by_chain[m].val, start_gate));
+    threads.emplace_back(ChainWorker<S>(min_draws_per_chain,
+                                        max_draws_per_chain, samplers[m],
+                                        stats_by_chain[m].val, start_gate));
   }
   try {
     controller_loop(stats_by_chain, global_handler, interrupt_callback,
-		    rhat_threshold, start_gate,
-		    min_draws_per_chain, max_draws_per_chain);
+                    rhat_threshold, start_gate, min_draws_per_chain,
+                    max_draws_per_chain);
   } catch (const std::exception& e) {
-      for (auto& t : threads) {
-	t.request_stop();
-      }
-      throw(e);
+    for (auto& t : threads) {
+      t.request_stop();
+    }
+    throw(e);
   }
 }
 

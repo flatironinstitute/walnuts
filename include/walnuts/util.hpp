@@ -113,10 +113,8 @@ class Random {
    * @return An expression template for a standard normal vector.
    */
   auto standard_normal(Eigen::Index n) {
-    return Eigen::VectorXd::NullaryExpr(n,
-					[this](Eigen::Index /*i*/) {
-					  return this->normal_(rng_);
-					});
+    return Eigen::VectorXd::NullaryExpr(
+        n, [this](Eigen::Index /*i*/) { return this->normal_(rng_); });
   }
 
   /**
@@ -132,7 +130,7 @@ class Random {
   void standard_normal(Eigen::Index n, Eigen::VectorXd& out) {
     out = standard_normal(n);
   }
-  
+
  private:
   /** The base random number generator reference. */
   RNG& rng_;  // not std::reference_wrapper to prevent copying
@@ -180,7 +178,7 @@ inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
   double m = x.maxCoeff();
   if (std::isinf(m) && m < 0) {
-    return m; // all x[i] = -inf
+    return m;  // all x[i] = -inf
   }
   return m + log((x.array() - m).exp().sum());
 }
@@ -202,7 +200,7 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
                             const Eigen::VectorXd& inv_mass_diag) {
   return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
 }
- 
+
 /**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.
@@ -255,7 +253,8 @@ class NoExceptLogpGrad {
  * @param[in] theta The position at which to evaluate the gradient.
  * @return The gradient of the log density at `theta`.
  */
-inline Eigen::VectorXd grad(const LogpGrad auto& logp_grad, const Eigen::VectorXd& theta) {
+inline Eigen::VectorXd grad(const LogpGrad auto& logp_grad,
+                            const Eigen::VectorXd& theta) {
   Eigen::VectorXd g;
   double logp;
   logp_grad(theta, logp, g);
@@ -295,8 +294,8 @@ inline std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
  * @return The variance.
  */
 inline double variance(const Eigen::VectorXd& xs) noexcept {
-  return (xs.array() - xs.mean()).square().mean()
-    / static_cast<double>((xs.size() - 1));
+  return (xs.array() - xs.mean()).square().mean() /
+         static_cast<double>((xs.size() - 1));
 }
-  
+
 }  // namespace walnuts

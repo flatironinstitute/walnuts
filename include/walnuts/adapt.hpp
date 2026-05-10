@@ -200,9 +200,9 @@ struct AdaptResult {
 template <InterruptCallback IC>
 static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
                                    std::vector<AdaptSnapshot>& latest,
-				   const IC& interrupt_callback,
+                                   const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
-                                   const WarmupConfig& warmup_cfg) { 
+                                   const WarmupConfig& warmup_cfg) {
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
 
@@ -263,22 +263,22 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  */
 template <AdaptiveSampler A, InterruptCallback IC>
 inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
-	   std::vector<A>& adapters, const IC& interrupt_callback) {
+                  std::vector<A>& adapters, const IC& interrupt_callback) {
   std::vector<PaddedBuffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    threads.emplace_back(AdaptWorker<A>(
-        m, init_cfg, warmup_cfg, buffers[m], start_gate, adapters[m]));
+    threads.emplace_back(AdaptWorker<A>(m, init_cfg, warmup_cfg, buffers[m],
+                                        start_gate, adapters[m]));
   }
   std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   start_gate.arrive_and_wait();
   AdaptResult result;
   try {
-    result = controller_loop(buffers, latest, interrupt_callback,
-			     init_cfg, warmup_cfg);
+    result = controller_loop(buffers, latest, interrupt_callback, init_cfg,
+                             warmup_cfg);
   } catch (const std::exception& e) {
     for (auto& t : threads) {
       t.request_stop();

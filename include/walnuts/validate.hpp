@@ -13,7 +13,6 @@
 
 namespace walnuts {
 
- 
 /**
  * @brief Validate that the specified stream is open.
  *

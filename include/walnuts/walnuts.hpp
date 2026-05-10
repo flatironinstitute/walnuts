@@ -129,7 +129,6 @@ class SpanW {
   double logp_;
 };
 
-
 /**
  * @brief Return a tuple of the arguments ordered by direction.
 
@@ -141,7 +140,7 @@ class SpanW {
  *
  * The template parameter `T` is generic in order to allow reference
  * collapsing in callers.  Working through all of the types and forwarding
- * here, the type of the return 
+ * here, the type of the return
  *
  * @tparam D The `Direction` in which to combine the arguments
  * (`Forward` or `Backward`).
@@ -198,7 +197,7 @@ static bool uturn(const SpanW& span1, const SpanW& span2,
           .matrix();
   return span_fw.rho_fw_.dot(scaled_diff) < 0 ||
          span_bk.rho_bk_.dot(scaled_diff) < 0;
-}  
+}
 
 /**
  * @brief Return `true` if running the specified number of leapfrog steps
@@ -216,11 +215,12 @@ static bool uturn(const SpanW& span1, const SpanW& span2,
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <LogpGrad F>
-static bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-			     double step, std::size_t num_steps, double max_error,
-			     double logp_next,
-			     Eigen::VectorXd& theta_next, Eigen::VectorXd& rho_next,
-			     Eigen::VectorXd& grad_next) {
+static bool within_tolerance(const F& logp_grad,
+                             const Eigen::VectorXd& inv_mass, double step,
+                             std::size_t num_steps, double max_error,
+                             double logp_next, Eigen::VectorXd& theta_next,
+                             Eigen::VectorXd& rho_next,
+                             Eigen::VectorXd& grad_next) {
   double half_step = 0.5 * step;
   double logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
@@ -252,17 +252,17 @@ static bool within_tolerance(const F& logp_grad, const Eigen::VectorXd& inv_mass
  */
 template <LogpGrad F>
 static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-		       double step,
-		       std::size_t num_steps, std::size_t min_micro_steps,
-		       double max_error,
-		       double logp_next, const Eigen::VectorXd& theta,
-		       const Eigen::VectorXd& rho, const Eigen::VectorXd& grad) {
+                       double step, std::size_t num_steps,
+                       std::size_t min_micro_steps, double max_error,
+                       double logp_next, const Eigen::VectorXd& theta,
+                       const Eigen::VectorXd& rho,
+                       const Eigen::VectorXd& grad) {
   if (num_steps == 1) {
     return true;
   }
-  Eigen::VectorXd theta_next(theta.size()); // declare here to allocate once
+  Eigen::VectorXd theta_next(theta.size());  // declare here to allocate once
   Eigen::VectorXd rho_next(theta.size());
-  Eigen::VectorXd grad_next(theta.size()); 
+  Eigen::VectorXd grad_next(theta.size());
   while (num_steps >= 2 * min_micro_steps) {
     theta_next = theta;
     rho_next = -rho;
@@ -305,11 +305,12 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
 static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                double step, std::size_t max_step_halvings,
-                std::size_t min_micro_steps, double max_error,
-                const SpanW& span, Eigen::VectorXd& theta_next,
-                Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
-                double& logp_pos_next, double& logp_next, A& adapt_handler) {
+                       double step, std::size_t max_step_halvings,
+                       std::size_t min_micro_steps, double max_error,
+                       const SpanW& span, Eigen::VectorXd& theta_next,
+                       Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
+                       double& logp_pos_next, double& logp_next,
+                       A& adapt_handler) {
   constexpr bool is_forward = (D == Direction::Forward);
   const Eigen::VectorXd& theta = is_forward ? span.theta_fw_ : span.theta_bk_;
   const Eigen::VectorXd& rho = is_forward ? span.rho_fw_ : span.rho_bk_;
@@ -417,10 +418,11 @@ static SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
 static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
-                                const Eigen::VectorXd& inv_mass, double step,
-                                std::size_t max_step_halvings,
-                                std::size_t min_micro_steps, double max_error,
-                                A& adapt_handler) {
+                                       const Eigen::VectorXd& inv_mass,
+                                       double step,
+                                       std::size_t max_step_halvings,
+                                       std::size_t min_micro_steps,
+                                       double max_error, A& adapt_handler) {
   Eigen::VectorXd theta_next;
   Eigen::VectorXd rho_next;
   Eigen::VectorXd grad_theta_next;
@@ -458,13 +460,14 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
-	  StepSizeAdapter A>
+          StepSizeAdapter A>
 static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
-                                const Eigen::VectorXd& inv_mass, double step,
-                                std::size_t depth,
-                                std::size_t max_step_halvings,
-                                std::size_t min_micro_steps, double max_error,
-                                const SpanW& last_span, A& adapt_handler) {
+                                       const Eigen::VectorXd& inv_mass,
+                                       double step, std::size_t depth,
+                                       std::size_t max_step_halvings,
+                                       std::size_t min_micro_steps,
+                                       double max_error, const SpanW& last_span,
+                                       A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, inv_mass, step,
                          max_step_halvings, min_micro_steps, max_error,
@@ -570,17 +573,16 @@ class NoOpStepSizeAdapter {
    * Do nothing, ignoring the step size acceptance argument.
    *
    */
-  constexpr void operator()(double) const noexcept {
-  }
+  constexpr void operator()(double) const noexcept {}
 
   /**
    * Return an invalid step size.
    */
   [[noreturn]] double step_size() const {
-    throw std::logic_error("should not call step_size() in NoOpStepSizeAdapter");
+    throw std::logic_error(
+        "should not call step_size() in NoOpStepSizeAdapter");
   }
 };
-
 
 /**
  * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
@@ -609,7 +611,7 @@ class WalnutsSampler {
    * class documentation.
    * @param[in] theta The initial position.
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
-   * @param[in] macro_time The macro time discretization interval.  
+   * @param[in] macro_time The macro time discretization interval.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
    * NUTS.
    * @param[in] max_step_halvings The maximum number of times the step size is
@@ -672,7 +674,7 @@ class WalnutsSampler {
                           depth, grad_next, logp_pos, no_op_step_size_adapter_);
     sample_handler_.get().on_sample(theta_, logp_pos);
     return logp_pos;
-  } 
+  }
 
   /**
    * @brief  Return a constant reference the diagonal of the diagonal inverse

@@ -73,7 +73,6 @@ class InitChainConfig {
  */
 class InitConfig {
  public:
-
   /**
    * @brief Return the number of chains.
    *
@@ -172,13 +171,12 @@ class InitConfig {
    * @param masses The diagonals of the diagonal mass matrixes.
    */
   InitConfig(std::vector<double>&& step_sizes,
-	     std::vector<Eigen::VectorXd>&& positions,
-	     std::vector<Eigen::VectorXd>&& masses):
-    step_sizes_(std::move(step_sizes)),
-    positions_(std::move(positions)),
-    masses_(std::move(masses)) {
-  }
-      
+             std::vector<Eigen::VectorXd>&& positions,
+             std::vector<Eigen::VectorXd>&& masses)
+      : step_sizes_(std::move(step_sizes)),
+        positions_(std::move(positions)),
+        masses_(std::move(masses)) {}
+
   InitConfig() = default;
 
   std::vector<double> step_sizes_;
@@ -202,12 +200,16 @@ class InitConfigBuilder {
    * @param[in] dims The dimensionality of each chain.
    */
   InitConfigBuilder(std::size_t num_chains, std::size_t dims)
-    : num_chains_(num_chains), dims_(dims),
-      step_sizes_(std::vector<double>(num_chains, 0.1)),
-      positions_(std::vector<Eigen::VectorXd>(num_chains, Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims)))),
-      masses_(std::vector<Eigen::VectorXd>(num_chains, Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims)))) {
-  }
-		 
+      : num_chains_(num_chains),
+        dims_(dims),
+        step_sizes_(std::vector<double>(num_chains, 0.1)),
+        positions_(std::vector<Eigen::VectorXd>(
+            num_chains,
+            Eigen::VectorXd::Zero(static_cast<Eigen::Index>(dims)))),
+        masses_(std::vector<Eigen::VectorXd>(
+            num_chains,
+            Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims)))) {}
+
   /**
    * @brief Set the step sizes to all be the specified value.
    *
@@ -432,9 +434,8 @@ class InitConfigBuilder {
    * @return The initialization configuration.
    */
   InitConfig build() {
-    return InitConfig{std::move(step_sizes_),
-	std::move(positions_),
-	std::move(masses_)};
+    return InitConfig{std::move(step_sizes_), std::move(positions_),
+                      std::move(masses_)};
   }
 
  private:
@@ -581,18 +582,18 @@ class WarmupConfig {
 
   /**
    * @brief Return the delay before starting another probe for convergence
-   * as a duration. 
+   * as a duration.
    *
    * The type of return is an the return `std::delay` type used as the
    * return type of `std::chrono::microseconds`.
    *
    * @return The delay before starting another probe for convergence
-   * as a duration. 
+   * as a duration.
    */
   auto probe_duration() const {
     return std::chrono::microseconds(probe_microseconds());
   }
-  
+
   /**
    * @brief Return the period at which threads for chains yield.
    *

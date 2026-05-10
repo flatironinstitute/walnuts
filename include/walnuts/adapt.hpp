@@ -203,7 +203,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
 				   const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
                                    const WarmupConfig& warmup_cfg) { 
-  // const InterruptCallBack& global_handler) {
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
 

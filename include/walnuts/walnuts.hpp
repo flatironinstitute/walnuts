@@ -522,7 +522,6 @@ inline Eigen::VectorXd transition_w(
     A& step_size_adapter) {
   auto z = rand.standard_normal(chol_mass.size());
   Eigen::VectorXd rho = (chol_mass.array() * z.array()).matrix();
-  // rand.standard_normal_cwise_product(chol_mass);
   Eigen::VectorXd grad(theta.size());
   double logp_pos;
   logp_grad(theta, logp_pos, grad);
@@ -572,7 +571,6 @@ class NoOpStepSizeAdapter {
    *
    */
   constexpr void operator()(double) const noexcept {
-    // do nothing
   }
 
   /**

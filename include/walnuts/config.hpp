@@ -58,9 +58,9 @@ class InitChainConfig {
   const Eigen::VectorXd& mass() const noexcept { return mass_; }
 
  private:
-  const double step_size_;
-  const Eigen::VectorXd position_;
-  const Eigen::VectorXd mass_;
+  double step_size_;
+  Eigen::VectorXd position_;
+  Eigen::VectorXd mass_;
 };
 
 /**
@@ -208,14 +208,6 @@ class InitConfigBuilder {
       masses_(std::vector<Eigen::VectorXd>(num_chains, Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims)))) {
   }
 		 
-  //   Eigen::VectorXd position =
-  //       );
-  //   this->positions(position);
-  //   Eigen::VectorXd mass =
-  //       Eigen::VectorXd::Ones(static_cast<Eigen::Index>(dims));
-  //   this->masses(mass);
-  // }
-
   /**
    * @brief Set the step sizes to all be the specified value.
    *

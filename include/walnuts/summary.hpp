@@ -196,6 +196,7 @@ namespace walnuts {
    * sorted[1]                     = 5
    * sorted[2]                     = 9
    * quantile = 0.8 * 9 + 0.2 * 5  = 8.2
+   * @endcode
    *
    * @param[in] chains The Markov chains.
    * @param[in] probs A vector of probabilities in [0, 1].
@@ -236,7 +237,31 @@ namespace walnuts {
       .matrix();
   }
 
-  // this is ragged 1 + var(mu) / sd(sigma^2) R-hat like in convergence monitoring
+  /**
+   * @brief Return the chain-balanced ragged R-hat statistic for the chains.
+   *
+   * The R-hat statistic weights the within-chain mean and variance of each
+   * chain equally, no matter how long they are.  
+
+   * The number of draws per chain may vary, so let `chain[k]` be the
+   * `N[k] x D` matrix of draws for chain `k`. The means and variances
+   * are taken column-wise as in the `walnuts::mean` and
+   * `walnuts::sample_variance` functions. Sample variance divides by
+   * `(N[k] - 1)` for an unbiased estimate of variance.
+   * 
+   * @code
+   * matrix[K, D] mu, sigma_sq;
+   * mu[k, ] = mean(chain[k])  for k in 1:K
+   * sigma_sq[k, ] = sample_variance(chain[k])
+   * R-hat = 1 + sample_variance(mu) ./ mean(sigma_sq)
+   * @endcode
+   *
+   * See Gelman and Rubin (1992 @cite gelmanrubin1992) for the original definition of 
+   * R-hat and Margossian (2025 @cite margossian2026) for the one used here.
+   * 
+   * @param[in] chains The Markov chains.
+   * @return The R-hat statistic for each variable in the chain.
+   */
   inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
     if (chains.num_chains() < 2 || chains.num_draws() < 2) {
       throw std::invalid_argument("chains must have at least 2 chains and at least 2 draws");

@@ -4,7 +4,14 @@
 #include <Eigen/Dense>
 
 namespace walnuts {
-  
+
+  /**
+   * @brief A class for representing a collection of Markov chains.
+   * 
+   * The class can be constructed from either sorted long-form data
+   * with chain identifiers for each row or a collection of matrices,
+   * one per chain.
+   */
   class MarkovChains {
   public:
     MarkovChains(Eigen::VectorXd lps,
@@ -20,9 +27,10 @@ namespace walnuts {
       if (chain_id.size() < 1) {
 	throw std::invalid_argument("require at least one draw");
       }
+      
       for (std::size_t n = 1; n < chain_id.size(); ++n) {
 	if (chain_id[n] < chain_id[n-1]) {
-	  throw std::invalid_argument("chain IDs must be ordered");
+	  throw std::invalid_argument("chain IDs must be in increasing order");
 	}
 	if (chain_id[n] != chain_id[n - 1]) {
 	  chain_end_.push_back(n);
@@ -47,37 +55,39 @@ namespace walnuts {
       return chain_id_;
     }
 
+    const std::vector<std::size_t>& chain_ends() const noexcept {
+      return chain_end_;
+    }
+
     const Eigen::MatrixXd& draws() const noexcept {
       return draws_;
     }
 
-    std::vector<Eigen::MatrixXd> draws_by_chain() const {
-      std::vector<Eigen::MatrixXd> result;
-      std::size_t chain_start = 0;
-      for (std::size_t n = 0; n < chain_end_.size(); ++n) {
-	result.emplace_back(draws_.middleRows(static_cast<Eigen::Index>(chain_start),
-					      chain_end_[n] - chain_start));
-	chain_start = chain_end_[n];
-      }
-      return result;
-    }
   private:
     Eigen::VectorXd lps_;
     Eigen::MatrixXd draws_;
     std::vector<std::size_t> chain_id_;
-    std::vector<std::size_t> chain_end_;  // one past end, so not inclusive
+    std::vector<std::size_t> chain_end_;  // one past end for ranges
   };
 
-  static auto mean(const Eigen::MatrixXd& draws) {
-      return draws.colwise().mean();
+  template <typename Derived>
+  static auto mean(const Eigen::MatrixBase<Derived>& draws) {
+    return draws.colwise().mean().eval();
   }
   inline Eigen::RowVectorXd mean(const MarkovChains& chains) {
     return mean(chains.draws());
   }
 
-  static auto sample_variance(const Eigen::MatrixXd& draws) {
-    return (draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-      / (draws.rows() - 1);
+  template <typename Derived>
+  static auto sample_variance(const Eigen::MatrixBase<Derived>& draws,
+			      const Eigen::RowVectorXd& mean) {
+    return ((draws.rowwise() - mean).array().square().colwise().sum()
+	    / (draws.rows() - 1)).eval();
+  }
+  template <typename Derived>
+  static auto sample_variance(const Eigen::MatrixBase<Derived>& draws) {
+    return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
+	    / (draws.rows() - 1)).eval();
   }
   inline Eigen::RowVectorXd sample_variance(const MarkovChains& chains) {
     if (chains.num_draws() < 2) {
@@ -86,8 +96,14 @@ namespace walnuts {
     return sample_variance(chains.draws());
   }
 
-  static auto sample_standard_deviation(const Eigen::MatrixXd& draws) {
-    return sample_variance(draws).array().sqrt().matrix();
+  template <typename Derived>
+  static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws,
+					const Eigen::RowVectorXd& mean) {
+    return sample_variance(draws, mean).array().sqrt().matrix().eval();
+  }
+  template <typename Derived>
+  static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
+    return sample_variance(draws).array().sqrt().matrix().eval();
   }
   inline Eigen::RowVectorXd sample_standard_deviation(const MarkovChains& chains) {
     if (chains.num_draws() < 2) {
@@ -96,10 +112,10 @@ namespace walnuts {
     return sample_standard_deviation(chains.draws());
   }
 
-  
-  static auto population_variance(const Eigen::MatrixXd& draws) {
-    return (draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-      / draws.rows();
+  template <typename Derived>
+  static auto population_variance(const Eigen::MatrixBase<Derived>& draws) {
+    return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
+	    / draws.rows()).eval();
   }
   inline Eigen::RowVectorXd population_variance(const MarkovChains& chains) {
     if (chains.num_draws() < 1) {
@@ -108,8 +124,10 @@ namespace walnuts {
     return population_variance(chains.draws());
   }
 
-  static auto population_standard_deviation(const Eigen::MatrixXd& draws) {
-    return population_variance(draws).array().sqrt().matrix();
+  
+  template <typename Derived>
+  static auto population_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
+    return population_variance(draws).array().sqrt().matrix().eval();
   }
   inline Eigen::RowVectorXd population_standard_deviation(const MarkovChains& chains) {
     if (chains.num_draws() < 1) {
@@ -117,8 +135,9 @@ namespace walnuts {
     }
     return population_standard_deviation(chains.draws());
   }
-  
-  static Eigen::MatrixXd quantiles(const Eigen::MatrixXd& draws, const Eigen::VectorXd probs) {
+
+  template <typename Derived>
+  static Eigen::MatrixXd quantiles(const Eigen::MatrixBase<Derived>& draws, const Eigen::VectorXd probs) {
     const Eigen::Index N = draws.rows();
     const Eigen::Index D = draws.cols();
     const Eigen::Index K = probs.size();
@@ -197,30 +216,34 @@ namespace walnuts {
     return quantiles(chains.draws(), probs);
   }
 
-  static Eigen::RowVectorXd r_hat(const std::vector<Eigen::MatrixXd> draws_by_chain) {
-    Eigen::Index K = static_cast<Eigen::Index>(draws_by_chain.size());
-    Eigen::Index D = draws_by_chain[0].cols();
+  static Eigen::RowVectorXd r_hat(const Eigen::MatrixXd& draws,
+				  const std::vector<std::size_t>& chain_ends) {
+    Eigen::Index K = static_cast<Eigen::Index>(chain_ends.size());
+    Eigen::Index D = draws.cols();
     Eigen::MatrixXd mu(K, D);
     Eigen::MatrixXd sigma_sq(K, D);
+    Eigen::Index start = 0;
     for (Eigen::Index k = 0; k < K; ++k) {
-      mu.row(k) = mean(draws_by_chain[static_cast<std::size_t>(k)]);
-      sigma_sq.row(k) = sample_standard_deviation(draws_by_chain[static_cast<std::size_t>(k)]);
+      Eigen::Index end = static_cast<Eigen::Index>(chain_ends[static_cast<std::size_t>(k)]);
+      Eigen::Index length = end - start;
+      auto chain = draws.middleRows(start, length);
+      auto chain_mean = mean(chain);
+      mu.row(k) = chain_mean;
+      sigma_sq.row(k) = sample_standard_deviation(chain, chain_mean);
+      start = end;
     }
     return (1.0 + sample_variance(mu).array() / mean(sigma_sq).array())
       .matrix();
-  }	
-
-
+  }
 
   // this is ragged 1 + var(mu) / sd(sigma^2) R-hat like in convergence monitoring
   inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
-    if (chains.num_chains() < 2) {
-      throw std::invalid_argument("chains must have at least 2 chains");
+    if (chains.num_chains() < 2 || chains.num_draws() < 2) {
+      throw std::invalid_argument("chains must have at least 2 chains and at least 2 draws");
     }
-    return r_hat(chains.draws_by_chain());
+    return r_hat(chains.draws(), chains.chain_ends());
   }
 
   
   
 } // namespace nuts
-

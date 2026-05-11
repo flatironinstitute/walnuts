@@ -6,7 +6,7 @@ project(walnuts
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if (CMAKE_BUILD_TYPE MATCHES DEBUG)
@@ -14,41 +14,33 @@ if (CMAKE_BUILD_TYPE MATCHES DEBUG)
 endif()
 
 ##########################
-## Cmake Options        ##
+## Topl-Level Options   ##
 ##########################
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
-# Build Types
+
 set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
     "Choose the type of build, options are: None Debug Release"
     FORCE)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # Enable -Weverything and other Clang-only warnings
-  # After no-c++98 warnings, rest are to suppress gtest warnings
-  add_compile_options(-Wall -Weverything -Wno-padded
-  -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
-  -Wno-c++98-compat-pedantic -Wno-c++98-compat
-  -Wno-global-constructors -Wno-exit-time-destructors
-  -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
-  -Wno-zero-as-null-pointer-constant -Wno-switch-default
-  -Wno-missing-variable-declarations
-  -Wno-variadic-macro-arguments-omitted
-  -Wno-reserved-identifier -Wno-unused-function
-  -Wno-missing-prototypes)
+  add_compile_options(
+    -Wall -Weverything -Wno-padded
+    -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
+    -Wno-c++98-compat-pedantic -Wno-c++98-compat
+    -Wno-global-constructors -Wno-exit-time-destructors
+    -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
+    -Wno-zero-as-null-pointer-constant -Wno-switch-default
+    -Wno-missing-variable-declarations
+    -Wno-variadic-macro-arguments-omitted
+    -Wno-reserved-identifier -Wno-unused-function
+    -Wno-missing-prototypes -Wno-documentation
+  )
 
-  # Optionally enable IWYU if found
-  find_program(IWYU_PATH NAMES include-what-you-use iwyu)
-  if (IWYU_PATH)
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_PATH};-Xiwyu;--mapping_file=...")
-  else()
-    message(STATUS "include-what-you-use not found, skipping IWYU integration.")
-  endif()
 endif()
-
 
 ##########################
 ## Global Dependencies  ##
@@ -111,7 +103,6 @@ endif()
 ## Making Walnuts Library  ##
 #############################
 
-# 1) Define your header-only interface target
 add_library(walnuts INTERFACE)
 target_include_directories(walnuts INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
@@ -124,8 +115,6 @@ if (WALNUTS_USE_MIMALLOC)
     target_link_libraries(walnuts INTERFACE mimalloc-static)
 endif()
 
-# 2) Create the “namespace” alias
-add_library(nuts::nuts ALIAS walnuts)
 
 ##########################
 ##       Examples       ##
@@ -154,6 +143,7 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )
 
+
 find_program(CLANG_FORMAT_BIN clang-format)
 
 if (CLANG_FORMAT_BIN)
@@ -172,26 +162,22 @@ endif()
 ##########################
 ##     Doxygen Docs     ##
 ##########################
-#################################
-##        Documentation        ##
-#################################
 if (WALNUTS_BUILD_DOCS)
   find_package(Doxygen REQUIRED)
 
-  # Public headers only
   file(GLOB_RECURSE WALNUT_HEADERS
       "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
 
-  # Doxygen configuration overrides
   set(DOXYGEN_FILE_PATTERNS    "*.hpp")
   set(DOXYGEN_GENERATE_HTML    YES)
   set(DOXYGEN_GENERATE_LATEX   NO)
-  set(DOXYGEN_EXTRACT_ALL YES)
+  set(DOXYGEN_EXTRACT_ALL      YES)
+  set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/refs.bib")
 
-  # `cmake --build . --target doc`
   doxygen_add_docs(
-    doc                         # target name
-    ${WALNUT_HEADERS}           # INPUT files
+    doc
+    ${WALNUT_HEADERS}
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
+

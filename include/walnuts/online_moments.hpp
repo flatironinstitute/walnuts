@@ -1,10 +1,88 @@
 #pragma once
 
+#include <limits>
+#include <string>
+
 #include <Eigen/Dense>
 
-#include "util.hpp"
+#include <walnuts/validate.hpp>
 
-namespace nuts {
+namespace walnuts {
+
+/**
+ * @brief Accumulator for online mean and smaple variance calculations.
+ *
+ * Welford's algorithm stores sufficient statistics with which to
+ * compute a running mean and sample variance The accumulator stores
+ * only three sufficient statistics: a `std::size_t` and two `double`
+ * values.  The algorithm is more numerically stable for variance
+ * calculations than the naive algorithm.
+ */
+class WelfordAccumulator {
+ public:
+  /**
+   * @brief Construct an accumulator with no observed values.
+   */
+  WelfordAccumulator() : n_(0), mean_(0.0), M2_(0.0) {}
+
+  /**
+   * @brief Observe a value.
+   *
+   * @param[in] x The observed value.
+   */
+  void observe(double x) {
+    ++n_;
+    const double delta = x - mean_;
+    mean_ += delta / static_cast<double>(n_);
+    const double delta2 = x - mean_;
+    M2_ += delta * delta2;
+  }
+
+  /**
+   * @brief Return the number of values observed.
+   *
+   * @return The number of values observed.
+   */
+  std::size_t count() const { return n_; }
+
+  /**
+   * @brief Return the mean of all of the values observed, or 0
+   * if no values have been observed.
+   *
+   * @return The mean of the observed values.
+   */
+  double mean() const { return mean_; }
+
+  /**
+   * @brief Return the sample variance of the observed values.
+   *
+   * The sample variance is the unbiased estimator of variance.
+   * It divides by number of observations minus one.  Thus if
+   * there have been fewer than two observations, the sample
+   * variance is undefined and `NaN` will be returned.
+   *
+   * @return The sample variance of the observed values.
+   */
+  double sample_variance() const {
+    return n_ > 1 ? (M2_ / static_cast<double>(n_ - 1))
+                  : std::numeric_limits<double>::quiet_NaN();
+  }
+
+  /**
+   * @brief Reset the accumulator to its initial state of having seen
+   * zero observations.
+   */
+  void reset() {
+    n_ = 0;
+    mean_ = 0.0;
+    M2_ = 0.0;
+  }
+
+ private:
+  std::size_t n_;
+  double mean_;
+  double M2_;
+};
 
 /**
  * @brief An accumulator estimating discounted means and variances online.
@@ -42,34 +120,13 @@ namespace nuts {
  * ```
  * var = sum(weight .* (y - mean)^2) / sum(weight).
  * ```
- *
- * @tparam S The type of scalars.
  */
-template <typename S>
 class OnlineMoments {
  public:
   /**
    * @brief Construct a default online estimator of size zero.
    */
-  OnlineMoments()
-      : discount_factor_(0.98),  // dummy valid inits
-        weight_(0),
-        mean_(Vec<S>::Zero(0)),
-        sum_sq_dev_(Vec<S>::Zero(0)) {}
-
-  /**
-   * @brief Construct online moments with a given discount factor and size.
-   *
-   * @param[in] discount_factor The past discount factor (between 0 and 1,
-   * inclusive).
-   * @param[in] dims The number of dimensions.
-   * @throw std::invalid_argument If `discount_factor` is not in [0, 1].
-   */
-  OnlineMoments(double discount_factor, std::size_t dims)
-      : discount_factor_(discount_factor),
-        weight_(0),
-        mean_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))),
-        sum_sq_dev_(Vec<S>::Zero(static_cast<Eigen::Index>(dims))) {}
+  OnlineMoments() : weight_(0) {}
 
   /**
    * @brief Construct an online estimator of moments with the
@@ -80,8 +137,6 @@ class OnlineMoments {
    * initial mean and variance were the result of a count of
    * `init_weight` observations.
    *
-   * @param[in] discount_factor The past discount factor (between 0 and 1,
-   * inclusive).
    * @param[in] init_weight Weight (in number of draws) of initial mean
    * and variance (positive).
    * @param[in] init_mean Initial mean.
@@ -92,13 +147,11 @@ class OnlineMoments {
    * @throw std::invalid_argument If the initial mean and variance are not
    * the same size.
    */
-  OnlineMoments(S discount_factor, S init_weight, const Vec<S>& init_mean,
-                const Vec<S>& init_variance)
-      : discount_factor_(discount_factor),
-        weight_(init_weight),
+  OnlineMoments(double init_weight, const Eigen::VectorXd& init_mean,
+                const Eigen::VectorXd& init_variance)
+      : weight_(init_weight),
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
-    validate_probability_inclusive(discount_factor, "discount_factor");
     validate_positive(init_weight, "init_weight");
     validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
   }
@@ -107,12 +160,11 @@ class OnlineMoments {
    * @brief Set the discount factor for previous observations to the specified
    * value.
    *
-   * @param discount_factor The discount factor.
+   * @param[in] discount_factor The discount factor.
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
-  inline void set_discount_factor(S discount_factor) {
-    validate_probability_inclusive(discount_factor,
-                                   "set_discount_factor(discount_factror)");
+  void set_discount_factor(double discount_factor) {
+    validate_probability_inclusive(discount_factor, "discount_factor");
     discount_factor_ = discount_factor;
   }
 
@@ -124,15 +176,15 @@ class OnlineMoments {
    * factor.
    *
    * @tparam Derived The type of matrix underlying the observation.
-   * @param y The observed vector.
+   * @param[in] y The observed vector.
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
-  inline void observe(const Eigen::MatrixBase<Derived>& y) {
-    const Vec<S> delta = y - mean_;
+  void observe(const Eigen::MatrixBase<Derived>& y) {
+    auto delta = y - mean_;
     weight_ = discount_factor_ * weight_ + 1;
     mean_ += delta / weight_;
-    sum_sq_dev_ =
+    sum_sq_dev_.noalias() =
         discount_factor_ * sum_sq_dev_ + delta.cwiseProduct(y - mean_);
   }
 
@@ -143,14 +195,14 @@ class OnlineMoments {
    * and `observe(y)`.
    *
    * @tparam Derived The type of matrix underlying the observation.
-   * @param discount_factor The discount factor.
-   * @param y The observed vector.
-   * @pre discount_factor > 0 && discount_factor <= 1
+   * @param[in] discount_factor The discount factor.
+   * @param[in] y The observed vector.
+   * @throw discount_factor > 0 && discount_factor <= 1
    * @pre y.size() == mean().size()
    */
   template <typename Derived>
-  inline void discount_observe(double discount_factor,
-                               const Eigen::MatrixBase<Derived>& y) {
+  void discount_observe(double discount_factor,
+                        const Eigen::MatrixBase<Derived>& y) {
     set_discount_factor(discount_factor);
     observe(y);
   }
@@ -160,32 +212,36 @@ class OnlineMoments {
    *
    * @return The mean estimate.
    */
-  inline const Vec<S>& mean() const noexcept { return mean_; }
+  const Eigen::VectorXd& mean() const noexcept { return mean_; }
 
   /**
-   * @brief Return the estimate of the variance.
+   * @brief Return the maximum likelihood estimate of the variance, or
+   * a vector of 1 values if there have been no observations.
    *
    * @return The variance estimate.
    */
-  inline Vec<S> variance() const {
-    if (weight_ > 0) {
-      return sum_sq_dev_ / weight_;
+  Eigen::VectorXd variance() const {
+    if (!(weight_ > 0)) {
+      return Eigen::VectorXd::Ones(mean_.size());
     }
-    return Vec<S>::Ones(mean_.size());
+    return sum_sq_dev_ / weight_;
   }
 
  private:
-  /** The discount factor applied to the weights of previous observations. */
-  S discount_factor_;
+  /** The discount factor applied to the weights of previous observations.
+   *
+   * Gets reset before it is used in discounted Welford algorithm.
+   */
+  double discount_factor_ = std::numeric_limits<double>::quiet_NaN();
 
   /** The combined weight of all previous observations. */
-  S weight_;
+  double weight_;
 
   /** The current mean estimate */
-  Vec<S> mean_;
+  Eigen::VectorXd mean_;
 
   /** The sum of weighted squared deviations from the mean. */
-  Vec<S> sum_sq_dev_;
+  Eigen::VectorXd sum_sq_dev_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

@@ -1,5 +1,5 @@
 add_executable(summary-example summary-example.cpp)
-target_link_libraries(summary-example PRIVATE nuts::nuts) 
+target_link_libraries(summary-example PRIVATE walnuts)
 target_compile_options(summary-example PRIVATE -O3 -Wall) 
 
 add_executable(walnuts_api walnuts_api.cpp) 

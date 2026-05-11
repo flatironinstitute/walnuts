@@ -5,6 +5,87 @@
 
 namespace walnuts {
 
+  namespace {
+    template <typename Derived>
+    static auto mean(const Eigen::MatrixBase<Derived>& draws) {
+      return draws.colwise().mean().eval();
+    }
+
+    template <typename Derived>
+    static auto sample_variance(const Eigen::MatrixBase<Derived>& draws,
+				const Eigen::RowVectorXd& mean) {
+      return ((draws.rowwise() - mean).array().square().colwise().sum()
+	      / (draws.rows() - 1)).eval();
+    }
+
+    template <typename Derived>
+    static auto sample_variance(const Eigen::MatrixBase<Derived>& draws) {
+      return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
+	      / (draws.rows() - 1)).eval();
+    }
+
+    
+    template <typename Derived>
+    static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws,
+					  const Eigen::RowVectorXd& mean) {
+      return sample_variance(draws, mean).array().sqrt().matrix().eval();
+    }
+
+    
+    template <typename Derived>
+    static auto population_variance(const Eigen::MatrixBase<Derived>& draws) {
+      return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
+	      / draws.rows()).eval();
+    }
+
+    
+  
+    template <typename Derived>
+    static auto population_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
+      return population_variance(draws).array().sqrt().matrix().eval();
+    }
+
+    template <typename Derived>
+    static Eigen::MatrixXd quantiles(const Eigen::MatrixBase<Derived>& draws, const Eigen::VectorXd probs) {
+      const Eigen::Index N = draws.rows();
+      const Eigen::Index D = draws.cols();
+      const Eigen::Index K = probs.size();
+      Eigen::MatrixXd result(K, D);
+      for (Eigen::Index d = 0; d < D; ++d) {
+	Eigen::VectorXd col = draws.col(d);  // copy to not mutate draws
+	std::sort(col.begin(), col.end());
+	for (Eigen::Index k = 0; k < K; ++k) {
+	  const double h = probs(k) * static_cast<double>(N - 1);
+	  const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(h));
+	  const Eigen::Index hi = std::min(lo + 1, N - 1);  // lo + 1 == ceil(h)
+	  const double frac = h - static_cast<double>(lo);
+	  result(k, d) = col(lo) + frac * (col(hi) - col(lo));
+	}
+      }
+      return result;
+    }
+
+    static Eigen::RowVectorXd r_hat(const Eigen::MatrixXd& draws,
+				    const std::vector<std::size_t>& chain_ends) {
+      Eigen::Index K = static_cast<Eigen::Index>(chain_ends.size());
+      Eigen::Index D = draws.cols();
+      Eigen::MatrixXd mu(K, D);
+      Eigen::MatrixXd sigma_sq(K, D);
+      Eigen::Index start = 0;
+      for (Eigen::Index k = 0; k < K; ++k) {
+	Eigen::Index end = static_cast<Eigen::Index>(chain_ends[static_cast<std::size_t>(k)]);
+	Eigen::Index length = end - start;
+	auto chain = draws.middleRows(start, length);
+	auto chain_mean = mean(chain);
+	mu.row(k) = chain_mean;
+	sigma_sq.row(k) = sample_standard_deviation(chain, chain_mean);
+	start = end;
+      }
+      return (1.0 + sample_variance(mu).array() / mean(sigma_sq).array())
+	.matrix();
+    }
+  }
+
   /**
    * @brief A class for representing a collection of Markov chains.
    * 
@@ -70,25 +151,31 @@ namespace walnuts {
     std::vector<std::size_t> chain_end_;  // one past end for ranges
   };
 
-  template <typename Derived>
-  static auto mean(const Eigen::MatrixBase<Derived>& draws) {
-    return draws.colwise().mean().eval();
-  }
+  /**
+   * @brief Return the sample means of the variables in the chains.
+   *
+   * The means are calculated for each variable (i.e., each
+   * dimension). 
+   * 
+   * @param chains The Markov chains.
+   * @return The sample means.
+   */  
   inline Eigen::RowVectorXd mean(const MarkovChains& chains) {
     return mean(chains.draws());
   }
 
-  template <typename Derived>
-  static auto sample_variance(const Eigen::MatrixBase<Derived>& draws,
-			      const Eigen::RowVectorXd& mean) {
-    return ((draws.rowwise() - mean).array().square().colwise().sum()
-	    / (draws.rows() - 1)).eval();
-  }
-  template <typename Derived>
-  static auto sample_variance(const Eigen::MatrixBase<Derived>& draws) {
-    return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-	    / (draws.rows() - 1)).eval();
-  }
+  /**
+   * @brief Return the sample variances of the variables in the chains.
+   *
+   * The variances are calculated for each variable (i.e., each
+   * dimension). The formula divides by the number of draws minus one
+   * and thus provides an unbiased estimate of the population variance
+   * based on a small sample.  If used to calculate the variance of an
+   * entire population, it will be biased to the high side.
+   * 
+   * @param chains The Markov chains.
+   * @return The variances.
+   */  
   inline Eigen::RowVectorXd sample_variance(const MarkovChains& chains) {
     if (chains.num_draws() < 2) {
       throw std::domain_error("chains must have at least 2 draws");
@@ -96,11 +183,17 @@ namespace walnuts {
     return sample_variance(chains.draws());
   }
 
-  template <typename Derived>
-  static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws,
-					const Eigen::RowVectorXd& mean) {
-    return sample_variance(draws, mean).array().sqrt().matrix().eval();
-  }
+  /**
+   * @brief Return the sample standard deviations of the variables in the chains.
+   *
+   * The standard deviations are calculated for each variable (i.e., each
+   * dimension). The formula divides by the number of draws minus one.  Nevertheless,
+   * unlike the sample variance estimate, sample standard deviations are not unbiased
+   * estimates of population standard deviations.
+   * 
+   * @param chains The Markov chains.
+   * @return The standard deviations.
+   */  
   template <typename Derived>
   static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
     return sample_variance(draws).array().sqrt().matrix().eval();
@@ -112,11 +205,18 @@ namespace walnuts {
     return sample_standard_deviation(chains.draws());
   }
 
-  template <typename Derived>
-  static auto population_variance(const Eigen::MatrixBase<Derived>& draws) {
-    return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-	    / draws.rows()).eval();
-  }
+  /**
+   * @brief Return the population variances of the variables in the chains.
+   *
+   * The variances are calculated for each variable (i.e., each
+   * dimension). The formula divides by the number of draws and thus
+   * provides the correct population variance.  It will be biased to
+   * the low side if used to estimate variance based on a subsample of
+   * the population.
+   * 
+   * @param chains The Markov chains.
+   * @return The variances.
+   */
   inline Eigen::RowVectorXd population_variance(const MarkovChains& chains) {
     if (chains.num_draws() < 1) {
       throw std::invalid_argument("chains must have at least 1 draw");
@@ -124,11 +224,18 @@ namespace walnuts {
     return population_variance(chains.draws());
   }
 
-  
-  template <typename Derived>
-  static auto population_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
-    return population_variance(draws).array().sqrt().matrix().eval();
-  }
+
+  /**
+   * @brief Return the population standard deviations of the variables in the chains.
+   *
+   * The standard deviations are calculated for each variable (i.e.,
+   * each dimension).  The formula divides by the number of draws and
+   * thus provides the correct population standard deviation, but is
+   * biased to the low side if based on a subsample of the population.
+   * 
+   * @param chains The Markov chains.
+   * @return The standard deviations.
+   */
   inline Eigen::RowVectorXd population_standard_deviation(const MarkovChains& chains) {
     if (chains.num_draws() < 1) {
       throw std::invalid_argument("chains must have at least 1 draw");
@@ -136,25 +243,7 @@ namespace walnuts {
     return population_standard_deviation(chains.draws());
   }
 
-  template <typename Derived>
-  static Eigen::MatrixXd quantiles(const Eigen::MatrixBase<Derived>& draws, const Eigen::VectorXd probs) {
-    const Eigen::Index N = draws.rows();
-    const Eigen::Index D = draws.cols();
-    const Eigen::Index K = probs.size();
-    Eigen::MatrixXd result(K, D);
-    for (Eigen::Index d = 0; d < D; ++d) {
-      Eigen::VectorXd col = draws.col(d);  // copy to not mutate draws
-      std::sort(col.begin(), col.end());
-      for (Eigen::Index k = 0; k < K; ++k) {
-  	const double h = probs(k) * static_cast<double>(N - 1);
-  	const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(h));
-  	const Eigen::Index hi = std::min(lo + 1, N - 1);  // lo + 1 == ceil(h)
-  	const double frac = h - static_cast<double>(lo);
-  	result(k, d) = col(lo) + frac * (col(hi) - col(lo));
-      }
-    }
-    return result;
-  }
+
 
   /**
    * @brief Return the empirical quantiles of the draws.
@@ -217,25 +306,7 @@ namespace walnuts {
     return quantiles(chains.draws(), probs);
   }
 
-  static Eigen::RowVectorXd r_hat(const Eigen::MatrixXd& draws,
-				  const std::vector<std::size_t>& chain_ends) {
-    Eigen::Index K = static_cast<Eigen::Index>(chain_ends.size());
-    Eigen::Index D = draws.cols();
-    Eigen::MatrixXd mu(K, D);
-    Eigen::MatrixXd sigma_sq(K, D);
-    Eigen::Index start = 0;
-    for (Eigen::Index k = 0; k < K; ++k) {
-      Eigen::Index end = static_cast<Eigen::Index>(chain_ends[static_cast<std::size_t>(k)]);
-      Eigen::Index length = end - start;
-      auto chain = draws.middleRows(start, length);
-      auto chain_mean = mean(chain);
-      mu.row(k) = chain_mean;
-      sigma_sq.row(k) = sample_standard_deviation(chain, chain_mean);
-      start = end;
-    }
-    return (1.0 + sample_variance(mu).array() / mean(sigma_sq).array())
-      .matrix();
-  }
+
 
   /**
    * @brief Return the chain-balanced ragged R-hat statistic for the chains.
@@ -256,8 +327,8 @@ namespace walnuts {
    * R-hat = 1 + sample_variance(mu) ./ mean(sigma_sq)
    * @endcode
    *
-   * See Gelman and Rubin (1992 @cite gelmanrubin1992) for the original definition of 
-   * R-hat and Margossian (2025 @cite margossian2026) for the one used here.
+   * See Gelman and Rubin (1992 @cite gelman1992inference) for the original definition of 
+   * R-hat and Margossian (2025 @cite margossian2025nested) for the one used here.
    * 
    * @param[in] chains The Markov chains.
    * @return The R-hat statistic for each variable in the chain.

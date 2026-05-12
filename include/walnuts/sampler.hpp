@@ -17,7 +17,6 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/online_moments.hpp>
-#include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>
 #include <walnuts/util.hpp>
 
@@ -48,7 +47,7 @@ struct ChainStats {
  *
  * Used as a single-producer, single-consumer (SPSC) store.
  */
-class AtomicChainStats {
+class alignas(FALSE_SHARING_GUARD_SIZE) AtomicChainStats {
  public:
   /**
    * Construct an atomically-wrapped `ChainStats` object initialized
@@ -175,7 +174,7 @@ class ChainWorker {
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
-    std::vector<Padded<AtomicChainStats>>& stats_by_chain, GH& global_handler,
+    std::vector<AtomicChainStats>& stats_by_chain, GH& global_handler,
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -190,7 +189,7 @@ static void controller_loop(
   while (true) {
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
-      ChainStats u = stats_by_chain[m].val.load();
+      ChainStats u = stats_by_chain[m].load();
       counts[m] = u.count;
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
@@ -237,14 +236,14 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
                    std::size_t min_draws_per_chain,
                    std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
+  std::vector<AtomicChainStats> stats_by_chain(M);
   std::latch start_gate(static_cast<std::ptrdiff_t>(M));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     threads.emplace_back(ChainWorker<S>(min_draws_per_chain,
                                         max_draws_per_chain, samplers[m],
-                                        stats_by_chain[m].val, start_gate));
+                                        stats_by_chain[m], start_gate));
   }
   try {
     controller_loop(stats_by_chain, global_handler, interrupt_callback,

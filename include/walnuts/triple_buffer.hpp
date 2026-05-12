@@ -7,7 +7,7 @@
 #include <utility>
 
 #include <walnuts/concepts.hpp>
-#include <walnuts/padded.hpp>
+#include <walnuts/util.hpp>
 
 namespace walnuts {
 
@@ -20,7 +20,7 @@ namespace walnuts {
  * @tparam T Type of object buffered.
  */
 template <class T>
-class TripleBuffer {
+class alignas(FALSE_SHARING_GUARD_SIZE) TripleBuffer {
  public:
   /**
    * @brief Construct a buffer using the specified factory to
@@ -32,6 +32,8 @@ class TripleBuffer {
    */
   explicit TripleBuffer(const T& t)
       : buffers_{t, t, t}, front_(0), spare_(1), back_(2), read_(0) {}
+
+  TripleBuffer() : TripleBuffer(T()) {}
 
   /**
    * Move the specified buffer into this buffer.

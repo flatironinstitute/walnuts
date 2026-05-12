@@ -17,7 +17,7 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/online_moments.hpp>
-#include <walnuts/padded.hpp>
+#include <walnuts/triple_buffer.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
@@ -42,55 +42,6 @@ struct ChainStats {
 };
 
 /**
- * @brief An atomically-wrapped `ChainStats` object with helper methods.
- *
- * Usable as a single-producer, single-consumer (SPSC) store.
- */
-class AtomicChainStats {
- public:
-  /**
-   * Construct an atomically-wrapped `ChainStats` object initialized
-   * to `NaN` for the mean and variance and zero for the count and store
-   * it in `relaxed` order.
-   */
-  AtomicChainStats() noexcept {
-    ChainStats init{std::numeric_limits<float>::quiet_NaN(),
-                    std::numeric_limits<float>::quiet_NaN(), 0u};
-    data_.store(init, std::memory_order_relaxed);
-  }
-
-  /**
-   * @brief Store the specified object with the specified memory order.
-   *
-   * The default uses a conservate `release` order.
-   *
-   * @param[in] p The chain statistics object to store.
-   * @param[in] mem_order The memory order for the storage.
-   */
-  void store(const ChainStats& p,
-             std::memory_order mem_order = std::memory_order_release) noexcept {
-    data_.store(p, mem_order);
-  }
-
-  /**
-   * @brief Return a copy of the local chain stats with the specified memory
-   * order.
-   *
-   * The default uses a conservate `acquire` order.
-   *
-   * @param[in] mem_order The memory order for the storage.
-   * @return Copy of the local chain statistics object.
-   */
-  ChainStats load(
-      std::memory_order mem_order = std::memory_order_acquire) const noexcept {
-    return data_.load(mem_order);
-  }
-
- private:
-  std::atomic<ChainStats> data_;
-};
-
-/**
  * @brief The worker functor for threads that calls the sampler and updates
  * the accumulator.
  *
@@ -105,18 +56,18 @@ class ChainWorker {
    * @param[in] min_draws The minimum number of draws.
    * @param[in] max_draws The maximum number of draws.
    * @param[in] sampler The sampler.
-   * @param[out] acs The atomic chain statistics for this chain.
+   * @param[out] buffer The buffer of chain statistics for this chain.
    * @param[in,out] start_gate The latch gating work and monitoring.
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
    */
   ChainWorker(std::size_t min_draws, std::size_t max_draws, S& sampler,
-              AtomicChainStats& acs, std::latch& start_gate,
+              TripleBuffer<ChainStats>& buffer, std::latch& start_gate,
               std::size_t yield_period = 1024)
       : min_draws_(min_draws),
         max_draws_(max_draws),
         sampler_(sampler),
-        acs_(acs),
+        buffer_(buffer),
         start_gate_(start_gate),
         yield_period_(yield_period) {}
 
@@ -144,7 +95,8 @@ class ChainWorker {
       ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
                              static_cast<float>(logp_stats_.sample_variance()),
                              static_cast<uint32_t>(logp_stats_.count())};
-      acs_.get().store(chain_stats);
+      buffer_.get().write_buffer() = chain_stats;
+      buffer_.get().publish();
     }
   }
 
@@ -153,7 +105,7 @@ class ChainWorker {
   const std::size_t max_draws_;
   std::reference_wrapper<S> sampler_;
   WelfordAccumulator logp_stats_;
-  std::reference_wrapper<AtomicChainStats> acs_;
+  std::reference_wrapper<TripleBuffer<ChainStats>> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   const std::size_t yield_period_;
 };
@@ -175,11 +127,11 @@ class ChainWorker {
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
-    std::vector<Padded<AtomicChainStats>>& stats_by_chain, GH& global_handler,
+    std::vector<TripleBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
-  initiated_qos();  // Apple silicon second-highest priority; o.w. no-op
+  interactive_qos();  // Apple silicon highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
   Eigen::VectorXd chain_variances(M);
@@ -190,7 +142,7 @@ static void controller_loop(
   while (true) {
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
-      ChainStats u = stats_by_chain[m].val.load();
+      ChainStats u = stats_by_chain[m].read_latest();
       counts[m] = u.count;
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
@@ -225,8 +177,10 @@ static void controller_loop(
  * indirectly through the samplers, and also implement `size_t dim()`.
  *
  * @tparam Sampler The type of the sampler.
+ * @tparam IC The type of the interrupt callback.
  * @param[in] samplers The vector of samplers.
  * @param[in,out] global_handler The global event handler for sampling.
+ * @param[in] interrupt_callback The interrupt callback for stopping.
  * @param[in] rhat_threshold The threshold below which sampling is stopped.
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
@@ -237,14 +191,14 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
                    std::size_t min_draws_per_chain,
                    std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<Padded<AtomicChainStats>> stats_by_chain(M);
+  std::vector<TripleBuffer<ChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<std::ptrdiff_t>(M));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
     threads.emplace_back(ChainWorker<S>(min_draws_per_chain,
                                         max_draws_per_chain, samplers[m],
-                                        stats_by_chain[m].val, start_gate));
+                                        stats_by_chain[m], start_gate));
   }
   try {
     controller_loop(stats_by_chain, global_handler, interrupt_callback,

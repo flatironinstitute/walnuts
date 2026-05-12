@@ -512,7 +512,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[out] depth The tree depth used by the transition.
  * @param[out] theta_grad The gradient of the log density at the previous state.
  * @param[out] logp_pos_select The log density of the selected position.
- * @param[in,out] adapt_handler The step-size adaptation handler.
+ * @param[in,out] step_size_adapter The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
 template <LogpGrad F, class Rand, StepSizeAdapter A>

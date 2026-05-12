@@ -1,6 +1,5 @@
 #include <Eigen/Dense>
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -12,7 +11,6 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/config.hpp>
-#include <walnuts/padded.hpp>
 #include <walnuts/triple_buffer.hpp>
 #include <walnuts/util.hpp>
 
@@ -55,40 +53,32 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
 /**
  * A triple buffer of adaptation snapshots.
  *
- * @see TripleBuffer
- * @see AdaptSnapshot
+ * @see `walnuts::TripleBuffer`
+ * @see `walnuts::AdaptSnapshot`
  */
 using Buffer = TripleBuffer<AdaptSnapshot>;
 
 /**
- * A padded triple buffer of adaptation snapshots.
- *
- * @see Padded
- * @see Buffer
- */
-using PaddedBuffer = Padded<Buffer>;
-
-/**
- * @brief Return a padded buffer with the specified dimensionality.
+ * @brief Return a buffer with the specified dimensionality.
  *
  * @param[in] dim The dimensionality of the positions.
  * @return A padded buffer of the specified dimensionality.
  */
-static PaddedBuffer construct_buffer(std::size_t dim) {
+static Buffer construct_buffer(std::size_t dim) {
   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
-  return PaddedBuffer{Buffer(snapshot)};
+  return Buffer(snapshot);
 }
 
 /**
- * @brief Return a vector of padded buffers of the given sizes.
+ * @brief Return a vector of buffers of the given sizes.
  *
  * @param[in] num_chains The number of Markov chains.
  * @param[in] dim The number of dimensions.
- * @return The padded buffer container.
+ * @return The buffer container.
  */
-static std::vector<PaddedBuffer> construct_buffers(std::size_t num_chains,
-                                                   std::size_t dim) {
-  std::vector<PaddedBuffer> buffers;
+static std::vector<Buffer> construct_buffers(std::size_t num_chains,
+                                             std::size_t dim) {
+  std::vector<Buffer> buffers;
   buffers.reserve(num_chains);
   for (std::size_t m = 0; m < num_chains; ++m) {
     buffers.emplace_back(construct_buffer(dim));
@@ -111,18 +101,18 @@ class AdaptWorker {
    * @param[in] chain_id The identifier for which chain this is.
    * @param[in] init_cfg The initialization configuragation.
    * @param[in] warmup_cfg The configuration for warmup.
-   * @param[in] buffer The padded buffer to hold the adaptation states.
+   * @param[in] buffer The buffer to hold the adaptation states.
    * @param[in] start_gate A latch to gate work to start synchronously across
    * workers.
    * @param[in] adapter The base sampler, methods of which are later called.
    */
   AdaptWorker(std::size_t chain_id, const InitConfig& init_cfg,
-              const WarmupConfig& warmup_cfg, PaddedBuffer& buffer,
+              const WarmupConfig& warmup_cfg, Buffer& buffer,
               std::latch& start_gate, A& adapter)
       : chain_id_(chain_id),
         init_config_(init_cfg),
         warmup_config_(warmup_cfg),
-        buffer_(buffer.val),
+        buffer_(buffer),
         start_gate_(start_gate),
         adapter_(adapter) {}
 
@@ -198,16 +188,13 @@ struct AdaptResult {
  * @return Statistics for the completed adaptation process.
  */
 template <InterruptCallback IC>
-static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
+static AdaptResult controller_loop(std::vector<Buffer>& buffers,
                                    std::vector<AdaptSnapshot>& latest,
                                    const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
                                    const WarmupConfig& warmup_cfg) {
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
-
-  auto probe_period = warmup_cfg.probe_duration();
-  auto next = std::chrono::steady_clock::now() + probe_period;
 
   Eigen::VectorXd mean_log_mass(D);
   Eigen::VectorXd geom_mean_mass(D);
@@ -217,7 +204,7 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     double mean_log_step = 0.0;
     std::size_t min_iter = std::numeric_limits<std::size_t>::max();
     for (std::size_t m = 0; m < M; ++m) {
-      latest[m] = buffers[m].val.read_latest();
+      latest[m] = buffers[m].read_latest();
       min_iter = std::min(min_iter, latest[m].iter);
       mean_log_step += latest[m].log_step;  // means after division
       mean_log_mass += latest[m].log_mass;
@@ -247,8 +234,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     }
 
     interrupt_callback.throw_if_interrupted();
-    std::this_thread::sleep_until(next);
-    next += probe_period;
   }
 }
 
@@ -257,14 +242,16 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
  * and samplers.
  *
  * @tparam Adapter The type of adaptive sampler.
+ * @tparam IC The type of the interrupt callback.
  * @param[in] init_cfg The initial configuration.
  * @param[in] warmup_cfg The warmup configuration.
  * @param[in,out] adapters The adaptive samplers for each chain.
+ * @param[in] interrupt_callback The interrupt callback for stopping.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
 inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
                   std::vector<A>& adapters, const IC& interrupt_callback) {
-  std::vector<PaddedBuffer> buffers =
+  std::vector<Buffer> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
   std::vector<std::jthread> threads;

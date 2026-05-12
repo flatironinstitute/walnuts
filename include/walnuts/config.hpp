@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <cstddef>
 #include <ostream>
 #include <random>
@@ -574,27 +573,6 @@ class WarmupConfig {
   std::size_t publish_stride() const { return publish_stride_; }
 
   /**
-   * @brief Return the delay before starting another probe for convergence.
-   *
-   * @return The delay before starting another probe for convergence.
-   */
-  std::size_t probe_microseconds() const { return probe_microseconds_; }
-
-  /**
-   * @brief Return the delay before starting another probe for convergence
-   * as a duration.
-   *
-   * The type of return is an the return `std::delay` type used as the
-   * return type of `std::chrono::microseconds`.
-   *
-   * @return The delay before starting another probe for convergence
-   * as a duration.
-   */
-  auto probe_duration() const {
-    return std::chrono::microseconds(probe_microseconds());
-  }
-
-  /**
    * @brief Return the period at which threads for chains yield.
    *
    * @return The the period at which threads for chains yield.
@@ -620,7 +598,6 @@ class WarmupConfig {
   double step_stabilization_ = 1e-4;
   double step_learn_rate_decay_ = 0.5;
   std::size_t publish_stride_ = 5;
-  std::size_t probe_microseconds_ = 1000;
   std::size_t yield_period_ = 32;
 };
 
@@ -810,20 +787,6 @@ class WarmupConfigBuilder {
   }
 
   /**
-   * @brief Set the minimum number of microseconds before the controller thread
-   * probes the chain threads.
-   *
-   * @param[in] v The minimum number of microseconds between probes.
-   * @return This builder for chaining.
-   * @throw std::invalid_argument If the number of microseconds is not positive.
-   */
-  WarmupConfigBuilder& probe_microseconds(std::size_t v) {
-    validate_positive(v, "probe_microseconds");
-    cfg_.probe_microseconds_ = v;
-    return *this;
-  }
-
-  /**
    * @brief Set the iteration period between chain threads yielding.
    *
    * @param[in] v The iteration period between chain threads yielding.
@@ -873,7 +836,6 @@ inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
       << "  step_stabilization       = " << cfg.step_stabilization() << "\n"
       << "  step_learn_rate_decay    = " << cfg.step_learn_rate_decay() << "\n"
       << "  publish_stride           = " << cfg.publish_stride() << "\n"
-      << "  probe_microseconds       = " << cfg.probe_microseconds() << "\n"
       << "  yield_period             = " << cfg.yield_period() << "\n";
   return out;
 }

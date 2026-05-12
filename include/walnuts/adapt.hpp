@@ -1,6 +1,5 @@
 #include <Eigen/Dense>
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -206,9 +205,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
 
-  auto probe_period = warmup_cfg.probe_duration();
-  auto next = std::chrono::steady_clock::now() + probe_period;
-
   Eigen::VectorXd mean_log_mass(D);
   Eigen::VectorXd geom_mean_mass(D);
   Eigen::VectorXd scratch_mass(D);
@@ -247,8 +243,6 @@ static AdaptResult controller_loop(std::vector<PaddedBuffer>& buffers,
     }
 
     interrupt_callback.throw_if_interrupted();
-    std::this_thread::sleep_until(next);
-    next += probe_period;
   }
 }
 

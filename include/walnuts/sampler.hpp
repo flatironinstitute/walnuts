@@ -41,54 +41,6 @@ struct ChainStats {
   std::uint32_t count;
 };
 
-  
-/**
- * @brief A triple buffered `ChainStats` object with helper methods.
- *
- * Used as a single-producer, single-consumer (SPSC) store.
- */
-class alignas(FALSE_SHARING_GUARD_SIZE) AtomicChainStats {
- public:
-  /**
-   * Construct an atomically-wrapped `ChainStats` object initialized
-   * to `NaN` for the mean and variance and zero for the count and store
-   * it in `relaxed` order.
-   */
-  AtomicChainStats(): data_(ChainStats{std::numeric_limits<float>::quiet_NaN(),
-	std::numeric_limits<float>::quiet_NaN(),
-	0u}) {
-  }
-
-  /**
-   * @brief Store the specified object with the specified memory order.
-   *
-   * The default uses a conservate `release` order.
-   *
-   * @param[in] p The chain statistics object to store.
-   * @param[in] mem_order The memory order for the storage.
-   */
-  void store(const ChainStats& p) noexcept {
-    data_.write_buffer() = p;
-    data_.publish();
-  }
-
-  /**
-   * @brief Return a copy of the local chain stats with the specified memory
-   * order.
-   *
-   * The default uses a conservate `acquire` order.
-   *
-   * @param[in] mem_order The memory order for the storage.
-   * @return Copy of the local chain statistics object.
-   */
-  ChainStats load() noexcept {
-    return data_.read_latest();
-  }
-
- private:
-  TripleBuffer<ChainStats> data_;
-};
-
 /**
  * @brief The worker functor for threads that calls the sampler and updates
  * the accumulator.
@@ -104,18 +56,18 @@ class ChainWorker {
    * @param[in] min_draws The minimum number of draws.
    * @param[in] max_draws The maximum number of draws.
    * @param[in] sampler The sampler.
-   * @param[out] acs The atomic chain statistics for this chain.
+   * @param[out] acs The buffer of chain statistics for this chain.
    * @param[in,out] start_gate The latch gating work and monitoring.
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
    */
   ChainWorker(std::size_t min_draws, std::size_t max_draws, S& sampler,
-              AtomicChainStats& acs, std::latch& start_gate,
+              TripleBuffer<ChainStats>& buffer, std::latch& start_gate,
               std::size_t yield_period = 1024)
       : min_draws_(min_draws),
         max_draws_(max_draws),
         sampler_(sampler),
-        acs_(acs),
+	buffer_(buffer),
         start_gate_(start_gate),
         yield_period_(yield_period) {}
 
@@ -143,7 +95,8 @@ class ChainWorker {
       ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
                              static_cast<float>(logp_stats_.sample_variance()),
                              static_cast<uint32_t>(logp_stats_.count())};
-      acs_.get().store(chain_stats);
+      buffer_.get().write_buffer() = chain_stats;
+      buffer_.get().publish();
     }
   }
 
@@ -152,7 +105,7 @@ class ChainWorker {
   const std::size_t max_draws_;
   std::reference_wrapper<S> sampler_;
   WelfordAccumulator logp_stats_;
-  std::reference_wrapper<AtomicChainStats> acs_;
+  std::reference_wrapper<TripleBuffer<ChainStats>> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   const std::size_t yield_period_;
 };
@@ -174,7 +127,7 @@ class ChainWorker {
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
-    std::vector<AtomicChainStats>& stats_by_chain, GH& global_handler,
+    std::vector<TripleBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -189,7 +142,7 @@ static void controller_loop(
   while (true) {
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
-      ChainStats u = stats_by_chain[m].load();
+      ChainStats u = stats_by_chain[m].read_latest();
       counts[m] = u.count;
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
@@ -236,7 +189,7 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
                    std::size_t min_draws_per_chain,
                    std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<AtomicChainStats> stats_by_chain(M);
+  std::vector<TripleBuffer<ChainStats>> stats_by_chain(M);
   std::latch start_gate(static_cast<std::ptrdiff_t>(M));
   std::vector<std::jthread> threads;
   threads.reserve(M);

@@ -77,7 +77,7 @@ static Buffer construct_buffer(std::size_t dim) {
  * @return The buffer container.
  */
 static std::vector<Buffer> construct_buffers(std::size_t num_chains,
-					     std::size_t dim) {
+                                             std::size_t dim) {
   std::vector<Buffer> buffers;
   buffers.reserve(num_chains);
   for (std::size_t m = 0; m < num_chains; ++m) {
@@ -242,9 +242,11 @@ static AdaptResult controller_loop(std::vector<Buffer>& buffers,
  * and samplers.
  *
  * @tparam Adapter The type of adaptive sampler.
+ * @tparam IC The type of the interrupt callback.
  * @param[in] init_cfg The initial configuration.
  * @param[in] warmup_cfg The warmup configuration.
  * @param[in,out] adapters The adaptive samplers for each chain.
+ * @param[in] interrupt_callback The interrupt callback for stopping.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
 inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,

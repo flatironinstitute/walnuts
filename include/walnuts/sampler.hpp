@@ -56,7 +56,7 @@ class ChainWorker {
    * @param[in] min_draws The minimum number of draws.
    * @param[in] max_draws The maximum number of draws.
    * @param[in] sampler The sampler.
-   * @param[out] acs The buffer of chain statistics for this chain.
+   * @param[out] buffer The buffer of chain statistics for this chain.
    * @param[in,out] start_gate The latch gating work and monitoring.
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
@@ -67,7 +67,7 @@ class ChainWorker {
       : min_draws_(min_draws),
         max_draws_(max_draws),
         sampler_(sampler),
-	buffer_(buffer),
+        buffer_(buffer),
         start_gate_(start_gate),
         yield_period_(yield_period) {}
 
@@ -177,8 +177,10 @@ static void controller_loop(
  * indirectly through the samplers, and also implement `size_t dim()`.
  *
  * @tparam Sampler The type of the sampler.
+ * @tparam IC The type of the interrupt callback.
  * @param[in] samplers The vector of samplers.
  * @param[in,out] global_handler The global event handler for sampling.
+ * @param[in] interrupt_callback The interrupt callback for stopping.
  * @param[in] rhat_threshold The threshold below which sampling is stopped.
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.

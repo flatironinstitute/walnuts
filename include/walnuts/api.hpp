@@ -35,9 +35,10 @@ struct WalnutsConfig {
  *
  * @tparam Handler The type of the event handlers.
  * @param[in] seed The seed for the pseudo-random number generator.
- * @param[in] handlers The collection of chain-specific handlers, which are
- * called back.
+ * @param[in] chain_handlers The collection of chain-specific handlers, which
+ * are called back.
  * @param[in] global_handler The handler for global cross-chain events.
+ * @param[in] interrupt_callback The callback for stopping.
  * @param[in] log_p_grad The log density and gradient function, called back.
  * @param[in] config The configuration for Walnuts.
  * @throws std::invalid_argument If the number of handlers doesn't match

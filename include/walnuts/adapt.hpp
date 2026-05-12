@@ -54,8 +54,8 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
 /**
  * A triple buffer of adaptation snapshots.
  *
- * @see TripleBuffer
- * @see AdaptSnapshot
+ * @see `walnuts::TripleBuffer`
+ * @see `walnuts::AdaptSnapshot`
  */
 using Buffer = TripleBuffer<AdaptSnapshot>;
 

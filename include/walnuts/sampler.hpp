@@ -18,6 +18,7 @@
 #include <walnuts/concepts.hpp>
 #include <walnuts/online_moments.hpp>
 #include <walnuts/padded.hpp>
+#include <walnuts/triple_buffer.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
@@ -41,10 +42,11 @@ struct ChainStats {
   std::uint32_t count;
 };
 
+  
 /**
- * @brief An atomically-wrapped `ChainStats` object with helper methods.
+ * @brief A triple buffered `ChainStats` object with helper methods.
  *
- * Usable as a single-producer, single-consumer (SPSC) store.
+ * Used as a single-producer, single-consumer (SPSC) store.
  */
 class AtomicChainStats {
  public:
@@ -53,10 +55,9 @@ class AtomicChainStats {
    * to `NaN` for the mean and variance and zero for the count and store
    * it in `relaxed` order.
    */
-  AtomicChainStats() noexcept {
-    ChainStats init{std::numeric_limits<float>::quiet_NaN(),
-                    std::numeric_limits<float>::quiet_NaN(), 0u};
-    data_.store(init, std::memory_order_relaxed);
+  AtomicChainStats(): data_(ChainStats{std::numeric_limits<float>::quiet_NaN(),
+	std::numeric_limits<float>::quiet_NaN(),
+	0u}) {
   }
 
   /**
@@ -67,9 +68,9 @@ class AtomicChainStats {
    * @param[in] p The chain statistics object to store.
    * @param[in] mem_order The memory order for the storage.
    */
-  void store(const ChainStats& p,
-             std::memory_order mem_order = std::memory_order_release) noexcept {
-    data_.store(p, mem_order);
+  void store(const ChainStats& p) noexcept {
+    data_.write_buffer() = p;
+    data_.publish();
   }
 
   /**
@@ -81,13 +82,12 @@ class AtomicChainStats {
    * @param[in] mem_order The memory order for the storage.
    * @return Copy of the local chain statistics object.
    */
-  ChainStats load(
-      std::memory_order mem_order = std::memory_order_acquire) const noexcept {
-    return data_.load(mem_order);
+  ChainStats load() noexcept {
+    return data_.read_latest();
   }
 
  private:
-  std::atomic<ChainStats> data_;
+  TripleBuffer<ChainStats> data_;
 };
 
 /**
@@ -179,7 +179,7 @@ static void controller_loop(
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
-  initiated_qos();  // Apple silicon second-highest priority; o.w. no-op
+  interactive_qos();  // Apple silicon highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
   Eigen::VectorXd chain_variances(M);

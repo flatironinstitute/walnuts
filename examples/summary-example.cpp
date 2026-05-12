@@ -70,5 +70,16 @@ int main() {
 
   Eigen::RowVectorXd r_hat = walnuts::r_hat(chains);
   std::cout << "R-hat = " << r_hat << "\n\n";
-  
+
+  Eigen::MatrixXd acov = walnuts::autocovariance(chains.draws(), chains.chain_ends());
+  std::cout << "Autocovariance:\n" << acov << "\n\n";
+
+  Eigen::MatrixXd acorr = walnuts::autocorrelation(chains.draws(), chains.chain_ends());
+  std::cout << "Autocorrelation:\n" << acorr << "\n\n";
+
+  Eigen::MatrixXd ess = walnuts::effective_sample_size(chains);
+  std::cout << "ESS = " << ess << "\n\n";
+
+  Eigen::MatrixXd mcse = walnuts::monte_carlo_standard_error(chains);
+  std::cout << "Monte Carlo standard error (MCSE) = " << mcse << "\n\n";
 }

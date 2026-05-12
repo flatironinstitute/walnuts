@@ -1,44 +1,47 @@
 #pragma once
 
+#include <complex>
 #include <stdexcept>
+#include <vector>
+
 #include <Eigen/Dense>
+#include <unsupported/Eigen/FFT>
 
 namespace walnuts {
 
   namespace {
+    static double sample_variance(const Eigen::VectorXd& x) {
+      return (x.array() - x.mean()).square().sum() / (x.rows() - 1);
+    }
+    
     template <typename Derived>
-    static auto mean(const Eigen::MatrixBase<Derived>& draws) {
+    static Eigen::VectorXd mean(const Eigen::MatrixBase<Derived>& draws) {
       return draws.colwise().mean().eval();
     }
 
     template <typename Derived>
-    static auto sample_variance(const Eigen::MatrixBase<Derived>& draws,
-				const Eigen::RowVectorXd& mean) {
+    static Eigen::RowVectorXd sample_variance(const Eigen::MatrixBase<Derived>& draws,
+                                              const Eigen::RowVectorXd& mean) {
       return ((draws.rowwise() - mean).array().square().colwise().sum()
-	      / (draws.rows() - 1)).eval();
+              / (draws.rows() - 1));
     }
 
     template <typename Derived>
-    static auto sample_variance(const Eigen::MatrixBase<Derived>& draws) {
+    static Eigen::RowVectorXd sample_variance(const Eigen::MatrixBase<Derived>& draws) {
       return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-	      / (draws.rows() - 1)).eval();
+              / (draws.rows() - 1));
     }
 
-    
     template <typename Derived>
-    static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws,
-					  const Eigen::RowVectorXd& mean) {
-      return sample_variance(draws, mean).array().sqrt().matrix().eval();
+    static Eigen::RowVectorXd sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
+      return sample_variance(draws).array().sqrt().matrix().eval();
     }
-
     
     template <typename Derived>
     static auto population_variance(const Eigen::MatrixBase<Derived>& draws) {
       return ((draws.rowwise() - draws.colwise().mean()).array().square().colwise().sum()
-	      / draws.rows()).eval();
+              / draws.rows()).eval();
     }
-
-    
   
     template <typename Derived>
     static auto population_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
@@ -46,45 +49,239 @@ namespace walnuts {
     }
 
     template <typename Derived>
-    static Eigen::MatrixXd quantiles(const Eigen::MatrixBase<Derived>& draws, const Eigen::VectorXd probs) {
+    static Eigen::MatrixXd quantiles(const Eigen::MatrixBase<Derived>& draws, const Eigen::VectorXd& probs) {
       const Eigen::Index N = draws.rows();
       const Eigen::Index D = draws.cols();
       const Eigen::Index K = probs.size();
       Eigen::MatrixXd result(K, D);
       for (Eigen::Index d = 0; d < D; ++d) {
-	Eigen::VectorXd col = draws.col(d);  // copy to not mutate draws
-	std::sort(col.begin(), col.end());
-	for (Eigen::Index k = 0; k < K; ++k) {
-	  const double h = probs(k) * static_cast<double>(N - 1);
-	  const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(h));
-	  const Eigen::Index hi = std::min(lo + 1, N - 1);  // lo + 1 == ceil(h)
-	  const double frac = h - static_cast<double>(lo);
-	  result(k, d) = col(lo) + frac * (col(hi) - col(lo));
-	}
+        Eigen::VectorXd col = draws.col(d);  // copy to not mutate draws
+        std::sort(col.begin(), col.end());
+        for (Eigen::Index k = 0; k < K; ++k) {
+          const double h = probs(k) * static_cast<double>(N - 1);
+          const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(h));
+          const Eigen::Index hi = std::min(lo + 1, N - 1);  // lo + 1 == ceil(h)
+          const double frac = h - static_cast<double>(lo);
+          result(k, d) = col(lo) + frac * (col(hi) - col(lo));
+        }
       }
       return result;
     }
 
     static Eigen::RowVectorXd r_hat(const Eigen::MatrixXd& draws,
-				    const std::vector<std::size_t>& chain_ends) {
+                                    const std::vector<std::size_t>& chain_ends) {
       Eigen::Index K = static_cast<Eigen::Index>(chain_ends.size());
       Eigen::Index D = draws.cols();
       Eigen::MatrixXd mu(K, D);
       Eigen::MatrixXd sigma_sq(K, D);
       Eigen::Index start = 0;
       for (Eigen::Index k = 0; k < K; ++k) {
-	Eigen::Index end = static_cast<Eigen::Index>(chain_ends[static_cast<std::size_t>(k)]);
-	Eigen::Index length = end - start;
-	auto chain = draws.middleRows(start, length);
-	auto chain_mean = mean(chain);
-	mu.row(k) = chain_mean;
-	sigma_sq.row(k) = sample_standard_deviation(chain, chain_mean);
-	start = end;
+        Eigen::Index end = static_cast<Eigen::Index>(chain_ends[static_cast<std::size_t>(k)]);
+        Eigen::Index length = end - start;
+        auto chain = draws.middleRows(start, length);
+        auto chain_mean = mean(chain);
+        mu.row(k) = chain_mean;
+        sigma_sq.row(k) = sample_variance(chain, chain_mean);
+        start = end;
       }
       return (1.0 + sample_variance(mu).array() / mean(sigma_sq).array())
-	.matrix();
+        .sqrt().matrix();
     }
-  }
+
+    static void strip_factor(Eigen::Index& m, Eigen::Index factor) {
+      while (m % factor == 0) {
+        m /= factor;
+      }
+    }
+
+    static Eigen::Index fft_next_good_size(Eigen::Index n) {
+      if (n <= 2) {
+        return 2;
+      }
+      for (; true; ++n) {
+        auto m = n;
+        strip_factor(m, 2);
+        strip_factor(m, 3);
+        strip_factor(m, 5);
+        if (m <= 1) {
+          return n;
+        }
+      }
+    }
+
+    // implementation from stan-dev/stan/; BSD-3 licensed
+    static void autocovariance_col(const Eigen::VectorXd& y,
+                                   Eigen::VectorXd& ac,
+                                   Eigen::FFT<double>& fft) {
+      // TODO: evaluate the following optimization
+      // fft.SetFlag(fft.HalfSpectrum);
+
+
+      Eigen::Index N = y.size();
+      Eigen::Index M = fft_next_good_size(N);
+      Eigen::Index M2 = 2 * M;
+
+      Eigen::VectorXd padded_signal(M2);
+      padded_signal.setZero();
+      padded_signal.head(N) = y.array() - y.mean();
+
+      Eigen::VectorXcd freq_vec(M2);
+      fft.fwd(freq_vec, padded_signal);
+      freq_vec = freq_vec.cwiseAbs2();
+      
+      Eigen::VectorXcd ac_tmp(M2);
+      fft.inv(ac_tmp, freq_vec);
+
+      ac_tmp /= static_cast<double>(N);  // biased estimate recommended by Geyer (1992)
+      ac = ac_tmp.head(N).real().array();
+    }
+    
+    static Eigen::MatrixXd autocovariance_chain(const Eigen::MatrixXd& chain,
+                                                Eigen::FFT<double>& fft) {
+      Eigen::Index N = chain.rows();
+      Eigen::Index D = chain.cols();
+      Eigen::MatrixXd acor(N, D);
+      Eigen::VectorXd acor_col(N);
+      for (Eigen::Index d = 0; d < D; ++d) {
+        Eigen::VectorXd col = chain.col(d);
+        autocovariance_col(col, acor_col, fft);
+        acor.col(d) = acor_col;
+      }
+      return acor;
+    }
+
+    // returns long form
+    static Eigen::MatrixXd autocovariance(const Eigen::MatrixXd& draws,
+                                          const std::vector<std::size_t>& chain_ends) {
+      Eigen::FFT<double> fft;
+      Eigen::Index N = draws.rows();
+      Eigen::Index D = draws.cols();
+      Eigen::MatrixXd acov(N, D);
+      Eigen::Index start = 0;
+      for (auto end : chain_ends) {
+        Eigen::Index len = static_cast<Eigen::Index>(end) - start;
+        Eigen::MatrixXd chain = draws.middleRows(start, len);
+        acov.middleRows(start, len) = autocovariance_chain(chain, fft);
+        start+= len;
+      }
+      return acov;
+    }
+
+    static Eigen::MatrixXd autocorrelation(const Eigen::MatrixXd& draws,
+                                           const std::vector<std::size_t>& chain_ends) {
+      Eigen::MatrixXd acorr = autocovariance(draws, chain_ends);  // not corr until divisions
+      Eigen::Index start = 0;
+      for (auto end : chain_ends) {
+        Eigen::Index len = static_cast<Eigen::Index>(end) - start;
+        Eigen::RowVectorXd vars = acorr.row(start);  // variance is autocovar at lag 0
+        acorr.middleRows(start, len).array().rowwise() /= vars.array();
+        start += len;
+      }
+      return acorr;
+    }
+
+    static Eigen::RowVectorXd ess(const Eigen::MatrixXd& draws,
+                                  const std::vector<std::size_t>& chain_ends) {
+      Eigen::Index D = draws.cols();
+      std::size_t K = chain_ends.size();
+      Eigen::Index N_total = draws.rows();
+
+      // chain starts and lengths
+      std::vector<Eigen::Index> starts(K);
+      std::vector<Eigen::Index> lengths(K);
+      Eigen::Index s = 0;
+      Eigen::Index min_len = std::numeric_limits<Eigen::Index>::max();
+      for (std::size_t k = 0; k < K; ++k) {
+        starts[k] = s;
+        Eigen::Index e = static_cast<Eigen::Index>(chain_ends[k]);
+        lengths[k] = e - s;
+        min_len = std::min(min_len, lengths[k]);
+        s = e;
+      }
+
+      // per-chain means and variances
+      Eigen::MatrixXd chain_means(K, D);
+      Eigen::MatrixXd chain_vars(K, D);
+      for (std::size_t k = 0; k < K; ++k) {
+        auto chain = draws.middleRows(starts[k], lengths[k]);
+        Eigen::RowVectorXd m = mean(chain);
+        chain_means.row(static_cast<Eigen::Index>(k)) = m;
+        chain_vars.row(static_cast<Eigen::Index>(k)) = sample_variance(chain, m);
+      }
+
+      // W (within-chain variance) and var_plus (Margossian convention)
+      Eigen::RowVectorXd W = mean(chain_vars);
+      Eigen::RowVectorXd var_plus = W;
+      if (K > 1) {
+        var_plus += sample_variance(chain_means);
+      }
+
+      // autocovariance per chain, stacked ragged
+      Eigen::MatrixXd acov = autocovariance(draws, chain_ends);
+
+      Eigen::RowVectorXd result(D);
+      for (Eigen::Index d = 0; d < D; ++d) {
+        const double w_d = W(d);
+        const double vp_d = var_plus(d);
+
+        // mean_acov_at_lag(t): average over chains of acov(starts[k] + t, d)
+        auto mean_acov_at_lag = [&](Eigen::Index t) {
+          double sum = 0.0;
+          for (std::size_t k = 0; k < K; ++k) {
+            sum += acov(starts[k] + t, d);
+          }
+          return sum / static_cast<double>(K);
+        };
+
+        Eigen::VectorXd rho_hat_t = Eigen::VectorXd::Zero(min_len);
+        double rho_hat_even = 1.0;
+        rho_hat_t(0) = rho_hat_even;
+
+        double rho_hat_odd = 1.0 - (w_d - mean_acov_at_lag(1)) / vp_d;
+        rho_hat_t(1) = rho_hat_odd;
+
+        // Geyer's initial positive + monotone sequence on paired lags
+        Eigen::Index t = 1;
+        while (t < min_len - 4
+               && (rho_hat_even + rho_hat_odd) > 0.0
+               && !std::isnan(rho_hat_even + rho_hat_odd)) {
+          rho_hat_even = 1.0 - (w_d - mean_acov_at_lag(t + 1)) / vp_d;
+          rho_hat_odd  = 1.0 - (w_d - mean_acov_at_lag(t + 2)) / vp_d;
+
+          if ((rho_hat_even + rho_hat_odd) >= 0.0) {
+            rho_hat_t(t + 1) = rho_hat_even;
+            rho_hat_t(t + 2) = rho_hat_odd;
+          }
+          // initial positive -> initial monotone
+          if (rho_hat_t(t + 1) + rho_hat_t(t + 2)
+              > rho_hat_t(t - 1) + rho_hat_t(t)) {
+            rho_hat_t(t + 1) = (rho_hat_t(t - 1) + rho_hat_t(t)) / 2.0;
+            rho_hat_t(t + 2) = rho_hat_t(t + 1);
+          }
+          t += 2;
+        }
+
+        Eigen::Index max_t = t;
+        // antithetic-tail correction
+        if (rho_hat_even > 0.0 && max_t + 1 < min_len) {
+          rho_hat_t(max_t + 1) = rho_hat_even;
+        }
+
+        double tau_hat = -1.0
+          + 2.0 * rho_hat_t.head(max_t).sum()
+          + (max_t + 1 < min_len ? rho_hat_t(max_t + 1) : 0.0);
+
+        // safety floor: tau >= 1/log10(N_total)
+        tau_hat = std::max(tau_hat, 1.0 / std::log10(static_cast<double>(N_total)));
+
+        result(d) = static_cast<double>(N_total) / tau_hat;
+      }
+      return result;
+    }
+    
+
+    
+  }  // end namespace
 
   /**
    * @brief A class for representing a collection of Markov chains.
@@ -95,27 +292,27 @@ namespace walnuts {
    */
   class MarkovChains {
   public:
-    MarkovChains(Eigen::VectorXd lps,
-		 Eigen::MatrixXd draws,
-		 std::vector<std::size_t> chain_id)
+    MarkovChains(const Eigen::VectorXd& lps,
+                 const Eigen::MatrixXd& draws,
+                 const std::vector<std::size_t>& chain_id)
       : lps_(lps), draws_(draws), chain_id_(chain_id) {
       if (lps.rows() != draws.rows()) {
-	throw std::invalid_argument("lps and draws must have same number of rows.");
+        throw std::invalid_argument("lps and draws must have same number of rows.");
       }
       if (lps.rows() != static_cast<Eigen::Index>(chain_id.size())) {
-	throw std::invalid_argument("number of rows in lps must match size of chain_id");
+        throw std::invalid_argument("number of rows in lps must match size of chain_id");
       }
       if (chain_id.size() < 1) {
-	throw std::invalid_argument("require at least one draw");
+        throw std::invalid_argument("require at least one draw");
       }
       
       for (std::size_t n = 1; n < chain_id.size(); ++n) {
-	if (chain_id[n] < chain_id[n-1]) {
-	  throw std::invalid_argument("chain IDs must be in increasing order");
-	}
-	if (chain_id[n] != chain_id[n - 1]) {
-	  chain_end_.push_back(n);
-	}
+        if (chain_id[n] < chain_id[n-1]) {
+          throw std::invalid_argument("chain IDs must be in increasing order");
+        }
+        if (chain_id[n] != chain_id[n - 1]) {
+          chain_end_.push_back(n);
+        }
       }
       chain_end_.push_back(chain_id.size());
     }
@@ -194,10 +391,6 @@ namespace walnuts {
    * @param chains The Markov chains.
    * @return The standard deviations.
    */  
-  template <typename Derived>
-  static auto sample_standard_deviation(const Eigen::MatrixBase<Derived>& draws) {
-    return sample_variance(draws).array().sqrt().matrix().eval();
-  }
   inline Eigen::RowVectorXd sample_standard_deviation(const MarkovChains& chains) {
     if (chains.num_draws() < 2) {
       throw std::domain_error("chains must have at least 2 draws");
@@ -242,9 +435,6 @@ namespace walnuts {
     }
     return population_standard_deviation(chains.draws());
   }
-
-
-
   /**
    * @brief Return the empirical quantiles of the draws.
    *
@@ -254,8 +444,8 @@ namespace walnuts {
    * For each variable, the empirical quantile at probability `p` is
    * computed by sorting the variable's column and linearly
    * interpolating between an upper bounding and lower bounding value.
-   * This function's behavior matches R's `stats::quantile(x, probs,
-   * type = 7)` (the default `type`) and NumPy's `numpy.quantile(a, q,
+        * This function's behavior matches R's `stats::quantile(x, probs,
+          * type = 7)` (the default `type`) and NumPy's `numpy.quantile(a, q,
    * method='linear')` (the default `method`).
    *
    * In pseudocode, where `column` is the column of values and `p` is
@@ -273,19 +463,25 @@ namespace walnuts {
    * @endcode
    *
    * For example, if the values are `column = (9, 11, 5, 3)` and the 
-   * probability is `p = 0.6`, we have 
+     * probability is `p = 0.6`, we have 
+     *
+     * @code 
+     * sorted                        = (3, 5, 9, 11)
+     * idx = 0.6 * (4 - 1)           = 1.8
+     * lb = floor(1.8)               = 1
+     * ub = min(1 + 1, 4 - 1)        = 2
+     * ub_frac = 1.8 - 1             = 0.8
+     * lb_frac = 2 - 1.8             = 0.2
+     * sorted[1]                     = 5
+     * sorted[2]                     = 9
+     * quantile = 0.8 * 9 + 0.2 * 5  = 8.2
+     * @endcode
    *
-   * @code 
-   * sorted                        = (3, 5, 9, 11)
-   * idx = 0.6 * (4 - 1)           = 1.8
-   * lb = floor(1.8)               = 1
-   * ub = min(1 + 1, 4 - 1)        = 2
-   * ub_frac = 1.8 - 1             = 0.8
-   * lb_frac = 2 - 1.8             = 0.2
-   * sorted[1]                     = 5
-   * sorted[2]                     = 9
-   * quantile = 0.8 * 9 + 0.2 * 5  = 8.2
-   * @endcode
+   * @see <a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/quantile.html">R
+   * `stats:quantile`function, `type=7`</a>
+
+   * @see <a href="https://numpy.org/doc/stable/reference/generated/numpy.quantile.html">NumPy
+   * (Python) `numpy.quantile` function,`method='linear'`</a> (Python).
    *
    * @param[in] chains The Markov chains.
    * @param[in] probs A vector of probabilities in [0, 1].
@@ -294,26 +490,24 @@ namespace walnuts {
    * @throw std::invalid_argument If a value in `probs` is outside [0, 1].
    */
   inline Eigen::MatrixXd quantiles(const MarkovChains& chains,
-  				   const Eigen::VectorXd& probs) {
+                                   const Eigen::VectorXd& probs) {
     if (chains.num_draws() < 2) {
       throw std::invalid_argument("chains must have at least two draws");
     }
     for (Eigen::Index k = 0; k < probs.size(); ++k) {
       if (!(probs(k) >= 0 && probs(k) <= 1.0)) {
-  	throw std::invalid_argument("probs must be in [0, 1]");
+        throw std::invalid_argument("probs must be in [0, 1]");
       }
     }
     return quantiles(chains.draws(), probs);
   }
 
-
-
   /**
-   * @brief Return the chain-balanced ragged R-hat statistic for the chains.
+   * @brief Return the chain-balanced ragged R-hat statistics for the chains.
    *
    * The R-hat statistic weights the within-chain mean and variance of each
    * chain equally, no matter how long they are.  
-
+   * 
    * The number of draws per chain may vary, so let `chain[k]` be the
    * `N[k] x D` matrix of draws for chain `k`. The means and variances
    * are taken column-wise as in the `walnuts::mean` and
@@ -340,6 +534,65 @@ namespace walnuts {
     return r_hat(chains.draws(), chains.chain_ends());
   }
 
-  
-  
+  /**
+   * @brief Return the effective sample size statistics for the chains.
+   *
+   * The effective sample size is adjusted downward when R-hat is
+   * greater than 1 (Gelman et al. 2013).  If only a single chain is
+   * provided, there is no adjustment.
+   *
+   * The algorithm is \f$mathcal{O}(N log N)\f$ per dimension with N draws.  The
+   * computational bottleneck is that autocovariances are calculated
+   * with Eigen's built-in not-so-fast Fourier transform (FFT).
+   *
+   * The implementation is based on the one in Stan.  
+   * 
+   * @see Gelman et al. (2013 @cite gelman2013bda3) <a href="https://sites.stat.columbia.edu/gelman/book/"><i>Bayesian
+   * Data Analysis</i></a>
+   *
+   * @see Margossian et al. (2005 @cite margossian2025nested) <a
+   * href="https://projecteuclid.org/journals/bayesian-analysis/advance-publication/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full">Nested
+   * R-hat: Assessing the convergence of Markov chain Monte Carlo when
+   * running many short chains</a>.
+   * 
+   * @see Stan Development Team. (2026 @cite standev2026ref). <a
+   * href="https://mc-stan.org/docs/reference-manual/">Stan Reference
+   * Manual</a>.
+   * 
+   * @see Stan Development Team. (2026).  C++ Source Code: <a
+   * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/ess.hpp">
+   * Effective sample size</a> and <a
+   * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp">R-hat</a>.
+   * GitHub.
+   * 
+   * @param[in] chains The Markov chains.
+   * @return The R-hat statistic for each variable in the chain.
+   */
+  inline Eigen::RowVectorXd effective_sample_size(const MarkovChains& chains) {
+    if (chains.num_draws() < 3) {
+      throw std::invalid_argument("chains must have at least 3 draws");
+    }
+    return ess(chains.draws(), chains.chain_ends());
+  }
+
+  /**
+   * @brief Return the Monte Carlo standard error for the chains.
+   * 
+   * The Monte Carlo standard error (MCSE) is just the sample standard deviation
+   * divided by the square root of the effective sample size.
+   *
+   * @see `effective_sample_size(const MarkovChains&)`
+   * 
+   * @see `sample_standard_deviation(const MarkovChains&)`
+   *
+   * @param chains The Markov chains.
+   * @return The per-chain Monte Carlo standard error estimates.
+   */
+  inline Eigen::RowVectorXd monte_carlo_standard_error(const MarkovChains& chains) {
+    auto ess = effective_sample_size(chains);
+    auto sd = sample_standard_deviation(chains);
+    return (sd.array() / ess.array().sqrt()).matrix();
+  }
+
 } // namespace nuts
+

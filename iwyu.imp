@@ -1,0 +1,26 @@
+[
+  # Treat all Eigen internal headers as coming from <Eigen/Dense>
+  { "include": ["@<Eigen/src/.*>", "private", "<Eigen/Dense>", "public"] },
+  { "include": ["@\"src/Core/.*\"", "private", "<Eigen/Dense>", "public"] },
+
+  # <new> is pulled in transitively by lots of std headers
+  { "symbol": ["operator new", "private", "<new>", "public"] },
+
+  # Redirect <math.h> suggestions to <cmath> for C++ code.
+  # IWYU sometimes prints <math> (a bug) — covers that too.
+  { "include": ["<math.h>", "public", "<cmath>", "public"] },
+  { "include": ["<math>", "public", "<cmath>", "public"] },
+
+  # Redirect <ratio> to <chrono>
+  { "include": ["<ratio>", "public", "<chrono>", "public"] },
+
+  # Same for other C headers that have C++ equivalents
+  { "include": ["<stdio.h>",  "public", "<cstdio>",  "public"] },
+  { "include": ["<stdlib.h>", "public", "<cstdlib>", "public"] },
+  { "include": ["<string.h>", "public", "<cstring>", "public"] },
+  { "include": ["<stddef.h>", "public", "<cstddef>", "public"] },
+  { "include": ["<stdint.h>", "public", "<cstdint>", "public"] },
+  { "include": ["<assert.h>", "public", "<cassert>", "public"] },
+
+
+]

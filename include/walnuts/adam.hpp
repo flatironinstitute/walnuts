@@ -2,130 +2,80 @@
 
 #include <cmath>
 
-#include "util.hpp"
-
-namespace nuts {
+namespace walnuts {
 
 /**
- * Return the rectified linear unit (relu) of the argument.
+ * The Adam stochastic gradient optimizer specialized for step-size
+ * adaptation with a decreasing learning rate schedule.
  *
- * relu(x) = x if x > 0 and relu(x) = 0 if x <= 0`
+ * The specialization for step size builds in quadratic error,
+ * following Nuts. That is, for observed accept rate `accept_observed`
+ * and target accept rate `accept_target`, the error is `-0.5 *
+ * (accept_observed - accept_target)^2` and its gradient is
+ * `accept_target - accept_observed`.
  *
- * @param[in] x The argument.
- * @return The relu of the argument.
+ * This implementation includes a learning rate schedule that divides
+ * the specified learning rate by `pow(t, learn_rate_decay)` in
+ * iteration `t` (indexed from 1).  The standard version of Adam
+ * (2014; \cite kingma2014adam) uses `learn_decay_rate = 0`, so that
+ * the learning rate stays fixed and estimates continue to bounce
+ * around with new observations. With stepsize decay, Adam converges
+ * as long as `0 < learn_rate_decay <= 1`; see Zou et al.
+ * (2019 \cite zou2019sufficient).  Nuts used `learn_rate_decay = 0.75` for dual
+ * averaging and we have found `learn_rate_decay=0.5` to work well for
+ * Adam.
  */
-template <typename S>
-S relu(S x) {
-  return x < 0 ? 0 : x;
-}
-
-/**
- * @brief The immutable configuration for Adam-based step-size adaptation.
- *
- * @tparam S The type of scalars.
- */
-template <typename S>
-struct AdamConfig {
-  /**
-   * @brief Construct a step-size adaptation configuration given the
-   * tuning parameters.
-   *
-   * @param[in] step_size_init The initial step size.
-   * @param[in] target_accept_rate The target acceptance rate.
-   * @param[in] learn_rate The learning rate.
-   * @param[in] beta1 The decay rate of the moving average for gradients.
-   * @param[in] beta2 The decay rate of the moving average for squared
-   * gradients.
-   * @param[in] epsilon The stabilization constant added to the denominator of
-   * updates.
-   * @throw std::invalid_argument If the initial step size is not finite and
-   * positive.
-   * @throw std::invalid_argument If the learning rate is not positive and
-   * finite.
-   * @throw std::invalid_argument If `beta1` is not in (0, 1).
-   * @throw std::invalid_argument If `beta2` is not in (0, 1).
-   * @throw std::invalid_argument If `epsilon" is not positive and finite.
-   */
-  AdamConfig(S step_size_init, S target_accept_rate, S learn_rate = 0.2,
-             S beta1 = 0.3, S beta2 = 0.99, S epsilon = 1e-4)
-      : step_size_init_(step_size_init),
-        target_accept_rate_(target_accept_rate),
-        learn_rate_(learn_rate),
-        beta1_(beta1),
-        beta2_(beta2),
-        epsilon_(epsilon) {
-    validate_positive(step_size_init, "step_size_init");
-    validate_probability(target_accept_rate, "target_accept_rate");
-    validate_positive(learn_rate, "learn_rate");
-    validate_probability(beta1, "beta1");
-    validate_probability(beta2, "beta2");
-    validate_positive(epsilon, "epsilon");
-  }
-
-  /** The initial macro step size. */
-  const S step_size_init_;
-
-  /** The target expected Metropolis acceptance rate of macro steps. */
-  const S target_accept_rate_;
-
-  /** The learning rate for Adam. */
-  const S learn_rate_;
-
-  /** The decay rate of the moving average for gradients */
-  const S beta1_;
-
-  /** The decay rate of the moving average for squared gradients. */
-  const S beta2_;
-
-  /** The additive stabiliziation constant for the denominator of updates. */
-  const S epsilon_;
-};
-
-/**
- * The Adam stochastic gradient optimizer specialized for step-size adaptation.
- */
-template <typename S>
 class Adam {
  public:
   /**
-   * Construct an Adam optimizer from a configuration.
+   * Construct an Adam optimizer from tuning parameters and initialization.
    *
-   * @param[in] cfg The configuration for the optimizer.
+   * @param[in] step_size_init The initial step size.
+   * @param[in] accept_rate_target The target acceptance rate.
+   * @param[in] learning_rate The learning rate.
+   * @param[in] gradient_decay The gradient decay rate.
+   * @param[in] sq_gradient_decay The squared gradient decay rate.
+   * @param[in] stabilization The estimation stabilization parameter.
+   * @param[in] learn_rate_decay The decay exponent for iterations.
    */
-  Adam(const AdamConfig<S>& cfg)
-      : theta_(std::log(cfg.step_size_init_)),
+  Adam(double step_size_init, double accept_rate_target, double learning_rate,
+       double gradient_decay, double sq_gradient_decay, double stabilization,
+       double learn_rate_decay)
+      : theta_(std::log(step_size_init)),
         m_(0),
         v_(0),
         t_(0),
-        beta1_pow_(1),
-        beta2_pow_(1),
-        target_accept_rate_(cfg.target_accept_rate_),
-        learn_rate_(cfg.learn_rate_),
-        beta1_(cfg.beta1_),
-        beta2_(cfg.beta2_),
-        eps_(cfg.epsilon_) {}
+        gradient_decay_pow_(1),
+        sq_gradient_decay_pow_(1),
+        target_accept_rate_(accept_rate_target),
+        learn_rate_(learning_rate),
+        gradient_decay_(gradient_decay),
+        sq_gradient_decay_(sq_gradient_decay),
+        stabilization_(stabilization),
+        learn_rate_decay_(learn_rate_decay) {}
 
   /**
-   * Observe an acceptance probabilty in (0, 1).
+   * Observe an acceptance probability in (0, 1).
    *
    * @param[in] alpha The acceptance probability.
+   * @pre alpha > 0 && alpha < 1
    */
-  inline void observe(S alpha) noexcept {
+  void operator()(double alpha) noexcept {
     ++t_;
-    beta1_pow_ *= beta1_;
-    beta2_pow_ *= beta2_;
+    gradient_decay_pow_ *= gradient_decay_;
+    sq_gradient_decay_pow_ *= sq_gradient_decay_;
 
-    const S grad = target_accept_rate_ - alpha;
+    double grad = target_accept_rate_ - alpha;
 
-    m_ = beta1_ * m_ + (1 - beta1_) * grad;
-    v_ = beta2_ * v_ + (1 - beta2_) * grad * grad;
+    m_ = gradient_decay_ * m_ + (1 - gradient_decay_) * grad;
+    v_ = sq_gradient_decay_ * v_ + (1 - sq_gradient_decay_) * grad * grad;
 
-    const S m_hat = m_ / (1 - beta1_pow_);
-    S v_hat = relu(v_ / (1 - beta2_pow_));
+    double m_hat = m_ / (1 - gradient_decay_pow_);
+    double v_hat = v_ / (1 - sq_gradient_decay_pow_);
 
-    const S denom = std::sqrt(v_hat) + eps_;
-    const S effective_lr = learn_rate_ / std::sqrt(static_cast<S>(t_));
-    theta_ -= effective_lr * m_hat / denom;
+    double decayed_learn_rate = learn_rate_ / std::pow(t_, learn_rate_decay_);
+    double denom = std::sqrt(v_hat) + stabilization_;
+    theta_ -= decayed_learn_rate * m_hat / denom;
   }
 
   /**
@@ -133,21 +83,22 @@ class Adam {
    *
    * @return The step size.
    */
-  inline S step_size() const noexcept { return std::exp(theta_); }
+  double step_size() const noexcept { return std::exp(theta_); }
 
  private:
-  S theta_;
-  S m_;
-  S v_;
-  std::size_t t_;
-  S beta1_pow_;
-  S beta2_pow_;
+  double theta_;
+  double m_;
+  double v_;
+  double t_;
+  double gradient_decay_pow_;
+  double sq_gradient_decay_pow_;
 
-  const S target_accept_rate_;
-  const S learn_rate_;
-  const S beta1_;
-  const S beta2_;
-  const S eps_;
+  const double target_accept_rate_;
+  const double learn_rate_;         // Adam: alpha
+  const double gradient_decay_;     // Adam: beta2
+  const double sq_gradient_decay_;  // Adam: beta2
+  const double stabilization_;      // Adam: epsilon
+  const double learn_rate_decay_;
 };
 
-}  // namespace nuts
+}  // namespace walnuts

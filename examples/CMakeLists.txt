@@ -1,6 +1,6 @@
-add_executable(summary-example summary-example.cpp)
-target_link_libraries(summary-example PRIVATE walnuts)
-target_compile_options(summary-example PRIVATE -O3 -Wall) 
+add_executable(summary summary.cpp)
+target_link_libraries(summary PRIVATE walnuts)
+target_compile_options(summary PRIVATE -O3 -Wall) 
 
 add_executable(walnuts_api walnuts_api.cpp) 
 target_link_libraries(walnuts_api PRIVATE Eigen3::Eigen walnuts)

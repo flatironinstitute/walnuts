@@ -61,6 +61,7 @@ static Eigen::Index fft_next_good_size(Eigen::Index n) {
   }
 }
 
+// FFT.fwd(), FFT.inv() not const, so probably not thread safe
 static void autocovariance_col(const Eigen::VectorXd& y, Eigen::VectorXd& ac,
                                Eigen::FFT<double>& fft) {
   // TODO: evaluate the following optimization
@@ -136,20 +137,22 @@ std::vector<std::size_t> chain_size(const std::vector<Eigen::MatrixXd> chains) {
 }  // end namespace
 
 /**
- * @brief A class for representing a collection of Markov chains of
- * possibly varying lengths.
+ * @brief A sequence of Markov chains of possibly varying lengths.
  */
 class MarkovChains {
  public:
   /**
-   * @brief Construct an instance with the specified unnormalized
-   * log densities, draws, and chain sizes.
+   * @brief Construct an instance with the specified draws and chain
+   * sizes.
    *
-   * @param draws The sequence of Markov chains states.
+   * The implementation holds a constant reference to the matrix of
+   * draws so that it does not have to be duplicated.
+   *
+   * @param draws The sequence of Markov chains states, one row per draw.
    * @param chain_sizes The sizes of the Markov chains making up the
    * collection.
    * @throw std::invalid_argument If the sum of the chain sizes
-   * isn't equal to the number of rows of the draws.
+   * is not equal to the number of draws.
    */
   MarkovChains(const Eigen::MatrixXd& draws,
                const std::vector<std::size_t>& chain_sizes)
@@ -172,11 +175,12 @@ class MarkovChains {
   }
 
   /**
-   * @brief Construct an instance with the specified log densities and draws per
-   * chain.
+   * @brief Construct an instance from a sequence of Markov chains.
    *
-   * Each chain in the sequence of chains is organized with one draw per row,
-   * with one column per variable to analyze.
+   * Each chain in the sequence has one draw per row, with one column
+   * per variable to analyze.  This call will make a copy of the chains
+   * and allocate memory for the total number of draws times the number
+   * of dimensions.
    *
    * @param chains The sequence of Markov chains.
    * @throw std::invalid_argument If the chains do not all have the same number
@@ -186,19 +190,19 @@ class MarkovChains {
       : MarkovChains(concatenate_chains(chains), chain_size(chains)) {}
 
   /**
-   * @brief Return the number of Markov chains.
+   * @brief Return the number of chains.
    *
-   * @return The number of Markov chains.
+   * @return The number of chains.
    */
   std::size_t num_chains() const noexcept { return chain_ends_.size(); }
 
   /**
-   * @brief Return the total number of draws in all Markov chains.
+   * @brief Return the total number of draws across all chains.
    *
    * @return The total number of draws.
    */
   std::size_t num_draws() const noexcept {
-    return static_cast<std::size_t>(draws_.rows());
+    return static_cast<std::size_t>(draws_.get().rows());
   }
 
   /**
@@ -207,25 +211,28 @@ class MarkovChains {
    * @return The dimensionality of the draws.
    */
   std::size_t dims() const noexcept {
-    return static_cast<std::size_t>(draws_.cols());
+    return static_cast<std::size_t>(draws_.get().cols());
   }
 
   /**
-   * @brief Return a view of the specified chain.
+   * @brief Return an immutable view of the specified chain.
+   *
+   * The return is an expression template that will hold a reference
+   * to the draws.
    *
    * @param n The index of the chain.
-   * @return The specified chain.
+   * @return A view of the specified chain.
    * @throw std::invalid_argument If the index is greater than or
    * equal to the number of chains.
    */
-  auto chain_view(std::size_t n) const {
-    return draws_.middleRows(chain_starts_[n], chain_sizes_[n]);
+  Eigen::MatrixXd::ConstRowsBlockXpr chain_view(std::size_t n) const {
+    return draws_.get().middleRows(chain_starts_[n], chain_sizes_[n]);
   }
 
   /**
-   * @brief Return the size of the shortest chain.
+   * @brief Return the number of draws in the shortest chain.
    *
-   * @return The size of the shortest chain.
+   * @return The length of the shortest chain.
    */
   Eigen::Index min_chain_size() const noexcept {
     Eigen::Index mn = std::numeric_limits<Eigen::Index>::max();
@@ -238,13 +245,18 @@ class MarkovChains {
   /**
    * @brief Return all of the draws for the specified dimension.
    *
+   * The return is an expression template for a constant vector that
+   * depends on the draws.
+   *
    * @param d The selected dimension.
    * @return The draws for the selecte dimension.
    */
-  Eigen::VectorXd draws(Eigen::Index d) const { return draws_.col(d); }
+  Eigen::MatrixXd::ConstColXpr draws(Eigen::Index d) const {
+    return draws_.get().col(d);
+  }
 
  private:
-  Eigen::MatrixXd draws_;
+  std::reference_wrapper<const Eigen::MatrixXd> draws_;
   std::vector<Eigen::Index> chain_sizes_;
   std::vector<Eigen::Index> chain_starts_;
   std::vector<Eigen::Index> chain_ends_;  // one past end
@@ -296,10 +308,11 @@ inline Eigen::RowVectorXd sample_variance(const MarkovChains& chains) {
 /**
  * @brief Return the sample standard deviations of the variables in the chains.
  *
- * The standard deviations are calculated for each variable (i.e., each
- * dimension). The formula divides by the number of draws minus one.
- * Nevertheless, unlike the sample variance estimate, sample standard deviations
- * are not unbiased estimates of population standard deviations.
+ * The standard deviations are calculated for each variable (i.e.,
+ * each dimension). The formula divides by the number of draws minus
+ * one.  Unlike the sample variance estimate, sample standard
+ * deviations are not unbiased estimates of population standard
+ * deviations due to the nonlinearity of the square root operation.
  *
  * @param chains The Markov chains.
  * @return The standard deviations.
@@ -318,13 +331,12 @@ inline Eigen::RowVectorXd sample_standard_deviation(
  * For each variable, the empirical quantile at probability `p` is
  * computed by sorting the variable's column and linearly
  * interpolating between an upper bounding and lower bounding value.
-      * This function's behavior matches R's `stats::quantile(x, probs,
-        * type = 7)` (the default `type`) and NumPy's `numpy.quantile(a, q,
+ * This function's behavior matches R's `stats::quantile(x, probs,
+ * type = 7)` (the default `type`) and NumPy's `numpy.quantile(a, q,
  * method='linear')` (the default `method`).
  *
- * In pseudocode, where `column` is the column of values and `p` is
- * the probability for the quantile function, the quantile is calculated
- * as follows.
+ * In pseudocode, where `column` is the column of values, the quantile for
+ * probability `p` is calculated as follows.
  *
  * @code
  * sorted = sort(column)
@@ -380,7 +392,7 @@ inline Eigen::MatrixXd quantiles(const MarkovChains& chains,
   const Eigen::Index K = probs.size();
   Eigen::MatrixXd result(K, D);
   for (Eigen::Index d = 0; d < D; ++d) {
-    Eigen::VectorXd col = chains.draws(d);
+    Eigen::VectorXd col = chains.draws(d);  // chains const, sort copy
     std::sort(col.begin(), col.end());
     for (Eigen::Index k = 0; k < K; ++k) {
       const double h = probs(k) * static_cast<double>(N - 1);
@@ -422,7 +434,8 @@ Eigen::MatrixXd autocovariance(const MarkovChains& chains) {
  * @brief Return the chain-balanced ragged R-hat statistics for the chains.
  *
  * The R-hat statistic weights the within-chain mean and variance of each
- * chain equally, no matter how long they are.
+ * chain equally, no matter how long they are.  The variance term used from R-hat
+ * is derived from the Margossian (2025) R-hat estimator.
  *
  * The number of draws per chain may vary, so let `chain[k]` be the
  * `N[k] x D` matrix of draws for chain `k`. The means and variances
@@ -470,8 +483,9 @@ inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
  * @brief Return the effective sample size statistics for the chains.
  *
  * The effective sample size is adjusted downward when R-hat is
- * greater than 1 (Gelman et al. 2013).  If only a single chain is
- * provided, there is no adjustment.
+ * greater than 1 (Gelman et al. 2013) using the Margossian (2025)
+ * estimator for the combined variance in R-hat.  If only a single
+ * chain is provided, there is no adjustment.
  *
  * The algorithm is \f$mathcal{O}(N log N)\f$ per dimension with N draws.  The
  * computational bottleneck is that autocovariances are calculated

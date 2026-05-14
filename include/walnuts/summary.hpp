@@ -1,42 +1,42 @@
 #pragma once
 
+#include <algorithm>
 #include <complex>
+#include <numeric>
 #include <stdexcept>
 #include <vector>
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/FFT>
 
+#include <walnuts/concepts.hpp>
+
 namespace walnuts {
 
-namespace {
 template <typename Derived>
-static Eigen::RowVectorXd mean(const Eigen::MatrixBase<Derived>& draws) {
-  return draws.colwise().mean().eval();
+inline Eigen::RowVectorXd col_means(const Eigen::MatrixBase<Derived>& draws) {
+  return draws.colwise().mean();
 }
 
 template <typename Derived>
-static Eigen::RowVectorXd sample_variance(
+inline Eigen::RowVectorXd sample_variance(
     const Eigen::MatrixBase<Derived>& draws, const Eigen::RowVectorXd& mean) {
+  // would be numerically more robust with Welford's algorithm
   return ((draws.rowwise() - mean).array().square().colwise().sum() /
           (draws.rows() - 1));
 }
 
 template <typename Derived>
-static Eigen::RowVectorXd sample_variance(
+inline Eigen::RowVectorXd sample_variance(
     const Eigen::MatrixBase<Derived>& draws) {
-  return ((draws.rowwise() - draws.colwise().mean())
-              .array()
-              .square()
-              .colwise()
-              .sum() /
-          (draws.rows() - 1));
+  return sample_variance(draws, col_means(draws));
 }
 
-static void strip_factor(Eigen::Index& m, Eigen::Index factor) {
+constexpr inline Eigen::Index strip_factor(Eigen::Index m, Eigen::Index factor) {
   while (m % factor == 0) {
     m /= factor;
   }
+  return m;
 }
 
 /**
@@ -46,71 +46,72 @@ static void strip_factor(Eigen::Index& m, Eigen::Index factor) {
  * @param n Original size.
  * @return Original size padded for divisibility.
  */
-static Eigen::Index fft_next_good_size(Eigen::Index n) {
+constexpr inline Eigen::Index fft_next_good_size(Eigen::Index n) {
   if (n <= 2) {
     return 2;
   }
-  for (; true; ++n) {
+  for (auto candidate = n; true; ++n) {
     auto m = n;
-    strip_factor(m, 2);
-    strip_factor(m, 3);
-    strip_factor(m, 5);
+    m = strip_factor(m, 2);
+    m = strip_factor(m, 3);
+    m = strip_factor(m, 5);
     if (m <= 1) {
-      return n;
+      return candidate;
     }
+    ++candidate;
   }
 }
 
-// FFT.fwd(), FFT.inv() not const, so probably not thread safe
-static void autocovariance_col(const Eigen::VectorXd& y, Eigen::VectorXd& ac,
-                               Eigen::FFT<double>& fft) {
+// FFT not thread safe
+inline void autocovariance_col(const Eigen::Ref<const Eigen::VectorXd>& y,
+			       Eigen::Ref<Eigen::VectorXd> ac,
+                               Eigen::FFT<double>& fft,
+			       Eigen::VectorXd& padded_signal,
+			       Eigen::VectorXcd& freq_vec,
+			       Eigen::VectorXcd& ac_tmp) {
   // TODO: evaluate the following optimization
   // fft.SetFlag(fft.HalfSpectrum);
-
+  Eigen::Index M2 = ac.size();
   Eigen::Index N = y.size();
-  Eigen::Index M = fft_next_good_size(N);
-  Eigen::Index M2 = 2 * M;
-
-  Eigen::VectorXd padded_signal(M2);
-  padded_signal.setZero();
+  padded_signal.tail(M2 - N).setZero();
   padded_signal.head(N) = y.array() - y.mean();
-
-  Eigen::VectorXcd freq_vec(M2);
   fft.fwd(freq_vec, padded_signal);
   freq_vec = freq_vec.cwiseAbs2();
-
-  Eigen::VectorXcd ac_tmp(M2);
   fft.inv(ac_tmp, freq_vec);
-
-  ac_tmp /=
-      static_cast<double>(N);  // biased estimate recommended by Geyer (1992)
-  ac = ac_tmp.head(N).real().array();
+  // biased estimate recommended by Geyer (1992) divides by N
+  ac_tmp /= N;
+  ac = ac_tmp.head(N).real();
 }
 
-static Eigen::MatrixXd autocovariance_chain(const Eigen::MatrixXd& chain,
+// FFT not thread safe
+inline Eigen::MatrixXd autocovariance_chain(const Eigen::MatrixXd& chain,
                                             Eigen::FFT<double>& fft) {
   Eigen::Index N = chain.rows();
   Eigen::Index D = chain.cols();
   Eigen::MatrixXd acor(N, D);
-  Eigen::VectorXd acor_col(N);
+  Eigen::Index M = fft_next_good_size(N);
+  Eigen::Index M2 = 2 * M;
+  Eigen::VectorXd padded_signal(M2);
+  Eigen::VectorXcd freq_vec(M2);
+  Eigen::VectorXcd ac_tmp(M2);
   for (Eigen::Index d = 0; d < D; ++d) {
-    Eigen::VectorXd col = chain.col(d);
-    autocovariance_col(col, acor_col, fft);
-    acor.col(d) = acor_col;
+    autocovariance_col(chain.col(d), acor.col(d), fft, padded_signal, freq_vec, ac_tmp);
   }
   return acor;
 }
 
-std::size_t sum(const std::vector<std::size_t>& vs) {
-  std::size_t total = 0;
-  for (auto v : vs) {
-    total += v;
-  }
-  return total;
+inline std::size_t sum(const std::vector<std::size_t>& vs) {
+  return std::accumulate(vs.begin(), vs.end(), std::size_t{0});
 }
 
-Eigen::MatrixXd concatenate_chains(const std::vector<Eigen::MatrixXd>& draws) {
-  if (draws.size() == 0) {
+/**
+ * @brief Concatenate a sequence of Markov chains into a unified matrix.
+ *
+ * @param draws The sequence of chains.
+ * @return The unified matrix of chains.
+ */
+inline Eigen::MatrixXd concatenate_chains(const std::vector<Eigen::MatrixXd>& draws) {
+  if (draws.empty()) {
     return {};
   }
   Eigen::Index N = 0;
@@ -119,34 +120,42 @@ Eigen::MatrixXd concatenate_chains(const std::vector<Eigen::MatrixXd>& draws) {
   }
   Eigen::MatrixXd result(N, draws[0].cols());
   Eigen::Index start = 0;
-  for (std::size_t m = 0; m < draws.size(); ++m) {
-    result.middleRows(start, draws[m].rows()) = draws[m];
-    start += draws[m].rows();
+  for (const auto& chain : draws) {
+    result.middleRows(start, chain.rows()) = chain;
+    start += chain.rows();
   }
   return result;
 }
 
-std::vector<std::size_t> chain_size(const std::vector<Eigen::MatrixXd> chains) {
-  std::vector<std::size_t> sizes(chains.size());
+/**
+ * @brief Return the sequence of lengths of the Markov chains.
+ * 
+ * @param chains The sequence of chains.
+ * @return The sequence of chain lengths.
+ */
+inline std::vector<std::size_t> chain_lengths(const std::vector<Eigen::MatrixXd>& chains) {
+  std::vector<std::size_t> lengths(chains.size());
   for (std::size_t m = 0; m < chains.size(); ++m) {
-    sizes[m] = static_cast<std::size_t>(chains[m].rows());
+    lengths[m] = static_cast<std::size_t>(chains[m].rows());
   }
-  return sizes;
+  return lengths;
 }
 
-}  // end namespace
-
 /**
- * @brief A sequence of Markov chains of possibly varying lengths.
+ * @brief A sequence of Markov chains of possibly varying lengths with
+ * a single underlying matrix of draws.
+ *
+ * The underlying single matrix will be contiguous and allows constant-time
+ * access to columns and constant-time views of individual chain matrices.
  */
-class MarkovChains {
+class MarkovChainsUnified {
  public:
   /**
-   * @brief Construct an instance with the specified draws and chain
-   * sizes.
+   * @brief Construct an instance with the specified draws
+   * and chain sizes.
    *
    * The implementation holds a constant reference to the matrix of
-   * draws so that it does not have to be duplicated.
+   * draws so that the `draws` matrix must outlive this instance.
    *
    * @param draws The sequence of Markov chains states, one row per draw.
    * @param chain_sizes The sizes of the Markov chains making up the
@@ -154,47 +163,28 @@ class MarkovChains {
    * @throw std::invalid_argument If the sum of the chain sizes
    * is not equal to the number of draws.
    */
-  MarkovChains(const Eigen::MatrixXd& draws,
-               const std::vector<std::size_t>& chain_sizes)
+  MarkovChainsUnified(const Eigen::MatrixXd& draws,
+                      const std::vector<std::size_t>& chain_sizes)
       : draws_(draws),
         chain_sizes_(chain_sizes.size()),
-        chain_starts_(chain_sizes.size()),
-        chain_ends_(chain_sizes.size()) {
-    std::size_t total_size = sum(chain_sizes);
-    if (total_size != static_cast<std::size_t>(draws.rows())) {
-      throw std::invalid_argument(
-          "number of rows in draws and sum of chain_sizes must be equal.");
-    }
+        chain_starts_(chain_sizes.size()) {
     Eigen::Index total = 0;
     for (std::size_t m = 0; m < chain_sizes.size(); ++m) {
       chain_sizes_[m] = static_cast<Eigen::Index>(chain_sizes[m]);
       chain_starts_[m] = total;
       total += chain_sizes[m];
-      chain_ends_[m] = total;
+    }
+    if (total != draws.rows()) {
+      throw std::invalid_argument("The number of rows in draws and sum of chain_sizes must be equal.");
     }
   }
-
-  /**
-   * @brief Construct an instance from a sequence of Markov chains.
-   *
-   * Each chain in the sequence has one draw per row, with one column
-   * per variable to analyze.  This call will make a copy of the chains
-   * and allocate memory for the total number of draws times the number
-   * of dimensions.
-   *
-   * @param chains The sequence of Markov chains.
-   * @throw std::invalid_argument If the chains do not all have the same number
-   * of columns.
-   */
-  MarkovChains(const std::vector<Eigen::MatrixXd>& chains)
-      : MarkovChains(concatenate_chains(chains), chain_size(chains)) {}
 
   /**
    * @brief Return the number of chains.
    *
    * @return The number of chains.
    */
-  std::size_t num_chains() const noexcept { return chain_ends_.size(); }
+  std::size_t num_chains() const noexcept { return chain_sizes_.size(); }
 
   /**
    * @brief Return the total number of draws across all chains.
@@ -220,13 +210,13 @@ class MarkovChains {
    * The return is an expression template that will hold a reference
    * to the draws.
    *
-   * @param n The index of the chain.
+   * @param m The index of the chain.
    * @return A view of the specified chain.
-   * @throw std::invalid_argument If the index is greater than or
-   * equal to the number of chains.
+   * @throw std::out_of_range If the index is greater than or equal to
+   * the number of chains.
    */
-  Eigen::MatrixXd::ConstRowsBlockXpr chain_view(std::size_t n) const {
-    return draws_.get().middleRows(chain_starts_[n], chain_sizes_[n]);
+  Eigen::MatrixXd::ConstRowsBlockXpr chain_view(std::size_t m) const {
+    return draws_.get().middleRows(chain_starts_.at(m), chain_sizes_[m]);
   }
 
   /**
@@ -235,11 +225,10 @@ class MarkovChains {
    * @return The length of the shortest chain.
    */
   Eigen::Index min_chain_size() const noexcept {
-    Eigen::Index mn = std::numeric_limits<Eigen::Index>::max();
-    for (std::size_t m = 0; m < num_chains(); ++m) {
-      mn = std::min(mn, chain_view(m).size());
+    if (chain_sizes_.empty()) {
+      return 0;
     }
-    return mn;
+    return *std::ranges::min_element(chain_sizes_);
   }
 
   /**
@@ -250,8 +239,15 @@ class MarkovChains {
    *
    * @param d The selected dimension.
    * @return The draws for the selecte dimension.
+   * @throws std::out_of_range If the index is not between 0 and
+   * the number of dimensions minus 1, inclusive.
+   * 
    */
   Eigen::MatrixXd::ConstColXpr draws(Eigen::Index d) const {
+    if (d < 0 || d >= static_cast<Eigen::Index>(dims())) {
+      throw std::out_of_range("Dimension index must be between 0 and"
+			      "number of dimensions minus 1, inclusive.");
+    }
     return draws_.get().col(d);
   }
 
@@ -259,7 +255,6 @@ class MarkovChains {
   std::reference_wrapper<const Eigen::MatrixXd> draws_;
   std::vector<Eigen::Index> chain_sizes_;
   std::vector<Eigen::Index> chain_starts_;
-  std::vector<Eigen::Index> chain_ends_;  // one past end
 };
 
 /**
@@ -268,15 +263,17 @@ class MarkovChains {
  * The means are calculated for each variable (i.e., each
  * dimension).
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param chains The Markov chains.
  * @return The sample means.
  */
-inline Eigen::RowVectorXd mean(const MarkovChains& chains) {
-  Eigen::RowVectorXd sum(chains.dims());
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd mean(const MC& chains) {
+  Eigen::RowVectorXd total = Eigen::RowVectorXd::Zero(static_cast<Eigen::Index>(chains.dims()));
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
-    sum += chains.chain_view(m).colwise().sum();
+    total += chains.chain_view(m).colwise().sum();
   }
-  return sum / chains.num_draws();
+  return total / static_cast<double>(chains.num_draws());
 }
 
 /**
@@ -288,21 +285,22 @@ inline Eigen::RowVectorXd mean(const MarkovChains& chains) {
  * based on a small sample.  If used to calculate the variance of an
  * entire population, it will be biased to the high side.
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param chains The Markov chains.
  * @return The variances.
  */
-inline Eigen::RowVectorXd sample_variance(const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd sample_variance(const MC& chains) {
   if (chains.num_draws() < 2) {
     throw std::domain_error("chains must have at least 2 draws");
   }
   Eigen::RowVectorXd mu = mean(chains);
-  Eigen::RowVectorXd sum_sq(mu.size());
+  Eigen::RowVectorXd sum_sq = Eigen::RowVectorXd::Zero(mu.size());
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
-    auto chain = chains.chain_view(m);
-    sum_sq = sum_sq +
-             (chain.rowwise() - mu).array().square().colwise().sum().matrix();
+    const auto& chain = chains.chain_view(m);
+    sum_sq += (chain.rowwise() - mu).array().square().colwise().sum().matrix();
   }
-  return sum_sq / (chains.num_draws() - 1);
+  return sum_sq / static_cast<double>(chains.num_draws() - 1);
 }
 
 /**
@@ -314,11 +312,12 @@ inline Eigen::RowVectorXd sample_variance(const MarkovChains& chains) {
  * deviations are not unbiased estimates of population standard
  * deviations due to the nonlinearity of the square root operation.
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param chains The Markov chains.
  * @return The standard deviations.
  */
-inline Eigen::RowVectorXd sample_standard_deviation(
-    const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd sample_standard_deviation(const MC& chains) {
   return sample_variance(chains).array().sqrt().matrix();
 }
 
@@ -371,22 +370,18 @@ inline Eigen::RowVectorXd sample_standard_deviation(
  href="https://numpy.org/doc/stable/reference/generated/numpy.quantile.html">NumPy
  * (Python) `numpy.quantile` function,`method='linear'`</a> (Python).
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @param[in] probs A vector of probabilities in [0, 1].
  * @return The quantiles with one row per quantile.
- * @throw std::invalid_argument If `draws` has fewer than 2 draws.
  * @throw std::invalid_argument If a value in `probs` is outside [0, 1].
  */
-inline Eigen::MatrixXd quantiles(const MarkovChains& chains,
+template <MarkovChainSequence MC>
+inline Eigen::MatrixXd quantiles(const MC& chains,
                                  const Eigen::VectorXd& probs) {
-  if (chains.num_draws() < 2) {
-    throw std::invalid_argument("chains must have at least two draws");
-  }
-  for (Eigen::Index k = 0; k < probs.size(); ++k) {
-    if (!(probs(k) >= 0 && probs(k) <= 1.0)) {
-      throw std::invalid_argument("probs must be in [0, 1]");
-    }
-  }
+  if (std::ranges::any_of(probs, [](double p) { return !(p >= 0 && p <= 1); })) {
+    throw std::invalid_argument("probs must be in [0, 1]");
+  }  
   const Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());
   const Eigen::Index D = static_cast<Eigen::Index>(chains.dims());
   const Eigen::Index K = probs.size();
@@ -394,8 +389,9 @@ inline Eigen::MatrixXd quantiles(const MarkovChains& chains,
   for (Eigen::Index d = 0; d < D; ++d) {
     Eigen::VectorXd col = chains.draws(d);  // chains const, sort copy
     std::sort(col.begin(), col.end());
+    double n_minus_1 = static_cast<double>(N - 1);
     for (Eigen::Index k = 0; k < K; ++k) {
-      const double h = probs(k) * static_cast<double>(N - 1);
+      const double h = probs(k) * n_minus_1;
       const Eigen::Index lo = static_cast<Eigen::Index>(std::floor(h));
       const Eigen::Index hi = std::min(lo + 1, N - 1);  // lo + 1 == ceil(h)
       const double frac = h - static_cast<double>(lo);
@@ -411,15 +407,16 @@ inline Eigen::MatrixXd quantiles(const MarkovChains& chains,
  *
  * The return will be of shape `chains.num_draws() x chains.dims()`.
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param[in] The Markov chains.
  * @return The matrix of autocovariances.
  */
-Eigen::MatrixXd autocovariance(const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+Eigen::MatrixXd autocovariance(const MC& chains) {
   Eigen::FFT<double> fft;
   Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());
   Eigen::Index D = static_cast<Eigen::Index>(chains.dims());
   std::size_t M = chains.num_chains();
-  std::cout << "M = " << M << std::endl;
   Eigen::MatrixXd acov(N, D);
   Eigen::Index start = 0;
   for (std::size_t m = 0; m < M; ++m) {
@@ -434,8 +431,8 @@ Eigen::MatrixXd autocovariance(const MarkovChains& chains) {
  * @brief Return the chain-balanced ragged R-hat statistics for the chains.
  *
  * The R-hat statistic weights the within-chain mean and variance of each
- * chain equally, no matter how long they are.  The variance term used from R-hat
- * is derived from the Margossian (2025) R-hat estimator.
+ * chain equally, no matter how long they are.  The variance term used from
+ * R-hat is derived from the Margossian (2025) R-hat estimator.
  *
  * The number of draws per chain may vary, so let `chain[k]` be the
  * `N[k] x D` matrix of draws for chain `k`. The means and variances
@@ -454,10 +451,12 @@ Eigen::MatrixXd autocovariance(const MarkovChains& chains) {
  * definition of R-hat and Margossian (2025 @cite margossian2025nested) for the
  * one used here.
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @return The R-hat statistic for each variable in the chain.
  */
-inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd r_hat(const MC& chains) {
   if (chains.num_chains() < 2 || chains.num_draws() < 2) {
     throw std::invalid_argument(
         "chains must have at least 2 chains and at least 2 draws");
@@ -469,12 +468,12 @@ inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
   for (std::size_t m = 0; m < M; ++m) {
     auto chain =
         chains.chain_view(m);  // middleRows(chain_starts[k], chain_sizes[k]);
-    auto chain_mean = mean(chain);
-    mu.row(static_cast<Eigen::Index>(m)) = mean(chain);
+    auto chain_mean = col_means(chain);
+    mu.row(static_cast<Eigen::Index>(m)) = chain_mean;
     sigma_sq.row(static_cast<Eigen::Index>(m)) =
         sample_variance(chain, chain_mean);
   }
-  return (1.0 + sample_variance(mu).array() / mean(sigma_sq).array())
+  return (1.0 + sample_variance(mu).array() / col_means(sigma_sq).array())
       .sqrt()
       .matrix();
 }
@@ -512,10 +511,12 @@ inline Eigen::RowVectorXd r_hat(const MarkovChains& chains) {
  * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp">R-hat</a>.
  * GitHub.
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @return The R-hat statistic for each variable in the chain.
  */
-inline Eigen::RowVectorXd effective_sample_size(const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
   if (chains.num_draws() < 3) {
     throw std::invalid_argument("chains must have at least 3 draws");
   }
@@ -528,12 +529,12 @@ inline Eigen::RowVectorXd effective_sample_size(const MarkovChains& chains) {
   Eigen::MatrixXd chain_vars(K, D);
   for (std::size_t k = 0; k < K; ++k) {
     auto chain = chains.chain_view(k);
-    Eigen::RowVectorXd m = mean(chain);
+    Eigen::RowVectorXd m = col_means(chain);
     chain_means.row(static_cast<Eigen::Index>(k)) = m;
     chain_vars.row(static_cast<Eigen::Index>(k)) = sample_variance(chain, m);
   }
 
-  Eigen::RowVectorXd W = mean(chain_vars);
+  Eigen::RowVectorXd W = col_means(chain_vars);
   Eigen::RowVectorXd var_plus = W;
   if (K > 1) {
     var_plus += sample_variance(chain_means);
@@ -611,11 +612,12 @@ inline Eigen::RowVectorXd effective_sample_size(const MarkovChains& chains) {
  *
  * @see `sample_standard_deviation(const MarkovChains&)`
  *
+ * @tparam MC The type of the Markov chain sequence.
  * @param chains The Markov chains.
  * @return The per-chain Monte Carlo standard error estimates.
  */
-inline Eigen::RowVectorXd monte_carlo_standard_error(
-    const MarkovChains& chains) {
+template <MarkovChainSequence MC>
+inline Eigen::RowVectorXd monte_carlo_standard_error(const MC& chains) {
   auto ess = effective_sample_size(chains);
   auto sd = sample_standard_deviation(chains);
   return (sd.array() / ess.array().sqrt()).matrix();

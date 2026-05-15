@@ -68,8 +68,7 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
     adapters.emplace_back(rngs[m], chain_handlers[m], log_p_grad,
                           config.init_.init_chain_config(m), config.warmup_,
-                          config.sampling_,
-                          std::log2(config.warmup_.max_macro_steps_target()));
+                          config.sampling_);
   }
   adapt(config.init_, config.warmup_, adapters, interrupt_callback);
 

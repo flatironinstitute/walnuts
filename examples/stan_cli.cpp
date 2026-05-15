@@ -1,20 +1,21 @@
 #include <walnuts/adaptive_walnuts.hpp>
-#include <walnuts/nuts.hpp>
+#include <walnuts/config.hpp>
 #include <walnuts/walnuts.hpp>
-
 #include "load_stan.hpp"
 
 #include <CLI/CLI.hpp>
 #include <Eigen/Dense>
+
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <random>
 #include <string>
 #include <vector>
 
-static void summarize(const std::vector<std::string> names,
+static void summarize(const std::vector<std::string>& names,
                       const Eigen::MatrixXd& draws) {
   auto N = draws.cols();
   auto D = draws.rows();
@@ -60,17 +61,59 @@ static void write_draws(const std::string& filename,
   out.close();
 }
 
+class StanHandler {
+ public:
+  StanHandler(DynamicStanModel& model, std::size_t num_warmup,
+
+              std::size_t num_draws, bool save_warmup)
+      : model_(model),
+        draws_(model.constrained_dimensions(),
+               num_draws + static_cast<std::size_t>(save_warmup) * num_warmup),
+        save_warmup_(save_warmup) {}
+
+  void on_sample(const Eigen::VectorXd& position, double lp) {
+    model_.constrain_draw(position, draws_.col(n_));
+    n_++;
+  }
+
+  void on_warmup(const Eigen::VectorXd& position, double lp, double step_size,
+                 const Eigen::VectorXd& diag_inv_mass) {
+    if (!save_warmup_) {
+      return;
+    }
+    model_.constrain_draw(position, draws_.col(n_));
+    n_++;
+  }
+
+  void on_warmup_complete(double step_size,
+                          const Eigen::VectorXd& diag_inv_mass) {}
+
+  void summarize() {
+    auto names = model_.param_names();
+    ::summarize(names, draws_);
+  }
+
+  void write_csv(std::string& output_file) {
+    auto names = model_.param_names();
+    ::write_draws(output_file, names, draws_);
+  }
+
+ private:
+  DynamicStanModel& model_;
+  Eigen::MatrixXd draws_;
+  bool save_warmup_;
+  Eigen::Index n_ = 0;
+};
+
 template <typename RNG>
-Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
-                            const Eigen::VectorXd& theta_init,
-                            std::size_t num_warmup, std::size_t num_draws,
-                            double init_count, double mass_iteration_offset,
-                            double additive_smoothing, double step_size_init,
-                            double accept_rate_target, double learn_rate,
-                            double beta1, double beta2, double epsilon,
-                            double max_error, std::size_t max_nuts_depth,
-                            std::size_t max_step_depth,
-                            std::size_t min_micro_steps, double target_depth) {
+StanHandler run_walnuts(
+    DynamicStanModel& model, RNG& rng, const Eigen::VectorXd& theta_init,
+    std::size_t num_warmup, std::size_t num_draws, bool save_warmup,
+    double init_count, double additive_smoothing, double step_size_init,
+    double accept_rate_target, double learn_rate, double beta1, double beta2,
+    double epsilon, double learn_decay, double max_error,
+    std::size_t max_nuts_depth, std::size_t max_step_depth,
+    std::size_t min_micro_steps, double max_macro_steps_target) {
   using Clock = std::chrono::high_resolution_clock;
   auto elapsed_seconds = [](auto t) {
     return std::chrono::duration<double>(Clock::now() - t).count();
@@ -92,12 +135,32 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
   };
 
   Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(theta_init.size());
-  nuts::MassAdaptConfig mass_cfg(mass_init, init_count, mass_iteration_offset,
-                                 additive_smoothing);
-  nuts::AdamConfig step_cfg(step_size_init, accept_rate_target, learn_rate,
-                            beta1, beta2, epsilon);
-  nuts::WalnutsConfig walnuts_cfg(max_error, max_nuts_depth, max_step_depth,
-                                  min_micro_steps);
+
+  walnuts::InitChainConfig inits{step_size_init, mass_init, theta_init};
+
+  walnuts::WarmupConfig warmup_cfg =
+      walnuts::WarmupConfigBuilder()
+          .mass_init_count(init_count)
+          .mass_additive_smoothing(additive_smoothing)
+          .max_macro_steps_target(max_macro_steps_target)
+          .step_accept_rate_target(accept_rate_target)
+          .step_learning_rate(learn_rate)
+          .step_gradient_decay(beta1)
+          .step_sq_gradient_decay(beta2)
+          .step_stabilization(epsilon)
+          .step_learn_rate_decay(learn_decay)
+          .build();
+
+  walnuts::SamplingConfig sample_cfg =
+      walnuts::SamplingConfigBuilder()
+          .max_trajectory_doublings(max_nuts_depth)
+          .max_step_halvings(max_step_depth)
+          .max_hamiltonian_error(max_error)
+          .min_micro_steps(min_micro_steps)
+          .build();
+
+  StanHandler storage(model, num_warmup, num_draws, save_warmup);
+
   std::cout << "Running Adaptive WALNUTS"
             << ";  D = " << theta_init.size() << "; W = " << num_warmup
             << ";  N = " << num_draws << "; step_size_init = " << step_size_init
@@ -111,8 +174,8 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
     ++logp_count;
   };
 
-  nuts::AdaptiveWalnuts walnuts(rng, logp, theta_init, mass_cfg, step_cfg,
-                                walnuts_cfg, target_depth);
+  walnuts::AdaptiveWalnuts walnuts(rng, storage, logp, inits, warmup_cfg,
+                                   sample_cfg);
   for (std::size_t w = 0; w < num_warmup; ++w) {
     walnuts();
   }
@@ -121,7 +184,7 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
   // N post-warmup draws
   auto sampler = walnuts.sampler();  // freeze tuning
   std::cout << "Adaptation completed." << std::endl;
-  std::cout << "Macro step size = " << sampler.macro_step_size() << std::endl;
+  std::cout << "Macro time = " << sampler.macro_time() << std::endl;
   std::cout << "Mass matrix diagonal = ["
             << sampler.inverse_mass_matrix_diagonal() << "]" << std::endl;
 
@@ -132,12 +195,12 @@ Eigen::MatrixXd run_walnuts(DynamicStanModel& model, RNG& rng,
   global_start = Clock::now();
 
   for (std::size_t n = 0; n < num_draws; ++n) {
-    model.constrain_draw(sampler(), draws.col(static_cast<Eigen::Index>(n)));
+    sampler();
   }
 
   end_timing();
 
-  return draws;
+  return storage;
 }
 
 template <typename RNG>
@@ -174,24 +237,27 @@ int main(int argc, char** argv) {
       std::chrono::system_clock::now().time_since_epoch().count();
   auto clock_seed = static_cast<unsigned int>(clock_count);
   srand(clock_seed);
-  auto seed = static_cast<unsigned int>(rand());
+
+  // TODO: parse directly into structs?
+  auto seed = static_cast<unsigned long int>(rand());
   std::size_t num_warmup = 128;
   std::size_t num_draws = 128;
+  bool save_warmup = false;
   std::size_t max_nuts_depth = 10;
   std::size_t max_step_depth = 8;
   std::size_t min_micro_steps = 1;
   double max_error = 0.5;
   double init = 2.0;
-  double mass_init_count = 1.1;
-  double mass_iteration_offset = 1.1;
+  double mass_init_count = 4.0;
   double mass_additive_smoothing = 1e-5;
+  double max_macro_steps_target = 15.0;
   double step_size_init = 1.0;
   double accept_rate_target = 0.8;
-  double step_learn_rate = 0.2;
-  double step_beta1 = 0.3;
-  double step_beta2 = 0.99;
+  double step_learn_rate = 0.05;
+  double step_beta1 = 0.8;
+  double step_beta2 = 0.9;
   double step_epsilon = 1e-4;
-  double target_depth = 3.5;
+  double step_learn_decay = 0.5;
 
   std::string lib;
   std::string data;
@@ -211,6 +277,10 @@ int main(int argc, char** argv) {
     app.add_option("--samples", num_draws, "Number of samples to draw")
         ->default_val(num_draws)
         ->check(CLI::PositiveNumber);
+
+    app.add_flag("--save-warmup", save_warmup,
+                 "Pass this flag to save the warmup iterations as well.")
+        ->default_val(save_warmup);
 
     app.add_option("--max-depth", max_nuts_depth,
                    "Maximum depth for NUTS trajectory doublings")
@@ -242,13 +312,13 @@ int main(int argc, char** argv) {
         ->default_val(mass_init_count)
         ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
 
-    app.add_option("--mass-iteration-offset", mass_iteration_offset,
-                   "Offset for the mass matrix adaptation iterations")
-        ->default_val(mass_iteration_offset)
-        ->check(CLI::Range(1.0, (std::numeric_limits<double>::max)()));
-
     app.add_option("--mass-additive-smoothing", mass_additive_smoothing,
                    "Additive smoothing for the mass matrix adaptation")
+        ->default_val(mass_additive_smoothing)
+        ->check(CLI::PositiveNumber);
+
+    app.add_option("--max-macro-steps-target", max_macro_steps_target,
+                   "Target number of macro steps")
         ->default_val(mass_additive_smoothing)
         ->check(CLI::PositiveNumber);
 
@@ -283,11 +353,6 @@ int main(int argc, char** argv) {
         ->default_val(step_epsilon)
         ->check(CLI::PositiveNumber);
 
-    app.add_option("--target-depth", target_depth,
-                   "Target number of trajectory doublings in NUTS.")
-        ->default_val(target_depth)
-        ->check(CLI::PositiveNumber);
-
     app.add_option("model", lib,
                    "Path to the Stan model library (.so from CmdStan{,Py,R})")
         ->required()
@@ -305,19 +370,19 @@ int main(int argc, char** argv) {
 
   DynamicStanModel model(lib.c_str(), data.c_str(), seed);
 
-  std::mt19937 rng(seed);
+  std::mt19937_64 rng(seed);
 
   Eigen::VectorXd theta_init = initialize(model, rng, init);
 
-  Eigen::MatrixXd draws = run_walnuts(
-      model, rng, theta_init, num_warmup, num_draws, mass_init_count,
-      mass_iteration_offset, mass_additive_smoothing, step_size_init,
-      accept_rate_target, step_learn_rate, step_beta1, step_beta2, step_epsilon,
-      max_error, max_nuts_depth, max_step_depth, min_micro_steps, target_depth);
+  auto res =
+      run_walnuts(model, rng, theta_init, num_warmup, num_draws, save_warmup,
+                  mass_init_count, mass_additive_smoothing, step_size_init,
+                  accept_rate_target, step_learn_rate, step_beta1, step_beta2,
+                  step_epsilon, step_learn_decay, max_error, max_nuts_depth,
+                  max_step_depth, min_micro_steps, max_macro_steps_target);
 
-  auto names = model.param_names();
-  summarize(names, draws);
-  write_draws(output_file, names, draws);
+  res.summarize();
+  res.write_csv(output_file);
 
   return 0;
 }

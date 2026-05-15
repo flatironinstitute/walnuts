@@ -167,7 +167,7 @@ class MarkovChainsUnified {
    * @throw std::invalid_argument If the sum of the chain sizes
    * is not equal to the number of draws.
    */
-  MarkovChainsUnified(const Eigen::MatrixXd& draws,
+  MarkovChainsUnified(const Eigen::Ref<const Eigen::MatrixXd>& draws,
                       const std::vector<std::size_t>& chain_sizes)
       : draws_(draws),
         chain_sizes_(chain_sizes.size()),
@@ -197,7 +197,7 @@ class MarkovChainsUnified {
    * @return The total number of draws.
    */
   std::size_t num_draws() const noexcept {
-    return static_cast<std::size_t>(draws_.get().rows());
+    return static_cast<std::size_t>(draws_.rows());
   }
 
   /**
@@ -206,7 +206,7 @@ class MarkovChainsUnified {
    * @return The dimensionality of the draws.
    */
   std::size_t dims() const noexcept {
-    return static_cast<std::size_t>(draws_.get().cols());
+    return static_cast<std::size_t>(draws_.cols());
   }
 
   /**
@@ -220,8 +220,8 @@ class MarkovChainsUnified {
    * @throw std::out_of_range If the index is greater than or equal to
    * the number of chains.
    */
-  Eigen::MatrixXd::ConstRowsBlockXpr chain_view(std::size_t m) const {
-    return draws_.get().middleRows(chain_starts_.at(m), chain_sizes_[m]);
+  Eigen::Ref<const Eigen::MatrixXd> chain_view(std::size_t m) const {
+    return draws_.middleRows(chain_starts_.at(m), chain_sizes_[m]);
   }
 
   /**
@@ -248,16 +248,16 @@ class MarkovChainsUnified {
    * the number of dimensions minus 1, inclusive.
    *
    */
-  Eigen::MatrixXd::ConstColXpr draws(Eigen::Index d) const {
+  Eigen::Ref<const Eigen::VectorXd> draws(Eigen::Index d) const {
     if (d < 0 || d >= static_cast<Eigen::Index>(dims())) {
       throw std::out_of_range("Dimension index must be between 0 and"
                               "number of dimensions minus 1, inclusive.");
     }
-    return draws_.get().col(d);
+    return draws_.col(d);
   }
 
  private:
-  std::reference_wrapper<const Eigen::MatrixXd> draws_;
+  Eigen::Ref<const Eigen::MatrixXd> draws_;
   std::vector<Eigen::Index> chain_sizes_;
   std::vector<Eigen::Index> chain_starts_;
 };

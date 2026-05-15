@@ -32,7 +32,8 @@ inline Eigen::RowVectorXd sample_variance(
   return sample_variance(draws, col_means(draws));
 }
 
-constexpr inline Eigen::Index strip_factor(Eigen::Index m, Eigen::Index factor) {
+constexpr inline Eigen::Index strip_factor(Eigen::Index m,
+                                           Eigen::Index factor) {
   while (m % factor == 0) {
     m /= factor;
   }
@@ -64,11 +65,11 @@ constexpr inline Eigen::Index fft_next_good_size(Eigen::Index n) {
 
 // FFT not thread safe
 inline void autocovariance_col(const Eigen::Ref<const Eigen::VectorXd>& y,
-			       Eigen::Ref<Eigen::VectorXd> ac,
+                               Eigen::Ref<Eigen::VectorXd> ac,
                                Eigen::FFT<double>& fft,
-			       Eigen::VectorXd& padded_signal,
-			       Eigen::VectorXcd& freq_vec,
-			       Eigen::VectorXcd& ac_tmp) {
+                               Eigen::VectorXd& padded_signal,
+                               Eigen::VectorXcd& freq_vec,
+                               Eigen::VectorXcd& ac_tmp) {
   // TODO: evaluate the following optimization
   // fft.SetFlag(fft.HalfSpectrum);
   Eigen::Index M2 = ac.size();
@@ -84,8 +85,8 @@ inline void autocovariance_col(const Eigen::Ref<const Eigen::VectorXd>& y,
 }
 
 // FFT not thread safe
-inline Eigen::MatrixXd autocovariance_chain(const Eigen::MatrixXd& chain,
-                                            Eigen::FFT<double>& fft) {
+inline Eigen::MatrixXd autocovariance_chain(
+    const Eigen::Ref<const Eigen::MatrixXd>& chain, Eigen::FFT<double>& fft) {
   Eigen::Index N = chain.rows();
   Eigen::Index D = chain.cols();
   Eigen::MatrixXd acor(N, D);
@@ -95,7 +96,8 @@ inline Eigen::MatrixXd autocovariance_chain(const Eigen::MatrixXd& chain,
   Eigen::VectorXcd freq_vec(M2);
   Eigen::VectorXcd ac_tmp(M2);
   for (Eigen::Index d = 0; d < D; ++d) {
-    autocovariance_col(chain.col(d), acor.col(d), fft, padded_signal, freq_vec, ac_tmp);
+    autocovariance_col(chain.col(d), acor.col(d), fft, padded_signal, freq_vec,
+                       ac_tmp);
   }
   return acor;
 }
@@ -110,7 +112,8 @@ inline std::size_t sum(const std::vector<std::size_t>& vs) {
  * @param draws The sequence of chains.
  * @return The unified matrix of chains.
  */
-inline Eigen::MatrixXd concatenate_chains(const std::vector<Eigen::MatrixXd>& draws) {
+inline Eigen::MatrixXd concatenate_chains(
+    const std::vector<Eigen::MatrixXd>& draws) {
   if (draws.empty()) {
     return {};
   }
@@ -129,11 +132,12 @@ inline Eigen::MatrixXd concatenate_chains(const std::vector<Eigen::MatrixXd>& dr
 
 /**
  * @brief Return the sequence of lengths of the Markov chains.
- * 
+ *
  * @param chains The sequence of chains.
  * @return The sequence of chain lengths.
  */
-inline std::vector<std::size_t> chain_lengths(const std::vector<Eigen::MatrixXd>& chains) {
+inline std::vector<std::size_t> chain_lengths(
+    const std::vector<Eigen::MatrixXd>& chains) {
   std::vector<std::size_t> lengths(chains.size());
   for (std::size_t m = 0; m < chains.size(); ++m) {
     lengths[m] = static_cast<std::size_t>(chains[m].rows());
@@ -175,7 +179,8 @@ class MarkovChainsUnified {
       total += chain_sizes[m];
     }
     if (total != draws.rows()) {
-      throw std::invalid_argument("The number of rows in draws and sum of chain_sizes must be equal.");
+      throw std::invalid_argument(
+          "The number of rows in draws and sum of chain_sizes must be equal.");
     }
   }
 
@@ -241,12 +246,12 @@ class MarkovChainsUnified {
    * @return The draws for the selecte dimension.
    * @throws std::out_of_range If the index is not between 0 and
    * the number of dimensions minus 1, inclusive.
-   * 
+   *
    */
   Eigen::MatrixXd::ConstColXpr draws(Eigen::Index d) const {
     if (d < 0 || d >= static_cast<Eigen::Index>(dims())) {
       throw std::out_of_range("Dimension index must be between 0 and"
-			      "number of dimensions minus 1, inclusive.");
+                              "number of dimensions minus 1, inclusive.");
     }
     return draws_.get().col(d);
   }
@@ -269,7 +274,8 @@ class MarkovChainsUnified {
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd mean(const MC& chains) {
-  Eigen::RowVectorXd total = Eigen::RowVectorXd::Zero(static_cast<Eigen::Index>(chains.dims()));
+  Eigen::RowVectorXd total =
+      Eigen::RowVectorXd::Zero(static_cast<Eigen::Index>(chains.dims()));
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
     total += chains.chain_view(m).colwise().sum();
   }
@@ -379,9 +385,10 @@ inline Eigen::RowVectorXd sample_standard_deviation(const MC& chains) {
 template <MarkovChainSequence MC>
 inline Eigen::MatrixXd quantiles(const MC& chains,
                                  const Eigen::VectorXd& probs) {
-  if (std::ranges::any_of(probs, [](double p) { return !(p >= 0 && p <= 1); })) {
+  if (std::ranges::any_of(probs,
+                          [](double p) { return !(p >= 0 && p <= 1); })) {
     throw std::invalid_argument("probs must be in [0, 1]");
-  }  
+  }
   const Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());
   const Eigen::Index D = static_cast<Eigen::Index>(chains.dims());
   const Eigen::Index K = probs.size();
@@ -419,8 +426,9 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
   std::size_t M = chains.num_chains();
   Eigen::MatrixXd acov(N, D);
   Eigen::Index start = 0;
+  // to parallelize, need to use one fft per chain
   for (std::size_t m = 0; m < M; ++m) {
-    Eigen::MatrixXd chain = chains.chain_view(m);
+    const auto& chain = chains.chain_view(m);
     acov.middleRows(start, chain.rows()) = autocovariance_chain(chain, fft);
     start += chain.rows();
   }
@@ -444,22 +452,36 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * matrix[K, D] mu, sigma_sq;
  * mu[k, ] = mean(chain[k])  for k in 1:K
  * sigma_sq[k, ] = sample_variance(chain[k])
- * R-hat = 1 + sample_variance(mu) ./ mean(sigma_sq)
+ * R-hat = sqrt(1 + sample_variance(mu) ./ mean(sigma_sq))
  * @endcode
  *
  * See Gelman and Rubin (1992 @cite gelman1992inference) for the original
  * definition of R-hat and Margossian (2025 @cite margossian2025nested) for the
  * one used here.
  *
+ * This function will throw an exception if there is a chain with
+ * fewer than three draws.  The number is because it requires at least
+ * three draws to compute a lag-1 autocorrelation.  In practice, we
+ * require more than three draws per chain.  25 draws per chain is a
+ * reasonable minimum for practical applications that mix well, but
+ * slower mixing problems will require more.
+ *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @return The R-hat statistic for each variable in the chain.
+ * @throw std::invalid_argument If there are not at least two chains or if
+ * any of the chains has fewer than 3 draws.
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd r_hat(const MC& chains) {
-  if (chains.num_chains() < 2 || chains.num_draws() < 2) {
-    throw std::invalid_argument(
-        "chains must have at least 2 chains and at least 2 draws");
+  if (chains.num_chains() < 2) {
+    throw std::invalid_argument("require at least two chains to compute R-hat");
+  }
+  for (std::size_t m = 0; m < chains.num_chains(); ++m) {
+    auto chain_view = chains.chain_view(m);
+    if (chain_view.rows() < 3) {
+      throw std::invalid_argument("each chain must have at least 3 draws");
+    }
   }
   std::size_t M = chains.num_chains();
   Eigen::Index D = static_cast<Eigen::Index>(chains.dims());
@@ -486,7 +508,9 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  * estimator for the combined variance in R-hat.  If only a single
  * chain is provided, there is no adjustment.
  *
- * The algorithm is \f$mathcal{O}(N log N)\f$ per dimension with N draws.  The
+ * This only uses a number of draws equal to the shortest chain.
+ *
+ * The algorithm is \f$\mathcal{O}(N log N)\f$ per dimension with N draws.  The
  * computational bottleneck is that autocovariances are calculated
  * with Eigen's built-in not-so-fast Fourier transform (FFT).
  *
@@ -496,7 +520,7 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  * href="https://sites.stat.columbia.edu/gelman/book/"><i>Bayesian Data
  * Analysis</i></a>
  *
- * @see Margossian et al. (2005 @cite margossian2025nested) <a
+ * @see Margossian et al. (2025 @cite margossian2025nested) <a
  * href="https://projecteuclid.org/journals/bayesian-analysis/advance-publication/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full">Nested
  * R-hat: Assessing the convergence of Markov chain Monte Carlo when
  * running many short chains</a>.
@@ -513,7 +537,7 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
- * @return The R-hat statistic for each variable in the chain.
+ * @return The effective sample size statistic for each variable in the chain.
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
@@ -566,6 +590,7 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
     rho_hat_t(1) = rho_hat_odd;
 
     // Geyer's initial positive + monotone sequence on paired lags
+    // min_len - 4 prevents reading beyond the end of chains
     Eigen::Index t = 1;
     while (t < min_len - 4 && (rho_hat_even + rho_hat_odd) > 0.0 &&
            !std::isnan(rho_hat_even + rho_hat_odd)) {
@@ -603,24 +628,23 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
 }
 
 /**
- * @brief Return the Monte Carlo standard error for the chains.
+ * @brief Return the Monte Carlo standard error for each dimension.
  *
  * The Monte Carlo standard error (MCSE) is just the sample standard deviation
  * divided by the square root of the effective sample size.
  *
- * @see `effective_sample_size(const MarkovChains&)`
- *
- * @see `sample_standard_deviation(const MarkovChains&)`
+ * @see effective_sample_size()
+ * @see sample_standard_deviation()
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param chains The Markov chains.
- * @return The per-chain Monte Carlo standard error estimates.
+ * @return The Monte Carlo standard error estimates.
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd monte_carlo_standard_error(const MC& chains) {
   auto ess = effective_sample_size(chains);
   auto sd = sample_standard_deviation(chains);
-  return (sd.array() / ess.array().sqrt()).matrix();
+  return (sd.array() / ess.array().sqrt());
 }
 
 }  // namespace walnuts

@@ -200,25 +200,21 @@ class AdaptiveWalnuts {
    * @param[in,out] handler Event handler for adaptation and sampling, stored by
    * reference and called back.
    * @param[in] logp_grad The target log density and gradient function.
-   * @param[in] theta_init The initial state.
    * @param[in] init_chain_cfg The initialization configuration for a single
    * chain.
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] sampling_cfg The sampling configuration.
-   * @param[in] target_depth The target expected Nuts tree depth.
    */
   AdaptiveWalnuts(RNG& rng, H& handler, const F& logp_grad,
-                  const Eigen::VectorXd& theta_init,
                   const InitChainConfig& init_chain_cfg,
                   const WarmupConfig& warmup_cfg,
-                  const SamplingConfig& sampling_cfg, double target_depth = 3.0)
-      : init_chain_cfg_(std::cref(init_chain_cfg)),
-        warmup_cfg_(std::cref(warmup_cfg)),
+                  const SamplingConfig& sampling_cfg)
+      : warmup_cfg_(std::cref(warmup_cfg)),
         sampling_cfg_(std::cref(sampling_cfg)),
         rand_(rng),
         handler_(handler),
         logp_grad_(logp_grad),
-        theta_(theta_init),
+        theta_(init_chain_cfg.position()),
         iteration_(0),
         adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
               warmup_cfg.step_learning_rate(), warmup_cfg.step_gradient_decay(),
@@ -226,7 +222,7 @@ class AdaptiveWalnuts {
               warmup_cfg.step_stabilization(),
               warmup_cfg.step_learn_rate_decay()),
         mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
-        min_micro_estimator_(std::pow(2.0, target_depth)) {}
+        min_micro_estimator_(warmup_cfg.max_macro_steps_target()) {}
 
   /**
    * @brief Generate the next state for adaptation and the handler.
@@ -336,9 +332,6 @@ class AdaptiveWalnuts {
   std::size_t iter() const noexcept { return iteration_; }
 
  private:
-  /** The configuration of initialization for this chain. */
-  std::reference_wrapper<const InitChainConfig> init_chain_cfg_;
-
   /** The warmup configuration. */
   std::reference_wrapper<const WarmupConfig> warmup_cfg_;
 

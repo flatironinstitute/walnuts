@@ -18,7 +18,7 @@ int main() {
   }
 
   std::vector<std::size_t> chain_sizes{24u, 56u, 48u};
-  walnuts::MarkovChains chains(draws, chain_sizes);
+  walnuts::MarkovChainsUnified chains(draws, chain_sizes);
 
   std::cout << "num_chains = " << chains.num_chains() << "\n";
   std::cout << "num_draws = " << chains.num_draws() << "\n";

@@ -60,10 +60,10 @@ class MassEstimator {
       : warmup_cfg_(warmup_cfg) {
     Eigen::VectorXd zero = Eigen::VectorXd::Zero(init_cfg.position().size());
     score_var_estimator_ =
-      OnlineMoments(warmup_cfg.mass_init_count(), zero, init_cfg.mass());
+        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_cfg.mass());
     draw_var_estimator_ =
-      OnlineMoments(warmup_cfg.mass_init_count(), zero,
-		    init_cfg.mass().array().inverse().matrix());
+        OnlineMoments(warmup_cfg.mass_init_count(), zero,
+                      init_cfg.mass().array().inverse().matrix());
   }
 
   /**

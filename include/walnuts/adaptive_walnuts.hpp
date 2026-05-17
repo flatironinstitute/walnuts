@@ -127,9 +127,12 @@ class MinMicroStepsAdaptHandler {
    * Construct a minimum number of micro steps per macro step handler.
    *
    * @param[in] target_macro_steps Target number of expected macro steps.
+   * @param[in] min_micro_steps The minimum number of micro steps to return.
    */
-  MinMicroStepsAdaptHandler(double target_macro_steps)
+  MinMicroStepsAdaptHandler(double target_macro_steps,
+			    std::size_t min_micro_steps)
       : target_macro_steps_(target_macro_steps),
+	min_micro_steps_(min_micro_steps),
         total_macro_steps_(2.0),
         count_(1.0) {}
 
@@ -154,11 +157,13 @@ class MinMicroStepsAdaptHandler {
   std::size_t min_micro_steps() const noexcept {
     double mean_micro = total_macro_steps_ / count_;
     double min_micro_steps = mean_micro / target_macro_steps_;
-    return static_cast<std::size_t>(std::max(1L, std::lround(min_micro_steps)));
+    return std::max(min_micro_steps_,
+		    static_cast<std::size_t>(std::lround(min_micro_steps)));
   }
 
  private:
   const double target_macro_steps_;
+  const std::size_t min_micro_steps_;
   double total_macro_steps_;
   double count_;
 };
@@ -215,7 +220,8 @@ class AdaptiveWalnuts {
               warmup_cfg.step_stabilization(),
               warmup_cfg.step_learn_rate_decay()),
         mass_estimator_(warmup_cfg, init_chain_cfg),
-        min_micro_estimator_(warmup_cfg.max_macro_steps_target()) {}
+        min_micro_estimator_(warmup_cfg.max_macro_steps_target(),
+			     sampling_cfg.min_micro_steps()) {}
 
   /**
    * @brief Generate the next state for adaptation and the handler.

@@ -130,9 +130,9 @@ class MinMicroStepsAdaptHandler {
    * @param[in] min_micro_steps The minimum number of micro steps to return.
    */
   MinMicroStepsAdaptHandler(double target_macro_steps,
-			    std::size_t min_micro_steps)
+                            std::size_t min_micro_steps)
       : target_macro_steps_(target_macro_steps),
-	min_micro_steps_(min_micro_steps),
+        min_micro_steps_(min_micro_steps),
         total_macro_steps_(2.0),
         count_(1.0) {}
 
@@ -158,7 +158,7 @@ class MinMicroStepsAdaptHandler {
     double mean_micro = total_macro_steps_ / count_;
     double min_micro_steps = mean_micro / target_macro_steps_;
     return std::max(min_micro_steps_,
-		    static_cast<std::size_t>(std::lround(min_micro_steps)));
+                    static_cast<std::size_t>(std::lround(min_micro_steps)));
   }
 
  private:
@@ -221,7 +221,7 @@ class AdaptiveWalnuts {
               warmup_cfg.step_learn_rate_decay()),
         mass_estimator_(warmup_cfg, init_chain_cfg),
         min_micro_estimator_(warmup_cfg.max_macro_steps_target(),
-			     sampling_cfg.min_micro_steps()) {}
+                             sampling_cfg.min_micro_steps()) {}
 
   /**
    * @brief Generate the next state for adaptation and the handler.

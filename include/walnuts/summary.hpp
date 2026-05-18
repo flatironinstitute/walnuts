@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <complex>
 #include <numeric>
 #include <stdexcept>
 #include <vector>
@@ -614,7 +613,7 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
     throw std::invalid_argument("require at least two chains to compute R-hat");
   }
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
-    auto chain_view = chains.chain_view(m);
+    const auto& chain_view = chains.chain_view(m);
     if (chain_view.rows() < 3) {
       throw std::invalid_argument("each chain must have at least 3 draws");
     }
@@ -624,8 +623,7 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
   Eigen::MatrixXd mu(M, D);
   Eigen::MatrixXd sigma_sq(M, D);
   for (std::size_t m = 0; m < M; ++m) {
-    auto chain =
-        chains.chain_view(m);  // middleRows(chain_starts[k], chain_sizes[k]);
+    const auto& chain = chains.chain_view(m);
     auto chain_mean = col_means(chain);
     mu.row(static_cast<Eigen::Index>(m)) = chain_mean;
     sigma_sq.row(static_cast<Eigen::Index>(m)) =
@@ -688,7 +686,7 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
   Eigen::MatrixXd chain_means(K, D);
   Eigen::MatrixXd chain_vars(K, D);
   for (std::size_t k = 0; k < K; ++k) {
-    auto chain = chains.chain_view(k);
+    const auto& chain = chains.chain_view(k);
     Eigen::RowVectorXd m = col_means(chain);
     chain_means.row(static_cast<Eigen::Index>(k)) = m;
     chain_vars.row(static_cast<Eigen::Index>(k)) = sample_variance(chain, m);

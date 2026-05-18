@@ -9,37 +9,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if (CMAKE_BUILD_TYPE MATCHES DEBUG)
-  set(CMAKE_VERBOSE_MAKEFILE YES)
-endif()
+
 
 ##########################
-## Topl-Level Options   ##
+## Top-Level Options   ##
 ##########################
-option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
-option(WALNUTS_BUILD_TESTS "Build the test targets for the library" ON)
-option(WALNUTS_BUILD_DOCS "Build the documentation for the library" ON)
-
-set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING
-    "Choose the type of build, options are: None Debug Release"
-    FORCE)
+option(WALNUTS_BUILD_TESTS "Build the test targets for the library" OFF)
+option(WALNUTS_BUILD_DOCS "Build the documentation for the library" OFF)
+option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF) 
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(
-    -Wall -Weverything -Wno-padded
-    -Wno-poison-system-directories -Wno-ctad-maybe-unsupported
-    -Wno-c++98-compat-pedantic -Wno-c++98-compat
-    -Wno-global-constructors -Wno-exit-time-destructors
-    -Wno-covered-switch-default -Wno-switch-enum -Wno-weak-vtables
-    -Wno-zero-as-null-pointer-constant -Wno-switch-default
-    -Wno-missing-variable-declarations
-    -Wno-variadic-macro-arguments-omitted
-    -Wno-reserved-identifier -Wno-unused-function
-    -Wno-missing-prototypes -Wno-documentation
-  )
-
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 ##########################
@@ -53,6 +35,7 @@ set(EIGEN_TAG 3.4.0)
 # only clone on first configure
 if(NOT EXISTS "${EIGEN_SRC_DIR}/Eigen")
   message(STATUS "Cloning Eigen ${EIGEN_TAG}…")
+# this is working around an issue with Eigen that may no longer be an issue  
   execute_process(
     COMMAND ${GIT_EXECUTABLE} clone --branch ${EIGEN_TAG} --depth 1 -- https://gitlab.com/libeigen/eigen.git ${EIGEN_SRC_DIR}
     RESULT_VARIABLE _git_result
@@ -72,10 +55,10 @@ include(FetchContent)
 
 set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Version of mimalloc to use")
 if(WALNUTS_USE_MIMALLOC)
-    option(MI_BUILD_TESTS OFF)
-    option(MI_BUILD_SHARED OFF)
-    option(MI_PADDING OFF)
-    option(MI_DEBUG_FULL OFF)
+    set(MI_BUILD_TESTS  OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(MI_PADDING      OFF CACHE BOOL "" FORCE)
+    set(MI_DEBUG_FULL   OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
             mimalloc
             GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
@@ -171,7 +154,7 @@ if (WALNUTS_BUILD_DOCS)
   set(DOXYGEN_FILE_PATTERNS    "*.hpp")
   set(DOXYGEN_GENERATE_HTML    YES)
   set(DOXYGEN_GENERATE_LATEX   NO)
-  set(DOXYGEN_EXTRACT_ALL      YES)
+  set(DOXYGEN_EXTRACT_ALL      NO)
   set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/refs.bib")
 
   doxygen_add_docs(

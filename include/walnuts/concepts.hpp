@@ -259,3 +259,34 @@ concept AdaptiveSampler = requires(A& a, const A& ca) {
   { ca.log_step_size() } -> std::convertible_to<double>;
   { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };
+
+/**
+ * @brief Concept for a sequence of Markov chains over a shared set
+ * of variables.
+ *
+ * A type `M` satisfies `MarkovChainCollection` if it provides the
+ * following member functions, all callable on a const instance:
+ *  - `num_chains()` returning a value convertible to `std::size_t`,
+ *    the number of chains in the collection.
+ *  - `num_draws()` returning a value convertible to `std::size_t`,
+ *    the total number of draws across all chains.
+ *  - `dims()` returning a value convertible to `std::size_t`, the
+ *    dimensionality of each draw.
+ *  - `min_chain_size()` returning a value convertible to
+ *    `Eigen::Index`, the length of the shortest chain.
+ *  - `chain_view(std::size_t)` returning a type convertible to
+ *    `Eigen::MatrixXd`, a view of one chain (one draw per row).
+ *  - `draws(Eigen::Index)` returning a type convertible to
+ *    `Eigen::VectorXd`, the sequence of draws for one variable across
+ *    all chains.
+ */
+template <typename M>
+concept MarkovChainSequence =
+    requires(const M& m, std::size_t chain_index, Eigen::Index dim_index) {
+      { m.num_chains() } -> std::convertible_to<std::size_t>;
+      { m.num_draws() } -> std::convertible_to<std::size_t>;
+      { m.dims() } -> std::convertible_to<std::size_t>;
+      { m.min_chain_size() } -> std::convertible_to<Eigen::Index>;
+      { m.chain_view(chain_index) } -> std::convertible_to<Eigen::MatrixXd>;
+      { m.draws(dim_index) } -> std::convertible_to<Eigen::VectorXd>;
+    };

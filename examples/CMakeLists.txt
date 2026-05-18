@@ -1,3 +1,7 @@
+add_executable(summary summary.cpp)
+target_link_libraries(summary PRIVATE walnuts)
+target_compile_options(summary PRIVATE -O3 -Wall) 
+
 add_executable(walnuts_api walnuts_api.cpp) 
 target_link_libraries(walnuts_api PRIVATE Eigen3::Eigen walnuts)
 # libatomic is required on some Linux configurations
@@ -7,6 +11,7 @@ endif()
 target_compile_options(walnuts_api PRIVATE -O3 -Wall) 
 target_compile_options(walnuts_api PRIVATE -fsanitize=thread) 
 target_link_options(walnuts_api PRIVATE -fsanitize=thread) 
+
 
 if(WALNUTS_BUILD_STAN)
   FetchContent_Declare(

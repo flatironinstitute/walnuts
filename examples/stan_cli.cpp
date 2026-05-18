@@ -107,9 +107,9 @@ class StanHandler {
 
 template <typename RNG>
 StanHandler run_walnuts(DynamicStanModel& model, RNG& rng,
-                        walnuts::InitChainConfig& inits, std::size_t num_warmup,
-                        std::size_t num_draws, bool save_warmup,
-                        walnuts::WarmupConfig& warmup_cfg,
+                        walnuts::InitConfigBuilder& init_builder,
+                        std::size_t num_warmup, std::size_t num_draws,
+                        bool save_warmup, walnuts::WarmupConfig& warmup_cfg,
                         walnuts::SamplingConfig& sample_cfg) {
   using Clock = std::chrono::high_resolution_clock;
   auto elapsed_seconds = [](auto t) {
@@ -139,6 +139,10 @@ StanHandler run_walnuts(DynamicStanModel& model, RNG& rng,
     logp_time += elapsed_seconds(start);
     ++logp_count;
   };
+
+  auto init_cfg =
+      init_builder.masses(logp, warmup_cfg.mass_additive_smoothing()).build();
+  auto inits = init_cfg.init_chain_config(0);
 
   walnuts::AdaptiveWalnuts walnuts(rng, storage, logp, inits, warmup_cfg,
                                    sample_cfg);
@@ -345,8 +349,6 @@ int main(int argc, char** argv) {
 
   DynamicStanModel model(lib.c_str(), data.c_str(), seed);
 
-  std::mt19937_64 rng(seed);
-
   walnuts::WarmupConfig warmup_cfg =
       walnuts::WarmupConfigBuilder()
           .mass_init_count(mass_init_count)
@@ -368,13 +370,14 @@ int main(int argc, char** argv) {
           .min_micro_steps(min_micro_steps)
           .build();
 
-  Eigen::VectorXd theta_init = initialize(model, rng, init);
-  Eigen::VectorXd mass_init = Eigen::VectorXd::Ones(theta_init.size());
+  std::mt19937_64 rng{seed};
+  auto init_cfg =
+      walnuts::InitConfigBuilder{1, model.unconstrained_dimensions()}
+          .step_sizes(step_size_init)
+          .positions(initialize(model, rng, init));
 
-  walnuts::InitChainConfig inits{step_size_init, mass_init, theta_init};
-
-  auto res = run_walnuts(model, rng, inits, num_warmup, num_draws, save_warmup,
-                         warmup_cfg, sample_cfg);
+  auto res = run_walnuts(model, rng, init_cfg, num_warmup, num_draws,
+                         save_warmup, warmup_cfg, sample_cfg);
 
   res.summarize();
   res.write_csv(output_file);

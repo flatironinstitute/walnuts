@@ -49,28 +49,21 @@ class MassEstimator {
    * variance estimator).
    *
    * @param[in] warmup_cfg The warmup configuration.
+   * @param[in] init_cfg The initialization configuration.
    * @param[in] theta The initial position.
    * @param[in] grad The gradient of the target log density at the initial
    * position.
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
-  MassEstimator(const WarmupConfig& warmup_cfg, const Eigen::VectorXd& theta,
-                const Eigen::VectorXd& grad)
+  MassEstimator(const WarmupConfig& warmup_cfg, const InitChainConfig& init_cfg)
       : warmup_cfg_(warmup_cfg) {
-    validate_same_size(theta, grad, "theta", "grad");
-    double smoothing = warmup_cfg.mass_additive_smoothing();
-    Eigen::VectorXd zero = Eigen::VectorXd::Zero(theta.size());
-    Eigen::VectorXd smooth_vec =
-        Eigen::VectorXd::Constant(theta.size(), smoothing);
-    Eigen::VectorXd sqrt_abs_grad_init = grad.array().abs().sqrt();
-    Eigen::VectorXd init_prec =
-        (1 - smoothing) * sqrt_abs_grad_init + smooth_vec;
-    Eigen::VectorXd init_var = init_prec.array().inverse().matrix();
+    Eigen::VectorXd zero = Eigen::VectorXd::Zero(init_cfg.position().size());
     score_var_estimator_ =
-        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_prec);
+        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_cfg.mass());
     draw_var_estimator_ =
-        OnlineMoments(warmup_cfg.mass_init_count(), zero, init_var);
+        OnlineMoments(warmup_cfg.mass_init_count(), zero,
+                      init_cfg.mass().array().inverse().matrix());
   }
 
   /**
@@ -134,9 +127,12 @@ class MinMicroStepsAdaptHandler {
    * Construct a minimum number of micro steps per macro step handler.
    *
    * @param[in] target_macro_steps Target number of expected macro steps.
+   * @param[in] min_micro_steps The minimum number of micro steps to return.
    */
-  MinMicroStepsAdaptHandler(double target_macro_steps)
+  MinMicroStepsAdaptHandler(double target_macro_steps,
+                            std::size_t min_micro_steps)
       : target_macro_steps_(target_macro_steps),
+        min_micro_steps_(min_micro_steps),
         total_macro_steps_(2.0),
         count_(1.0) {}
 
@@ -161,11 +157,13 @@ class MinMicroStepsAdaptHandler {
   std::size_t min_micro_steps() const noexcept {
     double mean_micro = total_macro_steps_ / count_;
     double min_micro_steps = mean_micro / target_macro_steps_;
-    return static_cast<std::size_t>(std::max(1L, std::lround(min_micro_steps)));
+    return std::max(min_micro_steps_,
+                    static_cast<std::size_t>(std::lround(min_micro_steps)));
   }
 
  private:
   const double target_macro_steps_;
+  const std::size_t min_micro_steps_;
   double total_macro_steps_;
   double count_;
 };
@@ -221,8 +219,9 @@ class AdaptiveWalnuts {
               warmup_cfg.step_sq_gradient_decay(),
               warmup_cfg.step_stabilization(),
               warmup_cfg.step_learn_rate_decay()),
-        mass_estimator_(warmup_cfg, theta_, grad(logp_grad_, theta_)),
-        min_micro_estimator_(warmup_cfg.max_macro_steps_target()) {}
+        mass_estimator_(warmup_cfg, init_chain_cfg),
+        min_micro_estimator_(warmup_cfg.max_macro_steps_target(),
+                             sampling_cfg.min_micro_steps()) {}
 
   /**
    * @brief Generate the next state for adaptation and the handler.

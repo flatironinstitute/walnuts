@@ -1016,8 +1016,8 @@ class SamplingConfigBuilder {
 };
 
 /**
- * Print the tuning parameters specified by the sampling configuration to the
- * output stream.
+ * @brief Print the tuning parameters specified by the sampling
+ * configuration to the output stream.
  *
  * @param[in,out] out Output stream to which configuration is printed.
  * @param[in] cfg The sampling configuration.
@@ -1034,6 +1034,39 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
       << "\n"
       << "  min_micro_steps            = " << cfg.min_micro_steps() << "\n"
       << "  rhat_converge_tol          = " << cfg.rhat_converge_tol() << "\n";
+  return out;
+}
+
+/**
+ * @brief Encapsulated configuration for Walnuts.
+ *
+ * Walnuts configurations include initializaiton, warmup, and sampling
+ * configurations.
+ */
+struct WalnutsConfig {
+  /** The initialization configuration for all chains. */
+  InitConfig init_;
+
+  /** The warmup configuration shared by all chains. */
+  WarmupConfig warmup_;
+
+  /** The sampling configuration shared by all chains for warmup and sampling.
+   */
+  SamplingConfig sampling_;
+};
+
+/**
+ * @brief Print the Walnuts configuration.
+ *
+ * This just delegates to printing the initialization, warmup, and
+ * sampling configurations separated by newlines.
+ *
+ * @param[in,out] out Output stream to which configuration is printed.
+ * @param[in] cfg The Walnuts configuration.
+ * @return The output stream for chained calls.
+ */
+inline std::ostream& operator<<(std::ostream& out, const WalnutsConfig& cfg) {
+  out << cfg.init_ << "\n" << cfg.warmup_ << "\n" << cfg.sampling_ << "\n";
   return out;
 }
 

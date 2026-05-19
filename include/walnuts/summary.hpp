@@ -101,10 +101,6 @@ inline Eigen::MatrixXd autocovariance_chain(
   return acor;
 }
 
-inline std::size_t sum(const std::vector<std::size_t>& vs) {
-  return std::accumulate(vs.begin(), vs.end(), std::size_t{0});
-}
-
 /**
  * @brief Concatenate a sequence of Markov chains into a unified matrix.
  *

@@ -8,9 +8,7 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/api.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/handlers.hpp"
+#include <walnuts.hpp>
 
 double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
   if (handlers.size() == 0) {

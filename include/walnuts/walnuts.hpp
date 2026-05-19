@@ -365,7 +365,7 @@ static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @return The combined span.
  */
 template <Update U, Direction D, std::uniform_random_bit_generator RNG>
-static SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
+inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
   double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   double log_denominator;
   if constexpr (U == Update::Metropolis) {
@@ -603,9 +603,7 @@ class WalnutsSampler {
    * @brief Construct a WALNUTS sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
-   * @param[in,out] rand The randomizer for HMC, which must persist for the
-   duration
-   * of the class because it is stored by reference.
+   * @param[in,out] rng The base random number generator.
    * @param[in,out] sample_handler The sampling and on-stop event handler.
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
@@ -630,12 +628,12 @@ class WalnutsSampler {
    * @throw std::invalid_argument If `max_error` is not positive or not finite.
 
    */
-  WalnutsSampler(Random<RNG>& rand, H& sample_handler, const F& logp_grad,
+  WalnutsSampler(RNG& rng, H& sample_handler, const F& logp_grad,
                  const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass,
                  double macro_time, std::size_t max_nuts_depth,
                  std::size_t max_step_halvings, std::size_t min_micro_steps,
                  double max_error)
-      : rand_(rand),
+      : rand_(rng),
         sample_handler_(sample_handler),
         logp_grad_(logp_grad),
         theta_(theta),

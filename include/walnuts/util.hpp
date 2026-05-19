@@ -131,6 +131,13 @@ class Random {
     out = standard_normal(n);
   }
 
+  /**
+   * @brief Return a reference to the base random number generator.
+   *
+   * @return The base random number generator.
+   */
+  RNG& rng() noexcept { return rng_; }
+
  private:
   /** The base random number generator reference. */
   RNG& rng_;  // not std::reference_wrapper to prevent copying

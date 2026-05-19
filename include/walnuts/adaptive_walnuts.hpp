@@ -264,8 +264,8 @@ class AdaptiveWalnuts {
   WalnutsSampler<F, RNG, H> sampler() {
     handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
-        rand_, handler_, logp_grad_.logp_grad_, theta_, inv_mass(), step_size(),
-        sampling_cfg_.get().max_trajectory_doublings(),
+        rand_.rng(), handler_, logp_grad_.logp_grad_, theta_, inv_mass(),
+        step_size(), sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
         sampling_cfg_.get().max_hamiltonian_error());

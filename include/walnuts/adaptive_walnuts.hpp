@@ -19,6 +19,7 @@
 #include "walnuts/walnuts.hpp"
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -167,6 +168,11 @@ class MinMicroStepsAdaptHandler {
   double total_macro_steps_;
   double count_;
 };
+
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
 
 /**
  * @brief The adaptive Walnuts sampler.
@@ -354,13 +360,13 @@ class AdaptiveWalnuts {
 
   /** The Adam optimizer for step size adaptation.
    */
-  Adam adam_;
+  detail::Adam adam_;
 
   /** The estimator for the mass matrix. */
-  MassEstimator mass_estimator_;
+  detail::MassEstimator mass_estimator_;
 
   /** The estimator for the minimum number of micro steps per macro step. */
-  MinMicroStepsAdaptHandler min_micro_estimator_;
+  detail::MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
 }  // namespace walnuts

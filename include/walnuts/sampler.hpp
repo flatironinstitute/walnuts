@@ -92,10 +92,23 @@ class ChainWorker {
       }
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
-      ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
-                             static_cast<float>(logp_stats_.sample_variance()),
-                             static_cast<uint32_t>(logp_stats_.count())};
-      buffer_.get().write_buffer() = chain_stats;
+      // OLD:
+      // ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
+      // static_cast<float>(logp_stats_.sample_variance()),
+      // static_cast<uint32_t>(logp_stats_.count())};
+      // buffer_.get().write_buffer() = chain_stats;
+      // NEW:
+      ChainStats& slot = buffer_.get().write_buffer();
+      std::atomic_ref<float>(slot.sample_mean)
+          .store(static_cast<float>(logp_stats_.mean()),
+                 std::memory_order_relaxed);
+      std::atomic_ref<float>(slot.sample_var)
+          .store(static_cast<float>(logp_stats_.sample_variance()),
+                 std::memory_order_relaxed);
+      std::atomic_ref<uint32_t>(slot.count)
+          .store(static_cast<uint32_t>(logp_stats_.count()),
+                 std::memory_order_relaxed);
+
       buffer_.get().publish();
     }
   }
@@ -142,15 +155,18 @@ static void controller_loop(
   while (true) {
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
-      ChainStats u = stats_by_chain[m].read_latest();
-      counts[m] = u.count;
+      ChainStats& u = stats_by_chain[m].read_latest();
+      uint32_t c =
+          std::atomic_ref<uint32_t>(u.count).load(std::memory_order_relaxed);
+      counts[m] = c;
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
       }
       chain_means(static_cast<Eigen::Index>(m)) =
-          static_cast<double>(u.sample_mean);
-      chain_variances(static_cast<Eigen::Index>(m)) =
-          static_cast<double>(u.sample_var);
+          static_cast<double>(std::atomic_ref<float>(u.sample_mean)
+                                  .load(std::memory_order_relaxed));
+      chain_variances(static_cast<Eigen::Index>(m)) = static_cast<double>(
+          std::atomic_ref<float>(u.sample_var).load(std::memory_order_relaxed));
     }
     if (achieved_min_draws) {
       double variance_of_means = variance(chain_means);

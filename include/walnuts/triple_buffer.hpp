@@ -96,8 +96,7 @@ class alignas(FALSE_SHARING_GUARD_SIZE) TripleBuffer {
    *
    * @return The latest value.
    */
-  // TODO: should work as const T& return, but TSan balks
-  const T read_latest() noexcept {
+  T& read_latest() noexcept {
     const int idx = front_.load(std::memory_order_acquire);
     if (idx != read_) {
       const int old = read_;

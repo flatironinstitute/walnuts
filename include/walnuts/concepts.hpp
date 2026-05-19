@@ -8,6 +8,8 @@
 
 #include <Eigen/Dense>
 
+namespace walnuts {
+
 /**
  * @brief Concept for a type with a `.size()` member function.
  *
@@ -290,3 +292,5 @@ concept MarkovChainSequence =
       { m.chain_view(chain_index) } -> std::convertible_to<Eigen::MatrixXd>;
       { m.draws(dim_index) } -> std::convertible_to<Eigen::VectorXd>;
     };
+
+}  // namespace walnuts

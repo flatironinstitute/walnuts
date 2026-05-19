@@ -17,18 +17,6 @@
 
 namespace walnuts {
 
-struct WalnutsConfig {
-  /** The initialization configuration for all chains. */
-  InitConfig init_;
-
-  /** The warmup configuration shared by all chains. */
-  WarmupConfig warmup_;
-
-  /** The sampling configuration shared by all chains for warmup and sampling.
-   */
-  SamplingConfig sampling_;
-};
-
 /**
  * Return the chain records from running Walnuts with the specified
  * seed, sampling event handlers, and configuration.

@@ -153,8 +153,7 @@ inline std::vector<std::size_t> chain_lengths(
  * object's use.
  */
 class MarkovChainsSplit {
-public:
-
+ public:
   /**
    * @brief Construct a sequence of Markov chains.
    *
@@ -163,21 +162,24 @@ public:
    *
    * @param[in] chains Markov chains.
    * @throw std::invalid_argument If the sequence of chains is length zero.
-   * @throw std::invalid_argument If all chains do not contain at least one draw.
-   * @throw std::invalid_argument If all chains do not have the same number of columns.
+   * @throw std::invalid_argument If all chains do not contain at least one
+   * draw.
+   * @throw std::invalid_argument If all chains do not have the same number of
+   * columns.
    */
   explicit MarkovChainsSplit(const std::vector<Eigen::MatrixXd>& chains)
-    : chains_(chains) {
+      : chains_(chains) {
     if (chains.empty()) {
       throw std::invalid_argument("chains cannot be empty.");
     }
     Eigen::Index dims = chains[0].cols();
     for (const auto& chain : chains) {
       if (chain.rows() == 0) {
-	throw std::invalid_argument("chains must have at least one draw.");
+        throw std::invalid_argument("chains must have at least one draw.");
       }
       if (chain.cols() != dims) {
-	throw std::invalid_argument("all chains must have same number of columns.");
+        throw std::invalid_argument(
+            "all chains must have same number of columns.");
       }
     }
   }
@@ -193,7 +195,7 @@ public:
    * @brief Return the total number of draws across all chains.
    *
    * @return The total number of draws.
-   */  
+   */
   std::size_t num_draws() const noexcept {
     std::size_t sum = 0;
     for (const auto& chain : chains()) {
@@ -243,7 +245,7 @@ public:
   /**
    * @brief Return all of the draws for the specified dimension.
    *
-   * This implementation allocates a vector to return of the 
+   * This implementation allocates a vector to return of the
    * appropriate size.
    *
    * @param d The selected dimension.
@@ -264,18 +266,18 @@ public:
     }
     return drws;
   }
-  
-private:
+
+ private:
   const std::vector<Eigen::MatrixXd>& chains() const noexcept {
     return chains_.get();
   }
-  
+
   std::reference_wrapper<const std::vector<Eigen::MatrixXd>> chains_;
 };
 
 // make sure the implementation satisfies the concept
-static_assert(MarkovChainSequence<MarkovChainsSplit>); 
- 
+static_assert(MarkovChainSequence<MarkovChainsSplit>);
+
 /**
  * @brief A sequence of Markov chains of possibly varying lengths with
  * a single underlying matrix of draws.
@@ -394,8 +396,7 @@ class MarkovChainsUnified {
 };
 
 // make sure the implementation satisfies the concept
-static_assert(MarkovChainSequence<MarkovChainsUnified>); 
-
+static_assert(MarkovChainSequence<MarkovChainsUnified>);
 
 /**
  * @brief Return the sample means of the variables in the chains.

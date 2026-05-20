@@ -155,12 +155,14 @@ directory of the repository (where `CMakeLists.txt` is found).
 Some common options are:
 
 - `-B <build_dir>` - Specify the build directory where the build files will be generated. If omitted, the directory you run the command from will be used.
-- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release.
+- `-DCMAKE_BUILD_TYPE=Debug` - Set the build type to Debug.
+- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release. 
 - `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
 - `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
 - `-DWALNUTS_BUILD_DOC=ON` - Enable building of the documentation (currently on by default).
 - `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
-- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
+- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan). 
+- `-DWALNUTS_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.
 
 Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
 
@@ -168,7 +170,14 @@ For example, a basic configuration which creates a `./build` directory in the re
 root can be done with
 
 ```sh
-cmake . -B ./build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
+```
+
+`cmake` will cache its output configuration. To clear the entire build
+and strat from scratch, use
+
+```sh
+rm -r build
 ```
 
 The remaining instructions assume that commands are run from whatever
@@ -179,11 +188,12 @@ directory you specified as the build directory (e.g., `./build` in the above com
 The easiest way to build the project is with the `cmake --build`
 command. This will build all available executable targets by default.
 
-For example, to build and run the example:
+For example, to build and run the `walnuts_api` example,
 
 ```bash
-cmake --build . --target examples
-./examples/examples
+cd build
+make walnuts_api
+./examples/walnuts_api
 ```
 
 
@@ -214,17 +224,27 @@ The root of the generated doc will be found in
 
 The project directory structure is as follows.
 
-
 ```
-.
-├── examples
-│   └── .cpp files, one per example
-├── include
-│   └── walnuts
-│       └── .hpp files containing the library source code
-├── tests
-│   ├── .cpp files, one per test
-│   └── CMakeLists.txt
+walnuts/
 ├── CMakeLists.txt
-└── README.md
+├── LICENSE
+├── README.md
+├── cmake/
+│   ├── iwyu.imp
+│   ├── run-iwyu.sh
+│   └── tsan-suppressions.txt
+├── docs/
+│   └── refs.bib
+├── examples/
+│   ├── CMakeLists.txt
+│   ├── *.hpp
+│   ├── *.cpp
+├── include/
+│   ├── walnuts.hpp
+│   └── walnuts/
+│       └── *.hpp
+└── tests/
+    ├── CMakeLists.txt
+    ├── *_test.cpp
+
 ```

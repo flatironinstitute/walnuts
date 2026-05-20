@@ -659,7 +659,18 @@ class WalnutsSampler {
     detail::validate_positive(max_error, "max_error");
   }
 
+  /**
+   * @brief Construct a sampler by copying the specified sampler.
+   *
+   * @param sampler Sampler to copy.
+   */
   WalnutsSampler(const WalnutsSampler& sampler) = default;
+
+  /**
+   * @brief Construct a sampler by moving the specified sampler.
+   *
+   * @param sampler Sampler to move.
+   */
   WalnutsSampler(WalnutsSampler&& sampler) = default;
 
   /**
@@ -707,6 +718,11 @@ class WalnutsSampler {
    */
   double max_error() const noexcept { return max_error_; }
 
+  /**
+   * @brief Return the number of dimensions.
+   *
+   * @return The number of dimensions.
+   */
   std::size_t dim() const noexcept {
     return static_cast<std::size_t>(theta_.size());
   }

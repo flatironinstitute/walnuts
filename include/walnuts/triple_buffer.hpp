@@ -12,7 +12,7 @@
 namespace walnuts {
 namespace detail {
 
-/*
+/**
  * @brief A lock-free, single-producer, single-consumer queue with triple
  * buffering.  See \cite guan2025triplebuffer.
  *

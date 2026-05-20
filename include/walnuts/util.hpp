@@ -250,6 +250,7 @@ class NoExceptLogpGrad {
     }
   }
 
+  /** The log density and gradient function. */
   const std::reference_wrapper<const F> logp_grad_;
 };
 

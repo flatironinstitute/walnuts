@@ -51,9 +51,6 @@ class MassEstimator {
    *
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] init_cfg The initialization configuration.
-   * @param[in] theta The initial position.
-   * @param[in] grad The gradient of the target log density at the initial
-   * position.
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */

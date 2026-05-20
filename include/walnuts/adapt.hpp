@@ -177,7 +177,14 @@ class AdaptWorker {
  * @brief A struct to hold the diagonal of the mass matrix and a step size.
  */
 struct AdaptResult {
+  /**
+   * The average mass matrix.
+   */
   Eigen::VectorXd mass_bar;
+
+  /**
+   * The average step size.
+   */
   double step_bar;
 };
 

@@ -160,7 +160,7 @@ Some common options are:
 - `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release. 
 - `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
 - `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
-- `-DWALNUTS_BUILD_DOC=ON` - Enable building of the documentation (currently on by default).
+- `-DWALNUTS_BUILD_DOCS=ON` - Enable building of the documentation (currently on by default).
 - `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
 - `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan). 
 - `-DWALNUTS_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.

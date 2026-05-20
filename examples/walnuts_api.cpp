@@ -104,15 +104,6 @@ int main() {
   std::cout << "NUMBER OF R-HAT EVALS: " << global_handler.r_hats().size()
             << ";  FINAL R-HAT: " << global_handler.r_hats().back() << "\n\n";
 
-  // CSV output is slowwwwwww
-  // std::cout
-  //     << "WRITING CSV TO FILES: step_size.csv, mass_matrix.csv,
-  //     sample.csv\n\n";
-
-  // walnuts::write_step_size_csv("step_size.csv", chain_handlers);
-  // walnuts::write_mass_matrix_csv("mass_matrix.csv", chain_handlers);
-  // walnuts::write_sample_csv("sample.csv", chain_handlers);
-
   std::cout << "WRITING BINARY TO FILES: step_size.wal, mass_matrix.wal, "
                "sample.wal\n\n";
 

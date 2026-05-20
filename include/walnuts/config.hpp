@@ -446,7 +446,8 @@ class InitConfigBuilder {
 };
 
 /**
- * Write a dump of the initial configurations to the specified stream.
+ * @internal @brief Write a dump of the initial configurations to the
+ * specified stream.
  *
  * @param[in,out] out Stream to which configuration is written.
  * @param[in] cfg The configuration to write.
@@ -811,8 +812,8 @@ class WarmupConfigBuilder {
 };
 
 /**
- * Print the tuning parameters specified by the warmup configuration to the
- * output stream.
+ * @internal @brief Print the tuning parameters specified by the
+ * warmup configuration to the output stream.
  *
  * @param[in,out] out Output stream to which configuration is printed.
  * @param[in] cfg The sampling configuration.
@@ -1016,7 +1017,7 @@ class SamplingConfigBuilder {
 };
 
 /**
- * @brief Print the tuning parameters specified by the sampling
+ * @internal @brief Print the tuning parameters specified by the sampling
  * configuration to the output stream.
  *
  * @param[in,out] out Output stream to which configuration is printed.

@@ -17,16 +17,49 @@
 
 namespace walnuts {
 
-// namespace for internal linkage; static undefined with extern "C"
-namespace {
+namespace detail {
 /**
  * @brief Internal flag with value `true` if C++ received `SIGINT`.
  */
 std::atomic<bool> interrupted{false};
 
 extern "C" void handle_sigint(int) { interrupted = true; }
-}  // namespace
 
+
+/**
+ * @brief Write the value in binary format as the specified type.
+ *
+ * @tparam T The type to which input is cast and written.
+ * @tparam S The type of the input value.
+ * @param out The output stream.
+ * @param x The value that is written as type `T`.
+ */
+template <typename T, typename S>
+  requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
+static void write_binary(std::ostream& out, S x) {
+  auto y = static_cast<T>(x);
+  auto bytes = reinterpret_cast<const char*>(&y);
+  out.write(bytes, sizeof(y));
+}
+
+/**
+ * @brief Write the vector in binary format.
+ *
+ * @param[in] os Output stream to which the vector is written.
+ * @param[in] v The vector to write.
+ */
+static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
+  const char* data = reinterpret_cast<const char*>(v.data());
+  std::size_t dim = static_cast<std::size_t>(v.size());
+  std::streamsize size = static_cast<std::streamsize>(dim * sizeof(double));
+  os.write(data, size);
+}  
+
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
+  
 /**
  * @brief An interrupt callback for C++.
  */
@@ -35,16 +68,17 @@ class CppInterruptCallback {
   /**
    * @brief Construct an interrupt callback for C++.
    */
-  CppInterruptCallback() { std::signal(SIGINT, handle_sigint); }
+  CppInterruptCallback() { std::signal(SIGINT, detail::handle_sigint); }
   /**
    * @brief Throw an exception if C++ signaled an interrupt.
    */
   void throw_if_interrupted() const {
-    if (interrupted.load()) {
+    if (detail::interrupted.load()) {
       throw std::runtime_error("C++ was interrupted with SIGINT");
     }
   }
 };
+
 
 /**
  * @brief A handler that stores global events.
@@ -225,35 +259,6 @@ class ChainStore {
 };
 
 /**
- * @brief Write the value in binary format as the specified type.
- *
- * @tparam T The type to which input is cast and written.
- * @tparam S The type of the input value.
- * @param out The output stream.
- * @param x The value that is written as type `T`.
- */
-template <typename T, typename S>
-  requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
-static void write_binary(std::ostream& out, S x) {
-  auto y = static_cast<T>(x);
-  auto bytes = reinterpret_cast<const char*>(&y);
-  out.write(bytes, sizeof(y));
-}
-
-/**
- * @brief Write the vector in binary format.
- *
- * @param[in] os Output stream to which the vector is written.
- * @param[in] v The vector to write.
- */
-static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
-  const char* data = reinterpret_cast<const char*>(v.data());
-  std::size_t dim = static_cast<std::size_t>(v.size());
-  std::streamsize size = static_cast<std::streamsize>(dim * sizeof(double));
-  os.write(data, size);
-}
-
-/**
  * @brief Write the step sizes in binary format.
  *
  * The binary format is a single `uint64_t` indicating the number of
@@ -267,9 +272,9 @@ static void write_step_size(std::ostream& os,
   if (handlers.empty()) {
     return;
   }
-  write_binary<std::uint64_t>(os, handlers.size());
+  detail::write_binary<std::uint64_t>(os, handlers.size());
   for (const auto& handler : handlers) {
-    write_binary<double>(os, handler.step_size());
+    detail::write_binary<double>(os, handler.step_size());
   }
 }
 
@@ -295,10 +300,10 @@ static void write_mass_matrix(std::ostream& os,
     return;
   }
   std::size_t M = handlers.size();
-  write_binary<std::uint64_t>(os, M);
-  write_binary<std::uint64_t>(os, D);
+  detail::write_binary<std::uint64_t>(os, M);
+  detail::write_binary<std::uint64_t>(os, D);
   for (const auto& handler : handlers) {
-    write_vector(os, handler.diag_inv_mass());
+    detail::write_vector(os, handler.diag_inv_mass());
   }
 }
 
@@ -323,11 +328,11 @@ static void write_mass_matrix(std::ostream& os,
 static void write_draws(std::ostream& os, bool is_sampling,
                         const std::vector<Eigen::VectorXd>& draws,
                         const std::vector<double>& log_probs) {
-  write_binary<std::uint64_t>(os, draws.size());
+  detail::write_binary<std::uint64_t>(os, draws.size());
   for (std::size_t m = 0; m < draws.size(); ++m) {
-    write_binary<uint64_t>(os, is_sampling);
-    write_binary<double>(os, log_probs[m]);
-    write_vector(os, draws[m]);
+    detail::write_binary<uint64_t>(os, is_sampling);
+    detail::write_binary<double>(os, log_probs[m]);
+    detail::write_vector(os, draws[m]);
   }
 }
 
@@ -364,8 +369,8 @@ static void write_sample(std::ostream& os,
     return;
   }
   std::size_t M = handlers.size();
-  write_binary<std::uint64_t>(os, M);
-  write_binary<std::uint64_t>(os, D);
+  detail::write_binary<std::uint64_t>(os, M);
+  detail::write_binary<std::uint64_t>(os, D);
   if (include_warmup) {
     for (const auto& h : handlers) {
       write_draws(os, false, h.warmup_draws(), h.warmup_log_probs());
@@ -374,168 +379,6 @@ static void write_sample(std::ostream& os,
   for (const auto& h : handlers) {
     write_draws(os, true, h.draws(), h.log_probs());
   }
-}
-
-/**
- * @brief Write the step sizes to comma-separated-value format.
- *
- * @param[out] os The output stream.
- * @param[out] handlers The storage handlers for the chains.
- * @param[in] precision The number of significant digits in scalar output.
- */
-static void write_step_size_csv(std::ostream& os,
-                                const std::vector<ChainStore>& handlers,
-                                int precision = 8) {
-  if (handlers.empty()) {
-    return;
-  }
-  os << std::setprecision(precision);
-  os << "chain_id,stepsize\n";
-  for (std::size_t c = 0; c < handlers.size(); ++c) {
-    os << c << ',' << handlers[c].step_size() << '\n';
-  }
-}
-
-/**
- * @brief Write the diagonal mass matrices to comma-separated-value format.
- *
- * @param[out] handlers The storage handlers for the chains.
- * @param[out] os The output stream.
- * @param[in] precision The number of significant digits in scalar output.
- */
-static void write_mass_matrix_csv(std::ostream& os,
-                                  const std::vector<ChainStore>& handlers,
-                                  int precision = 8) {
-  if (handlers.empty()) {
-    return;
-  }
-  std::int64_t D = handlers[0].diag_inv_mass().size();
-  if (D == 0) {
-    return;
-  }
-  os << std::setprecision(precision);
-  os << "chain_id";
-  for (std::int64_t d = 0; d < D; ++d) {
-    os << ",theta[" << d << "]";
-  }
-  os << '\n';
-  for (std::size_t c = 0; c < handlers.size(); ++c) {
-    os << c;
-    for (int d = 0; d < D; ++d) {
-      os << ',' << handlers[c].diag_inv_mass()(d);
-    }
-    os << '\n';
-  }
-}
-
-/**
- * @brief Write the draws to comma-separated-value format, optionally
- * including warmup draws.
- *
- * @param[out] os The output stream.
- * @param[out] handlers The storage handlers for the chains.
- * @param[in] include_warmup `true` if warmup draws are included in output.
- * @param[in] precision The number of significant digits in scalar output.
- */
-static void write_sample_csv(std::ostream& os,
-                             const std::vector<ChainStore>& handlers,
-                             bool include_warmup = false, int precision = 8) {
-  os << std::setprecision(precision);
-
-  // get dims D from first draw
-  int64_t D = 0;
-  for (const auto& h : handlers) {
-    if (!h.draws().empty()) {
-      D = h.draws()[0].size();
-      break;
-    }
-    if (!h.warmup_draws().empty()) {
-      D = h.warmup_draws()[0].size();
-      break;
-    }
-  }
-  if (D == 0) {
-    return;
-  }
-
-  os << "chain_id,warmup,iteration,log_density";
-  for (int d = 0; d < D; ++d) {
-    os << ",theta[" << d << "]";
-  }
-  os << '\n';
-
-  for (std::size_t c = 0; c < handlers.size(); ++c) {
-    const auto& h = handlers[c];
-    int iteration = 0;
-
-    if (include_warmup) {
-      for (std::size_t n = 0; n < h.warmup_draws().size(); ++n, ++iteration) {
-        os << c << ",1," << iteration << ',' << h.warmup_log_probs()[n];
-        for (int d = 0; d < D; ++d) {
-          os << ',' << h.warmup_draws()[n](d);
-        }
-        os << '\n';
-      }
-    }
-
-    for (std::size_t n = 0; n < h.draws().size(); ++n, ++iteration) {
-      os << c << ",0," << iteration << ',' << h.log_probs()[n];
-      for (int d = 0; d < D; ++d) {
-        os << ',' << h.draws()[n](d);
-      }
-      os << '\n';
-    }
-  }
-}
-
-/**
- * @brief Write the step sizes to comma-separated-value format.
- *
- * @param[out] file_name The name of the file to which output is written.
- * @param[out] handlers The storage handlers for the chains.
- * @param[in] precision The number of significant digits in scalar output.
- * @throw std::invalid_argument If the file cannot be opened for writing.
- */
-static void write_step_size_csv(const std::string& file_name,
-                                const std::vector<ChainStore>& handlers,
-                                int precision = 8) {
-  std::ofstream os(file_name);
-  detail::validate_open(os, file_name);
-  write_step_size_csv(os, handlers, precision);
-}
-
-/**
- * @brief Write the diagonal mass matrices to comma-separated-value format.
- *
- * @param[out] file_name The name of the file to which output is written.
- * @param[out] handlers The storage handlers for the chains.
- * @param[in] precision The number of significant digits in scalar output.
- * @throw std::invalid_argument If the file cannot be opened for writing.
- */
-static void write_mass_matrix_csv(const std::string& file_name,
-                                  const std::vector<ChainStore>& handlers,
-                                  int precision = 8) {
-  std::ofstream os(file_name);
-  detail::validate_open(os, file_name);
-  write_mass_matrix_csv(os, handlers, precision);
-}
-
-/**
- * @brief Write the draws to comma-separated-value format, optionally
- * including warmup draws.
- *
- * @param[out] file_name The name of the file to which output is written.
- * @param[out] handlers The storage handlers for the chains.
- * @param[in] include_warmup `true` if warmup draws are included in output.
- * @param[in] precision The number of significant digits in scalar output.
- * @throw std::invalid_argument If the file cannot be opened for writing.
- */
-static void write_sample_csv(const std::string& file_name,
-                             const std::vector<ChainStore>& handlers,
-                             bool include_warmup = false, int precision = 8) {
-  std::ofstream os(file_name);
-  detail::validate_open(os, file_name);
-  write_sample_csv(os, handlers, include_warmup, precision);
 }
 
 /**

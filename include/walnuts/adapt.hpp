@@ -17,7 +17,7 @@
 #include <walnuts/util.hpp>
 
 namespace walnuts {
-  namespace detail {
+namespace detail {
 
 /**
  * @brief A struct to represent a snapshot of the adaptation process

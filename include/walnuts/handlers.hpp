@@ -25,7 +25,6 @@ std::atomic<bool> interrupted{false};
 
 extern "C" void handle_sigint(int) { interrupted = true; }
 
-
 /**
  * @brief Write the value in binary format as the specified type.
  *
@@ -53,13 +52,13 @@ static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
   std::size_t dim = static_cast<std::size_t>(v.size());
   std::streamsize size = static_cast<std::streamsize>(dim * sizeof(double));
   os.write(data, size);
-}  
+}
 
 }  // namespace detail
 }  // namespace walnuts
 
 namespace walnuts {
-  
+
 /**
  * @brief An interrupt callback for C++.
  */
@@ -78,7 +77,6 @@ class CppInterruptCallback {
     }
   }
 };
-
 
 /**
  * @brief A handler that stores global events.

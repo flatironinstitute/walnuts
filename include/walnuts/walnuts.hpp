@@ -17,6 +17,7 @@
 #include <walnuts/validate.hpp>
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
@@ -303,7 +304,7 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, LogpGrad F, detail::StepSizeAdapter A>
+template <Direction D, LogpGrad F, StepSizeAdapter A>
 static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                        double step, std::size_t max_step_halvings,
                        std::size_t min_micro_steps, double max_error,
@@ -416,7 +417,7 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, LogpGrad F, detail::StepSizeAdapter A>
+template <Direction D, LogpGrad F, StepSizeAdapter A>
 static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                                        const Eigen::VectorXd& inv_mass,
                                        double step,
@@ -460,7 +461,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
-          detail::StepSizeAdapter A>
+          StepSizeAdapter A>
 static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
                                        const Eigen::VectorXd& inv_mass,
                                        double step, std::size_t depth,
@@ -515,7 +516,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in,out] step_size_adapter The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <LogpGrad F, class Rand, detail::StepSizeAdapter A>
+template <LogpGrad F, class Rand, StepSizeAdapter A>
 inline Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
@@ -583,6 +584,11 @@ class NoOpStepSizeAdapter {
         "should not call step_size() in NoOpStepSizeAdapter");
   }
 };
+
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
 
 /**
  * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
@@ -707,13 +713,13 @@ class WalnutsSampler {
 
  private:
   /** The underlying randomizer. */
-  Random<RNG> rand_;
+  detail::Random<RNG> rand_;
 
   /** Reference to the sampling event handler. */
   std::reference_wrapper<H> sample_handler_;
 
   /** The target log density/gradient function. */
-  const NoExceptLogpGrad<F> logp_grad_;
+  const detail::NoExceptLogpGrad<F> logp_grad_;
 
   /** The current position. */
   Eigen::VectorXd theta_;
@@ -740,7 +746,7 @@ class WalnutsSampler {
   const double max_error_;
 
   /** A handler for adaptation which does nothing. */
-  const NoOpStepSizeAdapter no_op_step_size_adapter_;
+  const detail::NoOpStepSizeAdapter no_op_step_size_adapter_;
 };
 
 }  // namespace walnuts

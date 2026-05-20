@@ -8,6 +8,7 @@
 #include <walnuts/validate.hpp>
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief Accumulator for online mean and smaple variance calculations.
@@ -153,7 +154,8 @@ class OnlineMoments {
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
     detail::validate_positive(init_weight, "init_weight");
-    detail::validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
+    detail::validate_same_size(init_mean, init_variance, "init_mean",
+                               "init_variance");
   }
 
   /**
@@ -244,4 +246,5 @@ class OnlineMoments {
   Eigen::VectorXd sum_sq_dev_;
 };
 
+}  // namespace detail
 }  // namespace walnuts

@@ -54,7 +54,7 @@ concept EigenDenseType = requires(const T& t) {
  */
 template <typename T>
 concept FloatingPointLeaf = std::floating_point<T> || EigenDenseType<T>;
-  
+
 /**
  * @brief Concept for a floating-point leaf or a one-level container
  * of such leaves.
@@ -114,7 +114,6 @@ concept OpenableStream = requires(const S& s) {
   { s.is_open() } -> std::convertible_to<bool>;
 };
 
-
 /**
  * @brief Concept for a step size adaptation handler.
  *
@@ -131,7 +130,6 @@ concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
   { h(accept_prob) } -> std::same_as<void>;
   { ch.step_size() } -> std::convertible_to<double>;
 };
-
 
 /**
  * @brief Concept for an adaptive sampler that tunes parameters during
@@ -176,10 +174,8 @@ concept AdaptiveSampler = requires(A& a, const A& ca) {
   { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };
 
-} // namespace detail
-} // namespace walnuts
-
-
+}  // namespace detail
+}  // namespace walnuts
 
 namespace walnuts {
 
@@ -302,5 +298,5 @@ concept MarkovChainSequence =
       { m.chain_view(chain_index) } -> std::convertible_to<Eigen::MatrixXd>;
       { m.draws(dim_index) } -> std::convertible_to<Eigen::VectorXd>;
     };
-  
+
 }  // namespace walnuts

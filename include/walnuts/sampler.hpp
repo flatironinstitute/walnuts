@@ -21,6 +21,7 @@
 #include <walnuts/util.hpp>
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief A struct to hold the within chain summary statistics for
@@ -47,7 +48,7 @@ struct ChainStats {
  *
  * @tparam Sampler The sampling functor.
  */
-template <detail::Sampler S>
+template <Sampler S>
 class ChainWorker {
  public:
   /**
@@ -93,8 +94,8 @@ class ChainWorker {
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
       ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
-      static_cast<float>(logp_stats_.sample_variance()),
-      static_cast<uint32_t>(logp_stats_.count())};
+                             static_cast<float>(logp_stats_.sample_variance()),
+                             static_cast<uint32_t>(logp_stats_.count())};
       buffer_.get().write_buffer() = chain_stats;
       buffer_.get().publish();
     }
@@ -147,10 +148,10 @@ static void controller_loop(
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
       }
-      chain_means(static_cast<Eigen::Index>(m))
-	= static_cast<double>(u.sample_mean);
-      chain_variances(static_cast<Eigen::Index>(m))
-	= static_cast<double>(u.sample_var);
+      chain_means(static_cast<Eigen::Index>(m)) =
+          static_cast<double>(u.sample_mean);
+      chain_variances(static_cast<Eigen::Index>(m)) =
+          static_cast<double>(u.sample_var);
     }
     if (achieved_min_draws) {
       double variance_of_means = variance(chain_means);
@@ -186,7 +187,7 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-template <detail::Sampler S, GlobalHandler GH, InterruptCallback IC>
+template <Sampler S, GlobalHandler GH, InterruptCallback IC>
 inline void sample(std::vector<S>& samplers, GH& global_handler,
                    const IC& interrupt_callback, double rhat_threshold,
                    std::size_t min_draws_per_chain,
@@ -213,4 +214,5 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
   }
 }
 
+}  // namespace detail
 }  // namespace walnuts

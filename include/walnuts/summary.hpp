@@ -11,24 +11,11 @@
 #include <walnuts/concepts.hpp>
 
 namespace walnuts {
+namespace detail {
 
 template <typename Derived>
 inline Eigen::RowVectorXd col_means(const Eigen::MatrixBase<Derived>& draws) {
   return draws.colwise().mean();
-}
-
-template <typename Derived>
-inline Eigen::RowVectorXd sample_variance(
-    const Eigen::MatrixBase<Derived>& draws, const Eigen::RowVectorXd& mean) {
-  // would be numerically more robust with Welford's algorithm
-  return ((draws.rowwise() - mean).array().square().colwise().sum() /
-          (draws.rows() - 1));
-}
-
-template <typename Derived>
-inline Eigen::RowVectorXd sample_variance(
-    const Eigen::MatrixBase<Derived>& draws) {
-  return sample_variance(draws, col_means(draws));
 }
 
 constexpr inline Eigen::Index strip_factor(Eigen::Index m,
@@ -89,7 +76,7 @@ inline Eigen::MatrixXd autocovariance_chain(
   Eigen::Index N = chain.rows();
   Eigen::Index D = chain.cols();
   Eigen::MatrixXd acor(N, D);
-  Eigen::Index M = fft_next_good_size(N);
+  Eigen::Index M = detail::fft_next_good_size(N);
   Eigen::Index M2 = 2 * M;
   Eigen::VectorXd padded_signal(M2);
   Eigen::VectorXcd freq_vec(M2);
@@ -101,44 +88,24 @@ inline Eigen::MatrixXd autocovariance_chain(
   return acor;
 }
 
-/**
- * @brief Concatenate a sequence of Markov chains into a unified matrix.
- *
- * @param draws The sequence of chains.
- * @return The unified matrix of chains.
- */
-inline Eigen::MatrixXd concatenate_chains(
-    const std::vector<Eigen::MatrixXd>& draws) {
-  if (draws.empty()) {
-    return {};
-  }
-  Eigen::Index N = 0;
-  for (const Eigen::MatrixXd& chain : draws) {
-    N += chain.rows();
-  }
-  Eigen::MatrixXd result(N, draws[0].cols());
-  Eigen::Index start = 0;
-  for (const auto& chain : draws) {
-    result.middleRows(start, chain.rows()) = chain;
-    start += chain.rows();
-  }
-  return result;
+template <typename Derived>
+inline Eigen::RowVectorXd sample_variance(
+    const Eigen::MatrixBase<Derived>& draws, const Eigen::RowVectorXd& mean) {
+  // would be numerically more robust with Welford's algorithm
+  return ((draws.rowwise() - mean).array().square().colwise().sum() /
+          (draws.rows() - 1));
 }
 
-/**
- * @brief Return the sequence of lengths of the Markov chains.
- *
- * @param chains The sequence of chains.
- * @return The sequence of chain lengths.
- */
-inline std::vector<std::size_t> chain_lengths(
-    const std::vector<Eigen::MatrixXd>& chains) {
-  std::vector<std::size_t> lengths(chains.size());
-  for (std::size_t m = 0; m < chains.size(); ++m) {
-    lengths[m] = static_cast<std::size_t>(chains[m].rows());
-  }
-  return lengths;
+template <typename Derived>
+inline Eigen::RowVectorXd sample_variance(
+    const Eigen::MatrixBase<Derived>& draws) {
+  return sample_variance(draws, detail::col_means(draws));
 }
+
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
 
 /**
  * @brief A sequence of Markov chains of possibly varying lengths
@@ -271,7 +238,6 @@ class MarkovChainsSplit {
   std::reference_wrapper<const std::vector<Eigen::MatrixXd>> chains_;
 };
 
-// make sure the implementation satisfies the concept
 static_assert(MarkovChainSequence<MarkovChainsSplit>);
 
 /**
@@ -391,7 +357,6 @@ class MarkovChainsUnified {
   std::vector<Eigen::Index> chain_starts_;
 };
 
-// make sure the implementation satisfies the concept
 static_assert(MarkovChainSequence<MarkovChainsUnified>);
 
 /**
@@ -561,7 +526,8 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
   // to parallelize, need to use one fft per chain
   for (std::size_t m = 0; m < M; ++m) {
     const auto& chain = chains.chain_view(m);
-    acov.middleRows(start, chain.rows()) = autocovariance_chain(chain, fft);
+    acov.middleRows(start, chain.rows()) =
+        detail::autocovariance_chain(chain, fft);
     start += chain.rows();
   }
   return acov;
@@ -621,12 +587,13 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
   Eigen::MatrixXd sigma_sq(M, D);
   for (std::size_t m = 0; m < M; ++m) {
     const auto& chain = chains.chain_view(m);
-    auto chain_mean = col_means(chain);
+    auto chain_mean = detail::col_means(chain);
     mu.row(static_cast<Eigen::Index>(m)) = chain_mean;
     sigma_sq.row(static_cast<Eigen::Index>(m)) =
-        sample_variance(chain, chain_mean);
+        detail::sample_variance(chain, chain_mean);
   }
-  return (1.0 + sample_variance(mu).array() / col_means(sigma_sq).array())
+  return (1.0 + detail::sample_variance(mu).array() /
+                    detail::col_means(sigma_sq).array())
       .sqrt()
       .matrix();
 }
@@ -684,15 +651,16 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
   Eigen::MatrixXd chain_vars(K, D);
   for (std::size_t k = 0; k < K; ++k) {
     const auto& chain = chains.chain_view(k);
-    Eigen::RowVectorXd m = col_means(chain);
+    Eigen::RowVectorXd m = detail::col_means(chain);
     chain_means.row(static_cast<Eigen::Index>(k)) = m;
-    chain_vars.row(static_cast<Eigen::Index>(k)) = sample_variance(chain, m);
+    chain_vars.row(static_cast<Eigen::Index>(k)) =
+        detail::sample_variance(chain, m);
   }
 
-  Eigen::RowVectorXd W = col_means(chain_vars);
+  Eigen::RowVectorXd W = detail::col_means(chain_vars);
   Eigen::RowVectorXd var_plus = W;
   if (K > 1) {
-    var_plus += sample_variance(chain_means);
+    var_plus += detail::sample_variance(chain_means);
   }
 
   Eigen::MatrixXd acov = autocovariance(chains);

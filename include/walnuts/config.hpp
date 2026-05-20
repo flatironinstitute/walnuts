@@ -256,7 +256,7 @@ class InitConfigBuilder {
   template <std::uniform_random_bit_generator RNG>
   InitConfigBuilder& positions(RNG& rng, double init_scale) {
     detail::validate_finite_positive(init_scale, "init_scale");
-    Random<RNG> rand(rng);
+    detail::Random<RNG> rand(rng);
     positions_.resize(num_chains_);
     for (std::size_t c = 0; c < num_chains_; ++c) {
       rand.standard_normal(static_cast<Eigen::Index>(dims_), positions_[c]);

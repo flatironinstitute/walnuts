@@ -65,9 +65,9 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }
 
-  sample(samplers, global_handler, interrupt_callback,
-         config.sampling_.rhat_converge_tol(), config.sampling_.min_iter(),
-         config.sampling_.max_iter());
+  detail::sample(samplers, global_handler, interrupt_callback,
+                 config.sampling_.rhat_converge_tol(),
+                 config.sampling_.min_iter(), config.sampling_.max_iter());
 }
 
 }  // namespace walnuts

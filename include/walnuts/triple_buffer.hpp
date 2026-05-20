@@ -9,8 +9,8 @@
 #include <walnuts/concepts.hpp>
 #include <walnuts/util.hpp>
 
-
 namespace walnuts {
+namespace detail {
 
 /*
  * @brief A lock-free, single-producer, single-consumer queue with triple
@@ -127,4 +127,5 @@ class alignas(FALSE_SHARING_GUARD_SIZE) TripleBuffer {
   alignas(FALSE_SHARING_GUARD_SIZE) index_t read_;
 };
 
+}  // namespace detail
 }  // namespace walnuts

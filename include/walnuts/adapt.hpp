@@ -17,6 +17,7 @@
 #include <walnuts/util.hpp>
 
 namespace walnuts {
+  namespace detail {
 
 /**
  * @brief A struct to represent a snapshot of the adaptation process
@@ -66,7 +67,7 @@ using Buffer = TripleBuffer<AdaptSnapshot>;
  * @param[in] dim The dimensionality of the positions.
  * @return A padded buffer of the specified dimensionality.
  */
-static Buffer construct_buffer(std::size_t dim) {
+inline Buffer construct_buffer(std::size_t dim) {
   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
   return Buffer(snapshot);
 }
@@ -78,7 +79,7 @@ static Buffer construct_buffer(std::size_t dim) {
  * @param[in] dim The number of dimensions.
  * @return The buffer container.
  */
-static std::vector<Buffer> construct_buffers(std::size_t num_chains,
+inline std::vector<Buffer> construct_buffers(std::size_t num_chains,
                                              std::size_t dim) {
   std::vector<Buffer> buffers;
   buffers.reserve(num_chains);
@@ -190,7 +191,7 @@ struct AdaptResult {
  * @return Statistics for the completed adaptation process.
  */
 template <InterruptCallback IC>
-static AdaptResult controller_loop(std::vector<Buffer>& buffers,
+inline AdaptResult controller_loop(std::vector<Buffer>& buffers,
                                    std::vector<AdaptSnapshot>& latest,
                                    const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
@@ -279,4 +280,5 @@ inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   }
 }
 
+}  // namespace detail
 }  // namespace walnuts

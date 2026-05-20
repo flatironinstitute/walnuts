@@ -47,7 +47,7 @@ struct ChainStats {
  *
  * @tparam Sampler The sampling functor.
  */
-template <Sampler S>
+template <detail::Sampler S>
 class ChainWorker {
  public:
   /**
@@ -176,7 +176,8 @@ static void controller_loop(
  * log density of latest sample and call chain local handlers
  * indirectly through the samplers, and also implement `size_t dim()`.
  *
- * @tparam Sampler The type of the sampler.
+ * @tparam S The type of the sampler.
+ * @tparam GH The type of the global handler.
  * @tparam IC The type of the interrupt callback.
  * @param[in] samplers The vector of samplers.
  * @param[in,out] global_handler The global event handler for sampling.
@@ -185,7 +186,7 @@ static void controller_loop(
  * @param[in] min_draws_per_chain The minimum number of draws per chain.
  * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
-template <Sampler S, GlobalHandler GH, InterruptCallback IC>
+template <detail::Sampler S, GlobalHandler GH, InterruptCallback IC>
 inline void sample(std::vector<S>& samplers, GH& global_handler,
                    const IC& interrupt_callback, double rhat_threshold,
                    std::size_t min_draws_per_chain,

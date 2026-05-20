@@ -152,8 +152,8 @@ class OnlineMoments {
       : weight_(init_weight),
         mean_(init_mean),
         sum_sq_dev_(init_weight * init_variance) {
-    validate_positive(init_weight, "init_weight");
-    validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
+    detail::validate_positive(init_weight, "init_weight");
+    detail::validate_same_size(init_mean, init_variance, "init_mean", "init_variance");
   }
 
   /**
@@ -164,7 +164,7 @@ class OnlineMoments {
    * @throw std::invalid_argument If the discount factor is not in (0, 1).
    */
   void set_discount_factor(double discount_factor) {
-    validate_probability_inclusive(discount_factor, "discount_factor");
+    detail::validate_probability_inclusive(discount_factor, "discount_factor");
     discount_factor_ = discount_factor;
   }
 

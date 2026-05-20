@@ -303,7 +303,7 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @param[in,out] adapt_handler The step-size adaptation handler.
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
-template <Direction D, LogpGrad F, StepSizeAdapter A>
+template <Direction D, LogpGrad F, detail::StepSizeAdapter A>
 static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
                        double step, std::size_t max_step_halvings,
                        std::size_t min_micro_steps, double max_error,
@@ -416,7 +416,7 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @return The span resulting from extending the specified span or
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
-template <Direction D, LogpGrad F, StepSizeAdapter A>
+template <Direction D, LogpGrad F, detail::StepSizeAdapter A>
 static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                                        const Eigen::VectorXd& inv_mass,
                                        double step,
@@ -460,7 +460,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @return The new span or `std::nullopt` if it could not be constructed.
  */
 template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
-          StepSizeAdapter A>
+          detail::StepSizeAdapter A>
 static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
                                        const Eigen::VectorXd& inv_mass,
                                        double step, std::size_t depth,
@@ -515,7 +515,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in,out] step_size_adapter The step-size adaptation handler.
  * @return The next position in the Markov chain.
  */
-template <LogpGrad F, class Rand, StepSizeAdapter A>
+template <LogpGrad F, class Rand, detail::StepSizeAdapter A>
 inline Eigen::VectorXd transition_w(
     Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
     const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
@@ -645,12 +645,12 @@ class WalnutsSampler {
         min_micro_steps_(min_micro_steps),
         max_error_(max_error),
         no_op_step_size_adapter_() {
-    validate_positive(inv_mass, "inv_mass");
-    validate_positive(macro_time, "macro_time");
-    validate_positive(max_nuts_depth, "max_nuts_depth");
-    validate_positive(max_step_halvings, "max_step_halvings");
-    validate_positive(min_micro_steps, "min_micro_steps");
-    validate_positive(max_error, "max_error");
+    detail::validate_positive(inv_mass, "inv_mass");
+    detail::validate_positive(macro_time, "macro_time");
+    detail::validate_positive(max_nuts_depth, "max_nuts_depth");
+    detail::validate_positive(max_step_halvings, "max_step_halvings");
+    detail::validate_positive(min_micro_steps, "min_micro_steps");
+    detail::validate_positive(max_error, "max_error");
   }
 
   WalnutsSampler(const WalnutsSampler& sampler) = default;

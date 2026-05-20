@@ -143,7 +143,8 @@ CMake is required to build the examples and tests.
 
 ### Configuring the build
 
-The basic configuration is
+The basic configuration is to run the following command from the
+top-level `walnuts` directory.
 
 ```sh
 cmake <options> <repo_root>
@@ -174,7 +175,8 @@ cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
 ```
 
 `cmake` will cache its output configuration. To clear the entire build
-and strat from scratch, use
+and start from scratch, just delete the automatically generated
+`build` subdirectory.
 
 ```sh
 rm -r build

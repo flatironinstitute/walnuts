@@ -500,7 +500,7 @@ static void write_step_size_csv(const std::string& file_name,
                                 const std::vector<ChainStore>& handlers,
                                 int precision = 8) {
   std::ofstream os(file_name);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_step_size_csv(os, handlers, precision);
 }
 
@@ -516,7 +516,7 @@ static void write_mass_matrix_csv(const std::string& file_name,
                                   const std::vector<ChainStore>& handlers,
                                   int precision = 8) {
   std::ofstream os(file_name);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_mass_matrix_csv(os, handlers, precision);
 }
 
@@ -534,7 +534,7 @@ static void write_sample_csv(const std::string& file_name,
                              const std::vector<ChainStore>& handlers,
                              bool include_warmup = false, int precision = 8) {
   std::ofstream os(file_name);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_sample_csv(os, handlers, include_warmup, precision);
 }
 
@@ -555,7 +555,7 @@ static void write_step_size(const std::string& file_name,
     return;
   }
   std::ofstream os(file_name);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_step_size(os, handlers);
 }
 
@@ -576,7 +576,7 @@ static void write_mass_matrix(const std::string& file_name,
     return;
   }
   std::ofstream os(file_name);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_mass_matrix(os, handlers);
 }
 
@@ -602,7 +602,7 @@ static void write_sample(const std::string& file_name,
   os.rdbuf()->pubsetbuf(filebuf.data(),
                         static_cast<std::streamsize>(filebuf.size()));
   os.open(file_name, std::ios::binary);
-  validate_open(os, file_name);
+  detail::validate_open(os, file_name);
   write_sample(os, handlers, include_warmup);
 }
 

@@ -86,7 +86,7 @@ class alignas(FALSE_SHARING_GUARD_SIZE) TripleBuffer {
    * Commit the changes to the write buffer.
    */
   void publish() noexcept {
-    const int published = back_;
+    int published = back_;
     front_.store(published, std::memory_order_release);
     back_ = spare_.exchange(published, std::memory_order_acq_rel);
   }
@@ -100,7 +100,7 @@ class alignas(FALSE_SHARING_GUARD_SIZE) TripleBuffer {
   T& read_latest() noexcept {
     const int idx = front_.load(std::memory_order_acquire);
     if (idx != read_) {
-      const int old = read_;
+      index_t old = read_;
       read_ = idx;
       spare_.store(old, std::memory_order_release);
     }

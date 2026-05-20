@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(walnuts
   VERSION 0.1.0
-  DESCRIPTION "Header-only NUTS sampler library"
+  DESCRIPTION "Header-only Walnut Pie sampler library"
   LANGUAGES CXX
 )
 

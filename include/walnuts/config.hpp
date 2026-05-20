@@ -63,7 +63,8 @@ class InitChainConfig {
 };
 
 /**
- * The initialization configuration for multiple Markov chains.
+ * @brief The initialization configuration for multiple Markov chains.
+ *
  * Rather than a public constructor, it is built using an
  * `InitConfigBuilder` instance.
  *
@@ -842,7 +843,7 @@ inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
 }
 
 /**
- * A class to hold the configuration for the Walnuts sampler.
+ * @brief A class to hold the configuration for the Walnuts sampler.
  */
 class SamplingConfig {
  public:

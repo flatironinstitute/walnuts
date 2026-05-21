@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(walnuts
   VERSION 0.1.0
-  DESCRIPTION "Header-only NUTS sampler library"
+  DESCRIPTION "Header-only Walnut Pie sampler library"
   LANGUAGES CXX
 )
 
@@ -155,7 +155,7 @@ if (WALNUTS_BUILD_DOCS)
   set(DOXYGEN_GENERATE_HTML    YES)
   set(DOXYGEN_GENERATE_LATEX   NO)
   set(DOXYGEN_EXTRACT_ALL      NO)
-  set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/refs.bib")
+  set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/docs/refs.bib")
 
   doxygen_add_docs(
     doc

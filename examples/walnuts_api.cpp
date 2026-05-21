@@ -8,9 +8,7 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/api.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/handlers.hpp"
+#include <walnuts.hpp>
 
 double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
   if (handlers.size() == 0) {
@@ -50,7 +48,7 @@ int main() {
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
   std::size_t num_chains = 32;
-  std::size_t dims = 100;
+  std::size_t dims = 1000;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
@@ -70,7 +68,7 @@ int main() {
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
-                          .min_max_iter(50, 1000)
+                          .min_max_iter(50, 10000)
                           .max_trajectory_doublings(8)
                           .rhat_converge_tol(1.0001)
                           .build();
@@ -105,15 +103,6 @@ int main() {
 
   std::cout << "NUMBER OF R-HAT EVALS: " << global_handler.r_hats().size()
             << ";  FINAL R-HAT: " << global_handler.r_hats().back() << "\n\n";
-
-  // CSV output is slowwwwwww
-  // std::cout
-  //     << "WRITING CSV TO FILES: step_size.csv, mass_matrix.csv,
-  //     sample.csv\n\n";
-
-  // walnuts::write_step_size_csv("step_size.csv", chain_handlers);
-  // walnuts::write_mass_matrix_csv("mass_matrix.csv", chain_handlers);
-  // walnuts::write_sample_csv("sample.csv", chain_handlers);
 
   std::cout << "WRITING BINARY TO FILES: step_size.wal, mass_matrix.wal, "
                "sample.wal\n\n";

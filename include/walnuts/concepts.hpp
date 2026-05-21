@@ -8,6 +8,9 @@
 
 #include <Eigen/Dense>
 
+namespace walnuts {
+namespace detail {
+
 /**
  * @brief Concept for a type with a `.size()` member function.
  *
@@ -99,6 +102,84 @@ concept Sampler = requires(S& s, const S& cs) {
 };
 
 /**
+ * @brief Concept for a stream that reports whether it is open.
+ *
+ * A type `S` satisfies `OpenableStream` if `s.is_open()` is callable on
+ * a const instance and returns a value convertible to `bool`. This
+ * matches the interface of standard file streams (`std::ifstream`,
+ * `std::ofstream`, `std::fstream`).
+ */
+template <typename S>
+concept OpenableStream = requires(const S& s) {
+  { s.is_open() } -> std::convertible_to<bool>;
+};
+
+/**
+ * @brief Concept for a step size adaptation handler.
+ *
+ * A type `H` satisfies `StepSizeAdapter` if it provides:
+ *  - `h(accept_prob)` callable on a non-const instance with a
+ *    `double` argument, returning `void`. Each call observes one
+ *    acceptance probability and updates the internal estimate.
+ *  - `h.step_size()` callable on a const instance, returning a
+ *    value convertible to `double`. Reports the current adapted
+ *    step size.
+ */
+template <typename H>
+concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
+  { h(accept_prob) } -> std::same_as<void>;
+  { ch.step_size() } -> std::convertible_to<double>;
+};
+
+/**
+ * @brief Concept for an adaptive sampler that tunes parameters during
+ * warmup and produces a fixed-parameter sampler for post-warmup
+ * draws.
+ *
+ * A type `A` satisfies `AdaptiveSampler` if it provides the following
+ * members:
+ *  - `a()` callable on a non-const instance, returning `void`. Each
+ *    call advances the adaptation by one iteration, updating tuning
+ *    parameters and calling back on any chain-local handler.
+ *  - `a.sampler()` callable on a non-const instance, returning a type
+ *    that satisfies the `Sampler` concept. This finalizes adaptation
+ *    and produces a sampler with fixed tuning parameters.
+ *  - `a.step_size()` callable on a const instance, returning a value
+ *    convertible to `double`. Reports the current adapted step size.
+ *  - `a.inv_mass()` callable on a const instance, returning a type
+ *    convertible to `Eigen::VectorXd`. Reports the current diagonal
+ *    inverse mass matrix estimate.
+ *  - `a.dim()` callable on a const instance, returning a value
+ *    convertible to `std::size_t`. Reports the dimensionality of the
+ *    parameter space.
+ *  - `a.iter()` callable on a const instance, returning a value
+ *    convertible to `std::size_t`. Reports the current iteration
+ *    count.
+ *  - `a.log_step_size()` callable on a const instance, returning a
+ *    value convertible to `double`. Reports the log of the current
+ *    adapted step size.
+ *  - `a.log_mass()` callable on a const instance, returning a type
+ *    convertible to `Eigen::VectorXd`. Reports the log of the
+ *    diagonal mass matrix.
+ */
+template <typename A>
+concept AdaptiveSampler = requires(A& a, const A& ca) {
+  { a() } -> std::same_as<void>;
+  { a.sampler() } -> detail::Sampler;
+  { ca.step_size() } -> std::convertible_to<double>;
+  { ca.inv_mass() } -> std::convertible_to<Eigen::VectorXd>;
+  { ca.dim() } -> std::convertible_to<std::size_t>;
+  { ca.iter() } -> std::convertible_to<std::size_t>;
+  { ca.log_step_size() } -> std::convertible_to<double>;
+  { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
+};
+
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
+
+/**
  * @brief Concept for a handler of cross-chain events.
  *
  * This only handles R-hat updates now.
@@ -168,19 +249,6 @@ concept ChainHandler =
     };
 
 /**
- * @brief Concept for a stream that reports whether it is open.
- *
- * A type `S` satisfies `OpenableStream` if `s.is_open()` is callable on
- * a const instance and returns a value convertible to `bool`. This
- * matches the interface of standard file streams (`std::ifstream`,
- * `std::ofstream`, `std::fstream`).
- */
-template <typename S>
-concept OpenableStream = requires(const S& s) {
-  { s.is_open() } -> std::convertible_to<bool>;
-};
-
-/**
  * @brief Concept for a log density and gradient function.
  *
  * A type `F` satisfies `LogpGrad` if an object of type `const F&` can be
@@ -198,66 +266,6 @@ template <typename F>
 concept LogpGrad = requires(const F& f, const Eigen::VectorXd& x, double& logp,
                             Eigen::VectorXd& grad) {
   { f(x, logp, grad) } -> std::same_as<void>;
-};
-
-/**
- * @brief Concept for a step size adaptation handler.
- *
- * A type `H` satisfies `StepSizeAdapter` if it provides:
- *  - `h(accept_prob)` callable on a non-const instance with a
- *    `double` argument, returning `void`. Each call observes one
- *    acceptance probability and updates the internal estimate.
- *  - `h.step_size()` callable on a const instance, returning a
- *    value convertible to `double`. Reports the current adapted
- *    step size.
- */
-template <typename H>
-concept StepSizeAdapter = requires(H& h, const H& ch, double accept_prob) {
-  { h(accept_prob) } -> std::same_as<void>;
-  { ch.step_size() } -> std::convertible_to<double>;
-};
-
-/**
- * @brief Concept for an adaptive sampler that tunes parameters during
- * warmup and produces a fixed-parameter sampler for post-warmup
- * draws.
- *
- * A type `A` satisfies `AdaptiveSampler` if it provides the following
- * members:
- *  - `a()` callable on a non-const instance, returning `void`. Each
- *    call advances the adaptation by one iteration, updating tuning
- *    parameters and calling back on any chain-local handler.
- *  - `a.sampler()` callable on a non-const instance, returning a type
- *    that satisfies the `Sampler` concept. This finalizes adaptation
- *    and produces a sampler with fixed tuning parameters.
- *  - `a.step_size()` callable on a const instance, returning a value
- *    convertible to `double`. Reports the current adapted step size.
- *  - `a.inv_mass()` callable on a const instance, returning a type
- *    convertible to `Eigen::VectorXd`. Reports the current diagonal
- *    inverse mass matrix estimate.
- *  - `a.dim()` callable on a const instance, returning a value
- *    convertible to `std::size_t`. Reports the dimensionality of the
- *    parameter space.
- *  - `a.iter()` callable on a const instance, returning a value
- *    convertible to `std::size_t`. Reports the current iteration
- *    count.
- *  - `a.log_step_size()` callable on a const instance, returning a
- *    value convertible to `double`. Reports the log of the current
- *    adapted step size.
- *  - `a.log_mass()` callable on a const instance, returning a type
- *    convertible to `Eigen::VectorXd`. Reports the log of the
- *    diagonal mass matrix.
- */
-template <typename A>
-concept AdaptiveSampler = requires(A& a, const A& ca) {
-  { a() } -> std::same_as<void>;
-  { a.sampler() } -> Sampler;
-  { ca.step_size() } -> std::convertible_to<double>;
-  { ca.inv_mass() } -> std::convertible_to<Eigen::VectorXd>;
-  { ca.dim() } -> std::convertible_to<std::size_t>;
-  { ca.iter() } -> std::convertible_to<std::size_t>;
-  { ca.log_step_size() } -> std::convertible_to<double>;
-  { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };
 
 /**
@@ -290,3 +298,5 @@ concept MarkovChainSequence =
       { m.chain_view(chain_index) } -> std::convertible_to<Eigen::MatrixXd>;
       { m.draws(dim_index) } -> std::convertible_to<Eigen::VectorXd>;
     };
+
+}  // namespace walnuts

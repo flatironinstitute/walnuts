@@ -19,6 +19,7 @@
 #include "walnuts/walnuts.hpp"
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -50,9 +51,6 @@ class MassEstimator {
    *
    * @param[in] warmup_cfg The warmup configuration.
    * @param[in] init_cfg The initialization configuration.
-   * @param[in] theta The initial position.
-   * @param[in] grad The gradient of the target log density at the initial
-   * position.
    * @throw std::invalid_argument If the position and gradient are not the same
    * size.
    */
@@ -168,6 +166,11 @@ class MinMicroStepsAdaptHandler {
   double count_;
 };
 
+}  // namespace detail
+}  // namespace walnuts
+
+namespace walnuts {
+
 /**
  * @brief The adaptive Walnuts sampler.
  *
@@ -264,8 +267,8 @@ class AdaptiveWalnuts {
   WalnutsSampler<F, RNG, H> sampler() {
     handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
-        rand_, handler_, logp_grad_.logp_grad_, theta_, inv_mass(), step_size(),
-        sampling_cfg_.get().max_trajectory_doublings(),
+        rand_.rng(), handler_, logp_grad_.logp_grad_, theta_, inv_mass(),
+        step_size(), sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
         sampling_cfg_.get().max_hamiltonian_error());
@@ -338,13 +341,13 @@ class AdaptiveWalnuts {
   std::reference_wrapper<const SamplingConfig> sampling_cfg_;
 
   /** The random number generator required for Nuts. */
-  Random<RNG> rand_;
+  detail::Random<RNG> rand_;
 
   /** The adaptation and sampling event handler. */
   std::reference_wrapper<H> handler_;
 
   /** The target log density/gradient function. */
-  const NoExceptLogpGrad<F> logp_grad_;
+  const detail::NoExceptLogpGrad<F> logp_grad_;
 
   /** The current state. */
   Eigen::VectorXd theta_;
@@ -354,13 +357,13 @@ class AdaptiveWalnuts {
 
   /** The Adam optimizer for step size adaptation.
    */
-  Adam adam_;
+  detail::Adam adam_;
 
   /** The estimator for the mass matrix. */
-  MassEstimator mass_estimator_;
+  detail::MassEstimator mass_estimator_;
 
   /** The estimator for the minimum number of micro steps per macro step. */
-  MinMicroStepsAdaptHandler min_micro_estimator_;
+  detail::MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
 }  // namespace walnuts

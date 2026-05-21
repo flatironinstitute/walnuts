@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
@@ -11,10 +13,11 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/config.hpp>
-#include <walnuts/triple_buffer.hpp>
+#include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
+namespace detail {
 
 /**
  * @brief A struct to represent a snapshot of the adaptation process
@@ -53,10 +56,10 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
 /**
  * A triple buffer of adaptation snapshots.
  *
- * @see `walnuts::TripleBuffer`
+ * @see `walnuts::SpscBuffer`
  * @see `walnuts::AdaptSnapshot`
  */
-using Buffer = TripleBuffer<AdaptSnapshot>;
+using Buffer = SpscBuffer<AdaptSnapshot>;
 
 /**
  * @brief Return a buffer with the specified dimensionality.
@@ -64,7 +67,7 @@ using Buffer = TripleBuffer<AdaptSnapshot>;
  * @param[in] dim The dimensionality of the positions.
  * @return A padded buffer of the specified dimensionality.
  */
-static Buffer construct_buffer(std::size_t dim) {
+inline Buffer construct_buffer(std::size_t dim) {
   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
   return Buffer(snapshot);
 }
@@ -76,7 +79,7 @@ static Buffer construct_buffer(std::size_t dim) {
  * @param[in] dim The number of dimensions.
  * @return The buffer container.
  */
-static std::vector<Buffer> construct_buffers(std::size_t num_chains,
+inline std::vector<Buffer> construct_buffers(std::size_t num_chains,
                                              std::size_t dim) {
   std::vector<Buffer> buffers;
   buffers.reserve(num_chains);
@@ -174,7 +177,14 @@ class AdaptWorker {
  * @brief A struct to hold the diagonal of the mass matrix and a step size.
  */
 struct AdaptResult {
+  /**
+   * The average mass matrix.
+   */
   Eigen::VectorXd mass_bar;
+
+  /**
+   * The average step size.
+   */
   double step_bar;
 };
 
@@ -188,7 +198,7 @@ struct AdaptResult {
  * @return Statistics for the completed adaptation process.
  */
 template <InterruptCallback IC>
-static AdaptResult controller_loop(std::vector<Buffer>& buffers,
+inline AdaptResult controller_loop(std::vector<Buffer>& buffers,
                                    std::vector<AdaptSnapshot>& latest,
                                    const IC& interrupt_callback,
                                    const InitConfig& init_cfg,
@@ -277,4 +287,5 @@ inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   }
 }
 
+}  // namespace detail
 }  // namespace walnuts

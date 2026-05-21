@@ -17,18 +17,6 @@
 
 namespace walnuts {
 
-struct WalnutsConfig {
-  /** The initialization configuration for all chains. */
-  InitConfig init_;
-
-  /** The warmup configuration shared by all chains. */
-  WarmupConfig warmup_;
-
-  /** The sampling configuration shared by all chains for warmup and sampling.
-   */
-  SamplingConfig sampling_;
-};
-
 /**
  * Return the chain records from running Walnuts with the specified
  * seed, sampling event handlers, and configuration.
@@ -70,16 +58,16 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
                           config.init_.init_chain_config(m), config.warmup_,
                           config.sampling_);
   }
-  adapt(config.init_, config.warmup_, adapters, interrupt_callback);
+  detail::adapt(config.init_, config.warmup_, adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }
 
-  sample(samplers, global_handler, interrupt_callback,
-         config.sampling_.rhat_converge_tol(), config.sampling_.min_iter(),
-         config.sampling_.max_iter());
+  detail::sample(samplers, global_handler, interrupt_callback,
+                 config.sampling_.rhat_converge_tol(),
+                 config.sampling_.min_iter(), config.sampling_.max_iter());
 }
 
 }  // namespace walnuts

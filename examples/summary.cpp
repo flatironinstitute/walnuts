@@ -105,6 +105,7 @@ int main() {
   Eigen::MatrixXd ess_split = walnuts::effective_sample_size(chains_split);
   std::cout << "ESS = " << ess_split << "\n\n";
 
-  Eigen::MatrixXd mcse_split = walnuts::monte_carlo_standard_error(chains_split);
+  Eigen::MatrixXd mcse_split =
+      walnuts::monte_carlo_standard_error(chains_split);
   std::cout << "Monte Carlo standard error (MCSE) = " << mcse_split << "\n\n";
 }

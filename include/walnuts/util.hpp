@@ -12,6 +12,7 @@
 #include <walnuts/concepts.hpp>
 
 namespace walnuts {
+namespace detail {
 
 #if defined(__has_attribute) && __has_attribute(always_inline)
 #define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
@@ -131,6 +132,13 @@ class Random {
     out = standard_normal(n);
   }
 
+  /**
+   * @brief Return a reference to the base random number generator.
+   *
+   * @return The base random number generator.
+   */
+  RNG& rng() noexcept { return rng_; }
+
  private:
   /** The base random number generator reference. */
   RNG& rng_;  // not std::reference_wrapper to prevent copying
@@ -242,6 +250,7 @@ class NoExceptLogpGrad {
     }
   }
 
+  /** The log density and gradient function. */
   const std::reference_wrapper<const F> logp_grad_;
 };
 
@@ -298,4 +307,5 @@ inline double variance(const Eigen::VectorXd& xs) noexcept {
          static_cast<double>((xs.size() - 1));
 }
 
+}  // namespace detail
 }  // namespace walnuts

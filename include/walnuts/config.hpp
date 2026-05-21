@@ -63,7 +63,8 @@ class InitChainConfig {
 };
 
 /**
- * The initialization configuration for multiple Markov chains.
+ * @brief The initialization configuration for multiple Markov chains.
+ *
  * Rather than a public constructor, it is built using an
  * `InitConfigBuilder` instance.
  *
@@ -217,7 +218,7 @@ class InitConfigBuilder {
    * @throw std::invalid_argument If the step size is not finite and positive.
    */
   InitConfigBuilder& step_sizes(double v) {
-    validate_finite_positive(v, "step size");
+    detail::validate_finite_positive(v, "step size");
     step_sizes_ = std::vector<double>(num_chains_, v);
     return *this;
   }
@@ -233,8 +234,8 @@ class InitConfigBuilder {
    * number specified in the constuctor.
    */
   InitConfigBuilder& step_sizes(const std::vector<double>& v) {
-    validate_size(v, num_chains_, "step_sizes", "num_chains");
-    validate_finite_positive(v, "step_size");
+    detail::validate_size(v, num_chains_, "step_sizes", "num_chains");
+    detail::validate_finite_positive(v, "step_size");
     step_sizes_ = v;
     return *this;
   }
@@ -255,8 +256,8 @@ class InitConfigBuilder {
    */
   template <std::uniform_random_bit_generator RNG>
   InitConfigBuilder& positions(RNG& rng, double init_scale) {
-    validate_finite_positive(init_scale, "init_scale");
-    Random<RNG> rand(rng);
+    detail::validate_finite_positive(init_scale, "init_scale");
+    detail::Random<RNG> rand(rng);
     positions_.resize(num_chains_);
     for (std::size_t c = 0; c < num_chains_; ++c) {
       rand.standard_normal(static_cast<Eigen::Index>(dims_), positions_[c]);
@@ -276,8 +277,8 @@ class InitConfigBuilder {
    * non-finite values.
    */
   InitConfigBuilder& positions(const Eigen::VectorXd& v) {
-    validate_size(v, dims_, "position", "dims");
-    validate_finite(v, "position");
+    detail::validate_size(v, dims_, "position", "dims");
+    detail::validate_finite(v, "position");
     positions_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
@@ -296,10 +297,10 @@ class InitConfigBuilder {
    * constructor.
    */
   InitConfigBuilder& positions(const std::vector<Eigen::VectorXd>& vs) {
-    validate_size(vs, num_chains_, "positions", "num_chains");
-    validate_finite(vs, "positions");
+    detail::validate_size(vs, num_chains_, "positions", "num_chains");
+    detail::validate_finite(vs, "positions");
     for (const auto& v : vs) {
-      validate_size(v, dims_, "position", "dims");
+      detail::validate_size(v, dims_, "position", "dims");
     }
     positions_ = vs;
     return *this;
@@ -319,10 +320,10 @@ class InitConfigBuilder {
    * constructor.
    */
   InitConfigBuilder& positions(std::vector<Eigen::VectorXd>&& vs) {
-    validate_size(vs, num_chains_, "positions", "num_chains");
-    validate_finite(vs, "positions");
+    detail::validate_size(vs, num_chains_, "positions", "num_chains");
+    detail::validate_finite(vs, "positions");
     for (const auto& v : vs) {
-      validate_size(v, dims_, "position", "dims");
+      detail::validate_size(v, dims_, "position", "dims");
     }
     positions_ = std::move(vs);
     return *this;
@@ -348,7 +349,7 @@ class InitConfigBuilder {
    */
   template <LogpGrad F>
   InitConfigBuilder& masses(const F& logp_grad, double mass_smoothing) {
-    validate_probability(mass_smoothing, "mass_smoothing");
+    detail::validate_probability(mass_smoothing, "mass_smoothing");
     Eigen::VectorXd grad;
     double lp;  // needed to calculate gradient, o.w. not used
     masses_.resize(num_chains_);
@@ -372,8 +373,8 @@ class InitConfigBuilder {
    * diagonals contains non-finite or non-positive values.
    */
   InitConfigBuilder& masses(const Eigen::VectorXd& v) {
-    validate_size(v, dims_, "masses", "dims");
-    validate_finite_positive(v, "masses");
+    detail::validate_size(v, dims_, "masses", "dims");
+    detail::validate_finite_positive(v, "masses");
     masses_ = std::vector<Eigen::VectorXd>(num_chains_, v);
     return *this;
   }
@@ -393,10 +394,10 @@ class InitConfigBuilder {
    * specified in the constructor.
    */
   InitConfigBuilder& masses(const std::vector<Eigen::VectorXd>& vs) {
-    validate_size(vs, num_chains_, "masses", "num_chains");
-    validate_finite_positive(vs, "masses");
+    detail::validate_size(vs, num_chains_, "masses", "num_chains");
+    detail::validate_finite_positive(vs, "masses");
     for (const auto& v : vs) {
-      validate_size(v, dims_, "all masses", "dims");
+      detail::validate_size(v, dims_, "all masses", "dims");
     }
     masses_ = vs;
     return *this;
@@ -418,10 +419,10 @@ class InitConfigBuilder {
    * specified in the constructor.
    */
   InitConfigBuilder& masses(std::vector<Eigen::VectorXd>&& vs) {
-    validate_size(vs, num_chains_, "masses", "num_chains");
-    validate_finite_positive(vs, "masses");
+    detail::validate_size(vs, num_chains_, "masses", "num_chains");
+    detail::validate_finite_positive(vs, "masses");
     for (const auto& v : vs) {
-      validate_size(v, dims_, "all masses", "dims");
+      detail::validate_size(v, dims_, "all masses", "dims");
     }
     masses_ = std::move(vs);
     return *this;
@@ -446,7 +447,8 @@ class InitConfigBuilder {
 };
 
 /**
- * Write a dump of the initial configurations to the specified stream.
+ * @internal @brief Write a dump of the initial configurations to the
+ * specified stream.
  *
  * @param[in,out] out Stream to which configuration is written.
  * @param[in] cfg The configuration to write.
@@ -633,7 +635,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the tolerance is not finite and positive.
    */
   WarmupConfigBuilder& step_size_converge_tol(double v) {
-    validate_finite_positive(v, "step_size_converge_tol");
+    detail::validate_finite_positive(v, "step_size_converge_tol");
     cfg_.step_size_converge_tol_ = v;
     return *this;
   }
@@ -646,7 +648,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the tolerance is not finite and positive.
    */
   WarmupConfigBuilder& mass_converge_tol(double v) {
-    validate_finite_positive(v, "mass_converge_tol");
+    detail::validate_finite_positive(v, "mass_converge_tol");
     cfg_.mass_converge_tol_ = v;
     return *this;
   }
@@ -660,7 +662,7 @@ class WarmupConfigBuilder {
    * positive.
    */
   WarmupConfigBuilder& mass_init_count(double v) {
-    validate_finite_positive(v, "mass_init_count");
+    detail::validate_finite_positive(v, "mass_init_count");
     cfg_.mass_init_count_ = v;
     return *this;
   }
@@ -673,7 +675,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the smoothing is not finite and positive.
    */
   WarmupConfigBuilder& mass_additive_smoothing(double v) {
-    validate_finite_positive(v, "mass_additive_smoothing");
+    detail::validate_finite_positive(v, "mass_additive_smoothing");
     cfg_.mass_additive_smoothing_ = v;
     return *this;
   }
@@ -686,7 +688,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the target is not finite and positive.
    */
   WarmupConfigBuilder& max_macro_steps_target(double v) {
-    validate_finite_positive(v, "max_macro_steps_target");
+    detail::validate_finite_positive(v, "max_macro_steps_target");
     cfg_.max_macro_steps_target_ = v;
     return *this;
   }
@@ -699,7 +701,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the accept rate is not in (0, 1).
    */
   WarmupConfigBuilder& step_accept_rate_target(double v) {
-    validate_probability(v, "step_accept_rate_target");
+    detail::validate_probability(v, "step_accept_rate_target");
     cfg_.step_accept_rate_target_ = v;
     return *this;
   }
@@ -713,7 +715,7 @@ class WarmupConfigBuilder {
    * positive.
    */
   WarmupConfigBuilder& step_learning_rate(double v) {
-    validate_finite_positive(v, "step_learning_rate");
+    detail::validate_finite_positive(v, "step_learning_rate");
     cfg_.step_learning_rate_ = v;
     return *this;
   }
@@ -726,7 +728,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the decay is not in (0, 1).
    */
   WarmupConfigBuilder& step_gradient_decay(double v) {
-    validate_probability(v, "step_gradient_decay");
+    detail::validate_probability(v, "step_gradient_decay");
     cfg_.step_gradient_decay_ = v;
     return *this;
   }
@@ -739,7 +741,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the decay is not in (0, 1).
    */
   WarmupConfigBuilder& step_sq_gradient_decay(double v) {
-    validate_probability(v, "step_sq_gradient_decay");
+    detail::validate_probability(v, "step_sq_gradient_decay");
     cfg_.step_sq_gradient_decay_ = v;
     return *this;
   }
@@ -753,7 +755,7 @@ class WarmupConfigBuilder {
    * positive.
    */
   WarmupConfigBuilder& step_stabilization(double v) {
-    validate_finite_positive(v, "step_stabilization");
+    detail::validate_finite_positive(v, "step_stabilization");
     cfg_.step_stabilization_ = v;
     return *this;
   }
@@ -766,7 +768,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the decay exponent is not in (0, 1).
    */
   WarmupConfigBuilder& step_learn_rate_decay(double v) {
-    validate_probability(v, "step_learn_rate_decay");
+    detail::validate_probability(v, "step_learn_rate_decay");
     cfg_.step_learn_rate_decay_ = v;
     return *this;
   }
@@ -781,7 +783,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the stride is not positive.
    */
   WarmupConfigBuilder& publish_stride(std::size_t v) {
-    validate_positive(v, "publish_stride");
+    detail::validate_positive(v, "publish_stride");
     cfg_.publish_stride_ = v;
     return *this;
   }
@@ -794,7 +796,7 @@ class WarmupConfigBuilder {
    * @throw std::invalid_argument If the yield period is not positive.
    */
   WarmupConfigBuilder& yield_period(std::size_t v) {
-    validate_positive(v, "yield_period");
+    detail::validate_positive(v, "yield_period");
     cfg_.yield_period_ = v;
     return *this;
   }
@@ -811,8 +813,8 @@ class WarmupConfigBuilder {
 };
 
 /**
- * Print the tuning parameters specified by the warmup configuration to the
- * output stream.
+ * @internal @brief Print the tuning parameters specified by the
+ * warmup configuration to the output stream.
  *
  * @param[in,out] out Output stream to which configuration is printed.
  * @param[in] cfg The sampling configuration.
@@ -841,7 +843,7 @@ inline std::ostream& operator<<(std::ostream& out, const WarmupConfig& cfg) {
 }
 
 /**
- * A class to hold the configuration for the Walnuts sampler.
+ * @brief A class to hold the configuration for the Walnuts sampler.
  */
 class SamplingConfig {
  public:
@@ -972,7 +974,7 @@ class SamplingConfigBuilder {
    * @throw std::invalid_argument If the error is not finite and positive.
    */
   SamplingConfigBuilder& max_hamiltonian_error(double v) {
-    validate_finite_positive(v, "max_hamiltonian_error");
+    detail::validate_finite_positive(v, "max_hamiltonian_error");
     cfg_.max_hamiltonian_error_ = v;
     return *this;
   }
@@ -986,7 +988,7 @@ class SamplingConfigBuilder {
    * positive.
    */
   SamplingConfigBuilder& min_micro_steps(std::size_t v) {
-    validate_positive(v, "min_micro_steps");
+    detail::validate_positive(v, "min_micro_steps");
     cfg_.min_micro_steps_ = v;
     return *this;
   }
@@ -999,7 +1001,7 @@ class SamplingConfigBuilder {
    * @throw std::invalid_argument If the tolerance is not finite and > 1.
    */
   SamplingConfigBuilder& rhat_converge_tol(double v) {
-    validate_finite_gt1(v, "rhat_convergence_tol");
+    detail::validate_finite_gt1(v, "rhat_convergence_tol");
     cfg_.rhat_converge_tol_ = v;
     return *this;
   }
@@ -1016,8 +1018,8 @@ class SamplingConfigBuilder {
 };
 
 /**
- * Print the tuning parameters specified by the sampling configuration to the
- * output stream.
+ * @internal @brief Print the tuning parameters specified by the sampling
+ * configuration to the output stream.
  *
  * @param[in,out] out Output stream to which configuration is printed.
  * @param[in] cfg The sampling configuration.
@@ -1034,6 +1036,39 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
       << "\n"
       << "  min_micro_steps            = " << cfg.min_micro_steps() << "\n"
       << "  rhat_converge_tol          = " << cfg.rhat_converge_tol() << "\n";
+  return out;
+}
+
+/**
+ * @brief Encapsulated configuration for Walnuts.
+ *
+ * Walnuts configurations include initializaiton, warmup, and sampling
+ * configurations.
+ */
+struct WalnutsConfig {
+  /** The initialization configuration for all chains. */
+  InitConfig init_;
+
+  /** The warmup configuration shared by all chains. */
+  WarmupConfig warmup_;
+
+  /** The sampling configuration shared by all chains for warmup and sampling.
+   */
+  SamplingConfig sampling_;
+};
+
+/**
+ * @brief Print the Walnuts configuration.
+ *
+ * This just delegates to printing the initialization, warmup, and
+ * sampling configurations separated by newlines.
+ *
+ * @param[in,out] out Output stream to which configuration is printed.
+ * @param[in] cfg The Walnuts configuration.
+ * @return The output stream for chained calls.
+ */
+inline std::ostream& operator<<(std::ostream& out, const WalnutsConfig& cfg) {
+  out << cfg.init_ << "\n" << cfg.warmup_ << "\n" << cfg.sampling_ << "\n";
   return out;
 }
 

@@ -13,7 +13,7 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/config.hpp>
-#include <walnuts/triple_buffer.hpp>
+#include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
@@ -56,10 +56,10 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
 /**
  * A triple buffer of adaptation snapshots.
  *
- * @see `walnuts::TripleBuffer`
+ * @see `walnuts::SpscBuffer`
  * @see `walnuts::AdaptSnapshot`
  */
-using Buffer = TripleBuffer<AdaptSnapshot>;
+using Buffer = SpscBuffer<AdaptSnapshot>;
 
 /**
  * @brief Return a buffer with the specified dimensionality.

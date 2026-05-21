@@ -17,7 +17,7 @@
 
 #include <walnuts/concepts.hpp>
 #include <walnuts/online_moments.hpp>
-#include <walnuts/triple_buffer.hpp>
+#include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts {
@@ -63,7 +63,7 @@ class ChainWorker {
    * yielding.
    */
   ChainWorker(std::size_t min_draws, std::size_t max_draws, S& sampler,
-              TripleBuffer<ChainStats>& buffer, std::latch& start_gate,
+              SpscBuffer<ChainStats>& buffer, std::latch& start_gate,
               std::size_t yield_period = 1024)
       : min_draws_(min_draws),
         max_draws_(max_draws),
@@ -106,7 +106,7 @@ class ChainWorker {
   const std::size_t max_draws_;
   std::reference_wrapper<S> sampler_;
   WelfordAccumulator logp_stats_;
-  std::reference_wrapper<TripleBuffer<ChainStats>> buffer_;
+  std::reference_wrapper<SpscBuffer<ChainStats>> buffer_;
   std::reference_wrapper<std::latch> start_gate_;
   const std::size_t yield_period_;
 };
@@ -128,7 +128,7 @@ class ChainWorker {
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
-    std::vector<TripleBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
+    std::vector<SpscBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
     std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
@@ -138,12 +138,12 @@ static void controller_loop(
   Eigen::VectorXd chain_variances(M);
   std::vector<std::size_t> counts(M, 0);
 
-  start_gate.wait();
+  start_gate.arrive_and_wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
   while (true) {
     bool achieved_min_draws = true;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
-      ChainStats& u = stats_by_chain[m].read_latest();
+      const ChainStats& u = stats_by_chain[m].read_latest();
       counts[m] = u.count;
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
@@ -193,8 +193,8 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
                    std::size_t min_draws_per_chain,
                    std::size_t max_draws_per_chain) {
   std::size_t M = samplers.size();
-  std::vector<TripleBuffer<ChainStats>> stats_by_chain(M);
-  std::latch start_gate(static_cast<std::ptrdiff_t>(M));
+  std::vector<SpscBuffer<ChainStats>> stats_by_chain(M);
+  std::latch start_gate(static_cast<std::ptrdiff_t>(M + 1));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {

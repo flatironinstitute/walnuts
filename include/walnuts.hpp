@@ -10,7 +10,7 @@
 #include <walnuts/online_moments.hpp>
 #include <walnuts/sampler.hpp>
 #include <walnuts/summary.hpp>
-#include <walnuts/triple_buffer.hpp>
+#include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
 #include <walnuts/walnuts.hpp>

@@ -1,19 +1,13 @@
 option(WALNUTS_USE_TSAN "Build examples with ThreadSanitizer" OFF)
 
-if(WALNUTS_USE_TSAN)
-  message(STATUS "TSan enabled — suppressions: ${CMAKE_SOURCE_DIR}/tsan_suppressions.txt")
-endif()
-
-# Apply the standard example flags (and TSan if enabled) to a target,
-# plus optionally register a `tsan_<target>` runner with suppressions.
+# Apply the standard example flags plus TSan if enabled
 function(walnuts_add_example name)
   target_compile_options(${name} PRIVATE -O3 -Wall)
   if(WALNUTS_USE_TSAN)
     target_compile_options(${name} PRIVATE -fsanitize=thread)
-    target_link_options(${name}    PRIVATE -fsanitize=thread)
+    target_link_options(${name} PRIVATE -fsanitize=thread)
     add_custom_target(tsan_${name}
       COMMAND ${CMAKE_COMMAND} -E env
-        "TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/docs/tsan-suppressions.txt"
         $<TARGET_FILE:${name}>
       DEPENDS ${name}
       COMMENT "Running ${name} with TSan suppressions"
@@ -40,6 +34,6 @@ if(WALNUTS_BUILD_STAN)
   FetchContent_MakeAvailable(cli11)
 
   add_executable(stan_cli stan_cli.cpp)
-  target_link_libraries(stan_cli PRIVATE walnuts BridgeStan::BridgeStan CLI11::CLI11)
-  target_compile_options(stan_cli PRIVATE -Wall)  # no -O3, no TSan — matches your current file
+  target_link_libraries(stan_cli PRIVATE walnuts Eigen3::Eigen BridgeStan::BridgeStan CLI11::CLI11)
+  target_compile_options(stan_cli PRIVATE -Wall)
 endif()

@@ -8,22 +8,26 @@ namespace walnuts::detail {
  * The Adam stochastic gradient optimizer specialized for step-size
  * adaptation with a decreasing learning rate schedule.
  *
- * The specialization for step size builds in quadratic error,
- * following Nuts. That is, for observed accept rate `accept_observed`
- * and target accept rate `accept_target`, the error is `-0.5 *
- * (accept_observed - accept_target)^2` and its gradient is
+ * The specialization for step size builds in quadratic error (i.e.,
+ * log normal), following Nuts. That is, for observed accept rate
+ * `accept_observed` and target accept rate `accept_target`, the error
+ * is `-0.5 * (accept_observed - accept_target)^2` and its gradient is
  * `accept_target - accept_observed`.
  *
  * This implementation includes a learning rate schedule that divides
  * the specified learning rate by `pow(t, learn_rate_decay)` in
- * iteration `t` (indexed from 1).  The standard version of Adam
- * (2014; @cite kingma2014adam) uses `learn_decay_rate = 0`, so that
- * the learning rate stays fixed and estimates continue to bounce
- * around with new observations. With stepsize decay, Adam converges
- * as long as `0 < learn_rate_decay <= 1`; see Zou et al.
- * (2019 @cite zou2019sufficient).  Nuts used `learn_rate_decay = 0.75` for dual
- * averaging and we have found `learn_rate_decay=0.5` to work well for
- * Adam.
+ * iteration `t` (indexed from 1).  The standard version of Adam uses
+ * `learn_decay_rate = 0`, so that the learning rate stays fixed and
+ * estimates continue to bounce around with new observations. With
+ * stepsize decay, Adam converges as long as `0 < learn_rate_decay <=
+ * 1`; Nuts used `learn_rate_decay = 0.75` for dual averaging and
+ * `learn_rate_decay=0.5` is a reasonable default for Adam.
+ *
+ * @see Kingma and Ba (2014; @cite kingma2014adam) for the original
+ * Adam algorithm.
+ * 
+ * @see Zou et al. (2019 @cite zou2019sufficient) for the proof of
+ * convergence with step-size decay.
  */
 class Adam {
  public:

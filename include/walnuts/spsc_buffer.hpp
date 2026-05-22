@@ -43,8 +43,8 @@ namespace walnuts::detail {
  *
  * @code
  * Foo v_to_write = ...;
- * Foo& v_buffer = buf.write_buffer();
- * v_buffer = v_to_write;
+ * Foo& v_buf = buf.write_buffer();
+ * v_buf = v_to_write;
  * buf.publish();
  * @endcode
  *

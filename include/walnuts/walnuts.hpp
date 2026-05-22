@@ -660,14 +660,14 @@ class WalnutsSampler {
   /**
    * @brief Construct a sampler by copying the specified sampler.
    *
-   * @param sampler Sampler to copy.
+   * @param[in] sampler Sampler to copy.
    */
   WalnutsSampler(const WalnutsSampler& sampler) = default;
 
   /**
    * @brief Construct a sampler by moving the specified sampler.
    *
-   * @param sampler Sampler to move.
+   * @param[in] sampler Sampler to move.
    */
   WalnutsSampler(WalnutsSampler&& sampler) = default;
 

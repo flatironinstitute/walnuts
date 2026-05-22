@@ -29,8 +29,8 @@ extern "C" void handle_sigint(int) { interrupted = true; }
  *
  * @tparam T The type to which input is cast and written.
  * @tparam S The type of the input value.
- * @param out The output stream.
- * @param x The value that is written as type `T`.
+ * @param[in] out The output stream.
+ * @param[in] x The value that is written as type `T`.
  */
 template <typename T, typename S>
   requires std::convertible_to<S, T> && std::is_trivially_copyable_v<T>
@@ -84,7 +84,7 @@ class GlobalStore {
   /**
    * @brief Handle the R-hat value.
    *
-   * @param r_hat The R-hat value.
+   * @param[in] r_hat The R-hat value.
    */
   void on_r_hat(double r_hat) { r_hats_.push_back(r_hat); }
 
@@ -137,8 +137,8 @@ class ChainStore {
   /**
    * @brief Handle the warmup completion event.
    *
-   * @param step_size The step size.
-   * @param diag_inv_mass The diagonal inverse mass matrix.
+   * @param[in] step_size The step size.
+   * @param[in] diag_inv_mass The diagonal inverse mass matrix.
    */
   void on_warmup_complete(double step_size,
                           const Eigen::VectorXd& diag_inv_mass) {
@@ -149,8 +149,8 @@ class ChainStore {
   /**
    * @brief Handle a sampling event.
    *
-   * @param position The position.
-   * @param lp The log density.
+   * @param[in] position The position.
+   * @param[in] lp The log density.
    */
   void on_sample(const Eigen::VectorXd& position, double lp) {
     draws_.push_back(position);

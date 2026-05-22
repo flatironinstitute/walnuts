@@ -143,7 +143,7 @@ class SpscBuffer {
   /**
    * @brief Return true if the index is dirty.
    *
-   * @param idx The index.
+   * @param[in] idx The index.
    * @return `true` if the index is dirty.
    */
   static bool is_dirty(std::uint32_t idx) noexcept {

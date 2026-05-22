@@ -166,9 +166,9 @@ class InitConfig {
    * called internally.  It only implements rvalue moves because that
    * is the only way it is called.
    *
-   * @param step_sizes The step sizes.
-   * @param positions The positions.
-   * @param masses The diagonals of the diagonal mass matrixes.
+   * @param[in] step_sizes The step sizes.
+   * @param[in] positions The positions.
+   * @param[in] masses The diagonals of the diagonal mass matrixes.
    */
   InitConfig(std::vector<double>&& step_sizes,
              std::vector<Eigen::VectorXd>&& positions,

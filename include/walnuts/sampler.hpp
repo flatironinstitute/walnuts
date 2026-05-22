@@ -33,13 +33,13 @@ namespace detail {
  */
 struct ChainStats {
   /** The within-chain mean. */
-  float sample_mean;
+  double sample_mean;
 
   /** The within-chain variance. */
-  float sample_var;
+  double sample_var;
 
   /** The chain length. */
-  std::uint32_t count;
+  std::size_t count;
 };
 
 /**
@@ -93,9 +93,9 @@ class ChainWorker {
       }
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
-      ChainStats chain_stats{static_cast<float>(logp_stats_.mean()),
-                             static_cast<float>(logp_stats_.sample_variance()),
-                             static_cast<uint32_t>(logp_stats_.count())};
+      ChainStats chain_stats{logp_stats_.mean(),
+	  logp_stats_.sample_variance(),
+	  logp_stats_.count()};
       buffer_.get().write_buffer() = chain_stats;
       buffer_.get().publish();
     }
@@ -148,10 +148,8 @@ static void controller_loop(
       if (counts[m] < min_draws_per_chain) {
         achieved_min_draws = false;
       }
-      chain_means(static_cast<Eigen::Index>(m)) =
-          static_cast<double>(u.sample_mean);
-      chain_variances(static_cast<Eigen::Index>(m)) =
-          static_cast<double>(u.sample_var);
+      chain_means(static_cast<Eigen::Index>(m)) = u.sample_mean;
+      chain_variances(static_cast<Eigen::Index>(m)) = u.sample_var;
     }
     if (achieved_min_draws) {
       double variance_of_means = variance(chain_means);

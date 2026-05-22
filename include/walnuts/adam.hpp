@@ -18,11 +18,11 @@ namespace detail {
  * This implementation includes a learning rate schedule that divides
  * the specified learning rate by `pow(t, learn_rate_decay)` in
  * iteration `t` (indexed from 1).  The standard version of Adam
- * (2014; \cite kingma2014adam) uses `learn_decay_rate = 0`, so that
+ * (2014; @cite kingma2014adam) uses `learn_decay_rate = 0`, so that
  * the learning rate stays fixed and estimates continue to bounce
  * around with new observations. With stepsize decay, Adam converges
  * as long as `0 < learn_rate_decay <= 1`; see Zou et al.
- * (2019 \cite zou2019sufficient).  Nuts used `learn_rate_decay = 0.75` for dual
+ * (2019 @cite zou2019sufficient).  Nuts used `learn_rate_decay = 0.75` for dual
  * averaging and we have found `learn_rate_decay=0.5` to work well for
  * Adam.
  */

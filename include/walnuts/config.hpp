@@ -332,7 +332,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the masses using the Nutpie outer product strategy.
    *
-   * Following Nutpie (Seyboldt et al. 2026 \cite seyboldt2025nutpie),
+   * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
    * the initialization uses a smoothed negative outer product of
    * gradients.  More specifically, it uses the square root of the
    * absolute value of the outer proudct of gradients linearly interpolated with

@@ -17,21 +17,29 @@ namespace walnuts::detail {
  *
  * Initialization: The buffer is initialized with an initial
  * value either explicitly or through the default constructor
- * for the value type.
+ * for the value type and then made available to a single consumer
+ * and to a single producer.
+ *
+ * Warning: This class is not safe for use by more than one consumer
+ * or more than one producer.
  *
  * @code
  * Foo v_init;
  * SpscBuffer<Foo> buf(v_init);
  * @endcode
  *
- * Reading:  `read_latest()` will always return the latest
- * value published.
+ * Reading: `read_latest()` will always return the latest value
+ * published.
  *
  * @code
  * Foo v_latest = buf.read_latest();
  * @endcode
  *
- * Writing: The following code writes a value into the buffer.
+ * `read_latest()` is not generically thread safe and must only be
+ * called by the single consumer.
+ *
+ * Writing: The write code will only be used by a single producer.
+ * The following code writes a value into the buffer.
  *
  * @code
  * Foo v_to_write = ...;
@@ -39,6 +47,9 @@ namespace walnuts::detail {
  * v_buffer = v_to_write;
  * buf.publish();
  * @endcode
+ *
+ * `write_buffer()` and `publish()` are not generically thread safe
+ * and must only be called by the single producer.
  *
  * Unlike a queue pattern, `publish()` overwrites the current value
  * even if the current value has never been read.

@@ -11,8 +11,7 @@
 
 #include <walnuts/concepts.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 #if defined(__has_attribute) && __has_attribute(always_inline)
 #define WALNUTS_STRONG_INLINE [[gnu::always_inline]] inline
@@ -307,5 +306,4 @@ inline double variance(const Eigen::VectorXd& xs) noexcept {
          static_cast<double>((xs.size() - 1));
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail

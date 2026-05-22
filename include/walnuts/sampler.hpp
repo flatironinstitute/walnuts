@@ -20,8 +20,7 @@
 #include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief A struct to hold the within chain summary statistics for
@@ -93,9 +92,8 @@ class ChainWorker {
       }
       double lp = sampler_.get()();
       logp_stats_.observe(lp);
-      ChainStats chain_stats{logp_stats_.mean(),
-	  logp_stats_.sample_variance(),
-	  logp_stats_.count()};
+      ChainStats chain_stats{logp_stats_.mean(), logp_stats_.sample_variance(),
+                             logp_stats_.count()};
       buffer_.get().write_buffer() = chain_stats;
       buffer_.get().publish();
     }
@@ -131,7 +129,7 @@ static void controller_loop(
     std::vector<SpscBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
     const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
     std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
-    std::chrono::milliseconds eval_period = std::chrono::milliseconds{10}) {
+    std::chrono::nanoseconds eval_period = std::chrono::milliseconds{1}) {
   interactive_qos();  // Apple silicon highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
@@ -203,7 +201,7 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
   try {
     controller_loop(stats_by_chain, global_handler, interrupt_callback,
                     rhat_threshold, start_gate, min_draws_per_chain,
-                    max_draws_per_chain);
+                    max_draws_per_chain, std::chrono::milliseconds{1});
   } catch (const std::exception& e) {
     for (auto& t : threads) {
       t.request_stop();
@@ -212,5 +210,4 @@ inline void sample(std::vector<S>& samplers, GH& global_handler,
   }
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail

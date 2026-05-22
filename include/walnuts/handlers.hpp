@@ -15,9 +15,8 @@
 
 #include "walnuts/validate.hpp"
 
-namespace walnuts {
+namespace walnuts::detail {
 
-namespace detail {
 /**
  * @brief Internal flag with value `true` if C++ received `SIGINT`.
  */
@@ -54,8 +53,7 @@ static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
   os.write(data, size);
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 

@@ -10,8 +10,7 @@
 
 #include <walnuts/concepts.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 template <typename Derived>
 inline Eigen::RowVectorXd col_means(const Eigen::MatrixBase<Derived>& draws) {
@@ -102,8 +101,7 @@ inline Eigen::RowVectorXd sample_variance(
   return sample_variance(draws, detail::col_means(draws));
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 

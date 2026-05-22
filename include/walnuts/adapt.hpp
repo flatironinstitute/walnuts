@@ -17,8 +17,7 @@
 #include <walnuts/spsc_buffer.hpp>
 #include <walnuts/util.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief A struct to represent a snapshot of the adaptation process
@@ -62,43 +61,22 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
  */
 using Buffer = SpscBuffer<AdaptSnapshot>;
 
-// /**
-//  * @brief Return a buffer with the specified dimensionality.
-//  *
-//  * @param[in] dim The dimensionality of the positions.
-//  * @return A padded buffer of the specified dimensionality.
-//  */
-// inline Buffer construct_buffer(std::size_t dim) {
-//   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
-//   return Buffer(snapshot);
-// }
-
-// /**
-//  * @brief Return a vector of buffers of the given sizes.
-//  *
-//  * @param[in] num_chains The number of Markov chains.
-//  * @param[in] dim The number of dimensions.
-//  * @return The buffer container.
-//  */
-// inline std::vector<Buffer> construct_buffers(std::size_t num_chains,
-//                                              std::size_t dim) {
-//   std::vector<Buffer> buffers;
-//   buffers.reserve(num_chains);
-//   for (std::size_t m = 0; m < num_chains; ++m) {
-//     buffers.emplace_back(construct_buffer(dim));
-//   }
-//   return buffers;
-// }
-
+/**
+ * @brief Return a deque of buffers of the given sizes.
+ *
+ * @param[in] num_chains The number of Markov chains.
+ * @param[in] dim The number of dimensions.
+ * @return The buffer container.
+ */
 inline std::deque<Buffer> construct_buffers(std::size_t num_chains,
-                                             std::size_t dim) {
+                                            std::size_t dim) {
   std::deque<Buffer> buffers;
   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
   for (std::size_t m = 0; m < num_chains; ++m) {
     buffers.emplace_back(snapshot);
   }
   return buffers;
-}  
+}
 
 /**
  * @brief A class that encapsulates the work done in a Markov chain for
@@ -147,7 +125,7 @@ class AdaptWorker {
     start_gate_.get().arrive_and_wait();
     publish_snapshot(0);
     // from 1 so modulo ops don't trigger on first iteration
-    std::size_t iter = 1; 
+    std::size_t iter = 1;
     for (; iter <= warmup_config_.get().max_iter(); ++iter) {
       if (st.stop_requested()) {
         break;
@@ -298,5 +276,4 @@ inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
   }
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail

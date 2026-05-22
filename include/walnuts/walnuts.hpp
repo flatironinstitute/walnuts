@@ -16,8 +16,7 @@
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
@@ -585,8 +584,7 @@ class NoOpStepSizeAdapter {
   }
 };
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 

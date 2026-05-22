@@ -8,8 +8,7 @@
 
 #include <Eigen/Dense>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief Concept for a type with a `.size()` member function.
@@ -174,8 +173,7 @@ concept AdaptiveSampler = requires(A& a, const A& ca) {
   { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 

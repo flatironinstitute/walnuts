@@ -18,8 +18,7 @@
 #include "walnuts/validate.hpp"
 #include "walnuts/walnuts.hpp"
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -166,8 +165,7 @@ class MinMicroStepsAdaptHandler {
   double count_;
 };
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 

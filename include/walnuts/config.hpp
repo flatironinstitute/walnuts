@@ -166,9 +166,9 @@ class InitConfig {
    * called internally.  It only implements rvalue moves because that
    * is the only way it is called.
    *
-   * @param step_sizes The step sizes.
-   * @param positions The positions.
-   * @param masses The diagonals of the diagonal mass matrixes.
+   * @param[in] step_sizes The step sizes.
+   * @param[in] positions The positions.
+   * @param[in] masses The diagonals of the diagonal mass matrixes.
    */
   InitConfig(std::vector<double>&& step_sizes,
              std::vector<Eigen::VectorXd>&& positions,
@@ -332,7 +332,7 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the masses using the Nutpie outer product strategy.
    *
-   * Following Nutpie (Seyboldt et al. 2026 \cite seyboldt2025nutpie),
+   * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
    * the initialization uses a smoothed negative outer product of
    * gradients.  More specifically, it uses the square root of the
    * absolute value of the outer proudct of gradients linearly interpolated with

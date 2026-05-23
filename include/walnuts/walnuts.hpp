@@ -16,8 +16,7 @@
 #include <walnuts/util.hpp>
 #include <walnuts/validate.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
@@ -585,8 +584,7 @@ class NoOpStepSizeAdapter {
   }
 };
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 
@@ -662,14 +660,14 @@ class WalnutsSampler {
   /**
    * @brief Construct a sampler by copying the specified sampler.
    *
-   * @param sampler Sampler to copy.
+   * @param[in] sampler Sampler to copy.
    */
   WalnutsSampler(const WalnutsSampler& sampler) = default;
 
   /**
    * @brief Construct a sampler by moving the specified sampler.
    *
-   * @param sampler Sampler to move.
+   * @param[in] sampler Sampler to move.
    */
   WalnutsSampler(WalnutsSampler&& sampler) = default;
 

@@ -10,8 +10,7 @@
 
 #include <walnuts/concepts.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 template <typename Derived>
 inline Eigen::RowVectorXd col_means(const Eigen::MatrixBase<Derived>& draws) {
@@ -30,7 +29,7 @@ constexpr inline Eigen::Index strip_factor(Eigen::Index m,
  * @brief Return smallest number greater than or equal to
  * input that is evenly divisible by 2, 3, and 5.
  *
- * @param n Original size.
+ * @param[in] n Original size.
  * @return Original size padded for divisibility.
  */
 constexpr inline Eigen::Index fft_next_good_size(Eigen::Index n) {
@@ -102,8 +101,7 @@ inline Eigen::RowVectorXd sample_variance(
   return sample_variance(draws, detail::col_means(draws));
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail
 
 namespace walnuts {
 
@@ -183,7 +181,7 @@ class MarkovChainsSplit {
    * The return is an expression template that will hold a reference
    * to the chain managed by this class.
    *
-   * @param m The index of the chain.
+   * @param[in] m The index of the chain.
    * @return A view of the specified chain.
    * @throw std::out_of_range If the index is greater than or equal to
    * the number of chains.
@@ -211,7 +209,7 @@ class MarkovChainsSplit {
    * This implementation allocates a vector to return of the
    * appropriate size.
    *
-   * @param d The selected dimension.
+   * @param[in] d The selected dimension.
    * @return The draws for the selecte dimension.
    * @throws std::out_of_range If the index is not between 0 and
    * the number of dimensions minus 1, inclusive.
@@ -256,8 +254,8 @@ class MarkovChainsUnified {
    * The implementation holds a constant reference to the matrix of
    * draws so that the `draws` matrix must outlive this instance.
    *
-   * @param draws The sequence of Markov chains states, one row per draw.
-   * @param chain_sizes The sizes of the Markov chains making up the
+   * @param[in] draws The sequence of Markov chains states, one row per draw.
+   * @param[in] chain_sizes The sizes of the Markov chains making up the
    * collection.
    * @throw std::invalid_argument If the sum of the chain sizes
    * is not equal to the number of draws.
@@ -310,7 +308,7 @@ class MarkovChainsUnified {
    * The return is an expression template that will hold a reference
    * to the draws.
    *
-   * @param m The index of the chain.
+   * @param[in] m The index of the chain.
    * @return A view of the specified chain.
    * @throw std::out_of_range If the index is greater than or equal to
    * the number of chains.
@@ -337,7 +335,7 @@ class MarkovChainsUnified {
    * The return is an expression template for a constant vector that
    * depends on the draws.
    *
-   * @param d The selected dimension.
+   * @param[in] d The selected dimension.
    * @return The draws for the selecte dimension.
    * @throws std::out_of_range If the index is not between 0 and
    * the number of dimensions minus 1, inclusive.
@@ -366,7 +364,7 @@ static_assert(MarkovChainSequence<MarkovChainsUnified>);
  * dimension).
  *
  * @tparam MC The type of the Markov chain sequence.
- * @param chains The Markov chains.
+ * @param[in] chains The Markov chains.
  * @return The sample means.
  */
 template <MarkovChainSequence MC>
@@ -389,7 +387,7 @@ inline Eigen::RowVectorXd mean(const MC& chains) {
  * entire population, it will be biased to the high side.
  *
  * @tparam MC The type of the Markov chain sequence.
- * @param chains The Markov chains.
+ * @param[in] chains The Markov chains.
  * @return The variances.
  */
 template <MarkovChainSequence MC>
@@ -416,7 +414,7 @@ inline Eigen::RowVectorXd sample_variance(const MC& chains) {
  * deviations due to the nonlinearity of the square root operation.
  *
  * @tparam MC The type of the Markov chain sequence.
- * @param chains The Markov chains.
+ * @param[in] chains The Markov chains.
  * @return The standard deviations.
  */
 template <MarkovChainSequence MC>
@@ -736,7 +734,7 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
  * @see sample_standard_deviation()
  *
  * @tparam MC The type of the Markov chain sequence.
- * @param chains The Markov chains.
+ * @param[in] chains The Markov chains.
  * @return The Monte Carlo standard error estimates.
  */
 template <MarkovChainSequence MC>

@@ -7,8 +7,7 @@
 
 #include <walnuts/validate.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief Accumulator for online mean and smaple variance calculations.
@@ -246,5 +245,4 @@ class OnlineMoments {
   Eigen::VectorXd sum_sq_dev_;
 };
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail

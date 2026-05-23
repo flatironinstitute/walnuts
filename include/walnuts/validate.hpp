@@ -11,8 +11,7 @@
 
 #include <walnuts/concepts.hpp>
 
-namespace walnuts {
-namespace detail {
+namespace walnuts::detail {
 
 /**
  * @brief Validate that the specified stream is open.
@@ -303,5 +302,4 @@ inline void validate_probability_inclusive(T x, const std::string& name) {
   throw std::invalid_argument(msg);
 }
 
-}  // namespace detail
-}  // namespace walnuts
+}  // namespace walnuts::detail

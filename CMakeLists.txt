@@ -19,10 +19,7 @@ option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" OFF)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" OFF)
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF) 
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
+option(WALNUTS_COVERAGE "Enable source-based test coverage instrumentation" OFF)
 
 ##########################
 ## Global Dependencies  ##
@@ -144,7 +141,7 @@ endif()
 
 ##########################
 ##     Doxygen Docs     ##
-##########################
+########################## 
 if (WALNUTS_BUILD_DOCS)
   find_package(Doxygen REQUIRED)
 
@@ -163,4 +160,5 @@ if (WALNUTS_BUILD_DOCS)
     COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
   )
 endif()
+
 

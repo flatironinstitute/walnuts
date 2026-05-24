@@ -1127,10 +1127,11 @@ TEST(EffectiveSampleSize, FloorPreventsTauHatFromGoingTooSmall) {
 //     ess  = effective_sample_size(chains)
 //     sd   = sample_standard_deviation(chains)
 //     return sd / np.sqrt(ess)
+//
 // AR(1) chains used in the ESS tests (seeds 1/2/3, N=20, phi=0.9):
 //   SD   = [0.945071606688786, 0.676390792099391]
-//   ESS  = [96.256789181,       7.315045989      ]
-//   MCSE = [0.096327220756986, 0.250085871061602 ]
+//   ESS  = [96.256789181, 7.315045989]
+//   MCSE = [0.096327220756986, 0.250085871061602]
 
 // output shape
 
@@ -1190,7 +1191,7 @@ TEST(MonteCarloStandardError, HighAutocorrelationIncreasesError) {
   chains.push_back(make_ar1_chain_2());
   walnuts::MarkovChainsSplit mcs(chains);
   Eigen::RowVectorXd mcse = walnuts::monte_carlo_standard_error(mcs);
-  // AR(1) dim (dim 1) must have substantially larger MCSE than iid dim (dim 0)
+  // AR(1) larger MCSE than i.i.d.
   EXPECT_GT(mcse(1), 2.0 * mcse(0));
 }
 

@@ -11,15 +11,28 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
-function(add_test TEST_NAME TEST_SOURCE)
-  add_executable(${TEST_NAME} ${TEST_SOURCE})
+##########################
+##   Source Coverage    ##
+##########################
+ 
+function(add_test TEST_NAME TEST_SOURCE)  
+  add_executable(${TEST_NAME} ${TEST_SOURCE})  
   target_link_libraries(${TEST_NAME}
-    PRIVATE
-      gtest_main
-      Eigen3::Eigen
-      walnuts
-  )
-  gtest_discover_tests(${TEST_NAME})
-endfunction()
+    PRIVATE  
+      gtest_main  
+      Eigen3::Eigen  
+      walnuts  
+  )  
+  if(WALNUTS_COVERAGE)  
+    target_compile_options(${TEST_NAME} PRIVATE  
+      -fprofile-instr-generate  
+      -fcoverage-mapping  
+    )  
+    target_link_options(${TEST_NAME} PRIVATE  
+      -fprofile-instr-generate  
+    )  
+  endif()
+  gtest_discover_tests(${TEST_NAME})  
+endfunction()  
 
 add_test(summary_test summary_test.cpp)

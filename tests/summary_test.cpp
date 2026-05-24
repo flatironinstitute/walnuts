@@ -292,15 +292,6 @@ TEST(Mean, ResultSizeMatchesDims) {
 
 // sample_variance() function ***************************************
 
-TEST(SampleVariance, ThrowsOnSingleDraw) {
-  std::vector<Eigen::MatrixXd> one;
-  Eigen::MatrixXd c(1, 2);
-  c << 1.0, 2.0;
-  one.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(one);
-  EXPECT_THROW(walnuts::sample_variance(mcs), std::domain_error);
-}
-
 TEST(SampleVariance, MarkovChainsSplitReturnsCorrectVariance) {
   auto chains = make_example_chains();
   walnuts::MarkovChainsSplit mcs(chains);
@@ -359,16 +350,20 @@ TEST(SampleVariance, TwoDrawsMatchesHandCalculation) {
   EXPECT_DOUBLE_EQ(v(0), 2.0);
 }
 
-// sample_standard_deviation() function
-
-TEST(SampleStandardDeviation, ThrowsOnSingleDraw) {
-  std::vector<Eigen::MatrixXd> one;
+TEST(SampleVariance, SingleDrawReturnsNaN) {
+  // sum squares 0, N - 1 = 0, so 0 / 0 = NaN
+  std::vector<Eigen::MatrixXd> chains;
   Eigen::MatrixXd c(1, 2);
-  c << 1.0, 2.0;
-  one.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(one);
-  EXPECT_THROW(walnuts::sample_standard_deviation(mcs), std::domain_error);
+  c << 5.0, 3.0;
+  chains.push_back(std::move(c));
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  ASSERT_EQ(v.size(), Eigen::Index{2});
+  EXPECT_TRUE(std::isnan(v(0)));
+  EXPECT_TRUE(std::isnan(v(1)));
 }
+
+// sample_standard_deviation() function
 
 TEST(SampleStandardDeviation, MarkovChainsSplitReturnsCorrectStdDev) {
   auto chains = make_example_chains();
@@ -406,6 +401,19 @@ TEST(SampleStandardDeviation, TwoIdenticalDrawsGivesZeroStdDev) {
   ASSERT_EQ(sd.size(), 1);
   EXPECT_DOUBLE_EQ(sd(0), 0.0);
 }
+
+TEST(SampleStandardDeviation, SingleDrawReturnsNaN) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c(1, 2);
+  c << 5.0, 3.0;
+  chains.push_back(std::move(c));
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnuts::sample_standard_deviation(mcs);
+  ASSERT_EQ(v.size(), Eigen::Index{2});
+  EXPECT_TRUE(std::isnan(v(0)));
+  EXPECT_TRUE(std::isnan(v(1)));
+}
+
 
 // quantiles() function *********************************************
 
@@ -674,6 +682,17 @@ TEST(Autocovariance, MatchesDirectComputationPerChain) {
     EXPECT_TRUE(fft_block.isApprox(direct, 1e-10))
         << "Mismatch at chain " << m;
   }
+}
+
+TEST(Autocovariance, LoopFftNextGoodSize) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c(7, 2);
+  c << 3.0, 7.0, 1.0, 9.3, 8.8, 3.0, 7.0, 1.0, 9.3, 8.8, 3.0, 7.0, 1.0, 9.3;
+  chains.push_back(std::move(c));
+  walnuts::MarkovChainsSplit mcs(chains);
+  auto x = walnuts::autocovariance(mcs);
+  EXPECT_EQ(7, x.rows());
+  EXPECT_EQ(2, x.cols());
 }
 
 // check both coding types

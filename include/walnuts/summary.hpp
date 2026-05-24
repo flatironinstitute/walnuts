@@ -36,15 +36,14 @@ constexpr inline Eigen::Index fft_next_good_size(Eigen::Index n) {
   if (n <= 2) {
     return 2;
   }
-  for (auto candidate = n; true; ++n) {
+  for (; true; ++n) {
     auto m = n;
     m = strip_factor(m, 2);
     m = strip_factor(m, 3);
     m = strip_factor(m, 5);
     if (m <= 1) {
-      return candidate;
+      return n;
     }
-    ++candidate;
   }
 }
 
@@ -323,9 +322,6 @@ class MarkovChainsUnified {
    * @return The length of the shortest chain.
    */
   Eigen::Index min_chain_size() const noexcept {
-    if (chain_sizes_.empty()) {
-      return 0;
-    }
     return *std::ranges::min_element(chain_sizes_);
   }
 
@@ -386,15 +382,15 @@ inline Eigen::RowVectorXd mean(const MC& chains) {
  * based on a small sample.  If used to calculate the variance of an
  * entire population, it will be biased to the high side.
  *
+ * If there is only one draw in a chain, this function will return
+ * `Nan`.
+ *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @return The variances.
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd sample_variance(const MC& chains) {
-  if (chains.num_draws() < 2) {
-    throw std::domain_error("chains must have at least 2 draws");
-  }
   Eigen::RowVectorXd mu = mean(chains);
   Eigen::RowVectorXd sum_sq = Eigen::RowVectorXd::Zero(mu.size());
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
@@ -412,6 +408,9 @@ inline Eigen::RowVectorXd sample_variance(const MC& chains) {
  * one.  Unlike the sample variance estimate, sample standard
  * deviations are not unbiased estimates of population standard
  * deviations due to the nonlinearity of the square root operation.
+ *
+ * If there is only one draw in a chain, this function will return
+ * `Nan`.
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.

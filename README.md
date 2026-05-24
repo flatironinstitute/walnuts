@@ -209,6 +209,42 @@ cmake --build . --parallel 4
 ctest
 ```
 
+To test code doverage during testing, you will have to specify the
+top-level `cmake` call to include `DWALNUTS_COVERAGE=ON` (perhaps
+after `rm -rf build` to remove the build directory and start over).
+
+The steps are to first run the test, directing the summary to the named
+`.profraw` file.
+
+
+```bash
+LLVM_PROFILE_FILE="summary_test.profraw" ./tests/summary_test
+```
+
+Then, (using `xcrun` on a Mac), call `llvm-profdata` to merge the data into a
+`.profdata` file.
+
+```bash
+xcrun llvm-profdata merge -sparse summary_test.profraw -o summary_test.profdata
+```
+
+Next, (also using `xcrun`), convert the generated `.profdata` file into html.
+
+```bash
+xcrun llvm-cov show ./tests/summary_test \
+    -instr-profile=summary_test.profdata \
+    -ignore-filename-regex='_deps|gtest' \
+    -format=html \
+    -output-dir=coverage_html
+```
+
+Finally, inspect the html output.
+	
+```bash
+open coverage_html/index.html	
+```
+
+
 ### Documentation
 
 To build the C++ documentation using Doxygen:

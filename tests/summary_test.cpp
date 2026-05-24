@@ -6,7 +6,7 @@
 
 #include <walnuts.hpp>
 
-// *** CLASS:  MarkovChainsSplit 
+// MarkovChainsSplit class ====================================================
 
 //   chain 0: [[ 1,  2], [ 3,  4]]
 //   chain 1: [[ 5,  6], [ 7,  8], [ 9, 10]]
@@ -127,4 +127,164 @@ TEST(MarkovChainsSplit, SingleChainSingleDrawSingleDimension) {
   Eigen::VectorXd d = mcs.draws(0);
   ASSERT_EQ(d.size(), Eigen::Index{1});
   EXPECT_DOUBLE_EQ(d(0), 42.0);
+}
+
+// MarkovChainsUnified class
+
+// same chains as MarkovChainsSplit test
+Eigen::MatrixXd make_unified_draws() {
+  Eigen::MatrixXd draws(8, 2);
+  draws << 1,  2,
+           3,  4,
+           5,  6,
+           7,  8,
+           9, 10,
+          11, 12,
+          13, 14,
+          15, 16;
+  return draws;
+}
+
+const std::vector<std::size_t> chain_sizes{2, 3, 3};
+
+// constructor
+
+TEST(MarkovChainsUnified, ConstructorThrowsOnChainSizesMismatch) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  std::vector<std::size_t> wrong_sizes{2, 3, 2};
+  EXPECT_THROW(walnuts::MarkovChainsUnified(draws, wrong_sizes),
+               std::invalid_argument);
+}
+
+TEST(MarkovChainsUnified, ConstructorThrowsOnChainSizesTooLarge) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  std::vector<std::size_t> wrong_sizes{2, 3, 4};
+  EXPECT_THROW(walnuts::MarkovChainsUnified(draws, wrong_sizes),
+               std::invalid_argument);
+}
+
+// accessors
+
+TEST(MarkovChainsUnified, SizeAccessorsReturnExpectedValues) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  EXPECT_EQ(mcu.num_chains(), std::size_t{3});
+  EXPECT_EQ(mcu.num_draws(), std::size_t{8});
+  EXPECT_EQ(mcu.dims(), std::size_t{2});
+  EXPECT_EQ(mcu.min_chain_size(), Eigen::Index{2});
+}
+
+// chain view
+
+TEST(MarkovChainsUnified, ChainViewReturnsCorrectRows) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+
+  // Expected chain contents match the logical split
+  Eigen::MatrixXd expected0(2, 2);
+  expected0 << 1, 2, 3, 4;
+  Eigen::MatrixXd expected1(3, 2);
+  expected1 << 5, 6, 7, 8, 9, 10;
+  Eigen::MatrixXd expected2(3, 2);
+  expected2 << 11, 12, 13, 14, 15, 16;
+
+  EXPECT_TRUE(mcu.chain_view(0).isApprox(expected0));
+  EXPECT_TRUE(mcu.chain_view(1).isApprox(expected1));
+  EXPECT_TRUE(mcu.chain_view(2).isApprox(expected2));
+}
+
+TEST(MarkovChainsUnified, ChainViewIsAViewNotACopy) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::Ref<const Eigen::MatrixXd> view = mcu.chain_view(0);
+  EXPECT_EQ(view.data(), draws.data());  // tests memory sharing
+}
+
+TEST(MarkovChainsUnified, ChainViewThrowsOnOutOfRangeIndex) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  EXPECT_THROW(mcu.chain_view(3), std::out_of_range);
+  EXPECT_THROW(mcu.chain_view(99), std::out_of_range);
+}
+
+// draws
+
+TEST(MarkovChainsUnified, DrawsReturnsCorrectColumn) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+
+  Eigen::VectorXd expected_d0(8);
+  expected_d0 << 1, 3, 5, 7, 9, 11, 13, 15;
+  Eigen::VectorXd expected_d1(8);
+  expected_d1 << 2, 4, 6, 8, 10, 12, 14, 16;
+
+  ASSERT_EQ(mcu.draws(0).size(), Eigen::Index{8});
+  ASSERT_EQ(mcu.draws(1).size(), Eigen::Index{8});
+  EXPECT_TRUE(mcu.draws(0).isApprox(expected_d0));
+  EXPECT_TRUE(mcu.draws(1).isApprox(expected_d1));
+}
+
+TEST(MarkovChainsUnified, DrawsIsAViewNotACopy) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::Ref<const Eigen::VectorXd> col = mcu.draws(0);
+  EXPECT_EQ(col.data(), draws.col(0).data());  // test memory sharing
+}
+
+TEST(MarkovChainsUnified, DrawsThrowsOnOutOfRangeDimension) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  EXPECT_THROW(mcu.draws(-1), std::out_of_range);
+  EXPECT_THROW(mcu.draws(2), std::out_of_range);
+  EXPECT_THROW(mcu.draws(100), std::out_of_range);
+}
+
+// edge case
+
+TEST(MarkovChainsUnified, SingleChainSingleDrawSingleDimension) {
+  Eigen::MatrixXd draws(1, 1);
+  draws << 42.0;
+  walnuts::MarkovChainsUnified mcu(draws, {1});
+  EXPECT_EQ(mcu.num_chains(), std::size_t{1});
+  EXPECT_EQ(mcu.num_draws(), std::size_t{1});
+  EXPECT_EQ(mcu.dims(), std::size_t{1});
+  EXPECT_EQ(mcu.min_chain_size(), Eigen::Index{1});
+  EXPECT_DOUBLE_EQ(mcu.draws(0)(0), 42.0);
+}
+
+// mean() function
+
+TEST(Mean, MarkovChainsSplitReturnsCorrectMean) {
+  auto chains = make_example_chains();
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd m = walnuts::mean(mcs);
+  ASSERT_EQ(m.size(), 2);
+  EXPECT_DOUBLE_EQ(m(0), 8.0);
+  EXPECT_DOUBLE_EQ(m(1), 9.0);
+}
+
+TEST(Mean, MarkovChainsUnifiedReturnsCorrectMean) {
+  Eigen::MatrixXd draws = make_unified_draws();
+  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::RowVectorXd m = walnuts::mean(mcu);
+  ASSERT_EQ(m.size(), 2);
+  EXPECT_DOUBLE_EQ(m(0), 8.0);
+  EXPECT_DOUBLE_EQ(m(1), 9.0);
+}
+
+TEST(Mean, SingleDrawReturnsDrawValue) {
+  std::vector<Eigen::MatrixXd> one;
+  Eigen::MatrixXd c(1, 1);
+  c << 7.5;
+  one.push_back(std::move(c));
+  walnuts::MarkovChainsSplit single(one);
+  Eigen::RowVectorXd m = walnuts::mean(single);
+  ASSERT_EQ(m.size(), 1);
+  EXPECT_DOUBLE_EQ(m(0), 7.5);
+}
+
+TEST(Mean, ResultSizeMatchesDims) {
+  auto chains = make_example_chains();
+  walnuts::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(static_cast<std::size_t>(walnuts::mean(mcs).size()), mcs.dims());
 }

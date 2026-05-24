@@ -508,6 +508,9 @@ inline Eigen::MatrixXd quantiles(const MC& chains,
  * chains.
  *
  * The return will be of shape `chains.num_draws() x chains.dims()`.
+ * The indexes will represent the lag, so that
+ * `autocovariance(chains)[0]` is the variance, `...[1]` gives the
+ * lag-1 autocovariance, and so on.
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] The Markov chains.

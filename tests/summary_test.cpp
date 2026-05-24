@@ -708,3 +708,153 @@ TEST(Autocovariance, SingleDrawChainGivesZero) {
   EXPECT_NEAR(acov(0, 0), 0.0, 1e-10);
   EXPECT_NEAR(acov(0, 1), 0.0, 1e-10);
 }
+
+// r_hat() function
+
+// import numpy as np
+//
+// def chain_mean(chain):
+//     return chain.mean(axis=0)
+//
+// def sample_variance(chain):
+//     # unbiased estimator, divides by N-1
+//     return chain.var(axis=0, ddof=1)
+//
+// def r_hat(chains):
+//     mu = np.array([chain_mean(c) for c in chains])
+//     sigma_sq = np.array([sample_variance(c) for c in chains])
+//     # sample_variance of chain means (divides by M-1)
+//     var_mu = mu.var(axis=0, ddof=1)
+//     mean_sigma_sq = sigma_sq.mean(axis=0)
+//     return np.sqrt(1 + var_mu / mean_sigma_sq)
+
+// constructor exceptions
+
+TEST(RHat, ThrowsOnSingleChain) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c(4, 2);
+  c << 1, 2, 3, 4, 5, 6, 7, 8;
+  chains.push_back(std::move(c));
+  walnuts::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+}
+
+TEST(RHat, ThrowsWhenAnyChainHasFewerThanThreeDraws) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  c0 << 1, 2, 3, 4, 5, 6;
+  Eigen::MatrixXd c1(2, 2);  // only 2 draws
+  c1 << 7, 8, 9, 10;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  walnuts::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+}
+
+TEST(RHat, ThrowsWhenFirstChainHasFewerThanThreeDraws) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(2, 2);
+  c0 << 1, 2, 3, 4;
+  Eigen::MatrixXd c1(3, 2);
+  c1 << 5, 6, 7, 8, 9, 10;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  walnuts::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+}
+
+// output shape
+
+TEST(RHat, ResultSizeMatchesDims) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  c0 << 1, 10, 2, 8, 3, 9;
+  Eigen::MatrixXd c1(3, 2);
+  c1 << 4, 5, 6, 7, 5, 6;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  walnuts::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(walnuts::r_hat(mcs).size(), Eigen::Index{2});
+}
+
+// converged chains
+
+TEST(RHat, ConvergedChainsGiveRHatOfOne) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  Eigen::MatrixXd c1(3, 2);
+  Eigen::MatrixXd c2(3, 2);
+  // three permutations so identical means and variances
+  c0 << 1, 2, 3, 4, 2, 3;
+  c1 << 2, 3, 1, 2, 3, 4;
+  c2 << 3, 4, 2, 3, 1, 2;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  chains.push_back(std::move(c2));
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  ASSERT_EQ(rhat.size(), Eigen::Index{2});
+  EXPECT_DOUBLE_EQ(rhat(0), 1.0);
+  EXPECT_DOUBLE_EQ(rhat(1), 1.0);
+}
+
+// equal variances
+
+TEST(RHat, EqualWithinChainVarianceGivesSqrtTen) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  c0 << 1, 10, 2,  8, 3,  9;
+  Eigen::MatrixXd c1(3, 2);
+  c1 << 4,  5, 6,  7, 5,  6;
+  Eigen::MatrixXd c2(3, 2);
+  c2 << 7,  2, 9,  4, 8,  3;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  chains.push_back(std::move(c2));
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  ASSERT_EQ(rhat.size(), Eigen::Index{2});
+  EXPECT_DOUBLE_EQ(rhat(0), std::sqrt(10.0));
+  EXPECT_DOUBLE_EQ(rhat(1), std::sqrt(10.0));
+}
+
+// ragged chains
+
+TEST(RHat, RaggedChainsMatchExactFractionalResult) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  c0 << 1, 5, 3, 3, 2, 4;
+  Eigen::MatrixXd c1(4, 2);
+  c1 << 4, 2, 6, 4, 5, 3, 7, 5;
+  chains.push_back(std::move(c0));
+  chains.push_back(std::move(c1));
+  walnuts::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  ASSERT_EQ(rhat.size(), Eigen::Index{2});
+  EXPECT_DOUBLE_EQ(rhat(0), std::sqrt(1.0 + 147.0/32.0));
+  EXPECT_DOUBLE_EQ(rhat(1), std::sqrt(1.0 +   3.0/32.0));
+}
+
+// consistent across chain representation
+
+TEST(RHat, BothTypesAgreeOnSameData) {
+  std::vector<Eigen::MatrixXd> chains;
+  Eigen::MatrixXd c0(3, 2);
+  c0 << 1, 10, 2, 8, 3, 9;
+  Eigen::MatrixXd c1(3, 2);
+  c1 << 4,  5, 6, 7, 5, 6;
+  Eigen::MatrixXd c2(3, 2);
+  c2 << 7,  2, 9, 4, 8, 3;
+  chains.push_back(c0);
+  chains.push_back(c1);
+  chains.push_back(c2);
+  walnuts::MarkovChainsSplit mcs(chains);
+
+  Eigen::MatrixXd draws(9, 2);
+  draws << 1, 10, 2, 8, 3, 9,
+           4,  5, 6, 7, 5, 6,
+           7,  2, 9, 4, 8, 3;
+  walnuts::MarkovChainsUnified mcu(draws, {3, 3, 3});
+
+  EXPECT_TRUE(walnuts::r_hat(mcs).isApprox(walnuts::r_hat(mcu)));
+}

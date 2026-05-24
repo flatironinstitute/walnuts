@@ -244,7 +244,6 @@ Finally, inspect the html output.
 open coverage_html/index.html	
 ```
 
-
 ### Documentation
 
 To build the C++ documentation using Doxygen:

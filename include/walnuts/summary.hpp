@@ -480,7 +480,7 @@ template <MarkovChainSequence MC>
 inline Eigen::MatrixXd quantiles(const MC& chains,
                                  const Eigen::VectorXd& probs) {
   if (std::ranges::any_of(probs,
-                          [](double p) { return !(p >= 0 && p <= 1); })) {
+                          [](double p) { if (!(p >= 0)) return true;  if (!(p <= 1)) return true; return false; })) {
     throw std::invalid_argument("probs must be in [0, 1]");
   }
   const Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());
@@ -691,8 +691,7 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
     // Geyer's initial positive + monotone sequence on paired lags
     // min_len - 4 prevents reading beyond the end of chains
     Eigen::Index t = 1;
-    while (t < min_len - 4 && (rho_hat_even + rho_hat_odd) > 0.0 &&
-           !std::isnan(rho_hat_even + rho_hat_odd)) {
+    while (t < min_len - 4 && (rho_hat_even + rho_hat_odd) > 0.0) {
       rho_hat_even = 1.0 - (w_d - mean_acov_at_lag(t + 1)) / vp_d;
       rho_hat_odd = 1.0 - (w_d - mean_acov_at_lag(t + 2)) / vp_d;
 
@@ -711,12 +710,12 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
 
     Eigen::Index max_t = t;
     // antithetic-tail correction
-    if (rho_hat_even > 0.0 && max_t + 1 < min_len) {
+    if (rho_hat_even > 0.0) {
       rho_hat_t(max_t + 1) = rho_hat_even;
     }
 
-    double tau_hat = -1.0 + 2.0 * rho_hat_t.head(max_t).sum() +
-                     (max_t + 1 < min_len ? rho_hat_t(max_t + 1) : 0.0);
+    double tau_hat =
+        -1.0 + 2.0 * rho_hat_t.head(max_t).sum() + rho_hat_t(max_t + 1);
 
     // safety floor: tau >= 1/log10(N_total)
     tau_hat = std::max(tau_hat, 1.0 / std::log10(static_cast<double>(N_total)));

@@ -25,7 +25,7 @@ namespace walnuts::detail {
  *
  * @see Kingma and Ba (2014; @cite kingma2014adam) for the original
  * Adam algorithm.
- * 
+ *
  * @see Zou et al. (2019 @cite zou2019sufficient) for the proof of
  * convergence with step-size decay.
  */

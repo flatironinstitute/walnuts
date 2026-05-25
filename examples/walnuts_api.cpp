@@ -79,7 +79,9 @@ int main() {
 
   // 2) SAMPLE =================================================================
   // output sent to handlers
-  walnuts::WalnutsConfig config{init_cfg, warmup_cfg, sampling_cfg};
+  walnuts::WalnutsConfig config{std::move(init_cfg),
+      std::move(warmup_cfg),
+      std::move(sampling_cfg)};
   walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler,
                                     interrupt_callback, logp_grad, config);
 

@@ -36,15 +36,14 @@ constexpr inline Eigen::Index fft_next_good_size(Eigen::Index n) {
   if (n <= 2) {
     return 2;
   }
-  for (auto candidate = n; true; ++n) {
+  for (; true; ++n) {
     auto m = n;
     m = strip_factor(m, 2);
     m = strip_factor(m, 3);
     m = strip_factor(m, 5);
     if (m <= 1) {
-      return candidate;
+      return n;
     }
-    ++candidate;
   }
 }
 
@@ -323,9 +322,6 @@ class MarkovChainsUnified {
    * @return The length of the shortest chain.
    */
   Eigen::Index min_chain_size() const noexcept {
-    if (chain_sizes_.empty()) {
-      return 0;
-    }
     return *std::ranges::min_element(chain_sizes_);
   }
 
@@ -386,15 +382,15 @@ inline Eigen::RowVectorXd mean(const MC& chains) {
  * based on a small sample.  If used to calculate the variance of an
  * entire population, it will be biased to the high side.
  *
+ * If there is only one draw in a chain, this function will return
+ * `Nan`.
+ *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
  * @return The variances.
  */
 template <MarkovChainSequence MC>
 inline Eigen::RowVectorXd sample_variance(const MC& chains) {
-  if (chains.num_draws() < 2) {
-    throw std::domain_error("chains must have at least 2 draws");
-  }
   Eigen::RowVectorXd mu = mean(chains);
   Eigen::RowVectorXd sum_sq = Eigen::RowVectorXd::Zero(mu.size());
   for (std::size_t m = 0; m < chains.num_chains(); ++m) {
@@ -412,6 +408,9 @@ inline Eigen::RowVectorXd sample_variance(const MC& chains) {
  * one.  Unlike the sample variance estimate, sample standard
  * deviations are not unbiased estimates of population standard
  * deviations due to the nonlinearity of the square root operation.
+ *
+ * If there is only one draw in a chain, this function will return
+ * `Nan`.
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.
@@ -481,7 +480,7 @@ template <MarkovChainSequence MC>
 inline Eigen::MatrixXd quantiles(const MC& chains,
                                  const Eigen::VectorXd& probs) {
   if (std::ranges::any_of(probs,
-                          [](double p) { return !(p >= 0 && p <= 1); })) {
+                          [](double p) { if (!(p >= 0)) return true;  if (!(p <= 1)) return true; return false; })) {
     throw std::invalid_argument("probs must be in [0, 1]");
   }
   const Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());
@@ -508,6 +507,9 @@ inline Eigen::MatrixXd quantiles(const MC& chains,
  * chains.
  *
  * The return will be of shape `chains.num_draws() x chains.dims()`.
+ * The indexes will represent the lag, so that
+ * `autocovariance(chains)[0]` is the variance, `...[1]` gives the
+ * lag-1 autocovariance, and so on.
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] The Markov chains.
@@ -689,8 +691,7 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
     // Geyer's initial positive + monotone sequence on paired lags
     // min_len - 4 prevents reading beyond the end of chains
     Eigen::Index t = 1;
-    while (t < min_len - 4 && (rho_hat_even + rho_hat_odd) > 0.0 &&
-           !std::isnan(rho_hat_even + rho_hat_odd)) {
+    while (t < min_len - 4 && (rho_hat_even + rho_hat_odd) > 0.0) {
       rho_hat_even = 1.0 - (w_d - mean_acov_at_lag(t + 1)) / vp_d;
       rho_hat_odd = 1.0 - (w_d - mean_acov_at_lag(t + 2)) / vp_d;
 
@@ -709,12 +710,12 @@ inline Eigen::RowVectorXd effective_sample_size(const MC& chains) {
 
     Eigen::Index max_t = t;
     // antithetic-tail correction
-    if (rho_hat_even > 0.0 && max_t + 1 < min_len) {
+    if (rho_hat_even > 0.0) {
       rho_hat_t(max_t + 1) = rho_hat_even;
     }
 
-    double tau_hat = -1.0 + 2.0 * rho_hat_t.head(max_t).sum() +
-                     (max_t + 1 < min_len ? rho_hat_t(max_t + 1) : 0.0);
+    double tau_hat =
+        -1.0 + 2.0 * rho_hat_t.head(max_t).sum() + rho_hat_t(max_t + 1);
 
     // safety floor: tau >= 1/log10(N_total)
     tau_hat = std::max(tau_hat, 1.0 / std::log10(static_cast<double>(N_total)));

@@ -1045,7 +1045,55 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
  * Walnuts configurations include initializaiton, warmup, and sampling
  * configurations.
  */
-struct WalnutsConfig {
+class WalnutsConfig {
+public:
+
+  /**
+   * @brief Construct a Walnuts configuration given the component
+   * configurations.
+   *
+   * The arguments will be moved if they are rvalues and copied if lvalues.
+   *
+   * @param[in] init The initialization configuration.
+   * @param[in] warmup The warmup configuration.
+   * @param[in] sampling The sampling configuration.
+   */
+  WalnutsConfig(InitConfig init,
+		WarmupConfig warmup,
+		SamplingConfig sampling)
+    : init_(std::move(init)),
+      warmup_(std::move(warmup)),
+      sampling_(std::move(sampling)) {
+    };
+
+  /**
+   * @brief Return the initialization configuration.
+   *
+   * @return The initialization configuration.
+   */
+  const InitConfig& init() const noexcept {
+    return init_;
+  }
+
+  /**
+   * @brief Return the warmup configuration.
+   *
+   * @return The warmup configuration.
+   */
+  const WarmupConfig& warmup() const noexcept {
+    return warmup_;
+  }
+
+  /**
+   * @brief Return the sampling configuration.
+   *
+   * @return The sampling configuration.
+   */
+  const SamplingConfig& sampling() const noexcept {
+    return sampling_;
+  }
+
+private: 
   /** The initialization configuration for all chains. */
   InitConfig init_;
 
@@ -1068,7 +1116,7 @@ struct WalnutsConfig {
  * @return The output stream for chained calls.
  */
 inline std::ostream& operator<<(std::ostream& out, const WalnutsConfig& cfg) {
-  out << cfg.init_ << "\n" << cfg.warmup_ << "\n" << cfg.sampling_ << "\n";
+  out << cfg.init() << "\n" << cfg.warmup() << "\n" << cfg.sampling() << "\n";
   return out;
 }
 

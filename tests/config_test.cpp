@@ -33,6 +33,13 @@ static std::vector<double> inf_nan_neg_zero_geq_one() {
   return result;
 }
 
+static std::vector<double> inf_nan_neg_zero_leq_one() {
+  std::vector<double> result = inf_nan_neg_zero();
+  result.push_back(1.0);
+  result.push_back(0.99);
+  return result;
+}
+
 static void std_normal(const Eigen::VectorXd& x, double& lp,
                        Eigen::VectorXd& grad) {
   lp = -0.5 * x.dot(x);
@@ -771,4 +778,161 @@ TEST(WarmupConfigBuilder, FullChainProducesCorrectConfig) {
   EXPECT_DOUBLE_EQ(cfg.step_learn_rate_decay(), 0.6);
   EXPECT_EQ(cfg.publish_stride(), std::size_t{2});
   EXPECT_EQ(cfg.yield_period(), std::size_t{16});
+}
+
+// classes SamplingConfig and SamplingConfigBuilder *****************
+
+// default build
+
+TEST(SamplingConfig, DefaultValuesAreCorrect) {
+  walnuts::SamplingConfig cfg = walnuts::SamplingConfigBuilder().build();
+  EXPECT_EQ(cfg.min_iter(), std::size_t{50});
+  EXPECT_EQ(cfg.max_iter(), std::size_t{1000});
+  EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{5});
+  EXPECT_EQ(cfg.max_step_halvings(), std::size_t{5});
+  EXPECT_DOUBLE_EQ(cfg.max_hamiltonian_error(), 0.5);
+  EXPECT_EQ(cfg.min_micro_steps(), std::size_t{1});
+  EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(), 1.01);
+}
+
+// min_max_iter()
+
+TEST(SamplingConfigBuilder, MinMaxIterSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().min_max_iter(10, 500).build();
+  EXPECT_EQ(cfg.min_iter(), std::size_t{10});
+  EXPECT_EQ(cfg.max_iter(), std::size_t{500});
+}
+
+TEST(SamplingConfigBuilder, MinMaxIterAllowsEqualMinAndMax) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().min_max_iter(100, 100).build();
+  EXPECT_EQ(cfg.min_iter(), std::size_t{100});
+  EXPECT_EQ(cfg.max_iter(), std::size_t{100});
+}
+
+TEST(SamplingConfigBuilder, MinMaxIterThrowsWhenMinExceedsMax) {
+  walnuts::SamplingConfigBuilder b;
+  EXPECT_THROW(b.min_max_iter(500, 10), std::invalid_argument);
+}
+
+// max_trajectory_doublings()
+
+TEST(SamplingConfigBuilder, MaxTrajectoryDoublingsSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().max_trajectory_doublings(10).build();
+  EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{10});
+}
+
+TEST(SamplingConfigBuilder, MaxTrajectoryDoublingsAllowsZero) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().max_trajectory_doublings(0).build();
+  EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{0});
+}
+
+// max_step_halvings()
+
+TEST(SamplingConfigBuilder, MaxStepHalvingsSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().max_step_halvings(8).build();
+  EXPECT_EQ(cfg.max_step_halvings(), std::size_t{8});
+}
+
+TEST(SamplingConfigBuilder, MaxStepHalvingsAllowsZero) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().max_step_halvings(0).build();
+  EXPECT_EQ(cfg.max_step_halvings(), std::size_t{0});
+}
+
+// max_hamiltonian_error()
+
+TEST(SamplingConfigBuilder, MaxHamiltonianErrorSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().max_hamiltonian_error(1.0).build();
+  EXPECT_DOUBLE_EQ(cfg.max_hamiltonian_error(), 1.0);
+}
+
+TEST(SamplingConfigBuilder, MaxHamiltonianErrorThrowsOnBadValues) {
+  for (auto x : inf_nan_neg_zero()) {
+    walnuts::SamplingConfigBuilder b;
+    EXPECT_THROW(b.max_hamiltonian_error(x), std::invalid_argument);
+  }
+}
+
+// min_micro_steps()
+
+TEST(SamplingConfigBuilder, MinMicroStepsSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().min_micro_steps(4).build();
+  EXPECT_EQ(cfg.min_micro_steps(), std::size_t{4});
+}
+
+TEST(SamplingConfigBuilder, MinMicroStepsThrowsOnZero) {
+  walnuts::SamplingConfigBuilder b;
+  EXPECT_THROW(b.min_micro_steps(0), std::invalid_argument);
+}
+
+// rhat_converge_tol()
+
+TEST(SamplingConfigBuilder, RhatConvergeTolSetsCorrectly) {
+  walnuts::SamplingConfig cfg =
+      walnuts::SamplingConfigBuilder().rhat_converge_tol(1.05).build();
+  EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(), 1.05);
+}
+
+TEST(SamplingConfigBuilder, RhatConvergeTolThrowsOnBadValues) {
+  for (auto x : inf_nan_neg_zero_leq_one()) {
+    walnuts::SamplingConfigBuilder b;
+    EXPECT_THROW(b.rhat_converge_tol(x), std::invalid_argument);
+  }
+}
+
+// chaining
+
+TEST(SamplingConfigBuilder, FullChainProducesCorrectConfig) {
+  walnuts::SamplingConfig cfg = walnuts::SamplingConfigBuilder()
+      .min_max_iter(25, 200)
+      .max_trajectory_doublings(8)
+      .max_step_halvings(3)
+      .max_hamiltonian_error(1.0)
+      .min_micro_steps(2)
+      .rhat_converge_tol(1.05)
+      .build();
+  EXPECT_EQ(cfg.min_iter(),                   std::size_t{25});
+  EXPECT_EQ(cfg.max_iter(),                   std::size_t{200});
+  EXPECT_EQ(cfg.max_trajectory_doublings(),   std::size_t{8});
+  EXPECT_EQ(cfg.max_step_halvings(),          std::size_t{3});
+  EXPECT_DOUBLE_EQ(cfg.max_hamiltonian_error(), 1.0);
+  EXPECT_EQ(cfg.min_micro_steps(),            std::size_t{2});
+  EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(),   1.05);
+}
+
+TEST(SamplingConfigBuilder, ChainingReferenceEquality) {
+  walnuts::SamplingConfigBuilder builder = walnuts::SamplingConfigBuilder();
+  auto& builder_chain = builder
+    .min_max_iter(25, 200)
+    .max_trajectory_doublings(8)
+    .max_step_halvings(3)
+    .max_hamiltonian_error(1.0)
+    .min_micro_steps(2)
+    .rhat_converge_tol(1.05);
+  EXPECT_EQ(&builder_chain, &builder);
+}
+
+// classes WalnutsConfig and WalnutsConfigBuilder *******************
+
+TEST(WalnutsConfig, MembersAreIndependent) {
+  walnuts::WalnutsConfig cfg{
+    walnuts::InitConfigBuilder(2, 3).step_sizes(0.25).build(),
+      walnuts::WarmupConfigBuilder().min_max_iter(10, 200).build(),
+      walnuts::SamplingConfigBuilder().min_max_iter(5, 100).build()
+  };
+
+  EXPECT_EQ(cfg.warmup().min_iter(),          std::size_t{10});
+  EXPECT_EQ(cfg.warmup().max_iter(),          std::size_t{200});
+  EXPECT_EQ(cfg.sampling().min_iter(),        std::size_t{5});
+  EXPECT_EQ(cfg.sampling().max_iter(),        std::size_t{100});
+  EXPECT_EQ(cfg.init().num_chains(),          std::size_t{2});
+  EXPECT_DOUBLE_EQ(cfg.init().step_size(0),   0.25);
+  EXPECT_DOUBLE_EQ(cfg.init().step_size(1),   0.25);
 }

@@ -40,25 +40,25 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   using AdaptiveSampler = AdaptiveWalnuts<F, RNG, H>;
   using Sampler = WalnutsSampler<F, RNG, H>;
 
-  if (chain_handlers.size() != config.init_.num_chains()) {
+  if (chain_handlers.size() != config.init().num_chains()) {
     throw std::invalid_argument(
-        "chain_handlers.size() must be equal to config.init_.num_chains()");
+        "chain_handlers.size() must be equal to config.init().num_chains()");
   }
 
   std::vector<RNG> rngs(0);
-  rngs.reserve(config.init_.num_chains());
-  for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
+  rngs.reserve(config.init().num_chains());
+  for (std::size_t m = 0; m < config.init().num_chains(); ++m) {
     std::seed_seq ss{seed, m + 1u};
     rngs.emplace_back(ss);
   }
   std::vector<AdaptiveSampler> adapters;
-  adapters.reserve(config.init_.num_chains());
-  for (std::size_t m = 0; m < config.init_.num_chains(); ++m) {
+  adapters.reserve(config.init().num_chains());
+  for (std::size_t m = 0; m < config.init().num_chains(); ++m) {
     adapters.emplace_back(rngs[m], chain_handlers[m], log_p_grad,
-                          config.init_.init_chain_config(m), config.warmup_,
-                          config.sampling_);
+                          config.init().init_chain_config(m), config.warmup(),
+                          config.sampling());
   }
-  detail::adapt(config.init_, config.warmup_, adapters, interrupt_callback);
+  detail::adapt(config.init(), config.warmup(), adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
   for (std::size_t n = 0; n < adapters.size(); ++n) {
@@ -66,8 +66,8 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   }
 
   detail::sample(samplers, global_handler, interrupt_callback,
-                 config.sampling_.rhat_converge_tol(),
-                 config.sampling_.min_iter(), config.sampling_.max_iter());
+                 config.sampling().rhat_converge_tol(),
+                 config.sampling().min_iter(), config.sampling().max_iter());
 }
 
 }  // namespace walnuts

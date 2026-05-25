@@ -35,4 +35,5 @@ function(add_test TEST_NAME TEST_SOURCE)
   gtest_discover_tests(${TEST_NAME})  
 endfunction()  
 
-add_test(summary_test summary_test.cpp)
+add_test(summary_test summary_test.cpp) 
+add_test(config_test config_test.cpp) 

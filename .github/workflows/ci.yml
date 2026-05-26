@@ -59,6 +59,7 @@ jobs:
       - name: Run examples
         run: |
           cd build/
+          ls -lha examples/
           ./examples/walnuts_api${{ matrix.cfg.os == 'windows' && '.exe' || '' }}
         shell: bash
 

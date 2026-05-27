@@ -80,6 +80,14 @@ if(WALNUTS_BUILD_STAN)
 endif()
 
 #############################
+## Windows pathces         ##
+#############################
+
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_link_options(-static-libgcc -static-libstdc++ -static -lpthread)
+endif()
+
+#############################
 ## Making Walnuts Library  ##
 #############################
 

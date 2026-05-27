@@ -56,7 +56,7 @@ inline void autocovariance_col(const Eigen::Ref<const Eigen::VectorXd>& y,
                                Eigen::VectorXcd& ac_tmp) {
   // TODO: evaluate the following optimization
   // fft.SetFlag(fft.HalfSpectrum);
-  Eigen::Index M2 = ac.size();
+  Eigen::Index M2 = padded_signal.size();
   Eigen::Index N = y.size();
   padded_signal.tail(M2 - N).setZero();
   padded_signal.head(N) = y.array() - y.mean();

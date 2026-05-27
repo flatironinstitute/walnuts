@@ -6,45 +6,7 @@
 #include <vector>
 
 #include <walnuts.hpp>
-
-static std::vector<double> inf_nan() {
-  std::vector<double> result;
-  result.push_back(std::numeric_limits<double>::quiet_NaN());
-  result.push_back(std::numeric_limits<double>::infinity());
-  return result;
-}
-
-static std::vector<double> inf_nan_neg() {
-  std::vector<double> result = inf_nan();
-  result.push_back(-0.3);
-  return result;
-}
-
-static std::vector<double> inf_nan_neg_zero() {
-  std::vector<double> result = inf_nan_neg();
-  result.push_back(0.0);
-  return result;
-}
-
-static std::vector<double> inf_nan_neg_zero_geq_one() {
-  std::vector<double> result = inf_nan_neg_zero();
-  result.push_back(1.0);
-  result.push_back(1.5);
-  return result;
-}
-
-static std::vector<double> inf_nan_neg_zero_leq_one() {
-  std::vector<double> result = inf_nan_neg_zero();
-  result.push_back(1.0);
-  result.push_back(0.99);
-  return result;
-}
-
-static void std_normal(const Eigen::VectorXd& x, double& lp,
-                       Eigen::VectorXd& grad) {
-  lp = -0.5 * x.dot(x);
-  grad = -x;
-}
+#include <../tests/test_util.hpp>
 
 // class InitChainConfig ********************************************
 
@@ -182,7 +144,7 @@ TEST(InitConfigBuilder, ScalarPositionSetsAllChains) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(3, 2).positions(pos).build();
   for (std::size_t n = 0; n < 3; ++n) {
-    EXPECT_TRUE(cfg.position(n).isApprox(pos));
+    expect_near(cfg.position(n), pos);
   }
 }
 
@@ -212,7 +174,7 @@ TEST(InitConfigBuilder, VectorPositionsSetsPerChain) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(3, 2).positions(vs).build();
   for (std::size_t m = 0; m < 3; ++m) {
-    EXPECT_TRUE(cfg.position(m).isApprox(vs[m]));
+    expect_near(cfg.position(m), vs[m]);
   }
 }
 
@@ -247,7 +209,7 @@ TEST(InitConfigBuilder, MovePositionsSetsPerChain) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(2, 2).positions(std::move(vs)).build();
   for (std::size_t m = 0; m < 2; ++m) {
-    EXPECT_TRUE(cfg.position(m).isApprox(vs_expected[m]));
+    expect_near(cfg.position(m), vs_expected[m]);
   }
 }
 
@@ -291,7 +253,7 @@ TEST(InitConfigBuilder, RandomPositionsScaledByInitScale) {
   walnuts::InitConfig cfg2 =
       walnuts::InitConfigBuilder(2, 3).positions(rng2, 2.0).build();
   for (std::size_t n = 0; n < 2; ++n) {
-    EXPECT_TRUE(cfg2.position(n).isApprox(2.0 * cfg1.position(n)));
+    expect_near(cfg2.position(n), (2.0 * cfg1.position(n)).eval());
   }
 }
 
@@ -311,7 +273,7 @@ TEST(InitConfigBuilder, ScalarMassSetsAllChains) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(3, 2).masses(mass).build();
   for (std::size_t n = 0; n < 3; ++n) {
-    EXPECT_TRUE(cfg.mass(n).isApprox(mass));
+    expect_near(cfg.mass(n), mass);
   }
 }
 
@@ -343,7 +305,7 @@ TEST(InitConfigBuilder, VectorMassesSetsPerChain) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(3, 2).masses(vs).build();
   for (std::size_t m = 0; m < 3; ++m) {
-    EXPECT_TRUE(cfg.mass(m).isApprox(vs[m]));
+    expect_near(cfg.mass(m), vs[m]);
   }
 }
 
@@ -380,7 +342,7 @@ TEST(InitConfigBuilder, MoveMassesSetsPerChain) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(2, 2).masses(std::move(vs)).build();
   for (std::size_t n = 0; n < 2; ++n) {
-    EXPECT_TRUE(cfg.mass(n).isApprox(expected[n]));
+    expect_near(cfg.mass(n), expected[n]);
   }
 }
 
@@ -434,7 +396,7 @@ TEST(InitConfigBuilder, LogpGradMassesMatchHandCalculation) {
   Eigen::VectorXd expected(2);
   expected(0) = (1 - s) * std::sqrt(1.0) + s;
   expected(1) = (1 - s) * std::sqrt(2.0) + s;
-  EXPECT_TRUE(cfg.mass(0).isApprox(expected));
+  expect_near(cfg.mass(0), expected);
 }
 
 TEST(InitConfigBuilder, LogpGradMassesOneThrows) {
@@ -466,8 +428,8 @@ TEST(InitConfig, InitChainConfigReturnsCorrectValues) {
                                 .build();
   walnuts::InitChainConfig cc = cfg.init_chain_config(0);
   EXPECT_DOUBLE_EQ(cc.step_size(), 0.25);
-  EXPECT_TRUE(cc.position().isApprox(pos));
-  EXPECT_TRUE(cc.mass().isApprox(mass));
+  expect_near(cc.position(), pos);
+  expect_near(cc.mass(), mass);
 }
 
 // chaining 
@@ -898,13 +860,13 @@ TEST(SamplingConfigBuilder, FullChainProducesCorrectConfig) {
       .min_micro_steps(2)
       .rhat_converge_tol(1.05)
       .build();
-  EXPECT_EQ(cfg.min_iter(),                   std::size_t{25});
-  EXPECT_EQ(cfg.max_iter(),                   std::size_t{200});
-  EXPECT_EQ(cfg.max_trajectory_doublings(),   std::size_t{8});
-  EXPECT_EQ(cfg.max_step_halvings(),          std::size_t{3});
+  EXPECT_EQ(cfg.min_iter(), std::size_t{25});
+  EXPECT_EQ(cfg.max_iter(), std::size_t{200});
+  EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{8});
+  EXPECT_EQ(cfg.max_step_halvings(), std::size_t{3});
   EXPECT_DOUBLE_EQ(cfg.max_hamiltonian_error(), 1.0);
-  EXPECT_EQ(cfg.min_micro_steps(),            std::size_t{2});
-  EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(),   1.05);
+  EXPECT_EQ(cfg.min_micro_steps(), std::size_t{2});
+  EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(), 1.05);
 }
 
 TEST(SamplingConfigBuilder, ChainingReferenceEquality) {

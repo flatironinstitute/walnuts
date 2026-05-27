@@ -5,6 +5,7 @@
 #include <functional>
 #include <limits>
 #include <random>
+#include <numeric>
 #include <type_traits>
 
 #include <Eigen/Dense>

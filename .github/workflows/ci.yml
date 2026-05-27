@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
-    runs-on: ${{matrix.cfg.os}}-latest
+    runs-on: ${{matrix.cfg.os}}-${{matrix.cfg.version || 'latest'}}
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +30,7 @@ jobs:
           - os: ubuntu
             compiler: gcc
           - os: macos
+            version: 26
             compiler: clang
 
     steps:
@@ -58,7 +59,8 @@ jobs:
       - name: Run examples
         run: |
           cd build/
-          ./examples/examples
+          ls -lha examples/
+          ./examples/walnuts_api${{ matrix.cfg.os == 'windows' && '.exe' || '' }}
         shell: bash
 
       - name: Test

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <walnuts.hpp>
+#include <../tests/test_util.hpp>
 
 // MarkovChainsSplit class ******************************************
 
@@ -67,7 +68,7 @@ TEST(MarkovChainsSplit, ChainViewReturnsCorrectChain) {
     Eigen::MatrixXd view = mcs.chain_view(m);
     ASSERT_EQ(view.rows(), chains[m].rows());
     ASSERT_EQ(view.cols(), chains[m].cols());
-    EXPECT_TRUE(view.isApprox(chains[m]));
+    expect_near(view, chains[m]);
   }
 }
 
@@ -94,8 +95,8 @@ TEST(MarkovChainsSplit, DrawsConcatenatesAcrossChains) {
 
   ASSERT_EQ(d0.size(), Eigen::Index{8});
   ASSERT_EQ(d1.size(), Eigen::Index{8});
-  EXPECT_TRUE(d0.isApprox(expected_d0));
-  EXPECT_TRUE(d1.isApprox(expected_d1));
+  expect_near(d0, expected_d0);
+  expect_near(d1, expected_d1);
 }
 
 TEST(MarkovChainsSplit, DrawsThrowsOnOutOfRangeDimension) {
@@ -176,10 +177,11 @@ TEST(MarkovChainsUnified, ChainViewReturnsCorrectRows) {
   expected1 << 5, 6, 7, 8, 9, 10;
   Eigen::MatrixXd expected2(3, 2);
   expected2 << 11, 12, 13, 14, 15, 16;
+  std::vector<Eigen::MatrixXd> expected{expected0, expected1, expected2};
 
-  EXPECT_TRUE(mcu.chain_view(0).isApprox(expected0));
-  EXPECT_TRUE(mcu.chain_view(1).isApprox(expected1));
-  EXPECT_TRUE(mcu.chain_view(2).isApprox(expected2));
+  for (std::size_t n = 0; n < expected.size(); ++n) {
+    expect_near(mcu.chain_view(n).eval(), expected[n]);
+  }
 }
 
 TEST(MarkovChainsUnified, ChainViewIsAViewNotACopy) {
@@ -209,8 +211,8 @@ TEST(MarkovChainsUnified, DrawsReturnsCorrectColumn) {
 
   ASSERT_EQ(mcu.draws(0).size(), Eigen::Index{8});
   ASSERT_EQ(mcu.draws(1).size(), Eigen::Index{8});
-  EXPECT_TRUE(mcu.draws(0).isApprox(expected_d0));
-  EXPECT_TRUE(mcu.draws(1).isApprox(expected_d1));
+  expect_near(mcu.draws(0).eval(), expected_d0);
+  expect_near(mcu.draws(1).eval(), expected_d1);
 }
 
 TEST(MarkovChainsUnified, DrawsIsAViewNotACopy) {
@@ -303,8 +305,8 @@ TEST(SampleVariance, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsSplit mcs(chains);
   Eigen::MatrixXd draws = make_unified_draws();
   walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  EXPECT_TRUE(
-      walnuts::sample_variance(mcs).isApprox(walnuts::sample_variance(mcu)));
+  expect_near(walnuts::sample_variance(mcs),
+	      walnuts::sample_variance(mcu));
 }
 
 TEST(SampleVariance, ResultSizeMatchesDims) {
@@ -375,7 +377,7 @@ TEST(SampleStandardDeviation, IsSquareRootOfSampleVariance) {
   walnuts::MarkovChainsSplit mcs(chains);
   Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
   Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
-  EXPECT_TRUE(sd.array().square().matrix().isApprox(v));
+  expect_near(sd.array().square().matrix().eval(), v);
 }
 
 TEST(SampleStandardDeviation, TwoIdenticalDrawsGivesZeroStdDev) {
@@ -540,7 +542,7 @@ TEST(Quantiles, QuartilesMatchNumpy) {
   Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
   Eigen::MatrixXd expected(5, 2);
   expected << 1.0, 2.0, 4.5, 5.5, 8.0, 9.0, 11.5, 12.5, 15.0, 16.0;
-  EXPECT_TRUE(result.isApprox(expected));
+  expect_near(result, expected);
 }
 
 TEST(Quantiles, InteriorProbsMatchNumpy) {
@@ -551,7 +553,7 @@ TEST(Quantiles, InteriorProbsMatchNumpy) {
   Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
   Eigen::MatrixXd expected(3, 2);
   expected << 2.4, 3.4, 9.4, 10.4, 13.6, 14.6;
-  EXPECT_TRUE(result.isApprox(expected));
+  expect_near(result, expected);
 }
 
 // example from the documentation
@@ -577,8 +579,8 @@ TEST(Quantiles, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::VectorXd probs(5);
   probs << 0.0, 0.25, 0.5, 0.75, 1.0;
-  EXPECT_TRUE(
-      walnuts::quantiles(mcs, probs).isApprox(walnuts::quantiles(mcu, probs)));
+  expect_near(walnuts::quantiles(mcs, probs),
+	      walnuts::quantiles(mcu, probs));
 }
 
 // autocovariance() function ****************************************
@@ -674,7 +676,7 @@ TEST(Autocovariance, FullResultMatchesReference) {
       -16.0 / 3.0, -64.0 / 27.0,  // chain 2, lag 1
       1.0, 7.0 / 27.0;            // chain 2, lag 2
 
-  EXPECT_TRUE(acov.isApprox(expected, 1e-10));
+  expect_near(acov, expected);
 }
 
 // check FFT vs. direct
@@ -689,7 +691,7 @@ TEST(Autocovariance, MatchesDirectComputationPerChain) {
     Eigen::MatrixXd chain = mcs.chain_view(m);
     Eigen::MatrixXd direct = autocovariance_direct(chain);
     Eigen::MatrixXd fft_block = acov.middleRows(starts[m], sizes[m]);
-    EXPECT_TRUE(fft_block.isApprox(direct, 1e-10)) << "Mismatch at chain " << m;
+    expect_near(fft_block, direct);
   }
 }
 
@@ -712,8 +714,8 @@ TEST(Autocovariance, BothTypesAgreeOnSameData) {
   Eigen::MatrixXd draws(8, 2);
   draws << 1, 2, 4, 6, 3, 8, 7, 1, 2, 9, 6, 4, 1, 7, 8, 2;
   walnuts::MarkovChainsUnified mcu(draws, {2, 3, 3});
-  EXPECT_TRUE(walnuts::autocovariance(mcs).isApprox(
-      walnuts::autocovariance(mcu), 1e-10));
+  expect_near(walnuts::autocovariance(mcs),
+	      walnuts::autocovariance(mcu));
 }
 
 // single draw chain
@@ -899,7 +901,7 @@ TEST(RHat, BothTypesAgreeOnSameData) {
   draws << 1, 10, 2, 8, 3, 9, 4, 5, 6, 7, 5, 6, 7, 2, 9, 4, 8, 3;
   walnuts::MarkovChainsUnified mcu(draws, {3, 3, 3});
 
-  EXPECT_TRUE(walnuts::r_hat(mcs).isApprox(walnuts::r_hat(mcu)));
+  expect_near(walnuts::r_hat(mcs), walnuts::r_hat(mcu));
 }
 
 // effective_sample_size() function *********************************
@@ -1111,8 +1113,8 @@ TEST(EffectiveSampleSize, BothTypesAgreeOnSameData) {
   draws << c0, c1, c2;  // Eigen comma-init stacks row blocks
   walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
-  EXPECT_TRUE(walnuts::effective_sample_size(mcs).isApprox(
-      walnuts::effective_sample_size(mcu), 1e-10));
+  expect_near(walnuts::effective_sample_size(mcs),
+	      walnuts::effective_sample_size(mcu));
 }
 
 // test tau_hat floor at 1/log10(N_total)
@@ -1176,7 +1178,7 @@ TEST(MonteCarloStandardError, EqualsStdDevOverSqrtEss) {
   Eigen::RowVectorXd mcse = walnuts::monte_carlo_standard_error(mcs);
   Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
   Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
-  EXPECT_TRUE(mcse.isApprox((sd.array() / ess.array().sqrt()).matrix(), 1e-10));
+  expect_near(mcse, (sd.array() / ess.array().sqrt()).matrix().eval());
 }
 
 // matches reference test case
@@ -1219,6 +1221,6 @@ TEST(MonteCarloStandardError, BothTypesAgreeOnSameData) {
   draws << c0, c1, c2;
   walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
-  EXPECT_TRUE(walnuts::monte_carlo_standard_error(mcs).isApprox(
-      walnuts::monte_carlo_standard_error(mcu), 1e-10));
+  expect_near(walnuts::monte_carlo_standard_error(mcs),
+	      walnuts::monte_carlo_standard_error(mcu));
 }

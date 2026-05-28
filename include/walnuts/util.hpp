@@ -58,7 +58,15 @@ enum class Direction {
   Forward   /**< Step forward in time. */
 };
 
+/**
+ * @brief A type definition for constructing `Direction::Backward` constants.
+ */ 
 using Backward_t = std::integral_constant<Direction, Direction::Backward>;
+
+
+/**
+ * @brief A type definition for constructing `Direction::Forward` constants.
+ */ 
 using Forward_t = std::integral_constant<Direction, Direction::Forward>;
 
 /**
@@ -80,7 +88,7 @@ class Random {
    *
    * @param[in,out] rng The base random number generator.
    */
-  explicit Random(RNG& rng)
+  explicit Random(RNG& rng) noexcept
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   /**

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -426,8 +427,8 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
   Eigen::VectorXd theta_next;
   Eigen::VectorXd rho_next;
   Eigen::VectorXd grad_theta_next;
-  double logp_pos_next;
-  double logp_next;
+  double logp_pos_next = -std::numeric_limits<double>::infinity();
+  double logp_next = -std::numeric_limits<double>::infinity();
   if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,
                      min_micro_steps, max_error, span, theta_next, rho_next,
                      grad_theta_next, logp_pos_next, logp_next,

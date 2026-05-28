@@ -427,6 +427,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
   Eigen::VectorXd theta_next;
   Eigen::VectorXd rho_next;
   Eigen::VectorXd grad_theta_next;
+  // values are dummies; will be reset by macro step
   double logp_pos_next = -std::numeric_limits<double>::infinity();
   double logp_next = -std::numeric_limits<double>::infinity();
   if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,

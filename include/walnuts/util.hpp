@@ -303,7 +303,7 @@ inline std::size_t sum(const std::vector<std::size_t>& xs) noexcept {
  * @return The variance.
  */
 inline double variance(const Eigen::VectorXd& xs) noexcept {
-  return (xs.array() - xs.mean()).square().mean() /
+  return (xs.array() - xs.mean()).square().sum() /
          static_cast<double>((xs.size() - 1));
 }
 

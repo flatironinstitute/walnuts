@@ -63,14 +63,15 @@ int main() {
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
                         .min_max_iter(50, 2000)
-                        .step_size_converge_tol(1)
+                        .mass_converge_tol(2.0)    
+                        .step_size_converge_tol(0.2)
                         .mass_init_count(4.0)
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
                           .min_max_iter(50, 10000)
                           .max_trajectory_doublings(8)
-                          .rhat_converge_tol(1.0001)
+                          .rhat_converge_tol(1.001)
                           .build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain

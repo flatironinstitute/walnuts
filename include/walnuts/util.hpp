@@ -171,12 +171,11 @@ class Random {
  * @return The log of the sum of the exponentiations of the arguments.
  */
 inline double log_sum_exp(const double& x1, const double& x2) {
-  using std::fmax, std::log, std::exp;
-  double m = fmax(x1, x2);
-  if (std::isinf(m) && m < 0) {
-    return m;  // x1 = x2 = -inf
+  auto m = std::fmax(x1, x2);
+  if (std::isinf(m) || std::isnan(x1 + x2)) {
+    return std::fmax(x1, x2);
   }
-  return m + log(exp(x1 - m) + exp(x2 - m));
+  return m + std::log(std::exp(x1 - m) + std::exp(x2 - m));
 }
 
 /**
@@ -191,9 +190,12 @@ inline double log_sum_exp(const double& x1, const double& x2) {
  */
 inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
+  if (x.size() == 0) { // Eigen triggers assert on empty .maxCoeff()
+    return -std::numeric_limits<double>::infinity();
+  }
   double m = x.maxCoeff();
-  if (std::isinf(m) && m < 0) {
-    return m;  // all x[i] = -inf
+  if (std::isinf(m)) {
+    return m;  // x[i] all -inf or all +inf; ow NaN
   }
   return m + log((x.array() - m).exp().sum());
 }

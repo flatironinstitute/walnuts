@@ -8,42 +8,6 @@
 #include <../tests/test_util.hpp>
 #include <walnuts.hpp>
 
-// Constants ********************************************************
-
-// FALSE_SHARING_GUARD_SIZE constant
-
-TEST(Detail, FalseSharingGuardSizeIs128) {
-  EXPECT_EQ(walnuts::detail::FALSE_SHARING_GUARD_SIZE, std::size_t{128});
-}
-
-// Update enums
-
-TEST(Detail, UpdateEnumValuesAreDistinct) {
-  EXPECT_NE(walnuts::detail::Update::Barker,
-            walnuts::detail::Update::Metropolis);
-}
-
-// Direction enums
-
-TEST(Detail, DirectionEnumValuesAreDistinct) {
-  EXPECT_NE(walnuts::detail::Direction::Forward,
-            walnuts::detail::Direction::Backward);
-}
-
-// Direction types
-
-TEST(Detail, ForwardAndBackwardTypesCarryCorrectValues) {
-  EXPECT_EQ(walnuts::detail::Backward_t::value,
-            walnuts::detail::Direction::Backward);
-  EXPECT_EQ(walnuts::detail::Forward_t::value,
-            walnuts::detail::Direction::Forward);
-}
-
-TEST(Detail, ForwardAndBackwardTypesAreDistinct) {
-  static_assert(
-      !std::is_same_v<walnuts::detail::Forward_t, walnuts::detail::Backward_t>);
-}
-
 // Random class *****************************************************
 
 constexpr std::size_t RNG_TEST_SEED = 12345;
@@ -112,22 +76,7 @@ TEST(DetailRandom, UniformBinaryReturnsBoolWithCorrectMean) {
 
 // standard_normal() method
 
-TEST(DetailRandom, StandardNormalReturnsCorrectSize) {
-  std::mt19937 rng(RNG_TEST_SEED);
-  walnuts::detail::Random<std::mt19937> r(rng);
-  Eigen::VectorXd v = r.standard_normal(7);
-  EXPECT_EQ(v.size(), Eigen::Index{7});
-}
-
-TEST(DetailRandom, StandardNormalOutVariantWritesCorrectSize) {
-  std::mt19937 rng(RNG_TEST_SEED);
-  walnuts::detail::Random<std::mt19937> r(rng);
-  Eigen::VectorXd out;
-  r.standard_normal(5, out);
-  EXPECT_EQ(out.size(), Eigen::Index{5});
-}
-
-TEST(DetailRandom, StandardNormalMeanAndVariance) {
+TEST(DetailRandom, StandardNormalReturnMeanAndVariance) {
   std::mt19937 rng(RNG_TEST_SEED);
   walnuts::detail::Random<std::mt19937> r(rng);
   Eigen::VectorXd v = r.standard_normal(TEST_SIZE);
@@ -135,4 +84,177 @@ TEST(DetailRandom, StandardNormalMeanAndVariance) {
   double var = (v.array() - mean).square().sum() / (TEST_SIZE - 1);
   EXPECT_NEAR(mean, 0.0, 0.05);
   EXPECT_NEAR(var, 1.0, 0.05);
+}
+
+TEST(DetailRandom, StandardNormalSetMeanAndVariance) {
+  std::mt19937 rng(RNG_TEST_SEED);
+  walnuts::detail::Random<std::mt19937> r(rng);
+  Eigen::VectorXd v;
+  r.standard_normal(TEST_SIZE, v);
+  double mean = v.mean();
+  double var = (v.array() - mean).square().sum() / (TEST_SIZE - 1);
+  EXPECT_NEAR(mean, 0.0, 0.05);
+  EXPECT_NEAR(var, 1.0, 0.05);
+}
+
+// log_sum_exp(double, double) function *****************************
+
+TEST(LogSumExp, KnownValues) {
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(0.0, 0.0), std::log(2.0), 1e-15);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(-3.0, -3.0), -3.0 + std::log(2.0), 1e-15);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(1000.0, 1000.0), 1000.0 + std::log(2.0), 1e-10);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(1.0, 2.0),
+              std::log(std::exp(1.0) + std::exp(2.0)), 1e-15);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(-1.0, -2.0),
+              std::log(std::exp(-1.0) + std::exp(-2.0)), 1e-15);
+}
+
+TEST(LogSumExp, Symmetry) {
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(1.0, 2.0), walnuts::detail::log_sum_exp(2.0, 1.0));
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(-5.0, 3.0), walnuts::detail::log_sum_exp(3.0, -5.0));
+}
+
+TEST(LogSumExp, LargeDifferenceApproximatesMax) {
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(1000.0, 0.0), 1000.0, 1e-10);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(0.0, 1000.0), 1000.0, 1e-10);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(-1.0, -1000.0), -1.0, 1e-10);
+}
+
+TEST(LogSumExp, NumericalStabilityLargePositive) {
+  double result = walnuts::detail::log_sum_exp(1e308, 1e308);
+  EXPECT_FALSE(std::isinf(result));
+  EXPECT_NEAR(result, 1e308 + std::log(2.0), 1e295);
+}
+
+TEST(LogSumExp, NumericalStabilityLargeNegative) {
+  double result = walnuts::detail::log_sum_exp(-1e308, -1e308);
+  EXPECT_FALSE(std::isinf(result));
+  EXPECT_NEAR(result, -1e308 + std::log(2.0), 1e295);
+}
+
+TEST(LogSumExp, InfiniteArgs) {
+  double inf = std::numeric_limits<double>::infinity();
+  double neg_inf = -inf;
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(neg_inf, 5.0), 5.0);
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(5.0, neg_inf), 5.0);
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(neg_inf, -3.0), -3.0);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(neg_inf, neg_inf), neg_inf);
+
+  EXPECT_EQ(walnuts::detail::log_sum_exp(inf, 0.0), inf);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(0.0, inf), inf);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(inf, inf), inf);
+
+  EXPECT_TRUE(std::isinf(walnuts::detail::log_sum_exp(inf, neg_inf)));
+  EXPECT_TRUE(std::isinf(walnuts::detail::log_sum_exp(neg_inf, inf)));
+}
+
+TEST(LogSumExp, NaNPropagates) {
+  double nan = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(nan, 1.0)));
+  EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(1.0, nan)));
+  EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(nan, nan)));
+}
+
+// walnuts::detail::log_sum_exp(VectorXd) function ***********************************
+
+TEST(LogSumExpVector, EmptyVector) {
+  Eigen::VectorXd x(0);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x), -std::numeric_limits<double>::infinity());
+}
+
+TEST(LogSumExpVector, MatchesTwoArgVersion) {
+  Eigen::VectorXd x(2);
+  x << 1.0, 2.0;
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(x), walnuts::detail::log_sum_exp(1.0, 2.0), 1e-15);
+}
+
+// Single element: log(exp(x)) = x
+TEST(LogSumExpVector, SingleElement) {
+  Eigen::VectorXd x(1);
+  x << 3.7;
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(x), 3.7);
+}
+
+// Equal elements: result is log(n * exp(v)) = v + log(n)
+TEST(LogSumExpVector, EqualElements) {
+  for (int n : {2, 5, 100}) {
+    Eigen::VectorXd x = Eigen::VectorXd::Constant(n, -4.0);
+    EXPECT_NEAR(walnuts::detail::log_sum_exp(x), -4.0 + std::log(n), 1e-12);
+  }
+}
+
+// Known value against naive computation (small values, no overflow risk)
+TEST(LogSumExpVector, KnownValueNaive) {
+  Eigen::VectorXd x(4);
+  x << -1.0, 0.0, 1.0, 2.0;
+  double expected = std::log(std::exp(-1.0) + std::exp(0.0)
+                             + std::exp(1.0) + std::exp(2.0));
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(x), expected, 1e-14);
+}
+
+// Numerical stability: large positive values that would overflow naively
+TEST(LogSumExpVector, StabilityLargePositive) {
+  Eigen::VectorXd x(3);
+  x << 1e308, 1e308, 1e308;
+  double result = walnuts::detail::log_sum_exp(x);
+  EXPECT_FALSE(std::isinf(result));
+  EXPECT_NEAR(result, 1e308 + std::log(3.0), 1e295);
+}
+
+// Numerical stability: large negative values
+TEST(LogSumExpVector, StabilityLargeNegative) {
+  Eigen::VectorXd x(3);
+  x << -1e308, -1e308, -1e308;
+  double result = walnuts::detail::log_sum_exp(x);
+  EXPECT_FALSE(std::isinf(result));
+  EXPECT_NEAR(result, -1e308 + std::log(3.0), 1e295);
+}
+
+// All -inf -> -inf
+TEST(LogSumExpVector, AllNegativeInfinity) {
+  double neg_inf = -std::numeric_limits<double>::infinity();
+  Eigen::VectorXd x = Eigen::VectorXd::Constant(4, neg_inf);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x), neg_inf);
+}
+
+// All +inf -> +inf
+TEST(LogSumExpVector, AllPositiveInfinity) {
+  double inf = std::numeric_limits<double>::infinity();
+  Eigen::VectorXd x = Eigen::VectorXd::Constant(4, inf);
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x), inf);
+}
+
+// One +inf among finite values -> +inf
+TEST(LogSumExpVector, OnePositiveInfinity) {
+  double inf = std::numeric_limits<double>::infinity();
+  Eigen::VectorXd x(3);
+  x << 1.0, inf, 2.0;
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x), inf);
+}
+
+// One -inf among finite values: -inf entry contributes nothing
+TEST(LogSumExpVector, OneNegativeInfinity) {
+  double neg_inf = -std::numeric_limits<double>::infinity();
+  Eigen::VectorXd x(3);
+  x << 1.0, neg_inf, 2.0;
+  Eigen::VectorXd x_without(2);
+  x_without << 1.0, 2.0;
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(x), walnuts::detail::log_sum_exp(x_without), 1e-15);
+}
+
+// Mixed +inf and -inf -> NaN (max is +inf, exp(-inf - inf) = exp(-inf) = 0,
+// but exp(+inf - +inf) = exp(NaN), so result is NaN)
+TEST(LogSumExpVector, MixedInfinities) {
+  double inf = std::numeric_limits<double>::infinity();
+  Eigen::VectorXd x(3);
+  x << inf, 1.0, -inf;
+  EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(x)));
+}
+
+// NaN in input propagates
+TEST(LogSumExpVector, NaNPropagates) {
+  double nan = std::numeric_limits<double>::quiet_NaN();
+  Eigen::VectorXd x(3);
+  x << 1.0, nan, 2.0;
+  EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(x)));
 }

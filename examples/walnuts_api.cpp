@@ -63,7 +63,7 @@ int main() {
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
                         .min_max_iter(50, 2000)
-                        .mass_converge_tol(2.0)    
+                        .mass_converge_tol(2.0)
                         .step_size_converge_tol(0.2)
                         .mass_init_count(4.0)
                         .build();
@@ -80,9 +80,8 @@ int main() {
 
   // 2) SAMPLE =================================================================
   // output sent to handlers
-  walnuts::WalnutsConfig config{std::move(init_cfg),
-      std::move(warmup_cfg),
-      std::move(sampling_cfg)};
+  walnuts::WalnutsConfig config{std::move(init_cfg), std::move(warmup_cfg),
+                                std::move(sampling_cfg)};
   walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler,
                                     interrupt_callback, logp_grad, config);
 

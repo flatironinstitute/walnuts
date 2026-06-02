@@ -5,8 +5,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include <walnuts.hpp>
 #include <../tests/test_util.hpp>
+#include <walnuts.hpp>
 
 // Constants ********************************************************
 
@@ -22,7 +22,6 @@ TEST(Detail, UpdateEnumValuesAreDistinct) {
   EXPECT_NE(walnuts::detail::Update::Barker,
             walnuts::detail::Update::Metropolis);
 }
-
 
 // Direction enums
 
@@ -41,15 +40,14 @@ TEST(Detail, ForwardAndBackwardTypesCarryCorrectValues) {
 }
 
 TEST(Detail, ForwardAndBackwardTypesAreDistinct) {
-  static_assert(!std::is_same_v<walnuts::detail::Forward_t,
-                                walnuts::detail::Backward_t>);
+  static_assert(
+      !std::is_same_v<walnuts::detail::Forward_t, walnuts::detail::Backward_t>);
 }
 
 // Random class *****************************************************
 
 constexpr std::size_t RNG_TEST_SEED = 12345;
 constexpr std::size_t TEST_SIZE = 100000;
-
 
 // construction
 
@@ -84,8 +82,8 @@ TEST(DetailRandom, UniformReal01MeanAndVariance) {
     sum_sq += u * u;
   }
   double mean = sum / TEST_SIZE;
-  double var  = sum_sq / TEST_SIZE - mean * mean;
-  EXPECT_NEAR(mean, 0.5, 0.01);   // 10 se tolerance
+  double var = sum_sq / TEST_SIZE - mean * mean;
+  EXPECT_NEAR(mean, 0.5, 0.01);        // 10 se tolerance
   EXPECT_NEAR(var, 1.0 / 12.0, 0.01);  // 8 se tolerance
 }
 
@@ -104,7 +102,9 @@ TEST(DetailRandom, UniformBinaryReturnsBoolWithCorrectMean) {
   walnuts::detail::Random<std::mt19937> r(rng);
   int true_count = 0;
   for (int i = 0; i < TEST_SIZE; ++i) {
-    if (r.uniform_binary()) ++true_count;
+    if (r.uniform_binary()) {
+      ++true_count;
+    }
   }
   double p_hat = static_cast<double>(true_count) / TEST_SIZE;
   EXPECT_NEAR(p_hat, 0.5, 0.02);  // 10 se threshold
@@ -136,4 +136,3 @@ TEST(DetailRandom, StandardNormalMeanAndVariance) {
   EXPECT_NEAR(mean, 0.0, 0.05);
   EXPECT_NEAR(var, 1.0, 0.05);
 }
-

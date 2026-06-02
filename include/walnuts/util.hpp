@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <functional>
 #include <limits>
-#include <random>
 #include <numeric>
+#include <random>
 #include <type_traits>
 
 #include <Eigen/Dense>
@@ -60,13 +60,12 @@ enum class Direction {
 
 /**
  * @brief A type definition for constructing `Direction::Backward` constants.
- */ 
+ */
 using Backward_t = std::integral_constant<Direction, Direction::Backward>;
-
 
 /**
  * @brief A type definition for constructing `Direction::Forward` constants.
- */ 
+ */
 using Forward_t = std::integral_constant<Direction, Direction::Forward>;
 
 /**

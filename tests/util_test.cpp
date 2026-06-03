@@ -5,8 +5,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include <../tests/test_util.hpp>
 #include <walnuts.hpp>
+#include "test_util.hpp"
 
 // Random class *****************************************************
 

@@ -16,7 +16,8 @@ include(GoogleTest)
 ##########################
  
 function(add_test TEST_NAME)
-  add_executable(${TEST_NAME}_test ${TEST_NAME}_test.cpp)  
+  add_executable(${TEST_NAME}_test ${TEST_NAME}_test.cpp)
+  target_include_directories(${TEST_NAME}_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(${TEST_NAME}_test
     PRIVATE  
       gtest_main  

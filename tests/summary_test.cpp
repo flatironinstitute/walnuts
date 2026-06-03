@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include <../tests/test_util.hpp>
+#include "test_util.hpp"
 #include <walnuts.hpp>
 
 // MarkovChainsSplit class ******************************************

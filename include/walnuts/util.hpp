@@ -172,6 +172,9 @@ class Random {
  */
 inline double log_sum_exp(const double& x1, const double& x2) {
   auto m = std::fmax(x1, x2);
+  if (std::isnan(x1) || std::isnan(x2)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   if (std::isinf(m) || std::isnan(x1 + x2)) {
     return std::fmax(x1, x2);
   }

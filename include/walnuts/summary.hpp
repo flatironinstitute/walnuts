@@ -479,8 +479,15 @@ inline Eigen::RowVectorXd sample_standard_deviation(const MC& chains) {
 template <MarkovChainSequence MC>
 inline Eigen::MatrixXd quantiles(const MC& chains,
                                  const Eigen::VectorXd& probs) {
-  if (std::ranges::any_of(probs,
-                          [](double p) { if (!(p >= 0)) return true;  if (!(p <= 1)) return true; return false; })) {
+  if (std::ranges::any_of(probs, [](double p) {
+        if (!(p >= 0)) {
+          return true;
+        }
+        if (!(p <= 1)) {
+          return true;
+        }
+        return false;
+      })) {
     throw std::invalid_argument("probs must be in [0, 1]");
   }
   const Eigen::Index N = static_cast<Eigen::Index>(chains.num_draws());

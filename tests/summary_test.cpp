@@ -5,14 +5,14 @@
 #include <stdexcept>
 #include <vector>
 
+#include "test_util.hpp"
 #include <walnuts.hpp>
-#include <../tests/test_util.hpp>
 
 // MarkovChainsSplit class ******************************************
 
-//   chain 0: [[ 1,  2], [ 3,  4]]
-//   chain 1: [[ 5,  6], [ 7,  8], [ 9, 10]]
-//   chain 2: [[11, 12], [13, 14], [15, 16]]
+// chain 0: [[1, 2], [3, 4]]
+// chain 1: [[5, 6], [7, 8], [9, 10]]
+// chain 2: [[11, 12], [13, 14], [15, 16]]
 std::vector<Eigen::MatrixXd> make_example_chains() {
   std::vector<Eigen::MatrixXd> chains;
   Eigen::MatrixXd c0(2, 2);
@@ -305,8 +305,7 @@ TEST(SampleVariance, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsSplit mcs(chains);
   Eigen::MatrixXd draws = make_unified_draws();
   walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  expect_near(walnuts::sample_variance(mcs),
-	      walnuts::sample_variance(mcu));
+  expect_near(walnuts::sample_variance(mcs), walnuts::sample_variance(mcu));
 }
 
 TEST(SampleVariance, ResultSizeMatchesDims) {
@@ -471,8 +470,6 @@ TEST(Quantiles, ThrowsOnProbAboveOneUnified) {
   EXPECT_THROW(walnuts::quantiles(mcu, probs), std::invalid_argument);
 }
 
-
-
 TEST(Quantiles, ThrowsOnNaNProbSplit) {
   auto chains = make_example_chains();
   walnuts::MarkovChainsSplit mcs(chains);
@@ -579,8 +576,7 @@ TEST(Quantiles, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::VectorXd probs(5);
   probs << 0.0, 0.25, 0.5, 0.75, 1.0;
-  expect_near(walnuts::quantiles(mcs, probs),
-	      walnuts::quantiles(mcu, probs));
+  expect_near(walnuts::quantiles(mcs, probs), walnuts::quantiles(mcu, probs));
 }
 
 // autocovariance() function ****************************************
@@ -714,8 +710,7 @@ TEST(Autocovariance, BothTypesAgreeOnSameData) {
   Eigen::MatrixXd draws(8, 2);
   draws << 1, 2, 4, 6, 3, 8, 7, 1, 2, 9, 6, 4, 1, 7, 8, 2;
   walnuts::MarkovChainsUnified mcu(draws, {2, 3, 3});
-  expect_near(walnuts::autocovariance(mcs),
-	      walnuts::autocovariance(mcu));
+  expect_near(walnuts::autocovariance(mcs), walnuts::autocovariance(mcu));
 }
 
 // single draw chain
@@ -1114,7 +1109,7 @@ TEST(EffectiveSampleSize, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
   expect_near(walnuts::effective_sample_size(mcs),
-	      walnuts::effective_sample_size(mcu));
+              walnuts::effective_sample_size(mcu));
 }
 
 // test tau_hat floor at 1/log10(N_total)
@@ -1222,5 +1217,5 @@ TEST(MonteCarloStandardError, BothTypesAgreeOnSameData) {
   walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
   expect_near(walnuts::monte_carlo_standard_error(mcs),
-	      walnuts::monte_carlo_standard_error(mcu));
+              walnuts::monte_carlo_standard_error(mcu));
 }

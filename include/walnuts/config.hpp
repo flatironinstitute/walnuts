@@ -1046,8 +1046,7 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
  * configurations.
  */
 class WalnutsConfig {
-public:
-
+ public:
   /**
    * @brief Construct a Walnuts configuration given the component
    * configurations.
@@ -1058,42 +1057,33 @@ public:
    * @param[in] warmup The warmup configuration.
    * @param[in] sampling The sampling configuration.
    */
-  WalnutsConfig(InitConfig init,
-		WarmupConfig warmup,
-		SamplingConfig sampling)
-    : init_(std::move(init)),
-      warmup_(std::move(warmup)),
-      sampling_(std::move(sampling)) {
-    };
+  WalnutsConfig(InitConfig init, WarmupConfig warmup, SamplingConfig sampling)
+      : init_(std::move(init)),
+        warmup_(std::move(warmup)),
+        sampling_(std::move(sampling)) {};
 
   /**
    * @brief Return the initialization configuration.
    *
    * @return The initialization configuration.
    */
-  const InitConfig& init() const noexcept {
-    return init_;
-  }
+  const InitConfig& init() const noexcept { return init_; }
 
   /**
    * @brief Return the warmup configuration.
    *
    * @return The warmup configuration.
    */
-  const WarmupConfig& warmup() const noexcept {
-    return warmup_;
-  }
+  const WarmupConfig& warmup() const noexcept { return warmup_; }
 
   /**
    * @brief Return the sampling configuration.
    *
    * @return The sampling configuration.
    */
-  const SamplingConfig& sampling() const noexcept {
-    return sampling_;
-  }
+  const SamplingConfig& sampling() const noexcept { return sampling_; }
 
-private: 
+ private:
   /** The initialization configuration for all chains. */
   InitConfig init_;
 

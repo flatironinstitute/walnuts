@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <functional>
 #include <limits>
-#include <random>
 #include <numeric>
+#include <random>
 #include <type_traits>
 
 #include <Eigen/Dense>
@@ -58,7 +58,14 @@ enum class Direction {
   Forward   /**< Step forward in time. */
 };
 
+/**
+ * @brief A type definition for constructing `Direction::Backward` constants.
+ */
 using Backward_t = std::integral_constant<Direction, Direction::Backward>;
+
+/**
+ * @brief A type definition for constructing `Direction::Forward` constants.
+ */
 using Forward_t = std::integral_constant<Direction, Direction::Forward>;
 
 /**
@@ -80,7 +87,7 @@ class Random {
    *
    * @param[in,out] rng The base random number generator.
    */
-  explicit Random(RNG& rng)
+  explicit Random(RNG& rng) noexcept
       : rng_(rng), unif_(0.0, 1.0), binary_(0.5), normal_(0.0, 1.0) {}
 
   /**
@@ -164,12 +171,14 @@ class Random {
  * @return The log of the sum of the exponentiations of the arguments.
  */
 inline double log_sum_exp(const double& x1, const double& x2) {
-  using std::fmax, std::log, std::exp;
-  double m = fmax(x1, x2);
-  if (std::isinf(m) && m < 0) {
-    return m;  // x1 = x2 = -inf
+  auto m = std::fmax(x1, x2);
+  if (std::isnan(x1) || std::isnan(x2)) {
+    return std::numeric_limits<double>::quiet_NaN();
   }
-  return m + log(exp(x1 - m) + exp(x2 - m));
+  if (std::isinf(m) || std::isnan(x1 + x2)) {
+    return std::fmax(x1, x2);
+  }
+  return m + std::log(std::exp(x1 - m) + std::exp(x2 - m));
 }
 
 /**
@@ -184,9 +193,12 @@ inline double log_sum_exp(const double& x1, const double& x2) {
  */
 inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
+  if (x.size() == 0) { // Eigen triggers assert on empty .maxCoeff()
+    return -std::numeric_limits<double>::infinity();
+  }
   double m = x.maxCoeff();
-  if (std::isinf(m) && m < 0) {
-    return m;  // all x[i] = -inf
+  if (std::isinf(m)) {
+    return m;  // x[i] all -inf or all +inf; ow NaN
   }
   return m + log((x.array() - m).exp().sum());
 }

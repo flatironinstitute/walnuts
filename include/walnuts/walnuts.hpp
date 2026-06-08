@@ -161,16 +161,13 @@ static std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
 
 /**
  * @brief Return `true` if the two spans ordered as specified form a
- * U-turn in the metric determined by the inverse mass matrix.
+ * U-turn in standard Euclidean space.
  *
  * For computing U-turns, the squared distance between two vectors `x` and `y`
  * is defined by the Mahalanobis distance,
  * ```
- * d(x, y)**2 = (x - y)' * inv_mass * (x - y).
+ * d(x, y)**2 = (x - y)' * (x - y).
  * ```
- * Equivalently, distance is measured in the Euclidean metric with metric
- * tensor given by the mass matrix.
- *
  * If the spans ordered according to `D` are `(span_bk, span_fw)`, let
  * `theta_start` be the first position in `span_bk` and let `theta_end` be
  * the last position of `span_fw`. The U-turn condition will be satisfied if
@@ -179,25 +176,20 @@ static std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
  * ```
  * where
  * ```
- * delta = inv_mass .* (theta_end - theta_start).
+ * delta = (theta_end - theta_start).
  * ```
  *
  * @tparam D The direction in which to order the spans.
  * @tparam U The type of spans, which must define begin and end positions.
  * @param[in] span1 The first argument span.
  * @param[in] span2 The second argument span.
- * @param[in] inv_mass The inverse mass matrix to determine distances.
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
 template <Direction D>
-static bool uturn(const SpanW& span1, const SpanW& span2,
-                  const Eigen::VectorXd& inv_mass) {
+static bool uturn(const SpanW& span1, const SpanW& span2) {
   auto [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
-  auto scaled_diff =
-      (inv_mass.array() * (span_fw.theta_fw_ - span_bk.theta_bk_).array())
-          .matrix();
-  return span_fw.rho_fw_.dot(scaled_diff) < 0 ||
-         span_bk.rho_bk_.dot(scaled_diff) < 0;
+  Eigen::VectorXd diff = span_fw.theta_fw_ - span_bk.theta_bk_;
+  return span_fw.rho_fw_.dot(diff) < 0 || span_bk.rho_bk_.dot(diff) < 0;
 }
 
 /**
@@ -206,7 +198,6 @@ static bool uturn(const SpanW& span1, const SpanW& span2,
  *
  * @tparam F The type of the log density/gradient function.
  * @param[in] logp_grad The log density/gradient function.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps to take.
  * @param[in] max_error The maximum error in Hamiltonian at macro steps.
@@ -216,8 +207,7 @@ static bool uturn(const SpanW& span1, const SpanW& span2,
  * @param[in,out] grad_next Input initial gradient, set to final gradient.
  */
 template <LogpGrad F>
-static bool within_tolerance(const F& logp_grad,
-                             const Eigen::VectorXd& inv_mass, double step,
+static bool within_tolerance(const F& logp_grad, double step,
                              std::size_t num_steps, double max_error,
                              double logp_next, Eigen::VectorXd& theta_next,
                              Eigen::VectorXd& rho_next,
@@ -225,13 +215,14 @@ static bool within_tolerance(const F& logp_grad,
   double half_step = 0.5 * step;
   double logp = logp_next;
   for (std::size_t n = 0; n < num_steps; ++n) {
+    // TODO: combine first/last rho_next update by unrolling start/end
     rho_next += half_step * grad_next;
-    theta_next.array() += step * inv_mass.array() * rho_next.array();
+    theta_next += step * rho_next;
     logp_grad(theta_next, logp_next, grad_next);
     rho_next += half_step * grad_next;
   }
-  logp_next += logp_momentum(rho_next, inv_mass);
-  return std::abs(logp_next - logp) <= max_error;  // only tests one way
+  logp_next += logp_momentum(rho_next);
+  return std::abs(logp_next - logp) <= max_error;
 }
 
 /**
@@ -240,7 +231,6 @@ static bool within_tolerance(const F& logp_grad,
  *
  * @tparam F Type of log density/gradient function.
  * @param[in] logp_grad The log density/gradient function.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The micro step size.
  * @param[in] num_steps The number of micro steps proposed forward.
  * @param[in] min_micro_steps The minimum number of micro steps to take.
@@ -252,8 +242,7 @@ static bool within_tolerance(const F& logp_grad,
  * @return `true` if the path ending in the specified state is reversible.
  */
 template <LogpGrad F>
-static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                       double step, std::size_t num_steps,
+static bool reversible(const F& logp_grad, double step, std::size_t num_steps,
                        std::size_t min_micro_steps, double max_error,
                        double logp_next, const Eigen::VectorXd& theta,
                        const Eigen::VectorXd& rho,
@@ -270,7 +259,7 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
     grad_next = grad;
     num_steps /= 2;
     step *= 2;
-    if (within_tolerance(logp_grad, inv_mass, step, num_steps, max_error,
+    if (within_tolerance(logp_grad, step, num_steps, max_error,
                          logp_next, theta_next, rho_next, grad_next)) {
       return false;
     }
@@ -287,7 +276,6 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @tparam F The type of the log density/gradient function.
  * @tparam A The type of the adaptation handler.
  * @param[in] logp_grad The target log density/gradient function.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The initial micro step size.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
@@ -305,8 +293,7 @@ static bool reversible(const F& logp_grad, const Eigen::VectorXd& inv_mass,
  * @return `true` if the Hamiltonian is conserved reversibly.
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
-static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
-                       double step, std::size_t max_step_halvings,
+static bool macro_step(const F& logp_grad, double step, std::size_t max_step_halvings,
                        std::size_t min_micro_steps, double max_error,
                        const SpanW& span, Eigen::VectorXd& theta_next,
                        Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
@@ -327,17 +314,17 @@ static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
     double half_step = 0.5 * step;
     for (std::size_t n = 0; n < num_steps; ++n) {
       rho_next += half_step * grad_next;
-      theta_next.array() += step * inv_mass.array() * rho_next.array();
+      theta_next += step * rho_next;
       logp_grad(theta_next, logp_pos_next, grad_next);
       rho_next += half_step * grad_next;
     }
-    logp_next = logp_pos_next + logp_momentum(rho_next, inv_mass);
+    logp_next = logp_pos_next + logp_momentum(rho_next);
     if (num_steps == min_micro_steps) {
       double min_accept = std::exp(-std::fabs(logp - logp_next));
       adapt_handler(min_accept);
     }
     if (std::fabs(logp - logp_next) <= max_error) {
-      return reversible(logp_grad, inv_mass, step, num_steps, min_micro_steps,
+      return reversible(logp_grad, step, num_steps, min_micro_steps,
                         max_error, logp_next, theta_next, rho_next, grad_next);
     }
   }
@@ -397,8 +384,8 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * macro step attempt.
  *
  * The step size is reduced so that the Hamiltonian is conserved
- * within the specified error.  The mass matrix and macro step size
- * are passed on to the leapfrog algorithm.
+ * within the specified error.  The macro step size is passed on to
+ * the leapfrog algorithm.
  *
  * The result is `std::optional` and will be `std::nullopt` only if the
  * specified span could not be extended reversibly within the error threshold.
@@ -408,7 +395,6 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @tparam A The type of the adaptation handler.
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] span The span to extend.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
@@ -419,7 +405,6 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
 static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
-                                       const Eigen::VectorXd& inv_mass,
                                        double step,
                                        std::size_t max_step_halvings,
                                        std::size_t min_micro_steps,
@@ -430,7 +415,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
   // values are dummies; will be reset by macro step
   double logp_pos_next = -std::numeric_limits<double>::infinity();
   double logp_next = -std::numeric_limits<double>::infinity();
-  if (!macro_step<D>(logp_grad, inv_mass, step, max_step_halvings,
+  if (!macro_step<D>(logp_grad, step, max_step_halvings,
                      min_micro_steps, max_error, span, theta_next, rho_next,
                      grad_theta_next, logp_pos_next, logp_next,
                      adapt_handler)) {
@@ -451,7 +436,6 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rng The random number generator.
  * @param[in] logp_grad The log density/gradient function.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
  * @param[in] depth The maximum NUTS depth.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
@@ -464,30 +448,29 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
 template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
           StepSizeAdapter A>
 static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
-                                       const Eigen::VectorXd& inv_mass,
                                        double step, std::size_t depth,
                                        std::size_t max_step_halvings,
                                        std::size_t min_micro_steps,
                                        double max_error, const SpanW& last_span,
                                        A& adapt_handler) {
   if (depth == 0) {
-    return build_leaf<D>(logp_grad, last_span, inv_mass, step,
+    return build_leaf<D>(logp_grad, last_span, step,
                          max_step_halvings, min_micro_steps, max_error,
                          adapt_handler);
   }
-  auto maybe_subspan1 = build_span<D>(rng, logp_grad, inv_mass, step, depth - 1,
+  auto maybe_subspan1 = build_span<D>(rng, logp_grad, step, depth - 1,
                                       max_step_halvings, min_micro_steps,
                                       max_error, last_span, adapt_handler);
   if (!maybe_subspan1) {
     return std::nullopt;
   }
   auto maybe_subspan2 = build_span<D>(
-      rng, logp_grad, inv_mass, step, depth - 1, max_step_halvings,
+      rng, logp_grad, step, depth - 1, max_step_halvings,
       min_micro_steps, max_error, *maybe_subspan1, adapt_handler);
   if (!maybe_subspan2) {
     return std::nullopt;
   }
-  if (uturn<D>(*maybe_subspan1, *maybe_subspan2, inv_mass)) {
+  if (uturn<D>(*maybe_subspan1, *maybe_subspan2)) {
     return std::nullopt;
   }
   return std::make_optional(combine<Update::Barker, D>(
@@ -502,9 +485,6 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @tparam A The type of the step-size adaptation callback function.
  * @param[in,out] rand The random number generator.
  * @param[in] logp_grad The log density/gradient function.
- * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
- * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
- * matrix.
  * @param[in] step The macro step size.
  * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
@@ -519,18 +499,16 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  */
 template <LogpGrad F, class Rand, StepSizeAdapter A>
 inline Eigen::VectorXd transition_w(
-    Rand& rand, const F& logp_grad, const Eigen::VectorXd& inv_mass,
-    const Eigen::VectorXd& chol_mass, double step, std::size_t max_depth,
+    Rand& rand, const F& logp_grad, double step, std::size_t max_depth,
     std::size_t max_step_halvings, std::size_t min_micro_steps,
     double max_error, Eigen::VectorXd&& theta, std::size_t& depth,
     Eigen::VectorXd& theta_grad, double& logp_pos_select,
     A& step_size_adapter) {
-  auto z = rand.standard_normal(chol_mass.size());
-  Eigen::VectorXd rho = (chol_mass.array() * z.array()).matrix();
+  Eigen::VectorXd rho = rand.standard_normal(theta.size());
   Eigen::VectorXd grad(theta.size());
   double logp_pos;
   logp_grad(theta, logp_pos, grad);
-  double logp_joint = logp_pos + logp_momentum(rho, inv_mass);
+  double logp_joint = logp_pos + logp_momentum(rho);
   auto span_accum = SpanW::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp_pos, logp_joint);
   for (depth = 1; depth <= max_depth; ++depth) {
@@ -538,12 +516,12 @@ inline Eigen::VectorXd transition_w(
     auto expand_in_direction = [&](auto direction) -> bool {
       constexpr Direction D = direction;
       auto maybe_next_span = build_span<D>(
-          rand, logp_grad, inv_mass, step, depth - 1, max_step_halvings,
+          rand, logp_grad, step, depth - 1, max_step_halvings,
           min_micro_steps, max_error, span_accum, step_size_adapter);
       if (!maybe_next_span) {
         return true;
       }
-      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span, inv_mass);
+      bool combined_uturn = uturn<D>(span_accum, *maybe_next_span);
       span_accum = combine<Update::Metropolis, D>(rand, std::move(span_accum),
                                                   std::move(*maybe_next_span));
       return combined_uturn;
@@ -614,7 +592,6 @@ class WalnutsSampler {
    * @param[in] logp_grad The target log density and gradient function (see the
    * class documentation.
    * @param[in] theta The initial position.
-   * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param[in] macro_time The macro time discretization interval.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
    * NUTS.
@@ -624,8 +601,6 @@ class WalnutsSampler {
    * step.
    * @param[in] max_error The log of the maximum error in joint densities
    * allowed in Hamiltonian trajectories.
-   * @throw std::invalid_argument If `inv_mass_matrix` has non-positive or
-   * infinite entries.
    * @throw std::invalid_argument If `macro_time` is not positive or not
    * finite.
    * @throw std::invalid_argument If `max_nuts_depth` is not positive.
@@ -635,7 +610,7 @@ class WalnutsSampler {
 
    */
   WalnutsSampler(RNG& rng, H& sample_handler, const F& logp_grad,
-                 const Eigen::VectorXd& theta, const Eigen::VectorXd& inv_mass,
+                 const Eigen::VectorXd& theta, 
                  double macro_time, std::size_t max_nuts_depth,
                  std::size_t max_step_halvings, std::size_t min_micro_steps,
                  double max_error)
@@ -643,15 +618,12 @@ class WalnutsSampler {
         sample_handler_(sample_handler),
         logp_grad_(logp_grad),
         theta_(theta),
-        inv_mass_(inv_mass),
-        cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
         macro_time_(macro_time),
         max_nuts_depth_(max_nuts_depth),
         max_step_halvings_(max_step_halvings),
         min_micro_steps_(min_micro_steps),
         max_error_(max_error),
         no_op_step_size_adapter_() {
-    detail::validate_positive(inv_mass, "inv_mass");
     detail::validate_positive(macro_time, "macro_time");
     detail::validate_positive(max_nuts_depth, "max_nuts_depth");
     detail::validate_positive(max_step_halvings, "max_step_halvings");
@@ -683,25 +655,12 @@ class WalnutsSampler {
     std::size_t depth;
     Eigen::VectorXd grad_next;
     double logp_pos;
-    theta_ = transition_w(rand_, logp_grad_, inv_mass_, cholesky_mass_,
+    theta_ = transition_w(rand_, logp_grad_, 
                           macro_time_, max_nuts_depth_, max_step_halvings_,
                           min_micro_steps_, max_error_, std::move(theta_),
                           depth, grad_next, logp_pos, no_op_step_size_adapter_);
     sample_handler_.get().on_sample(theta_, logp_pos);
     return logp_pos;
-  }
-
-  /**
-   * @brief  Return a constant reference the diagonal of the diagonal inverse
-   * mass matrix.
-   *
-   * The value of the inverse mass matrix will change on subsequent calls to
-   * `operator()(S&)`.
-   *
-   * @return The diagonal of the inverse mass matrix.
-   */
-  const Eigen::VectorXd& inverse_mass_matrix_diagonal() const noexcept {
-    return inv_mass_;
   }
 
   /**
@@ -739,12 +698,6 @@ class WalnutsSampler {
 
   /** The current position. */
   Eigen::VectorXd theta_;
-
-  /** The diagonal of the diagonal inverse mass matrix. */
-  Eigen::VectorXd inv_mass_;
-
-  /** The diagonal of the diagonal Cholesky factor of the mass matrix. */
-  Eigen::VectorXd cholesky_mass_;
 
   /** The macro time discretization interval for Nuts. */
   const double macro_time_;

@@ -240,7 +240,7 @@ class AdaptiveWalnuts {
     double logp_select;
     std::size_t depth;
     theta_ =
-        transition_w(rand_, logp_grad_, inv_mass, chol_mass, adam_.step_size(),
+        transition_w(rand_, logp_grad_, adam_.step_size(),
                      sampling_cfg_.get().max_trajectory_doublings(),
                      sampling_cfg_.get().max_step_halvings(),
                      min_micro_estimator_.min_micro_steps(),
@@ -265,7 +265,7 @@ class AdaptiveWalnuts {
   WalnutsSampler<F, RNG, H> sampler() {
     handler_.get().on_warmup_complete(step_size(), inv_mass());
     return WalnutsSampler<F, RNG, H>(
-        rand_.rng(), handler_, logp_grad_.logp_grad_, theta_, inv_mass(),
+        rand_.rng(), handler_, logp_grad_.logp_grad_, theta_,
         step_size(), sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),

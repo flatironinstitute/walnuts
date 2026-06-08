@@ -204,21 +204,16 @@ inline double log_sum_exp(const Eigen::VectorXd& x) {
 }
 
 /**
- * @brief Return the unnormalized log density of the specified momentum given
- * the specified inverse mass matrix diagonal.
+ * @brief Return the unnormalized log density of the specified momentum.
  *
- * The unnormalized log density is the negative kinetic energy.
- *
- * The formula is `-0.5 * rho' .* inv_mass * rho`, which for diagonals works
- * out to `-0.5 * rho**2 * inv_mass` elementwise.
+ * The unnormalized log density is the negative kinetic energy,
+ * `-0.5 * rho' * rho`. 
  *
  * @param[in] rho Vector of momenta.
- * @param[in] inv_mass_diag The diagonal of the diagonal inverse mass matrix.
  * @return The log density of the momentum.
  */
-inline double logp_momentum(const Eigen::VectorXd& rho,
-                            const Eigen::VectorXd& inv_mass_diag) {
-  return -0.5 * (inv_mass_diag.array() * rho.array().square()).sum();
+inline double logp_momentum(const Eigen::VectorXd& rho) {
+  return -0.5 * rho.squaredNorm();
 }
 
 /**

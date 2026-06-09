@@ -127,6 +127,7 @@ class AdaptWorker {
     // from 1 so modulo ops don't trigger on first iteration
     std::size_t iter = 1;
     for (; iter <= warmup_config_.get().max_iter(); ++iter) {
+      // if (iter % 1000 == 0) std::cout << iter << "\n";
       if (st.stop_requested()) {
         break;
       }

@@ -42,9 +42,7 @@ class DiagPreconditionedLogpGrad {
    */
   DiagPreconditionedLogpGrad(F f, Eigen::VectorXd a)
     : f_(std::move(f)),
-      a_(std::move(a)),
-      theta_(a_.size()),
-      g_(a_.size()) {
+      a_(std::move(a)) {
   }
 
   /**
@@ -55,10 +53,10 @@ class DiagPreconditionedLogpGrad {
    * @param[out] grad The gradient of the log density at `phi`.
    */
   void operator()(const Eigen::VectorXd& phi, double& logp,
-                  Eigen::VectorXd& grad) const {
-    theta_.array() = a_.array() * phi.array();
-    f_(theta_, logp, g_);
-    grad.array() = a_.array() * g_.array();
+		  Eigen::VectorXd& grad) const {
+    Eigen::VectorXd theta = a_.array() * phi.array();
+    f_(theta, logp, grad);
+    grad.array() *= a_.array();
   }
 
   /**
@@ -78,9 +76,9 @@ class DiagPreconditionedLogpGrad {
   }
   
  private:
-  const F& f_;
+  F f_;
   Eigen::VectorXd a_;
-  mutable Eigen::VectorXd theta_, g_;  // reusable buffers
+  // mutable Eigen::VectorXd theta_, g_;  // reusable buffers for operator()
 };
 
 } // namespace walnuts::detail

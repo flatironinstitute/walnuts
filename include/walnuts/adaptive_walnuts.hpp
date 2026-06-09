@@ -14,11 +14,48 @@
 #include "walnuts/concepts.hpp"
 #include "walnuts/config.hpp"
 #include "walnuts/online_moments.hpp"
+#include "walnuts/preconditioner.hpp"
 #include "walnuts/util.hpp"
 #include "walnuts/validate.hpp"
 #include "walnuts/walnuts.hpp"
 
 namespace walnuts::detail {
+
+template <typename H>
+class PhiToThetaHandler {
+ public:
+  PhiToThetaHandler(H& handler, Eigen::VectorXd a)
+      : handler_(handler), a_(std::move(a)) {}
+  void on_sample(const Eigen::VectorXd& phi, double lp) {
+    Eigen::VectorXd theta = (a_.array() * phi.array()).matrix();  // θ = a ⊙ φ
+    handler_.get().on_sample(theta, lp);
+  }
+ private:
+  std::reference_wrapper<H> handler_;
+  Eigen::VectorXd a_;
+};  
+
+template <LogpGrad WF, std::uniform_random_bit_generator RNG, ChainHandler H>
+class PreconditionedWalnutsSampler {
+ public:
+  PreconditionedWalnutsSampler(RNG& rng, H& handler, WF logp_grad,
+                               const Eigen::VectorXd& a,
+                               const Eigen::VectorXd& phi_init,
+                               double macro_time, std::size_t max_nuts_depth,
+                               std::size_t max_step_halvings,
+                               std::size_t min_micro_steps, double max_error)
+      : handler_(std::make_unique<detail::PhiToThetaHandler<H>>(handler, a)),
+        sampler_(rng, *handler_, std::move(logp_grad), phi_init, macro_time,
+                 max_nuts_depth, max_step_halvings, min_micro_steps,
+                 max_error) {}
+
+  double operator()() { return sampler_(); }
+  std::size_t dim() const noexcept { return sampler_.dim(); }
+
+ private:
+  std::unique_ptr<detail::PhiToThetaHandler<H>> handler_;
+  WalnutsSampler<WF, RNG, detail::PhiToThetaHandler<H>> sampler_;
+};  
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -212,7 +249,8 @@ class AdaptiveWalnuts {
         sampling_cfg_(std::cref(sampling_cfg)),
         rand_(rng),
         handler_(handler),
-        logp_grad_(logp_grad),
+	logp_grad_(detail::NoExceptLogpGrad<F>(logp_grad),
+		   init_chain_cfg.mass().array().inverse().sqrt().matrix()), // preconditioner
         theta_(init_chain_cfg.position()),
         iteration_(0),
         adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
@@ -234,23 +272,27 @@ class AdaptiveWalnuts {
    * tuning parameters and provides a proper Markov chain.
    */
   void operator()() {
-    Eigen::VectorXd inv_mass = mass_estimator_.inv_mass_estimate();
-    Eigen::VectorXd chol_mass = inv_mass.array().inverse().sqrt().matrix();
+    Eigen::VectorXd a = mass_estimator_.inv_mass_estimate().array().sqrt().matrix();
+    logp_grad_.set_a(a);
     Eigen::VectorXd grad_select;
     double logp_select;
     std::size_t depth;
-    theta_ =
-        transition_w(rand_, logp_grad_, adam_.step_size(),
-                     sampling_cfg_.get().max_trajectory_doublings(),
-                     sampling_cfg_.get().max_step_halvings(),
-                     min_micro_estimator_.min_micro_steps(),
-                     sampling_cfg_.get().max_hamiltonian_error(),
-                     std::move(theta_), depth, grad_select, logp_select, adam_);
-    mass_estimator_.observe(theta_, grad_select, iteration_);
+    theta_ = transition_w(rand_, logp_grad_, adam_.step_size(),
+                          sampling_cfg_.get().max_trajectory_doublings(),
+                          sampling_cfg_.get().max_step_halvings(),
+                          min_micro_estimator_.min_micro_steps(),
+                          sampling_cfg_.get().max_hamiltonian_error(),
+                          std::move(theta_), depth, grad_select, logp_select,
+                          adam_);
+    // map to theta-space for estimator/handler
+    Eigen::VectorXd theta = (a.array() * theta_.array()).matrix();
+    Eigen::VectorXd grad_theta = (grad_select.array() / a.array()).matrix();
+    mass_estimator_.observe(theta, grad_theta, iteration_);
     min_micro_estimator_.observe(1 << depth);
-    handler_.get().on_warmup(theta_, logp_select, step_size(), inv_mass);
+    handler_.get().on_warmup(theta, logp_select, step_size(), inv_mass());
     ++iteration_;
   }
+
 
   /**
    * @brief Return a Walnuts sampler with the current tuning parameter
@@ -262,14 +304,18 @@ class AdaptiveWalnuts {
    *
    * @return The Walnuts sampler with current tuning parameter estimates.
    */
-  WalnutsSampler<F, RNG, H> sampler() {
+  detail::PreconditionedWalnutsSampler<detail::DiagPreconditionedLogpGrad<detail::NoExceptLogpGrad<F>>,
+                               RNG, H>
+  sampler() {
+    Eigen::VectorXd a = mass_estimator_.inv_mass_estimate().array().sqrt().matrix();
+    logp_grad_.set_a(a);
     handler_.get().on_warmup_complete(step_size(), inv_mass());
-    return WalnutsSampler<F, RNG, H>(
-        rand_.rng(), handler_, logp_grad_.logp_grad_, theta_,
-        step_size(), sampling_cfg_.get().max_trajectory_doublings(),
+    Eigen::VectorXd phi = (theta_.array() / a.array()).matrix();
+    return {rand_.rng(), handler_.get(), logp_grad_, a, phi, step_size(),
+        sampling_cfg_.get().max_trajectory_doublings(),
         sampling_cfg_.get().max_step_halvings(),
         min_micro_estimator_.min_micro_steps(),
-        sampling_cfg_.get().max_hamiltonian_error());
+        sampling_cfg_.get().max_hamiltonian_error()};
   }
 
   /**
@@ -345,7 +391,7 @@ class AdaptiveWalnuts {
   std::reference_wrapper<H> handler_;
 
   /** The target log density/gradient function. */
-  const detail::NoExceptLogpGrad<F> logp_grad_;
+  detail::DiagPreconditionedLogpGrad<detail::NoExceptLogpGrad<F>> logp_grad_;
 
   /** The current state. */
   Eigen::VectorXd theta_;

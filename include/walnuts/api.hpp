@@ -37,8 +37,10 @@ template <std::uniform_random_bit_generator RNG, ChainHandler H,
 inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
                     GH& global_handler, const IC& interrupt_callback,
                     const F& log_p_grad, const WalnutsConfig& config) {
+
   using AdaptiveSampler = AdaptiveWalnuts<F, RNG, H>;
-  using Sampler = WalnutsSampler<F, RNG, H>;
+  using WrappedF = detail::DiagPreconditionedLogpGrad<detail::NoExceptLogpGrad<F>>;
+  using Sampler = detail::PreconditionedWalnutsSampler<WrappedF, RNG, H>;
 
   if (chain_handlers.size() != config.init().num_chains()) {
     throw std::invalid_argument(

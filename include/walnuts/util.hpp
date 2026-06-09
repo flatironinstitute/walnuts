@@ -235,7 +235,7 @@ class NoExceptLogpGrad {
    * @param[in] logp_grad The base log density and gradient function, called
    * back.
    */
-  NoExceptLogpGrad(const F& logp_grad) : logp_grad_(std::cref(logp_grad)) {}
+  NoExceptLogpGrad(F logp_grad) : logp_grad_(std::cref(logp_grad)) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -248,7 +248,7 @@ class NoExceptLogpGrad {
   void operator()(const Eigen::VectorXd& x, double& logp,
                   Eigen::VectorXd& grad) const noexcept {
     try {
-      logp_grad_.get()(x, logp, grad);
+      logp_grad_(x, logp, grad);
     } catch (...) {
       // logp_grad failure equivalent to -inf log density
       // TODO: add logging for this kind of thing
@@ -258,7 +258,7 @@ class NoExceptLogpGrad {
   }
 
   /** The log density and gradient function. */
-  const std::reference_wrapper<const F> logp_grad_;
+  F logp_grad_;
 };
 
 /**

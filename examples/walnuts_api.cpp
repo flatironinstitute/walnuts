@@ -48,7 +48,7 @@ int main() {
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
   std::size_t num_chains = 32;
-  std::size_t dims = 1000;
+  std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;

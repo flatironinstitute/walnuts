@@ -81,4 +81,43 @@ class DiagPreconditionedLogpGrad {
   // mutable Eigen::VectorXd theta_, g_;  // reusable buffers for operator()
 };
 
+/**
+ * @brief A handler filter to convert preconditioned varaibles back to
+ * the original parameterization.
+ */
+template <typename H>
+class PreconditionedHandler {
+ public:
+
+  /**
+   * @brief Filter the specified handler with the specified preconditioner.
+   *
+   * Instances of this class hold the specified handler by reference,
+   * so it must outlive the instance.
+   *
+   * @param[in] handler The handler to filter.
+   * @param[in] a The preconditioning matrix.
+   */
+  PreconditionedHandler(H& handler, Eigen::VectorXd a)
+      : handler_(handler), a_(std::move(a)) {}
+
+  /**
+   * @brief Handle a sample by passing the preconditioned version
+   * to the nested handler.
+   *
+   * This method passes `a .* phi` to the handler provided to the constructor.
+   *
+   * @param phi Value to handle.
+   * @param lp Log density value to handle.
+   */
+  void on_sample(const Eigen::VectorXd& phi, double lp) {
+    Eigen::VectorXd theta = (a_.array() * phi.array()).matrix();
+    handler_.get().on_sample(theta, lp);
+  }
+ private:
+  std::reference_wrapper<H> handler_;
+  Eigen::VectorXd a_;
+};
+
+  
 } // namespace walnuts::detail

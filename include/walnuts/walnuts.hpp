@@ -19,9 +19,10 @@
 
 namespace walnuts::detail {
 
+  
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
- * trajectory required for WALNUTS.
+ * trajectory required for Walnuts.
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
@@ -31,7 +32,7 @@ namespace walnuts::detail {
  * but storing them serves as a local cache.
  *
  */
-class SpanW {
+class Span {
  public:
   /**
    * @brief Construct a span of one state given the specified
@@ -44,7 +45,7 @@ class SpanW {
    * @param[in] logp_joint The joint log density of the position and momentum.
    * @return The span constructed from the initial point.
    */
-  static SpanW from_initial_point(Eigen::VectorXd&& theta,
+  static Span from_initial_point(Eigen::VectorXd&& theta,
                                   Eigen::VectorXd&& rho,
                                   Eigen::VectorXd&& grad_theta, double logp_pos,
                                   double logp_joint) {
@@ -75,7 +76,7 @@ class SpanW {
    * @param[in] logp_joint_total The log of the sum of the joint densities of
    * positions and momentums on the trajectory.
    */
-  static SpanW from_subspans(SpanW&& span1, SpanW&& span2,
+  static Span from_subspans(Span&& span1, Span&& span2,
                              Eigen::VectorXd&& theta_select,
                              Eigen::VectorXd&& grad_select,
                              double logp_pos_select, double logp_joint_total) {
@@ -186,7 +187,7 @@ static std::tuple<T&, T&> order_forward_backward(T&& x1, T&& x2) {
  * @return `true` if there is a U-turn between the ends of the ordered spans.
  */
 template <Direction D>
-static bool uturn(const SpanW& span1, const SpanW& span2) {
+static bool uturn(const Span& span1, const Span& span2) {
   auto [span_bk, span_fw] = order_forward_backward<D>(span1, span2);
   Eigen::VectorXd diff = span_fw.theta_fw_ - span_bk.theta_bk_;
   return span_fw.rho_fw_.dot(diff) < 0 || span_bk.rho_bk_.dot(diff) < 0;
@@ -295,7 +296,7 @@ static bool reversible(const F& logp_grad, double step, std::size_t num_steps,
 template <Direction D, LogpGrad F, StepSizeAdapter A>
 static bool macro_step(const F& logp_grad, double step, std::size_t max_step_halvings,
                        std::size_t min_micro_steps, double max_error,
-                       const SpanW& span, Eigen::VectorXd& theta_next,
+                       const Span& span, Eigen::VectorXd& theta_next,
                        Eigen::VectorXd& rho_next, Eigen::VectorXd& grad_next,
                        double& logp_pos_next, double& logp_next,
                        A& adapt_handler) {
@@ -353,7 +354,7 @@ static bool macro_step(const F& logp_grad, double step, std::size_t max_step_hal
  * @return The combined span.
  */
 template <Update U, Direction D, std::uniform_random_bit_generator RNG>
-inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
+inline Span combine(Random<RNG>& rng, Span&& span_old, Span&& span_new) {
   double logp_total = log_sum_exp(span_old.logp_, span_new.logp_);
   double log_denominator;
   if constexpr (U == Update::Metropolis) {
@@ -368,7 +369,7 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
   double logp_pos_select =
       update ? span_new.logp_pos_select_ : span_old.logp_pos_select_;
   auto&& [span_bk, span_fw] = order_forward_backward<D>(span_old, span_new);
-  return SpanW::from_subspans(std::move(span_bk), std::move(span_fw),
+  return Span::from_subspans(std::move(span_bk), std::move(span_fw),
                               std::move(selected), std::move(grad_selected),
                               logp_pos_select, logp_total);
 }
@@ -404,7 +405,7 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * `std::nullopt` if that could not be done reversibly within threshold.
  */
 template <Direction D, LogpGrad F, StepSizeAdapter A>
-static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
+static std::optional<Span> build_leaf(const F& logp_grad, const Span& span,
                                        double step,
                                        std::size_t max_step_halvings,
                                        std::size_t min_micro_steps,
@@ -421,7 +422,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
                      adapt_handler)) {
     return std::nullopt;
   }
-  return SpanW::from_initial_point(std::move(theta_next), std::move(rho_next),
+  return Span::from_initial_point(std::move(theta_next), std::move(rho_next),
                                    std::move(grad_theta_next), logp_pos_next,
                                    logp_next);
 }
@@ -437,7 +438,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in,out] rng The random number generator.
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] step The macro step size.
- * @param[in] depth The maximum NUTS depth.
+ * @param[in] depth The maximum Nuts depth.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum error allowed at macro steps.
@@ -447,11 +448,11 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  */
 template <Direction D, LogpGrad F, std::uniform_random_bit_generator RNG,
           StepSizeAdapter A>
-static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
+static std::optional<Span> build_span(Random<RNG>& rng, const F& logp_grad,
                                        double step, std::size_t depth,
                                        std::size_t max_step_halvings,
                                        std::size_t min_micro_steps,
-                                       double max_error, const SpanW& last_span,
+                                       double max_error, const Span& last_span,
                                        A& adapt_handler) {
   if (depth == 0) {
     return build_leaf<D>(logp_grad, last_span, step,
@@ -486,7 +487,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in,out] rand The random number generator.
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] step The macro step size.
- * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
+ * @param[in] max_depth The maximum number of trajectory doublings in Nuts.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum difference in Hamiltonians.
@@ -509,7 +510,7 @@ inline Eigen::VectorXd transition_w(
   double logp_pos;
   logp_grad(theta, logp_pos, grad);
   double logp_joint = logp_pos + logp_momentum(rho);
-  auto span_accum = SpanW::from_initial_point(
+  auto span_accum = Span::from_initial_point(
       std::move(theta), std::move(rho), std::move(grad), logp_pos, logp_joint);
   for (depth = 1; depth <= max_depth; ++depth) {
     // helper to turn runtime direction into compile-time template enum
@@ -569,7 +570,7 @@ class NoOpStepSizeAdapter {
 namespace walnuts {
 
 /**
- * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
+ * @brief The Walnuts Markov chain Monte Carlo (MCMC) sampler.
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initialization, and several tuning parameters.
@@ -584,7 +585,7 @@ template <LogpGrad F, std::uniform_random_bit_generator RNG, SampleHandler H>
 class WalnutsSampler {
  public:
   /**
-   * @brief Construct a WALNUTS sampler from the specified RNG, target log
+   * @brief Construct a Walnuts sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
    * @param[in,out] rng The base random number generator.
@@ -594,7 +595,7 @@ class WalnutsSampler {
    * @param[in] theta The initial position.
    * @param[in] macro_time The macro time discretization interval.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
-   * NUTS.
+   * Nuts.
    * @param[in] max_step_halvings The maximum number of times the step size is
    * halved.
    * @param[in] min_micro_steps The minimum number of micro steps per macro
@@ -702,7 +703,7 @@ class WalnutsSampler {
   /** The macro time discretization interval for Nuts. */
   const double macro_time_;
 
-  /** The maximum number of doublings in NUTS trajectories. */
+  /** The maximum number of doublings in Nuts trajectories. */
   const std::size_t max_nuts_depth_;
 
   /** The maximum number of halvings of the step size. */

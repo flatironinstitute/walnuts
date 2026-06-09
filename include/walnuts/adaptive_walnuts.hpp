@@ -21,48 +21,10 @@
 
 namespace walnuts::detail {
 
-/**
- * @brief A handler filter to convert preconditioned varaibles back to
- * the original parameterization.
- */
-template <typename H>
-class PhiToThetaHandler {
- public:
 
-  /**
-   * @brief Filter the specified handler with the specified preconditioner.
-   *
-   * Instances of this class hold the specified handler by reference,
-   * so it must outlive the instance.
-   *
-   * @param[in] handler The handler to filter.
-   * @param[in] a The preconditioning matrix.
-   */
-  PhiToThetaHandler(H& handler, Eigen::VectorXd a)
-      : handler_(handler), a_(std::move(a)) {}
-
-  /**
-   * @brief Handle a sample by passing the preconditioned version
-   * to the nested handler.
-   *
-   * This method passes `a .* phi` to the handler provided to the constructor.
-   *
-   * @param phi Value to handle.
-   * @param lp Log density value to handle.
-   */
-  void on_sample(const Eigen::VectorXd& phi, double lp) {
-    Eigen::VectorXd theta = (a_.array() * phi.array()).matrix();
-    handler_.get().on_sample(theta, lp);
-  }
- private:
-  std::reference_wrapper<H> handler_;
-  Eigen::VectorXd a_;
-};
-
-  
 /**
  * @brief Construct a preconditioned sampler that filters output
- * with a `PhiToThetaHandler` with the specified preconditioner.
+ * with a `PreconditionedHandler` with the specified preconditioner.
  *
  * @tparam F The type of the log density and gradient function.
  * @tparam RNG The type of the base random number generator.
@@ -98,7 +60,7 @@ class PreconditionedWalnutsSampler {
                                double macro_time, std::size_t max_nuts_depth,
                                std::size_t max_step_halvings,
                                std::size_t min_micro_steps, double max_error)
-      : handler_(std::make_unique<detail::PhiToThetaHandler<H>>(handler, a)),
+      : handler_(std::make_unique<detail::PreconditionedHandler<H>>(handler, a)),
         sampler_(rng, *handler_, std::move(logp_grad), phi_init, macro_time,
                  max_nuts_depth, max_step_halvings, min_micro_steps,
                  max_error) {}
@@ -118,9 +80,10 @@ class PreconditionedWalnutsSampler {
   std::size_t dim() const noexcept { return sampler_.dim(); }
 
  private:
-  std::unique_ptr<detail::PhiToThetaHandler<H>> handler_;
-  WalnutsSampler<F, RNG, detail::PhiToThetaHandler<H>> sampler_;
-};  
+  std::unique_ptr<detail::PreconditionedHandler<H>> handler_;
+  WalnutsSampler<F, RNG, detail::PreconditionedHandler<H>> sampler_;
+};
+  
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws

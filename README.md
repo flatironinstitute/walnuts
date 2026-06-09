@@ -167,11 +167,18 @@ Some common options are:
 
 Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
 
-For example, a basic configuration which creates a `./build` directory in the repo
-root can be done with
+For example, a basic configuration which creates a `./build` directory in the
+repo root, can be created with
 
 ```sh
 cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
+```
+
+During developmemnt, a `Debug` build with all the testing and documentation
+turned on is helpful.
+
+```sh
+cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug -DWALNUTS_BUILD_DOCS=ON -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_USE_TSAN=ON
 ```
 
 `cmake` will cache its output configuration. To clear the entire build

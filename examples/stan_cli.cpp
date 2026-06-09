@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
 
   // parse from command line with CLI11
   {
-    CLI::App app{"Run WALNUTs on a Stan model"};
+    CLI::App app{"Run Walnuts on a Stan model"};
 
     app.add_option("--seed", seed, "Random seed (default randomize with clock)")
         ->default_val(seed);
@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
         ->default_val(save_warmup);
 
     app.add_option("--max-trajectory-doublings", max_trajectory_doublings,
-                   "Maximum depth for NUTS trajectory doublings")
+                   "Maximum depth for Nuts trajectory doublings")
         ->default_val(max_trajectory_doublings)
         ->check(CLI::PositiveNumber);
 

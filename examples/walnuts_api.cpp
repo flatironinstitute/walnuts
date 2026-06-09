@@ -34,6 +34,17 @@ Eigen::VectorXd geom_mean_inv_mass(
 }
 
 // 0) TARGET DENSITY ===========================================================
+static void ill_normal(const Eigen::VectorXd& x, double& lp,
+                       Eigen::VectorXd& grad) {
+  lp = 0;
+  grad.resize(x.size());
+  for (Eigen::Index n = 0; n < x.size(); ++n) {
+    double n_sq = static_cast<double>(n * n);
+    lp += -0.5 * x[n] * x[n] / n_sq;
+    grad[n] = -x[n] / n_sq;
+  }
+}
+
 static void std_normal(const Eigen::VectorXd& x, double& lp,
                        Eigen::VectorXd& grad) {
   lp = -0.5 * x.dot(x);
@@ -42,7 +53,7 @@ static void std_normal(const Eigen::VectorXd& x, double& lp,
 
 int main() {
   // 1) CONFIGUFRE =============================================================
-  auto logp_grad = std_normal;
+  auto logp_grad = ill_normal;
 
   std::size_t seed = 48;
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
@@ -58,7 +69,7 @@ int main() {
   double mass_smoothing = 0.1;
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
                       .positions(rng, init_scale)
-                      .masses(std_normal, mass_smoothing)
+                      .masses(logp_grad, mass_smoothing)
                       .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()

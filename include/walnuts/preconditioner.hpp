@@ -18,15 +18,15 @@ namespace walnuts::detail {
  * @brief A functor to linearly transform a log density and gradient function
  * for preconditioning.
  *
- * Given a $D$-dimensional target density $p_\Theta$ and $D$-vector
- * $a$, let $\Phi = a^{-1} \odot \Theta$ so that $\Theta = a \odot
- * \Phi$. Because $a$ is constant, the change of variable rule yields
+ * Given a \f$D\f$-dimensional target density \f$p_\Theta\f$ and \f$D\f$-vector
+ * \f$a\f$, let \f$\Phi = a^{-1} \odot \Theta\f$ so that \f$\Theta = a \odot
+ * \Phi\f$. Because \f$a\f$ is constant, the change of variable rule yields
  *
- * $p_\Phi(\phi) \propto p_\Theta(a \cdot \phi)$
+ * \f[p_\Phi(\phi) \propto p_\Theta(a \cdot \phi)\f]
  *
  * and
  *
- * $\nabla p_\Phi(\phi) = a \odot \nabla p_\Theta(a \odot \phi)$.
+ * \f[\nabla p_\Phi(\phi) = a \odot \nabla p_\Theta(a \odot \phi)\f].
  *
  * @tparam F The type of the log density and gradient function to wrap.
  */

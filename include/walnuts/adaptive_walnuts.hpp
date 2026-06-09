@@ -21,24 +21,78 @@
 
 namespace walnuts::detail {
 
+/**
+ * @brief A handler filter to convert preconditioned varaibles back to
+ * the original parameterization.
+ */
 template <typename H>
 class PhiToThetaHandler {
  public:
+
+  /**
+   * @brief Filter the specified handler with the specified preconditioner.
+   *
+   * Instances of this class hold the specified handler by reference,
+   * so it must outlive the instance.
+   *
+   * @param[in] handler The handler to filter.
+   * @param[in] a The preconditioning matrix.
+   */
   PhiToThetaHandler(H& handler, Eigen::VectorXd a)
       : handler_(handler), a_(std::move(a)) {}
+
+  /**
+   * @brief Handle a sample by passing the preconditioned version
+   * to the nested handler.
+   *
+   * This method passes `a .* phi` to the handler provided to the constructor.
+   *
+   * @param phi Value to handle.
+   * @param lp Log density value to handle.
+   */
   void on_sample(const Eigen::VectorXd& phi, double lp) {
-    Eigen::VectorXd theta = (a_.array() * phi.array()).matrix();  // θ = a ⊙ φ
+    Eigen::VectorXd theta = (a_.array() * phi.array()).matrix();
     handler_.get().on_sample(theta, lp);
   }
  private:
   std::reference_wrapper<H> handler_;
   Eigen::VectorXd a_;
-};  
+};
 
-template <LogpGrad WF, std::uniform_random_bit_generator RNG, ChainHandler H>
+  
+/**
+ * @brief Construct a preconditioned sampler that filters output
+ * with a `PhiToThetaHandler` with the specified preconditioner.
+ *
+ * @tparam F The type of the log density and gradient function.
+ * @tparam RNG The type of the base random number generator.
+ * @tparam H The type of the chain handler.
+ */
+template <LogpGrad F, std::uniform_random_bit_generator RNG, ChainHandler H>
 class PreconditionedWalnutsSampler {
  public:
-  PreconditionedWalnutsSampler(RNG& rng, H& handler, WF logp_grad,
+
+  /**
+   * @brief Construct a preocnditioned sampelr from the specified components.
+   *
+   * The handler is held by reference through a `unique_ptr` and must outlive
+   * the constructed instance.
+   *
+   * @param[in] rng The random number generator.
+   * @param[in] handler The base handler, which will be filtered.
+   * @param[in] logp_grad The target log density and gradient function.
+   * @param[in] a The preconditioning vector.
+   * @param[in] phi_init The initialization point.
+   * @param[in] macro_time The macro time step.
+   * @param[in] max_nuts_depth The maximum number of tree doublings by
+   * Nuts.
+   * @param[in] max_step_halvings The maximum nubmer of step size halvings
+   * by Walnuts.
+   * @param[in] min_micro_steps The minimum number of micro steps.
+   * @param[in] max_error The maximum error in the Hamiltonian allowed
+   * by Walnuts.
+   */
+  PreconditionedWalnutsSampler(RNG& rng, H& handler, F logp_grad,
                                const Eigen::VectorXd& a,
                                const Eigen::VectorXd& phi_init,
                                double macro_time, std::size_t max_nuts_depth,
@@ -49,12 +103,23 @@ class PreconditionedWalnutsSampler {
                  max_nuts_depth, max_step_halvings, min_micro_steps,
                  max_error) {}
 
+  /**
+   * @brief Returns the log density of the draw sent to the nested handler.
+   *
+   * @return Log density of the draw. 
+   */
   double operator()() { return sampler_(); }
+
+  /**
+   * @brief Return the dimensionality of the draws.
+   *
+   * @return The dimensionality.
+   */
   std::size_t dim() const noexcept { return sampler_.dim(); }
 
  private:
   std::unique_ptr<detail::PhiToThetaHandler<H>> handler_;
-  WalnutsSampler<WF, RNG, detail::PhiToThetaHandler<H>> sampler_;
+  WalnutsSampler<F, RNG, detail::PhiToThetaHandler<H>> sampler_;
 };  
 
 /**

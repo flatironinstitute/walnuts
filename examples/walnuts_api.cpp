@@ -44,19 +44,22 @@ int main() {
   // 1) CONFIGUFRE =============================================================
   auto logp_grad = std_normal;
 
-  std::size_t seed = 48;
+  std::size_t seed = 48971425;
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
   std::size_t num_chains = 32;
-  std::size_t dims = 1000;
+  std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
-  double init_scale = 0.5;
+  
+
+  double init_scale = 1.0;
   double mass_smoothing = 0.1;
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
+                      .step_sizes(0.5)
                       .positions(rng, init_scale)
                       .masses(std_normal, mass_smoothing)
                       .build();
@@ -65,12 +68,20 @@ int main() {
                         .min_max_iter(50, 2000)
                         .mass_converge_tol(2.0)
                         .step_size_converge_tol(0.2)
-                        .mass_init_count(4.0)
+                        .mass_init_count(1.1)
+                        .mass_additive_smoothing(0.1)
+                        .step_accept_rate_target(0.8)
+                        .step_learning_rate(0.2)
+                        .step_gradient_decay(0.3)
+                        .step_sq_gradient_decay(0.99)
+                        .step_stabilization(1e-4)
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
+                          .min_micro_steps(1)
                           .min_max_iter(50, 10000)
                           .max_trajectory_doublings(8)
+                          .max_step_halvings(5)
                           .rhat_converge_tol(1.001)
                           .build();
 

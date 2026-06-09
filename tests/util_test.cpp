@@ -228,34 +228,24 @@ TEST(LogSumExpVector, NaNPropagates) {
 // walnuts::detail::logp_momentum() function *****************************************
 
 TEST(LogpMomentum, SingleElement) {
-  Eigen::VectorXd rho(1), inv_mass(1);
+  Eigen::VectorXd rho(1);
   rho << 2.0;
-  inv_mass << 1.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass), -2.0);
+  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho), -2.0);
 }
 
-TEST(LogpMomentum, ZeroMomentum) {
-  Eigen::VectorXd rho = Eigen::VectorXd::Zero(4);
-  Eigen::VectorXd inv_mass = Eigen::VectorXd::Constant(4, 2.5);
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass), 0.0);
-}
-
-TEST(LogpMomentum, UnitMass3Vector) {
+TEST(LogpMomentum, ThreeVector) {
   Eigen::VectorXd rho(3), inv_mass(3);
   rho << 1.0, 2.0, 3.0;
-  inv_mass << 1.0, 1.0, 1.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass), -0.5 * (1.0 + 4.0 + 9.0));
+  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho), -0.5 * (1.0 + 4.0 + 9.0));
 }
 
 TEST(LogpMomentum, KnownValueLinearTransform) {
-  Eigen::VectorXd rho(2), inv_mass(2);
+  Eigen::VectorXd rho(2);
   rho << 2.0, 3.0;
-  inv_mass << 0.5, 2.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass), -10.0);
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass),
-                   walnuts::detail::logp_momentum(-rho, inv_mass));
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, 2.5 * inv_mass),
-		   2.5 * walnuts::detail::logp_momentum(rho, inv_mass));
+  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho),
+                   walnuts::detail::logp_momentum(-rho));
+  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(2 * rho),
+                   4 * walnuts::detail::logp_momentum(rho));
 }
 
 // NoExceptLogpGrad class *******************************************

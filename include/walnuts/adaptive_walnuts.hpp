@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <functional>
 #include <random>
-#include <string>
 #include <utility>
 
 #include <Eigen/Dense>
@@ -15,7 +14,6 @@
 #include "walnuts/config.hpp"
 #include "walnuts/online_moments.hpp"
 #include "walnuts/util.hpp"
-#include "walnuts/validate.hpp"
 #include "walnuts/walnuts.hpp"
 
 namespace walnuts::detail {

@@ -1,11 +1,11 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <concepts>
-#include <cstddef>
 #include <cstdint>
 
-#include <walnuts/util.hpp>
+#include "walnuts/util.hpp"
 
 namespace walnuts::detail {
 

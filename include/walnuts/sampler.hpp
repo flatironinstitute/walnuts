@@ -1,24 +1,21 @@
 #pragma once
 
-#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
+#include <exception>
 #include <functional>
 #include <latch>
-#include <limits>
-#include <numeric>
 #include <stop_token>
 #include <thread>
 #include <vector>
 
 #include <Eigen/Dense>
 
-#include <walnuts/concepts.hpp>
-#include <walnuts/online_moments.hpp>
-#include <walnuts/spsc_buffer.hpp>
-#include <walnuts/util.hpp>
+#include "walnuts/concepts.hpp"
+#include "walnuts/online_moments.hpp"
+#include "walnuts/spsc_buffer.hpp"
+#include "walnuts/util.hpp"
 
 namespace walnuts::detail {
 

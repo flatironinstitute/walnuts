@@ -10,9 +10,9 @@
 
 #include <Eigen/Dense>
 
-#include <walnuts/concepts.hpp>
-#include <walnuts/util.hpp>
-#include <walnuts/validate.hpp>
+#include "walnuts/concepts.hpp"
+#include "walnuts/util.hpp"
+#include "walnuts/validate.hpp"
 
 namespace walnuts {
 

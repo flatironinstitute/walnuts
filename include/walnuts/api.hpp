@@ -1,19 +1,17 @@
 #pragma once
 
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <random>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
-#include <walnuts/adapt.hpp>
-#include <walnuts/adaptive_walnuts.hpp>
-#include <walnuts/concepts.hpp>
-#include <walnuts/config.hpp>
-#include <walnuts/sampler.hpp>
-#include <walnuts/walnuts.hpp>
+#include "walnuts/adapt.hpp"
+#include "walnuts/adaptive_walnuts.hpp"
+#include "walnuts/concepts.hpp"
+#include "walnuts/config.hpp"
+#include "walnuts/sampler.hpp"
+#include "walnuts/walnuts.hpp"
 
 namespace walnuts {
 

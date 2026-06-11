@@ -7,10 +7,11 @@
 #include <numeric>
 #include <random>
 #include <type_traits>
+#include <vector>
 
 #include <Eigen/Dense>
 
-#include <walnuts/concepts.hpp>
+#include "walnuts/concepts.hpp"
 
 namespace walnuts::detail {
 

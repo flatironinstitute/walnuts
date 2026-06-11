@@ -1,12 +1,10 @@
 #pragma once
 
+#include <atomic>
 #include <concepts>
 #include <cstddef>
-#include <mutex>
-#include <type_traits>
-#include <utility>
+#include <cstdint>
 
-#include <walnuts/concepts.hpp>
 #include <walnuts/util.hpp>
 
 namespace walnuts::detail {
@@ -36,7 +34,8 @@ namespace walnuts::detail {
  * @endcode
  *
  * `read_latest()` is not generically thread safe and must only be
- * called by the single consumer.
+ * called by the single consumer.  It also only returns a value
+ * that is valid until the next call to `read_latest()`.
  *
  * Writing: The write code will only be used by a single producer.
  * The following code writes a value into the buffer.
@@ -75,7 +74,9 @@ class SpscBuffer {
    *
    * @param[in] t Value to write.
    */
-  explicit SpscBuffer(const T& t) : buffers_{{t}, {t}, {t}} {}
+  explicit SpscBuffer(const T& t) requires std::copy_constructible<T>
+    : buffers_{{{t}, {t}, {t}}} {
+  }
 
   /**
    * @brief Construct a buffer filled with default-constructed values.
@@ -92,9 +93,9 @@ class SpscBuffer {
   /**
    * @brief Return a reference to the latest value.
    *
-   * @return A refernece to the lateest value.
+   * @return A reference to the latest value.
    */
-  const T& read_latest() noexcept {
+  [[nodiscard]] const T& read_latest() noexcept {
     std::uint32_t mid = middle_.load(std::memory_order_relaxed);
     if (is_dirty(mid)) {
       std::uint32_t prev = middle_.exchange(front_, std::memory_order_acq_rel);
@@ -111,7 +112,7 @@ class SpscBuffer {
    *
    * @return Reference into which to write a value.
    */
-  T& write_buffer() noexcept { return buffers_[back_].data; }
+  [[nodiscard]] T& write_buffer() noexcept { return buffers_[back_].data; }
 
   /**
    * @brief Commit the latest state of the write buffer.
@@ -124,7 +125,7 @@ class SpscBuffer {
 
  private:
   /** @brief Bit to mark an index as dirty */
-  static constexpr std::uint32_t DIRTY_BIT = 0x80000000u;
+  static constexpr std::uint32_t DIRTY_BIT = std::uint32_t{1} << 31;
 
   /** @brief Mask to return the index. */
   static constexpr std::uint32_t INDEX_MASK = ~DIRTY_BIT;
@@ -137,7 +138,7 @@ class SpscBuffer {
    * @param[in] idx Index to make dirty.
    * @return The dirty form of the index.
    */
-  static std::uint32_t make_dirty(std::uint32_t idx) noexcept {
+  static constexpr std::uint32_t make_dirty(std::uint32_t idx) noexcept {
     return idx | DIRTY_BIT;
   }
 
@@ -147,7 +148,7 @@ class SpscBuffer {
    * @param[in] idx A potentially dirty index.
    * @return The index underlying the argument in {0, 1, 2}.
    */
-  static std::uint32_t index_of(std::uint32_t idx) noexcept {
+  static constexpr std::uint32_t index_of(std::uint32_t idx) noexcept {
     return idx & INDEX_MASK;
   }
 
@@ -157,7 +158,7 @@ class SpscBuffer {
    * @param[in] idx The index.
    * @return `true` if the index is dirty.
    */
-  static bool is_dirty(std::uint32_t idx) noexcept {
+  static constexpr bool is_dirty(std::uint32_t idx) noexcept {
     return (idx & DIRTY_BIT) != 0;
   }
 
@@ -165,10 +166,10 @@ class SpscBuffer {
    * @brief A structure to hold an aligned form of the type `T`.
    */
   struct alignas(FALSE_SHARING_GUARD_SIZE) AlignedT {
-    T data{};
+    T data;
   };
 
-  AlignedT buffers_[3];
+  std::array<AlignedT, 3> buffers_;
   std::atomic<std::uint32_t> middle_{1};
   alignas(FALSE_SHARING_GUARD_SIZE) std::uint32_t back_{0};
   alignas(FALSE_SHARING_GUARD_SIZE) std::uint32_t front_{2};

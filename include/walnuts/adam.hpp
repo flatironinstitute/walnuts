@@ -56,7 +56,8 @@ class Adam {
         gradient_decay_(gradient_decay),
         sq_gradient_decay_(sq_gradient_decay),
         stabilization_(stabilization),
-        learn_rate_decay_(learn_rate_decay) {}
+        learn_rate_decay_(learn_rate_decay) {
+  }
 
   /**
    * Observe an acceptance probability in (0, 1).

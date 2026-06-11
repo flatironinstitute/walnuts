@@ -35,7 +35,7 @@ class PreconditionedWalnutsSampler {
  public:
 
   /**
-   * @brief Construct a preocnditioned sampelr from the specified components.
+   * @brief Construct a preconditioned sampelr from the specified components.
    *
    * The handler is held by reference through a `unique_ptr` and must outlive
    * the constructed instance.
@@ -63,7 +63,8 @@ class PreconditionedWalnutsSampler {
       : handler_(std::make_unique<detail::PreconditionedHandler<H>>(handler, a)),
         sampler_(rng, *handler_, std::move(logp_grad), phi_init, macro_time,
                  max_nuts_depth, max_step_halvings, min_micro_steps,
-                 max_error) {}
+                 max_error) {
+  }
 
   /**
    * @brief Returns the log density of the draw sent to the nested handler.
@@ -360,7 +361,9 @@ class AdaptiveWalnuts {
    *
    * @return The step size.
    */
-  double step_size() const { return adam_.step_size(); }
+  double step_size() const {
+    return adam_.step_size();
+  }
 
   /**
    * @brief Return the minimum number of micro steps per macro step.

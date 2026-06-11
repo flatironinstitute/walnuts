@@ -86,29 +86,14 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::size_t D = 100;
 
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, D)
-                      // .step_sizes(0.5)
-                      // .positions(rng, 1.0)
-                      // .masses(target_logp_grad, 0.01)
     .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
     .min_max_iter(50, 200)
-                        // .mass_converge_tol(2.0)
-                        // .step_size_converge_tol(0.2)
-                        // .mass_init_count(1.1)
-                        // .step_accept_rate_target(0.8)
-                        // .step_learning_rate(0.2)
-                        // .step_gradient_decay(0.3)
-                        // .step_sq_gradient_decay(0.99)
-                        // .step_stabilization(1e-4)
     .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
                           .min_max_iter(50, 1000)
-                          // .min_micro_steps(1)
-                          // .max_trajectory_doublings(8)
-                          // .max_step_halvings(5)
-                          // .rhat_converge_tol(1.001)
     .build();
 
   std::cout << "Initialization configuration:\n" << init_cfg << std::endl;

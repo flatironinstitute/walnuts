@@ -56,21 +56,14 @@ int main() {
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
-                      // .positions(rng, 1.0)
-                      // .masses(std_normal, 0.01)
                       .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
                         .min_max_iter(50, 2000)
-                        // .mass_converge_tol(2.0)
-                        // .step_size_converge_tol(0.2)
-                        // .mass_init_count(4.0)
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
                           .min_max_iter(50, 1000)
-                          // .max_trajectory_doublings(8)
-                          // .rhat_converge_tol(1.001)
                           .build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain

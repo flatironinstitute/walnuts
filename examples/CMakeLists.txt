@@ -1,3 +1,7 @@
+add_executable(examples examples.cpp) 
+target_link_libraries(examples PRIVATE walnuts)
+target_compile_options(examples PRIVATE -O3 -Wall)
+
 option(WALNUTS_USE_TSAN "Build examples with ThreadSanitizer" OFF)
 
 # Apply the standard example flags plus TSan if enabled

@@ -26,7 +26,8 @@ Eigen::VectorXd geom_mean_inv_mass(
   if (handlers.size() == 0) {
     return {};
   }
-  Eigen::VectorXd sum(handlers[0].diag_inv_mass().rows());
+  Eigen::VectorXd sum
+    = Eigen::VectorXd::Zero(handlers[0].diag_inv_mass().rows());
   for (const auto& handler : handlers) {
     sum += handler.diag_inv_mass().array().log().matrix();
   }
@@ -48,30 +49,21 @@ int main() {
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
   std::size_t num_chains = 32;
-  std::size_t dims = 1000;
+  std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
-  double init_scale = 0.5;
-  double mass_smoothing = 0.1;
   auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
-                      .positions(rng, init_scale)
-                      .masses(std_normal, mass_smoothing)
                       .build();
 
   auto warmup_cfg = walnuts::WarmupConfigBuilder()
                         .min_max_iter(50, 2000)
-                        .mass_converge_tol(2.0)
-                        .step_size_converge_tol(0.2)
-                        .mass_init_count(4.0)
                         .build();
 
   auto sampling_cfg = walnuts::SamplingConfigBuilder()
-                          .min_max_iter(50, 10000)
-                          .max_trajectory_doublings(8)
-                          .rhat_converge_tol(1.001)
+                          .min_max_iter(50, 1000)
                           .build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain

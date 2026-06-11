@@ -26,7 +26,8 @@ Eigen::VectorXd geom_mean_inv_mass(
   if (handlers.size() == 0) {
     return {};
   }
-  Eigen::VectorXd sum(handlers[0].diag_inv_mass().rows());
+  Eigen::VectorXd sum
+    = Eigen::VectorXd::Zero(handlers[0].diag_inv_mass().rows());
   for (const auto& handler : handlers) {
     sum += handler.diag_inv_mass().array().log().matrix();
   }
@@ -47,8 +48,8 @@ int main() {
   std::size_t seed = 48;
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
-  std::size_t num_chains = 1;
-  std::size_t dims = 1000;
+  std::size_t num_chains = 32;
+  std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;

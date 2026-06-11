@@ -21,6 +21,4 @@
   { "include": ["<stddef.h>", "public", "<cstddef>", "public"] },
   { "include": ["<stdint.h>", "public", "<cstdint>", "public"] },
   { "include": ["<assert.h>", "public", "<cassert>", "public"] },
-
-
 ]

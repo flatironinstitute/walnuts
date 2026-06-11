@@ -7,10 +7,11 @@
 #include <numeric>
 #include <random>
 #include <type_traits>
+#include <vector>
 
 #include <Eigen/Dense>
 
-#include <walnuts/concepts.hpp>
+#include "walnuts/concepts.hpp"
 
 namespace walnuts::detail {
 
@@ -193,7 +194,7 @@ inline double log_sum_exp(const double& x1, const double& x2) {
  */
 inline double log_sum_exp(const Eigen::VectorXd& x) {
   using std::log;
-  if (x.size() == 0) { // Eigen triggers assert on empty .maxCoeff()
+  if (x.size() == 0) {  // Eigen triggers assert on empty .maxCoeff()
     return -std::numeric_limits<double>::infinity();
   }
   double m = x.maxCoeff();

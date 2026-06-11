@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <limits>
 #include <string>
 
 #include <Eigen/Dense>
 
-#include <walnuts/validate.hpp>
+#include "walnuts/validate.hpp"
 
 namespace walnuts::detail {
 

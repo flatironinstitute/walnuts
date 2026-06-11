@@ -1,8 +1,8 @@
-#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <random>
+
 #include <walnuts.hpp>
 
 static double total_time = 0.0;
@@ -10,14 +10,14 @@ static std::size_t count = 0;
 
 // p(y) = normal(y | 0, I)
 static void std_normal(const Eigen::VectorXd& x, double& logp,
-                                 Eigen::VectorXd& grad) {
+                       Eigen::VectorXd& grad) {
   logp = -0.5 * x.dot(x);
   grad = -x;
 }
 
 // p(y) = normal(0, diag(sigma)), sigma[d] = d
 static void ill_normal(const Eigen::VectorXd& x, double& logp,
-		       Eigen::VectorXd& grad) {
+                       Eigen::VectorXd& grad) {
   const auto D = x.size();
   grad = Eigen::VectorXd::Zero(D);
   logp = 0;
@@ -30,8 +30,7 @@ static void ill_normal(const Eigen::VectorXd& x, double& logp,
 }
 
 // p(y) = normal(y | 0, Sigma), with Sigma[i, j] = rho^abs(i - j)
-static void rw1(const Eigen::VectorXd& y, double& logp,
-		Eigen::VectorXd& grad) {
+static void rw1(const Eigen::VectorXd& y, double& logp, Eigen::VectorXd& grad) {
   double rho = 0.99;
   Eigen::Index D = y.size();
   double sigma_sq = 1.0 - rho * rho;
@@ -74,7 +73,6 @@ static void summarize(const std::vector<Eigen::VectorXd>& draws) {
   return summarize(draws_mat);
 }
 
-
 template <typename F>
 static void run_adaptive_walnuts(F& target_logp_grad) {
   std::cout << "\nRUN ADAPTIVE WALNUTS" << std::endl;
@@ -85,24 +83,22 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::size_t num_chains = 1;
   std::size_t D = 100;
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, D)
-    .build();
+  auto init_cfg = walnuts::InitConfigBuilder(num_chains, D).build();
 
-  auto warmup_cfg = walnuts::WarmupConfigBuilder()
-    .min_max_iter(50, 200)
-    .build();
+  auto warmup_cfg =
+      walnuts::WarmupConfigBuilder().min_max_iter(50, 200).build();
 
-  auto sampling_cfg = walnuts::SamplingConfigBuilder()
-                          .min_max_iter(50, 1000)
-    .build();
+  auto sampling_cfg =
+      walnuts::SamplingConfigBuilder().min_max_iter(50, 1000).build();
 
   std::cout << "Initialization configuration:\n" << init_cfg << std::endl;
   std::cout << "Warmup configuration:\n" << warmup_cfg << std::endl;
   std::cout << "Sampling configuration:\n" << sampling_cfg << std::endl;
 
   walnuts::ChainStore handler;
-  walnuts::AdaptiveWalnuts adapt(rng, handler, target_logp_grad, 
-				 init_cfg.init_chain_config(0), warmup_cfg, sampling_cfg);
+  walnuts::AdaptiveWalnuts adapt(rng, handler, target_logp_grad,
+                                 init_cfg.init_chain_config(0), warmup_cfg,
+                                 sampling_cfg);
 
   for (std::size_t n = 0; n < warmup_cfg.max_iter(); ++n) {
     adapt();

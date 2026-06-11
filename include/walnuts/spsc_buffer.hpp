@@ -1,11 +1,11 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <concepts>
-#include <cstddef>
 #include <cstdint>
 
-#include <walnuts/util.hpp>
+#include "walnuts/util.hpp"
 
 namespace walnuts::detail {
 
@@ -74,9 +74,9 @@ class SpscBuffer {
    *
    * @param[in] t Value to write.
    */
-  explicit SpscBuffer(const T& t) requires std::copy_constructible<T>
-    : buffers_{{{t}, {t}, {t}}} {
-  }
+  explicit SpscBuffer(const T& t)
+    requires std::copy_constructible<T>
+      : buffers_{{{t}, {t}, {t}}} {}
 
   /**
    * @brief Construct a buffer filled with default-constructed values.

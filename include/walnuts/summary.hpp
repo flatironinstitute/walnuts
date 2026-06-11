@@ -1,14 +1,18 @@
 #pragma once
 
 #include <algorithm>
-#include <numeric>
+#include <cmath>
+#include <complex>
+#include <cstddef>
+#include <functional>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/FFT>
 
-#include <walnuts/concepts.hpp>
+#include "walnuts/concepts.hpp"
 
 namespace walnuts::detail {
 

@@ -1,13 +1,14 @@
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <iostream>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Dense>
 
+// overincludes, but it's what a client would call
 #include <walnuts.hpp>
 
 double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
@@ -26,8 +27,8 @@ Eigen::VectorXd geom_mean_inv_mass(
   if (handlers.size() == 0) {
     return {};
   }
-  Eigen::VectorXd sum
-    = Eigen::VectorXd::Zero(handlers[0].diag_inv_mass().rows());
+  Eigen::VectorXd sum =
+      Eigen::VectorXd::Zero(handlers[0].diag_inv_mass().rows());
   for (const auto& handler : handlers) {
     sum += handler.diag_inv_mass().array().log().matrix();
   }
@@ -55,16 +56,13 @@ int main() {
   walnuts::GlobalStore global_handler;
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
-                      .build();
+  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims).build();
 
-  auto warmup_cfg = walnuts::WarmupConfigBuilder()
-                        .min_max_iter(50, 2000)
-                        .build();
+  auto warmup_cfg =
+      walnuts::WarmupConfigBuilder().min_max_iter(50, 2000).build();
 
-  auto sampling_cfg = walnuts::SamplingConfigBuilder()
-                          .min_max_iter(50, 1000)
-                          .build();
+  auto sampling_cfg =
+      walnuts::SamplingConfigBuilder().min_max_iter(50, 1000).build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain
   std::cout << warmup_cfg << "\n\n";

@@ -174,6 +174,12 @@ root can be done with
 cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
 ```
 
+During development, it's more helpful to build everything in debug mode.
+
+```sh
+cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_EXAMPLES=ON -DWALNUTS_BUILD_DOCS=ON -DWALNUTS_USE_TSAN=ON
+```
+
 `cmake` will cache its output configuration. To clear the entire build
 and start from scratch, just delete the automatically generated
 `build` subdirectory.
@@ -255,6 +261,22 @@ cmake --build . --target doc
 The root of the generated doc will be found in
 
 * `./html/index.html`.
+
+
+### Include what you use
+
+To run IWYU, 
+
+```sh
+cd walnuts/iwyu
+./run-iwyu.sh examples/walnuts_api.cpp
+```
+
+On Mac OS X, this requires installation of IWYU, which can be done as follows.
+
+```sh
+brew install include-what-you-use
+```
 
 
 ## Project overview

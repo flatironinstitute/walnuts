@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <latch>
 #include <limits>
@@ -12,10 +13,10 @@
 #include <thread>
 #include <vector>
 
-#include <walnuts/concepts.hpp>
-#include <walnuts/config.hpp>
-#include <walnuts/spsc_buffer.hpp>
-#include <walnuts/util.hpp>
+#include "walnuts/concepts.hpp"
+#include "walnuts/config.hpp"
+#include "walnuts/spsc_buffer.hpp"
+#include "walnuts/util.hpp"
 
 namespace walnuts::detail {
 

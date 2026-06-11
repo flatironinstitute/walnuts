@@ -1,11 +1,11 @@
 #pragma once
 
+#include <atomic>
 #include <concepts>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
-#include <iomanip>
 #include <stdexcept>
 #include <string>
 #include <type_traits>

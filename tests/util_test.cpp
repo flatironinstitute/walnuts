@@ -101,8 +101,10 @@ TEST(DetailRandom, StandardNormalSetMeanAndVariance) {
 
 TEST(LogSumExp, KnownValues) {
   EXPECT_NEAR(walnuts::detail::log_sum_exp(0.0, 0.0), std::log(2.0), 1e-15);
-  EXPECT_NEAR(walnuts::detail::log_sum_exp(-3.0, -3.0), -3.0 + std::log(2.0), 1e-15);
-  EXPECT_NEAR(walnuts::detail::log_sum_exp(1000.0, 1000.0), 1000.0 + std::log(2.0), 1e-10);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(-3.0, -3.0), -3.0 + std::log(2.0),
+              1e-15);
+  EXPECT_NEAR(walnuts::detail::log_sum_exp(1000.0, 1000.0),
+              1000.0 + std::log(2.0), 1e-10);
   EXPECT_NEAR(walnuts::detail::log_sum_exp(1.0, 2.0),
               std::log(std::exp(1.0) + std::exp(2.0)), 1e-15);
   EXPECT_NEAR(walnuts::detail::log_sum_exp(-1.0, -2.0),
@@ -110,8 +112,10 @@ TEST(LogSumExp, KnownValues) {
 }
 
 TEST(LogSumExp, Symmetry) {
-  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(1.0, 2.0), walnuts::detail::log_sum_exp(2.0, 1.0));
-  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(-5.0, 3.0), walnuts::detail::log_sum_exp(3.0, -5.0));
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(1.0, 2.0),
+                   walnuts::detail::log_sum_exp(2.0, 1.0));
+  EXPECT_DOUBLE_EQ(walnuts::detail::log_sum_exp(-5.0, 3.0),
+                   walnuts::detail::log_sum_exp(3.0, -5.0));
 }
 
 TEST(LogSumExp, LargeDifferenceApproximatesMax) {
@@ -159,7 +163,8 @@ TEST(LogSumExp, NaNPropagates) {
 
 TEST(LogSumExpVector, EmptyVector) {
   Eigen::VectorXd x(0);
-  EXPECT_EQ(walnuts::detail::log_sum_exp(x), -std::numeric_limits<double>::infinity());
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x),
+            -std::numeric_limits<double>::infinity());
 }
 
 TEST(LogSumExpVector, SingleElement) {
@@ -198,7 +203,6 @@ TEST(LogSumExpVector, AllInfinity) {
   Eigen::VectorXd x = Eigen::VectorXd::Constant(4, inf);
   EXPECT_EQ(walnuts::detail::log_sum_exp(x), inf);
   EXPECT_EQ(walnuts::detail::log_sum_exp(-x), -inf);
-  
 }
 
 TEST(LogSumExpVector, OnePositiveInfinity) {
@@ -207,7 +211,8 @@ TEST(LogSumExpVector, OnePositiveInfinity) {
   x << 1.0, inf, 2.0;
   EXPECT_EQ(walnuts::detail::log_sum_exp(x), inf);
   x << 1.0, -inf, 2.0;
-  EXPECT_EQ(walnuts::detail::log_sum_exp(x), walnuts::detail::log_sum_exp(1.0, 2.0));
+  EXPECT_EQ(walnuts::detail::log_sum_exp(x),
+            walnuts::detail::log_sum_exp(1.0, 2.0));
 }
 
 TEST(LogSumExpVector, MixedInfinities) {
@@ -225,7 +230,8 @@ TEST(LogSumExpVector, NaNPropagates) {
   EXPECT_TRUE(std::isnan(walnuts::detail::log_sum_exp(x)));
 }
 
-// walnuts::detail::logp_momentum() function *****************************************
+// walnuts::detail::logp_momentum() function
+// *****************************************
 
 TEST(LogpMomentum, SingleElement) {
   Eigen::VectorXd rho(1), inv_mass(1);
@@ -244,7 +250,8 @@ TEST(LogpMomentum, UnitMass3Vector) {
   Eigen::VectorXd rho(3), inv_mass(3);
   rho << 1.0, 2.0, 3.0;
   inv_mass << 1.0, 1.0, 1.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass), -0.5 * (1.0 + 4.0 + 9.0));
+  EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass),
+                   -0.5 * (1.0 + 4.0 + 9.0));
 }
 
 TEST(LogpMomentum, KnownValueLinearTransform) {
@@ -255,7 +262,7 @@ TEST(LogpMomentum, KnownValueLinearTransform) {
   EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, inv_mass),
                    walnuts::detail::logp_momentum(-rho, inv_mass));
   EXPECT_DOUBLE_EQ(walnuts::detail::logp_momentum(rho, 2.5 * inv_mass),
-		   2.5 * walnuts::detail::logp_momentum(rho, inv_mass));
+                   2.5 * walnuts::detail::logp_momentum(rho, inv_mass));
 }
 
 // NoExceptLogpGrad class *******************************************
@@ -335,7 +342,8 @@ TEST(DetailL2RelDiff, KnownValue) {
   Eigen::VectorXd a(2), b(2);
   a << 3.0, 5.0;
   b << 1.0, 4.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::l2_rel_diff(a, b), std::sqrt(2.0*2.0 + 0.25*0.25));
+  EXPECT_DOUBLE_EQ(walnuts::detail::l2_rel_diff(a, b),
+                   std::sqrt(2.0 * 2.0 + 0.25 * 0.25));
 }
 
 TEST(DetailL2RelDiff, ScaleInvariant) {
@@ -343,7 +351,7 @@ TEST(DetailL2RelDiff, ScaleInvariant) {
   a << 2.0, 3.0, 4.0;
   b << 1.0, 2.0, 3.0;
   EXPECT_DOUBLE_EQ(walnuts::detail::l2_rel_diff(3.0 * a, 3.0 * b),
-		   walnuts::detail::l2_rel_diff(a, b));
+                   walnuts::detail::l2_rel_diff(a, b));
 }
 
 // sum() function ***************************************************
@@ -351,7 +359,8 @@ TEST(DetailL2RelDiff, ScaleInvariant) {
 TEST(DetailSum, KnownValues) {
   EXPECT_EQ(walnuts::detail::sum(std::vector<std::size_t>{}), 0UL);
   EXPECT_EQ(walnuts::detail::sum(std::vector<std::size_t>{7}), 7UL);
-  EXPECT_EQ(walnuts::detail::sum(std::vector<std::size_t>{0, 1, 2, 3, 4, 5}), 15UL);
+  EXPECT_EQ(walnuts::detail::sum(std::vector<std::size_t>{0, 1, 2, 3, 4, 5}),
+            15UL);
 }
 
 // variance() function **********************************************
@@ -360,10 +369,8 @@ TEST(DetailVariance, KnownValue) {
   Eigen::VectorXd xs(4);
   xs << 2.0, 4.0, 4.0, 8.0;
   double m = (2.0 + 4.0 + 4.0 + 8.0) / 4.0;
-  double sq_diffs = (2.0 - m) * (2.0 - m)
-    + (4.0 - m) * (4.0 - m)
-    + (4.0 - m) * (4.0 - m)
-    + (8.0 - m) * (8.0 - m);
+  double sq_diffs = (2.0 - m) * (2.0 - m) + (4.0 - m) * (4.0 - m) +
+                    (4.0 - m) * (4.0 - m) + (8.0 - m) * (8.0 - m);
   EXPECT_DOUBLE_EQ(walnuts::detail::variance(xs), sq_diffs / 3.0);
 }
 
@@ -375,10 +382,12 @@ TEST(DetailVariance, ConstantVector) {
 TEST(DetailVariance, ShiftInvariantQuadraticScale) {
   Eigen::VectorXd xs(4);
   xs << 1.0, 2.0, 3.0, 4.0;
-  EXPECT_DOUBLE_EQ(walnuts::detail::variance(xs + Eigen::VectorXd::Constant(4, 100.0)),
-                   walnuts::detail::variance(xs));
+  EXPECT_DOUBLE_EQ(
+      walnuts::detail::variance(xs + Eigen::VectorXd::Constant(4, 100.0)),
+      walnuts::detail::variance(xs));
   EXPECT_DOUBLE_EQ(walnuts::detail::variance(2.0 * xs),
                    4.0 * walnuts::detail::variance(xs));
-  EXPECT_DOUBLE_EQ(walnuts::detail::variance((5.7 + (13.2 * xs).array()).matrix()),
-                   13.2 * 13.2 * walnuts::detail::variance(xs));
+  EXPECT_DOUBLE_EQ(
+      walnuts::detail::variance((5.7 + (13.2 * xs).array()).matrix()),
+      13.2 * 13.2 * walnuts::detail::variance(xs));
 }

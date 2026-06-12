@@ -231,7 +231,7 @@ class InitConfigBuilder {
    * @throw std::invalid_argument If any of the step sizes are not finite
    * positive.
    * @throw std::invalid_argument If the number of chains doesn't match the
-   * number specified in the constuctor.
+   * number specified in the constructor.
    */
   InitConfigBuilder& step_sizes(const std::vector<double>& v) {
     detail::validate_size(v, num_chains_, "step_sizes", "num_chains");
@@ -334,12 +334,10 @@ class InitConfigBuilder {
    *
    * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
    * the initialization uses a smoothed negative outer product of
-   * gradient, which is the absolute value of the outer proudct of
+   * gradient, which is the absolute value of the outer product of
    * gradients linearly interpolated with a unit matrix with weight
    * `mass_smoothing` on the unit matrix and `1 - mass_smoothing` on
-   * the regularized outer product.  This regularization goes beyond
-   * Nutpie to do the linear interpolation and also to take a square
-   * root to further regularize.
+   * the regularized outer product.
    *
    * If the flag `average_masses` is `true`, then each chain's mass
    * matrix is set to the geometric average of the per-chain mass
@@ -1057,7 +1055,7 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
 /**
  * @brief Encapsulated configuration for Walnuts.
  *
- * Walnuts configurations include initializaiton, warmup, and sampling
+ * Walnuts configurations include initialization, warmup, and sampling
  * configurations.
  */
 class WalnutsConfig {

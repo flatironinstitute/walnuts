@@ -240,7 +240,7 @@ static bool within_tolerance(const F& logp_grad,
   rho_next += half_step * grad_next;
   logp_next += logp_momentum(rho_next, inv_mass);
   return std::abs(logp_next - logp) <= max_error;  // only tests one way
-}  
+}
 
 /**
  * @brief Return `true` if the number of micro steps provided is the one chosen

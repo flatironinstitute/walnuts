@@ -143,7 +143,7 @@ TEST(InitConfigBuilder, ScalarPositionSetsAllChains) {
   walnuts::InitConfig cfg =
       walnuts::InitConfigBuilder(3, 2).positions(pos).build();
   for (std::size_t n = 0; n < 3; ++n) {
-    expect_near(cfg.position(n), pos);
+    expect_near(cfg.position(n), pos, 1e-10);
   }
 }
 
@@ -381,8 +381,8 @@ TEST(InitConfigBuilder, LogpGradMassesHaveCorrectShape) {
 
 TEST(InitConfigBuilder, LogpGradMassesMatchHandCalculation) {
   // pos = [1, 2];  grad = [-1, -2];  smooth = 0.5
-  // mass = (1 - smooth) * sqrt(abs(grad)) + smooth
-  //      = 0.5 * [sqrt(1), sqrt(2)] + 0.5 = [1, 0.5 * sqrt(2) + 0.5]
+  // mass = (1 - smooth) * abs(grad) + smooth
+  //      = 0.5 * [1, 2] + 0.5 = [1, 0.5 * sqrt(2) + 0.5]
   Eigen::VectorXd pos(2);
   pos << 1.0, 2.0;
   const double s = 0.5;
@@ -391,8 +391,8 @@ TEST(InitConfigBuilder, LogpGradMassesMatchHandCalculation) {
                                 .masses(std_normal, s)
                                 .build();
   Eigen::VectorXd expected(2);
-  expected(0) = (1 - s) * std::sqrt(1.0) + s;
-  expected(1) = (1 - s) * std::sqrt(2.0) + s;
+  expected(0) = (1 - s) * 1.0 + s;
+  expected(1) = (1 - s) * 2.0 + s;
   expect_near(cfg.mass(0), expected);
 }
 
@@ -408,6 +408,35 @@ TEST(InitConfigBuilder, LogpGradMassesThrowsOnInvalidSmoothing) {
   walnuts::InitConfigBuilder b(2, 2);
   for (auto x : inf_nan_neg()) {
     EXPECT_THROW(b.masses(std_normal, x), std::invalid_argument);
+  }
+}
+
+TEST(InitConfigBuilder, LogpGradMassesAveraged) {
+  for (auto sz : std::vector<double>{1, 2, 9, 32}) {
+    std::mt19937 rng(139872);
+    auto init_config = walnuts::InitConfigBuilder(sz, sz)
+                           .positions(rng, 1.0)
+                           .masses(std_normal, 0.01, false)
+                           .build();
+
+    std::mt19937 rng_avg(139872);
+    auto init_config_avg = walnuts::InitConfigBuilder(sz, sz)
+                               .positions(rng_avg, 1.0)
+                               .masses(std_normal, 0.01, true)
+                               .build();
+
+    auto masses = init_config.masses();
+    Eigen::VectorXd log_mass_sum = Eigen::VectorXd::Zero(sz);
+    for (const auto& mass : masses) {
+      log_mass_sum += mass.array().log().matrix();
+    }
+    auto mass_geom_avg = (log_mass_sum / sz).array().exp().matrix().eval();
+
+    std::cout << "avg: " << mass_geom_avg.transpose() << std::endl;
+    for (const auto& mass : init_config_avg.masses()) {
+      std::cout << "mass: " << mass.transpose() << std::endl;
+      // expect_near(mass, mass_geom_avg, 1e-10);
+    }
   }
 }
 

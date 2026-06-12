@@ -334,30 +334,45 @@ class InitConfigBuilder {
    *
    * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
    * the initialization uses a smoothed negative outer product of
-   * gradients.  More specifically, it uses the square root of the
-   * absolute value of the outer proudct of gradients linearly interpolated with
-   * a unit matrix with weight `mass_smoothing` on the unit matrix and `1 -
-   * mass_smoothing` on the regularized outer product.  This regularization goes
-   * beyond Nutpie to do the linear interpolation and also to take a square root
-   * to further regularize.
+   * gradient, which is the absolute value of the outer proudct of
+   * gradients linearly interpolated with a unit matrix with weight
+   * `mass_smoothing` on the unit matrix and `1 - mass_smoothing` on
+   * the regularized outer product.  This regularization goes beyond
+   * Nutpie to do the linear interpolation and also to take a square
+   * root to further regularize.
+   *
+   * If the flag `average_masses` is `true`, then each chain's mass
+   * matrix is set to the geometric average of the per-chain mass
+   * matrixes.
    *
    * @tparam LPG The type of the log density and gradient function.
    * @param[in] logp_grad The log density and gradient function, called back.
    * @param[in] mass_smoothing The additive smoothing for mass matrices.
+   * @param[in] average_masses Set to `true` to geometrically average mass
+   * matrices.
    * @throw std::invalid_argumet If the mass smoothing is not in (0, 1).
    * @return A reference to this builder for chaining.
    */
   template <LogpGrad F>
-  InitConfigBuilder& masses(const F& logp_grad, double mass_smoothing) {
+  InitConfigBuilder& masses(const F& logp_grad, double mass_smoothing,
+                            bool average_masses = false) {
     detail::validate_probability(mass_smoothing, "mass_smoothing");
     Eigen::VectorXd grad;
-    double lp;  // needed to calculate gradient, o.w. not used
     masses_.resize(num_chains_);
     for (std::size_t c = 0; c < num_chains_; ++c) {
-      logp_grad(positions_[c], lp, grad);
-      // abs geom averages with unit, sqrt additionally regularizes scale
-      masses_[c] =
-          (1 - mass_smoothing) * grad.array().abs().sqrt() + mass_smoothing;
+      double lp_to_discard;
+      logp_grad(positions_[c], lp_to_discard, grad);
+      masses_[c] = (1 - mass_smoothing) * grad.array().abs() + mass_smoothing;
+    }
+    if (average_masses) {
+      Eigen::Index D = masses_[0].size();
+      Eigen::VectorXd sum_log_mass = Eigen::VectorXd::Zero(D);
+      for (const auto& mass : masses_) {
+        sum_log_mass += mass.array().log().matrix();
+      }
+      auto avg_log_mass = sum_log_mass / num_chains_;
+      auto geom_mean_mass = avg_log_mass.array().exp().matrix();
+      masses_ = std::vector<Eigen::VectorXd>(num_chains_, geom_mean_mass);
     }
     return *this;
   }

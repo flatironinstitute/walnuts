@@ -83,13 +83,31 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::size_t num_chains = 1;
   std::size_t D = 100;
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, D).build();
+  auto init_cfg = walnuts::InitConfigBuilder(num_chains, D)
+                      .positions(rng, 1.0)
+                      .masses(target_logp_grad, 0.01)
+                      .build();
 
-  auto warmup_cfg =
-      walnuts::WarmupConfigBuilder().min_max_iter(50, 200).build();
+  auto warmup_cfg = walnuts::WarmupConfigBuilder()
+                        .min_max_iter(50, 100)
+                        .mass_converge_tol(1.0)
+                        .step_size_converge_tol(0.1)
+                        .mass_init_count(4.0)
+                        .step_accept_rate_target(0.8)
+                        .step_learning_rate(0.05)
+                        .step_gradient_decay(0.8)
+                        .step_sq_gradient_decay(0.9)
+                        .step_stabilization(1e-4)
+                        .step_learn_rate_decay(0.95)
+                        .build();
 
-  auto sampling_cfg =
-      walnuts::SamplingConfigBuilder().min_max_iter(50, 1000).build();
+  auto sampling_cfg = walnuts::SamplingConfigBuilder()
+                          .min_max_iter(50, 1000)
+                          .min_micro_steps(1)
+                          .max_trajectory_doublings(8)
+                          .max_step_halvings(5)
+                          .rhat_converge_tol(1.001)
+                          .build();
 
   std::cout << "Initialization configuration:\n" << init_cfg << std::endl;
   std::cout << "Warmup configuration:\n" << warmup_cfg << std::endl;
@@ -118,10 +136,8 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
 }
 
 int main() {
-  auto target_logp_grad = std_normal;
-  // auto target_logp_grad = ill_normal;
-  // pauto target_logp_grad = rw1;
-
-  run_adaptive_walnuts(target_logp_grad);
+  // run_adaptive_walnuts(std_normal);
+  // run_adaptive_walnuts(ill_normal);
+  run_adaptive_walnuts(rw1);
   return 0;
 }

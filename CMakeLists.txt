@@ -15,7 +15,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ## Top-Level Options   ##
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
-option(WALNUTS_BUILD_STAN "Build Stan example with BridgeStan" OFF)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" OFF)
 option(WALNUTS_BUILD_DOCS "Build the documentation for the library" OFF)
 option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF) 
@@ -64,20 +63,11 @@ if(WALNUTS_USE_MIMALLOC)
     FetchContent_MakeAvailable(mimalloc)
 endif()
 
-set(WALNUTS_BRIDGESTAN_TAG "1d4ff6a10d572ee22ed26b0274059bb4fe885187" CACHE STRING "Version of BridgeStan to use")
-if(WALNUTS_BUILD_STAN)
-    FetchContent_Declare(
-            bridgestan
-            GIT_REPOSITORY https://github.com/roualdes/bridgestan.git
-            GIT_TAG ${WALNUTS_BRIDGESTAN_TAG}
-    )
-    FetchContent_MakeAvailable(bridgestan)
 
-    add_library(BridgeStan::BridgeStan INTERFACE IMPORTED)
-    target_include_directories(BridgeStan::BridgeStan INTERFACE
-      "${CMAKE_BINARY_DIR}/_deps/bridgestan-src/src"
-    )
-endif()
+add_library(BridgeStan::BridgeStan INTERFACE IMPORTED)
+target_include_directories(BridgeStan::BridgeStan INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/bridgestan"
+)
 
 #############################
 ## Windows pathces         ##

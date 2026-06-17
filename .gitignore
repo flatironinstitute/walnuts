@@ -191,3 +191,5 @@ cython_debug/
 # Mac OS
 *.DS_Store
 
+
+python/src/walnuts/export.h

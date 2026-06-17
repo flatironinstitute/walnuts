@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 project(walnuts
   VERSION 0.1.0
   DESCRIPTION "Header-only Walnut Pie sampler library"
@@ -102,6 +102,9 @@ if (WALNUTS_BUILD_EXAMPLES)
 endif()
 
 
+if (SKBUILD)
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/python")
+endif ()
 ##########################
 ##       Tests         ##
 ##########################

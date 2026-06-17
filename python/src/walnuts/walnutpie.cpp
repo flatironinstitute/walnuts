@@ -9,6 +9,7 @@
 #include <walnuts.hpp>
 
 #include "errors.hpp"
+#include "export.h"
 #include "handlers.hpp"
 #include "interrupts.hpp"
 
@@ -94,7 +95,7 @@ extern "C" {
 typedef int (*LOGP_CFUNC)(size_t theta_size, const double* theta, double* grad,
                           double* lp, void* data);
 
-int walnutpie_sample_cfunc(
+WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
     LOGP_CFUNC logp_c, void* data, int num_params, const double* inits,
     size_t num_chains, unsigned int seed, unsigned int id, double init_radius,
     const double* init_inv_metric, int min_warmup_iter, int max_warmup_iter,
@@ -177,7 +178,7 @@ int walnutpie_sample_cfunc(
   });
 }
 
-int walnutpie_sample_bridgestan(
+WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
     const char* bs_dll, const char* json_data, unsigned int model_seed,
     const char* inits, size_t num_chains, unsigned int seed, unsigned int id,
     double init_radius, const double* init_inv_metric, int min_warmup_iter,
@@ -258,19 +259,23 @@ int walnutpie_sample_bridgestan(
   });
 }
 
-const char* walnutpie_get_error_message(const WalnutpieError* err) {
+WALNUTPIE_EXPORT const char* walnutpie_get_error_message(
+    const WalnutpieError* err) {
   if (err == nullptr) {
     return "Something went wrong: No error found";
   }
   return err->msg.c_str();
 }
 
-WalnutpieErrorType walnutpie_get_error_type(const WalnutpieError* err) {
+WALNUTPIE_EXPORT WalnutpieErrorType
+walnutpie_get_error_type(const WalnutpieError* err) {
   if (err == nullptr) {
     return WalnutpieErrorType::generic;
   }
   return err->type;
 }
 
-void walnutpie_destroy_error(WalnutpieError* err) { delete (err); }
+WALNUTPIE_EXPORT void walnutpie_destroy_error(WalnutpieError* err) {
+  delete (err);
+}
 }

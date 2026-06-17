@@ -1,4 +1,4 @@
-add_executable(examples examples.cpp) 
+add_executable(examples examples.cpp)
 target_link_libraries(examples PRIVATE walnuts)
 target_compile_options(examples PRIVATE -O3 -Wall)
 

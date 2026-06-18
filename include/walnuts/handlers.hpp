@@ -158,13 +158,6 @@ class ChainStore {
   }
 
   /**
-   * @brief Handle an event to stop sampling.
-   */
-  void on_stop() {
-    // TODO: add stop semaphore, catch interrupts
-  }
-
-  /**
    * @brief Return `true` if warmup iterations are saved.
    *
    * @return `true` if warmup iterations are saved.

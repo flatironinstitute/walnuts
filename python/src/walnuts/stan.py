@@ -2,12 +2,11 @@ import ctypes
 import os
 from typing import Any, Dict, List, Mapping, Optional, Union
 
-import numpy as np
 import bridgestan
+import numpy as np
 import stanio
 
-
-from .ffi import _raise_for_error, _ffi_sample_bridgestan
+from .ffi import _ffi_sample_bridgestan, _raise_for_error
 from .util import rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
@@ -113,7 +112,6 @@ class StanOutput:
         ]
 
 
-# TODO also allow inits from a StanOutput?
 def encode_stan_json(data: Union[str, os.PathLike, Mapping[str, Any]]) -> bytes:
     """Turn the provided data into something we can send to C++."""
     if isinstance(data, os.PathLike):

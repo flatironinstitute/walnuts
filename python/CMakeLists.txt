@@ -9,4 +9,7 @@ generate_export_header(walnutpie
 )
 
 # todo detect SKBUILD_STATE == editable?
-install(TARGETS walnutpie LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}/walnutpie")
+install(TARGETS walnutpie
+  LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}/walnutpie"
+  RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}/walnutpie"
+)

@@ -1,7 +1,5 @@
-#include <walnuts/adaptive_walnuts.hpp>
-#include <walnuts/config.hpp>
-#include <walnuts/walnuts.hpp>
-#include "load_stan.hpp"
+#include <walnuts.hpp>
+#include <walnuts/load_stan.hpp>
 
 #include <CLI/CLI.hpp>
 #include <Eigen/Dense>
@@ -14,6 +12,9 @@
 #include <random>
 #include <string>
 #include <vector>
+
+using walnuts::DynamicStanModel;
+using walnuts::unique_bs_rng;
 
 static void summarize(const std::vector<std::string>& names,
                       const Eigen::MatrixXd& draws) {
@@ -176,7 +177,6 @@ int main(int argc, char** argv) {
   auto clock_seed = static_cast<unsigned int>(clock_count);
   srand(clock_seed);
 
-  // TODO: parse directly into structs?
   auto seed = static_cast<unsigned long int>(rand());
   std::size_t num_warmup = 128;
   std::size_t num_draws = 128;

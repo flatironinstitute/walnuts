@@ -1,11 +1,11 @@
 #include <cstddef>
 
 #include <Eigen/Dense>
-
-// TODO(bmw): find a better folder organization
-#include "../examples/load_stan.hpp"
+#include <walnuts/load_stan.hpp>
 
 namespace walnutpie {
+using walnuts::DynamicStanModel;
+using walnuts::unique_bs_rng;
 
 class BufferHandler {
  public:

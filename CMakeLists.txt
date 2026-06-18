@@ -101,10 +101,14 @@ if (WALNUTS_BUILD_EXAMPLES)
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
 endif()
 
-
+##########################
+##       Python         ##
+##########################
+# scikit_build_core sets SKBUILD when it is invoking cmake
 if (SKBUILD)
-        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/python")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/python")
 endif ()
+
 ##########################
 ##       Tests         ##
 ##########################

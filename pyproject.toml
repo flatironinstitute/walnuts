@@ -7,36 +7,16 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "walnuts"
-description = "The Within-Orbit Adaptive No-U-Turn Sampler"
-readme = "README.md"
+description = "the Within-orbit Adaptive Leapfrog No-U-Turn Sampler"
+readme = "python/README.md"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = "Brian Ward", email = "bward@flatironinstitute.org" },
     { name = "Bob Carpenter", email = "bcarpenter@flatironinstitute.org" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["numpy"]
 dynamic = ["version"]
-
-
-[tool.scikit-build]
-minimum-version = "0.10"
-cmake.source-dir = "."
-build.targets = ["walnutpie"]
-cmake.args = ["-G Ninja"]
-wheel.packages=["python/src/walnuts"]
-# Indicate that we don't depend on the CPython API
-wheel.py-api = "py3"
-build-dir = "build/{wheel_tag}"
-editable.rebuild=true
-
-build.verbose = true
-logging.level = "INFO"
-
-[tool.scikit-build.metadata.version]
-# Instead of hardcoding the version here, extract it from the source files.
-provider = "scikit_build_core.metadata.regex"
-input = "python/src/walnuts/__init__.py"
 
 [project.urls]
 "Homepage" = "https://github.com/flatironinstitute/walnuts"
@@ -48,3 +28,37 @@ compiled = ["numba"]
 
 [tool.isort]
 profile = "black"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+cmake.source-dir = "."
+build.targets = ["walnutpie"]
+cmake.args = ["-G Ninja"]
+cmake.define = {"WALNUTS_BUILD_EXAMPLES" = "OFF"}
+
+build.verbose = true
+logging.level = "INFO"
+
+sdist.exclude = ["tests/", "examples/", "docs/", "iwyu/", ".github/",
+                 ".gitignore", ".clang-format"]
+wheel.exclude = ["*.cpp", "*.h", "*.hpp"]
+wheel.license-files = ["LICENSE"]
+wheel.packages = ["python/src/walnuts"]
+# we don't depend on the CPython API
+wheel.py-api = "py3"
+
+# needed for pip install -e to work
+build-dir = "build/{wheel_tag}"
+editable.rebuild = true
+
+[tool.scikit-build.metadata.version]
+# extract version from the source files.
+provider = "scikit_build_core.metadata.regex"
+input = "python/src/walnuts/__init__.py"
+
+[tool.cibuildwheel]
+test-command = "python -c \"import walnuts\""
+build-verbosity = 1
+# build 3.10 and latest
+skip = "cp39-* cp311-* cp312-* cp313-*"
+archs = "auto64"

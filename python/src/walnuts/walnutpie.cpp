@@ -7,15 +7,12 @@
 
 #include <Eigen/Dense>
 #include <walnuts.hpp>
+#include <walnuts/load_stan.hpp>
 
 #include "errors.hpp"
 #include "export.h"
 #include "handlers.hpp"
 #include "interrupts.hpp"
-
-// TODO(bmw): find a better folder organization
-#include "../examples/load_stan.hpp"
-#include "walnuts/concepts.hpp"
 
 namespace walnutpie {
 
@@ -193,6 +190,9 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
     double step_learn_rate_decay, bool save_warmup, int refresh, double* out,
     size_t out_size, int* final_lengths, double* stepsize_out,
     double* inv_metric_out, WalnutpieError** err) {
+  using walnuts::DynamicStanModel;
+  using walnuts::unique_bs_rng;
+
   return error::catch_exceptions(err, [&]() {
     DynamicStanModel stan_model(bs_dll, json_data, model_seed);
 

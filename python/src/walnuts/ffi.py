@@ -1,12 +1,14 @@
 import ctypes
+import importlib.resources
 import sys
 from pathlib import Path
-from typing import Any, Optional, Union, Callable
-import importlib.resources
+from typing import Any, Callable, Optional, Union
+
 import numpy as np
 from numpy.ctypeslib import ndpointer
 
 from .util import rand_u32
+
 
 # ctypes helpers
 def wrapped_ndptr(*args, **kwargs):
@@ -152,8 +154,6 @@ except Exception as e:
     raise ImportError("Failed to load libwalnutpie") from e
 
 
-
-
 @logp_cfunc_type
 def logp_c_trampoline(size, buf, grad, lp, logp_ptr):
     x = np.ctypeslib.as_array(buf, (size,))
@@ -165,6 +165,24 @@ def logp_c_trampoline(size, buf, grad, lp, logp_ptr):
         print(e)
         return 1
     return 0
+
+
+# Wrapper around ndarray that lets us set extra attributes
+# https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
+class WalnutsOutputArray(np.ndarray):
+    def __new__(cls, input_array, stepsize=None, inv_metric=None):
+        obj = np.asarray(input_array).view(cls)
+
+        obj.stepsize = stepsize
+        obj.inv_metric = inv_metric
+
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.stepsize = getattr(obj, "stepsize", None)
+        self.inv_metric = getattr(obj, "inv_metric", None)
 
 
 def walnuts_pyfunc(
@@ -317,17 +335,14 @@ def walnuts_pyfunc(
 
     outputs = []
     for i in range(num_chains):
-        output_chain = out[i, 0 : lengths_out[i], :]
-        # TODO
-        # output_chain.stepsize = stepsize_out[i]
-        # if inv_metric_out is not None:
-        #     output_chain.inv_metric = inv_metric_out[i]
-        # else:
-        #     output_chain.inv_metric = None
+        output_chain = WalnutsOutputArray(
+            out[i, 0 : lengths_out[i], :],
+            stepsize=stepsize_out[i],
+            inv_metric=inv_metric_out[i] if inv_metric_out is not None else None,
+        )
         outputs.append(output_chain)
 
     return outputs
-
 
 
 # TODO actually use print_callback in underlying call

@@ -1,4 +1,4 @@
-from python import walnuts_pyfunc, walnuts_stan
+from walnuts import *
 
 import os
 import bridgestan
@@ -11,6 +11,8 @@ m = bridgestan.StanModel(
     make_args=["STAN_THREADS=1"],
 )
 
+print([(c["alpha"].mean(axis=0), c["alpha"].shape) for c in walnuts_stan(m, seed=1234)])
+
 import scipy.stats
 import numpy as np
 
@@ -18,6 +20,8 @@ import numpy as np
 def logp(x):
     return np.sum(scipy.stats.norm.logpdf(x)), -x
 
+
+print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp, num_params=2)])
 
 import numba
 from numba_stats import norm
@@ -42,6 +46,4 @@ def logp_numba(size, x_, grad_, lp, _):
     return 0
 
 
-# print([(c['alpha'].mean(axis=0), c['alpha'].shape) for c in walnuts_stan(m, seed=1234, num_chains=1)])
-# print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp, num_params=2)])
-# print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp_numba, num_params=2)])
+print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp_numba, num_params=2)])

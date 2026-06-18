@@ -1,6 +1,9 @@
 #ifndef WALNUTS_LOAD_STAN_HPP
 #define WALNUTS_LOAD_STAN_HPP
 
+// TODO: not entirely happy with this file living in 'include/',
+// but it is used by both the examples and python bindings
+
 #include <bridgestan.h>
 #include <Eigen/Dense>
 
@@ -11,8 +14,10 @@
 #include <string>
 #include <vector>
 
+
+
 // TODO: consider using something like https://github.com/martin-olivier/dylib/
-#ifdef _WIN32
+#if defined _WIN32 || defined __MINGW32__
 // hacky way to get dlopen and friends on Windows
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -32,6 +37,8 @@ static char* dlerror() {
 #else
 #include <dlfcn.h>
 #endif
+
+namespace walnuts::internal {
 
 struct dlclose_deleter {
   void operator()(void*) const {
@@ -69,8 +76,6 @@ inline T dlsym_cast_impl(dynamic_library& library, const char* name) {
 
 using unique_bs_model = std::unique_ptr<bs_model, decltype(&bs_model_destruct)>;
 
-typedef std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)> unique_bs_rng;
-
 inline unique_bs_model make_model(dynamic_library& library, const char* data,
                                   unsigned int seed) {
   auto model_construct = dlsym_cast(library, bs_model_construct);
@@ -89,11 +94,17 @@ inline unique_bs_model make_model(dynamic_library& library, const char* data,
   return model_ptr;
 }
 
+}  // namespace walnuts::internal
+
+namespace walnuts {
+
+using unique_bs_rng = std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)>;
+
 class DynamicStanModel {
  public:
   DynamicStanModel(const char* model_path, const char* data, unsigned int seed)
-      : library_(dlopen_safe(model_path)),
-        model_ptr_(make_model(library_, data, seed)),
+      : library_(internal::dlopen_safe(model_path)),
+        model_ptr_(internal::make_model(library_, data, seed)),
         free_error_msg_(dlsym_cast(library_, bs_free_error_msg)),
         param_unc_num_(dlsym_cast(library_, bs_param_unc_num)),
         param_num_(dlsym_cast(library_, bs_param_num)),
@@ -201,8 +212,8 @@ class DynamicStanModel {
   }
 
  private:
-  dynamic_library library_;
-  unique_bs_model model_ptr_;
+  internal::dynamic_library library_;
+  internal::unique_bs_model model_ptr_;
   decltype(&bs_free_error_msg) free_error_msg_;
   decltype(&bs_param_unc_num) param_unc_num_;
   decltype(&bs_param_num) param_num_;
@@ -213,5 +224,16 @@ class DynamicStanModel {
   decltype(&bs_rng_construct) rng_construct_;
   decltype(&bs_rng_destruct) rng_destruct_;
 };
+
+}  // namespace walnuts
+
+// macro clean up
+#undef dlsym_cast
+#if defined _WIN32 || defined __MINGW32__
+#undef WIN32_LEAN_AND_MEAN
+#undef dlopen
+#undef dlsym
+#undef dlclose
+#endif
 
 #endif

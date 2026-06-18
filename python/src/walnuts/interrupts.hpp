@@ -6,6 +6,12 @@
 
 #include "errors.hpp"
 
+#if defined _WIN32 || defined __MINGW32__
+#define WALNUTPIE_ON_WINDOWS 1
+#else
+#define WALNUTPIE_ON_WINDOWS 0
+#endif
+
 #if WALNUTPIE_ON_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

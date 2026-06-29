@@ -16,21 +16,20 @@
 
 namespace walnutpie {
 
-void walnutpie_helper(const walnuts::LogpGrad auto& logp, int num_params,
-                      walnuts::InitConfigBuilder& init_cfg_builder,
-                      auto& handlers, size_t num_chains, unsigned int seed,
-                      unsigned int id, const double* init_inv_metric,
-                      int min_warmup_iter, int max_warmup_iter,
-                      int min_sampling_iter, int max_sampling_iter,
-                      int max_trajectory_doublings, int max_step_halvings,
-                      int min_micro_steps, double max_hamiltonian_error,
-                      double step_size_converge_tol, double mass_converge_tol,
-                      double rhat_converge_tol, double mass_init_count,
-                      double mass_additive_smoothing,
-                      double max_macro_steps_target,
-                      double step_accept_rate_target, double step_learning_rate,
-                      double step_gradient_decay, double step_sq_gradient_decay,
-                      double step_stabilization, double step_learn_rate_decay) {
+void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
+                 walnuts::InitConfigBuilder& init_cfg_builder, auto& handlers,
+                 size_t num_chains, unsigned int seed, unsigned int id,
+                 const double* init_inv_metric, int min_warmup_iter,
+                 int max_warmup_iter, int min_sampling_iter,
+                 int max_sampling_iter, int max_trajectory_doublings,
+                 int max_step_halvings, int min_micro_steps,
+                 double max_hamiltonian_error, double step_size_converge_tol,
+                 double mass_converge_tol, double rhat_converge_tol,
+                 double mass_init_count, double mass_additive_smoothing,
+                 double max_macro_steps_target, double step_accept_rate_target,
+                 double step_learning_rate, double step_gradient_decay,
+                 double step_sq_gradient_decay, double step_stabilization,
+                 double step_learn_rate_decay) {
   interrupt::walnutpie_interrupt_handler interrupt;
 
   walnuts::WarmupConfig warmup_cfg =
@@ -163,21 +162,21 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
     handlers.reserve(num_chains);
     for (size_t i = 0; i < num_chains; ++i) {
       handlers.emplace_back(
-          out + draws_offset * i, num_params,
+          out + draws_offset * i,
           stepsize_out != nullptr ? stepsize_out + i : nullptr,
           inv_metric_out != nullptr ? inv_metric_out + i * num_params : nullptr,
           save_warmup);
     }
 
-    walnutpie_helper(
-        logp, num_params, init_cfg_builder, handlers, num_chains, seed, id,
-        init_inv_metric, min_warmup_iter, max_warmup_iter, min_sampling_iter,
-        max_sampling_iter, max_trajectory_doublings, max_step_halvings,
-        min_micro_steps, max_hamiltonian_error, step_size_converge_tol,
-        mass_converge_tol, rhat_converge_tol, mass_init_count,
-        mass_additive_smoothing, max_macro_steps_target,
-        step_accept_rate_target, step_learning_rate, step_gradient_decay,
-        step_sq_gradient_decay, step_stabilization, step_learn_rate_decay);
+    run_sampler(logp, num_params, init_cfg_builder, handlers, num_chains, seed,
+                id, init_inv_metric, min_warmup_iter, max_warmup_iter,
+                min_sampling_iter, max_sampling_iter, max_trajectory_doublings,
+                max_step_halvings, min_micro_steps, max_hamiltonian_error,
+                step_size_converge_tol, mass_converge_tol, rhat_converge_tol,
+                mass_init_count, mass_additive_smoothing,
+                max_macro_steps_target, step_accept_rate_target,
+                step_learning_rate, step_gradient_decay, step_sq_gradient_decay,
+                step_stabilization, step_learn_rate_decay);
 
     for (size_t i = 0; i < num_chains; ++i) {
       final_lengths[i] = handlers[i].written_warmup();
@@ -254,7 +253,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
             .step_sizes(step_size_init)
             .positions(theta_inits);
 
-    walnutpie_helper(
+    run_sampler(
         logp, stan_model.unconstrained_dimensions(), init_cfg_builder, handlers,
         num_chains, seed, id, init_inv_metric, min_warmup_iter, max_warmup_iter,
         min_sampling_iter, max_sampling_iter, max_trajectory_doublings,
@@ -330,4 +329,4 @@ walnutpie_get_error_type(const WalnutpieError* err) {
 WALNUTPIE_EXPORT void walnutpie_destroy_error(WalnutpieError* err) {
   delete (err);
 }
-}
+}  // extern "C"

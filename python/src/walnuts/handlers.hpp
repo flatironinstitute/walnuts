@@ -13,7 +13,6 @@ class BufferHandler {
                 double* inv_metric_out, bool save_warmup)
       : num_params_(num_params),
         save_warmup_(save_warmup),
-        n_(0),
         out(out),
         stepsize_out(stepsize_out),
         inv_metric_out(inv_metric_out) {}
@@ -40,14 +39,16 @@ class BufferHandler {
       std::copy(inv_metric.data(), inv_metric.data() + inv_metric.size(),
                 inv_metric_out);
     }
+    n_warmup_ = n_;
   }
 
-  int written() const { return n_; }
+  int written_sampling() const { return n_ - n_warmup_; }
+  int written_warmup() const { return n_warmup_; }
 
  private:
   int num_params_;
   bool save_warmup_;
-  std::size_t n_;
+  std::size_t n_ = 0, n_warmup_ = 0;
   double *out, *stepsize_out, *inv_metric_out;
 };
 
@@ -58,9 +59,7 @@ class StanBufferHandler {
                     bool save_warmup)
       : model_(model),
         rng_(rng),
-
         save_warmup_(save_warmup),
-        n_(0),
         out(out),
         stepsize_out(stepsize_out),
         inv_metric_out(inv_metric_out) {}
@@ -85,9 +84,11 @@ class StanBufferHandler {
       std::copy(inv_metric.data(), inv_metric.data() + inv_metric.size(),
                 inv_metric_out);
     }
+    n_warmup_ = n_;
   }
 
-  int written() const { return n_; }
+  int written_sampling() const { return n_ - n_warmup_; }
+  int written_warmup() const { return n_warmup_; }
 
  private:
   void constrain(auto&& in) {
@@ -106,7 +107,7 @@ class StanBufferHandler {
   const DynamicStanModel& model_;
   unique_bs_rng& rng_;
   bool save_warmup_;
-  std::size_t n_;
+  std::size_t n_ = 0, n_warmup_ = 0;
   double *out, *stepsize_out, *inv_metric_out;
 };
 

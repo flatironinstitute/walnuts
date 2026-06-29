@@ -6,13 +6,13 @@ import bridgestan
 import numpy as np
 import stanio
 
-from .ffi import _ffi_sample_bridgestan, _raise_for_error
+from .ffi import WarmupInfo, _ffi_sample_bridgestan, _raise_for_error
 from .util import rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
 
 
-class StanOutput:
+class StanOutputBase:
     """
     A holder for the output of a Stan run.
 
@@ -22,16 +22,10 @@ class StanOutput:
     :meth:`~StanOutput.get` method, or by using the object as a dictionary.
     """
 
-    stepsize: Optional[np.ndarray]
-    inv_metric: Optional[np.ndarray]
-    hessian: Optional[np.ndarray]
-
     def __init__(self, parameters: List[str], data: np.ndarray):
         self.raw_parameters = parameters
         self._params = stanio.parse_header(",".join(parameters))
         self._data = data
-        self.inv_metric = None
-        self.stepsize = None
 
     @property
     def data(self) -> np.ndarray:
@@ -71,6 +65,26 @@ class StanOutput:
     def __str__(self) -> str:
         p = "\n\t".join(self.parameters)
         return f"StanOutput with parameters:\n\t{p}"
+
+
+class StanOutput(StanOutputBase):
+    """
+    A holder for the output of a Stan run.
+
+    The ``data`` attribute contains the raw output from Stan.
+
+    If a specific parameter is needed, it can be extracted using the
+    :meth:`~StanOutput.get` method, or by using the object as a dictionary.
+    """
+
+    def __init__(
+        self,
+        parameters: List[str],
+        data: np.ndarray,
+        warmup: WarmupInfo[StanOutputBase],
+    ):
+        super().__init__(parameters, data)
+        self.warmup = warmup
 
     def create_inits(
         self, *, chains: int = 4, seed: Optional[int] = None
@@ -121,7 +135,7 @@ def encode_stan_json(data: Union[str, os.PathLike, Mapping[str, Any]]) -> bytes:
     return stanio.dump_stan_json(data).encode()
 
 
-def _encode_stan_inits(inits, chains, seed):
+def _encode_stan_inits(inits, chains, seed) -> Union[bytes, None]:
     inits_encoded = None
     if inits is not None:
         if isinstance(inits, StanOutput):
@@ -167,7 +181,7 @@ def walnuts_stan(
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
     refresh: int = 0,
-):
+) -> list[StanOutput]:
     # these are checked here because they're sizes for "out"
     if num_chains < 1:
         raise ValueError("num_chains must be at least 1")
@@ -178,9 +192,11 @@ def walnuts_stan(
 
     seed = seed or rand_u32()
 
-    # TODO assert bridgestan is at least 2.9
-    model_params = model.param_unc_num()
+    if model.model_version() < (2, 9, 0):
+        # TODO assert bridgestan is at least 2.9
+        pass
 
+    model_params = model.param_unc_num()
     param_names = model.param_names(include_tp=True, include_gq=True)
 
     num_params = len(param_names)
@@ -204,7 +220,7 @@ def walnuts_stan(
     if save_inv_metric:
         inv_metric_out = np.zeros((num_chains, *metric_size), dtype=np.float64)
 
-    lengths_out = np.zeros((num_chains,), dtype=np.int32)
+    lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
 
     err = ctypes.pointer(ctypes.c_void_p())
     rc = _ffi_sample_bridgestan(
@@ -251,13 +267,23 @@ def walnuts_stan(
 
     outputs = []
     for i in range(num_chains):
-        out_chain = out[i, 0 : lengths_out[i], :]
-        output_chain = StanOutput(param_names, out_chain)
+        warmup_written = lengths_out[i]
+        samples_written = lengths_out[i + num_chains]
+
+        warmup_output = None
+        if save_warmup:
+            warmup_output = StanOutputBase(param_names, out[i, 0:warmup_written, :])
+
+        warmup_info = WarmupInfo(
+            stepsize_out[i],
+            inv_metric_out[i] if inv_metric_out is not None else None,
+            warmup_output,
+        )
+
+        out_chain = out[i, warmup_written : warmup_written + samples_written, :]
+        output_chain = StanOutput(param_names, out_chain, warmup_info)
         output_chain.stepsize = stepsize_out[i]
-        if inv_metric_out is not None:
-            output_chain.inv_metric = inv_metric_out[i]
-        else:
-            output_chain.inv_metric = None
+
         outputs.append(output_chain)
 
     return outputs

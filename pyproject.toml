@@ -48,6 +48,8 @@ wheel.packages = ["python/src/walnuts"]
 wheel.py-api = "py3"
 
 # needed for pip install -e to work
+# note that we are waiting for
+# https://github.com/scikit-build/scikit-build-core/issues/1135 to be resolved
 build-dir = "build/{wheel_tag}"
 editable.rebuild = true
 

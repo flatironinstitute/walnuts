@@ -79,6 +79,18 @@ void walnutpie_helper(const walnuts::LogpGrad auto& logp, int num_params,
   walnuts::walnuts<std::mt19937_64>(seed + id + num_chains, handlers, global,
                                     interrupt, logp, walnuts_cfg);
 }
+
+walnuts::MarkovChainsUnified make_chains(const double* draws, int num_draws,
+                                         int num_params, const int* lengths,
+                                         int num_chains) {
+  Eigen::Map<const Eigen::MatrixXd> draws_map(draws, num_draws, num_params);
+  std::vector<std::size_t> lengths_vec(num_chains);
+  for (int i = 0; i < num_chains; i++) {
+    lengths_vec[i] = lengths[i];
+  }
+  return walnuts::MarkovChainsUnified(draws_map, lengths_vec);
+}
+
 }  // namespace walnutpie
 
 using namespace walnutpie;
@@ -168,7 +180,8 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
         step_sq_gradient_decay, step_stabilization, step_learn_rate_decay);
 
     for (size_t i = 0; i < num_chains; ++i) {
-      final_lengths[i] = handlers[i].written();
+      final_lengths[i] = handlers[i].written_warmup();
+      final_lengths[i + num_chains] = handlers[i].written_sampling();
     }
 
     return 0;
@@ -252,9 +265,48 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
         step_sq_gradient_decay, step_stabilization, step_learn_rate_decay);
 
     for (size_t i = 0; i < num_chains; ++i) {
-      final_lengths[i] = handlers[i].written();
+      final_lengths[i] = handlers[i].written_warmup();
+      final_lengths[i + num_chains] = handlers[i].written_sampling();
     }
 
+    return 0;
+  });
+}
+
+WALNUTPIE_EXPORT int walnutpie_ess(const double* draws, int num_draws,
+                                   int num_params, const int* lengths,
+                                   int num_chains, double* out,
+                                   WalnutpieError** err) {
+  return error::catch_exceptions(err, [&]() {
+    auto chains =
+        make_chains(draws, num_draws, num_params, lengths, num_chains);
+    Eigen::Map<Eigen::RowVectorXd>(out, num_params) =
+        walnuts::effective_sample_size(chains);
+    return 0;
+  });
+}
+
+WALNUTPIE_EXPORT int walnutpie_r_hat(const double* draws, int num_draws,
+                                     int num_params, const int* lengths,
+                                     int num_chains, double* out,
+                                     WalnutpieError** err) {
+  return error::catch_exceptions(err, [&]() {
+    auto chains =
+        make_chains(draws, num_draws, num_params, lengths, num_chains);
+    Eigen::Map<Eigen::RowVectorXd>(out, num_params) = walnuts::r_hat(chains);
+    return 0;
+  });
+}
+
+WALNUTPIE_EXPORT int walnutpie_mcse(const double* draws, int num_draws,
+                                    int num_params, const int* lengths,
+                                    int num_chains, double* out,
+                                    WalnutpieError** err) {
+  return error::catch_exceptions(err, [&]() {
+    auto chains =
+        make_chains(draws, num_draws, num_params, lengths, num_chains);
+    Eigen::Map<Eigen::RowVectorXd>(out, num_params) =
+        walnuts::monte_carlo_standard_error(chains);
     return 0;
   });
 }

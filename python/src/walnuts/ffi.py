@@ -1,8 +1,9 @@
 import ctypes
 import importlib.resources
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Generic, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.ctypeslib import ndpointer
@@ -55,7 +56,7 @@ def _raise_for_error(rc: int, err):
             raise RuntimeError(f"Unknown error, function returned code {rc}")
 
 
-_common_argtypes_suffix = [
+_common_sampling_argtypes = [
     ctypes.c_size_t,  # num_chains
     ctypes.c_uint,  # seed
     ctypes.c_uint,  # id
@@ -92,6 +93,15 @@ _common_argtypes_suffix = [
     err_ptr,
 ]
 
+_common_summary_argtypes = [
+    double_array,  # draws in num_draws by num_params stacked array
+    ctypes.c_int,  # num draws
+    ctypes.c_int,  # num params
+    int_array,  # chain lengths
+    ctypes.c_int,  # num chains
+    double_array,  # output (size num_params)
+    err_ptr,
+]
 
 _HERE = Path(__file__).parent
 
@@ -123,7 +133,7 @@ try:
         ctypes.c_void_p,  # data pointer
         ctypes.c_int,  # num_params
         nullable_double_array,  # inits
-    ] + _common_argtypes_suffix
+    ] + _common_sampling_argtypes
 
     _ffi_sample_bridgestan = _lib.walnutpie_sample_bridgestan
     _ffi_sample_bridgestan.restype = ctypes.c_int
@@ -132,7 +142,17 @@ try:
         ctypes.c_char_p,  # model data
         ctypes.c_uint,  # model seed
         ctypes.c_char_p,  # inits
-    ] + _common_argtypes_suffix
+    ] + _common_sampling_argtypes
+
+    _ffi_ess = _lib.walnutpie_ess
+    _ffi_ess.restype = ctypes.c_int
+    _ffi_ess.argtypes = _common_summary_argtypes
+    _ffi_r_hat = _lib.walnutpie_r_hat
+    _ffi_r_hat.restype = ctypes.c_int
+    _ffi_r_hat.argtypes = _common_summary_argtypes
+    _ffi_mcse = _lib.walnutpie_mcse
+    _ffi_mcse.restype = ctypes.c_int
+    _ffi_mcse.argtypes = _common_summary_argtypes
 
     _get_error_msg = _lib.walnutpie_get_error_message
     _get_error_msg.restype = ctypes.c_char_p
@@ -167,22 +187,29 @@ def logp_c_trampoline(size, buf, grad, lp, logp_ptr):
     return 0
 
 
+T = TypeVar("T")
+
+
+@dataclass
+class WarmupInfo(Generic[T]):
+    stepsize: float
+    inv_metric: Optional[np.ndarray]
+    warmup_draws: Optional[T]
+
+
 # Wrapper around ndarray that lets us set extra attributes
 # https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
 class WalnutsOutputArray(np.ndarray):
-    def __new__(cls, input_array, stepsize=None, inv_metric=None):
+    def __new__(cls, input_array, warmup: WarmupInfo[np.ndarray]):
         obj = np.asarray(input_array).view(cls)
 
-        obj.stepsize = stepsize
-        obj.inv_metric = inv_metric
-
+        obj.warmup = warmup
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        self.stepsize = getattr(obj, "stepsize", None)
-        self.inv_metric = getattr(obj, "inv_metric", None)
+        self.warmup = getattr(obj, "warmup", None)
 
 
 def walnuts_pyfunc(
@@ -223,7 +250,7 @@ def walnuts_pyfunc(
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
     refresh: int = 0,
-):
+) -> list[WalnutsOutputArray]:
     if num_params is None:
         if inits is None:
             raise ValueError("must specify at least one of num_params or inits")
@@ -275,7 +302,7 @@ def walnuts_pyfunc(
     if save_inv_metric:
         inv_metric_out = np.zeros((num_chains, num_params), dtype=np.float64)
 
-    lengths_out = np.zeros((num_chains,), dtype=np.int32)
+    lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
 
     if hasattr(logp, "ctypes"):
         # numba's @cfunc decorator, which should generate very fast code
@@ -335,10 +362,19 @@ def walnuts_pyfunc(
 
     outputs = []
     for i in range(num_chains):
-        output_chain = WalnutsOutputArray(
-            out[i, 0 : lengths_out[i], :],
+        warmup_written = lengths_out[i]
+        samples_written = lengths_out[i + num_chains]
+
+        warmup_info = WarmupInfo(
             stepsize=stepsize_out[i],
             inv_metric=inv_metric_out[i] if inv_metric_out is not None else None,
+            warmup_draws=(
+                out[i, 0 : warmup_written + samples_written, :] if save_warmup else None
+            ),
+        )
+
+        output_chain = WalnutsOutputArray(
+            out[i, warmup_written : warmup_written + samples_written, :], warmup_info
         )
         outputs.append(output_chain)
 

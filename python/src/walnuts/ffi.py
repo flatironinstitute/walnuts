@@ -103,16 +103,23 @@ _common_summary_argtypes = [
     err_ptr,
 ]
 
-_HERE = Path(__file__).parent
 
-# Note: skbuild's redirects make it important for this name to actually _not_ be the same as the top-level python package, hence 'walnutpie' here
+
 try:
-    # this triggers a rebuild in editable mode
-    importlib.resources.files("walnutpie.libwalnutpie")
-except Exception:
+    # this is only relevant to scikit-build-core's editable mode support
+    # by trying to import this file as a CPython extension, we trigger
+    # a rebuild. The import then fails, since it is just a generic shared
+    # object, but that's fine.
+    importlib.resources.files("walnuts.libwalnutpie")
+except ImportError:
     pass
-_INSTALL_PATH = (importlib.resources.files("walnutpie") / "libwalnutpie.so").parent
 
+# NB: in almost all cases, these paths will end up resolving to the same place.
+# editable installs are the primary exception
+_HERE = Path(__file__).parent
+# TODO: the following is primarily useful for editable installs, but will currently only
+# work for editable installs on platforms which use .so for shared objects (namely Linux)
+_INSTALL_PATH = (importlib.resources.files("walnuts") / "libwalnutpie.so").parent
 _PATHS = [_HERE, _INSTALL_PATH]
 
 try:

@@ -8,8 +8,7 @@ generate_export_header(walnutpie
   EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/src/walnuts/export.h"
 )
 
-# todo detect SKBUILD_STATE == editable?
 install(TARGETS walnutpie
-  LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}/walnutpie"
-  RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}/walnutpie"
+  LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}/walnuts"
+  RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}/walnuts"
 )

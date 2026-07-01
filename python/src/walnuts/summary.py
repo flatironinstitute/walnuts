@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 
-from .ffi import _ffi_ess, _ffi_mcse, _ffi_r_hat, _raise_for_error
+from ._ffi import _ffi_ess, _ffi_mcse, _ffi_r_hat, raise_for_error
 
 if TYPE_CHECKING:
     from .stan import StanOutputBase
@@ -35,7 +35,7 @@ class Summarizer:
             out,
             err,
         )
-        _raise_for_error(rc, err)
+        raise_for_error(rc, err)
         return out
 
     def r_hat(self) -> np.ndarray:
@@ -50,7 +50,7 @@ class Summarizer:
             out,
             err,
         )
-        _raise_for_error(rc, err)
+        raise_for_error(rc, err)
         return out
 
     def mcse(self) -> np.ndarray:
@@ -65,7 +65,7 @@ class Summarizer:
             out,
             err,
         )
-        _raise_for_error(rc, err)
+        raise_for_error(rc, err)
         return out
 
 

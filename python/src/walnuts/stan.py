@@ -6,8 +6,8 @@ import bridgestan
 import numpy as np
 import stanio
 
-from .ffi import WarmupInfo, _ffi_sample_bridgestan, _raise_for_error
-from .util import rand_u32
+from ._ffi import _ffi_sample_bridgestan, raise_for_error
+from .util import WarmupInfo, rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
 
@@ -263,7 +263,7 @@ def walnuts_stan(
         inv_metric_out,
         err,
     )
-    _raise_for_error(rc, err)
+    raise_for_error(rc, err)
 
     outputs = []
     for i in range(num_chains):

@@ -6,7 +6,7 @@ import bridgestan
 import numpy as np
 import stanio
 
-from ._ffi import _ffi_sample_bridgestan, raise_for_error
+from ._ffi import _ffi_sample_bridgestan
 from .util import WarmupInfo, rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
@@ -222,8 +222,7 @@ def walnuts_stan(
 
     lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
 
-    err = ctypes.pointer(ctypes.c_void_p())
-    rc = _ffi_sample_bridgestan(
+    _ffi_sample_bridgestan(
         model.lib_path.encode(),  # TODO: alternative that doesn't require double instantiation?
         model.data.encode(),
         model.seed,
@@ -261,9 +260,7 @@ def walnuts_stan(
         lengths_out,
         stepsize_out,
         inv_metric_out,
-        err,
     )
-    raise_for_error(rc, err)
 
     outputs = []
     for i in range(num_chains):

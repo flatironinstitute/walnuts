@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 
-from ._ffi import _ffi_ess, _ffi_mcse, _ffi_r_hat, raise_for_error
+from ._ffi import _ffi_ess, _ffi_mcse, _ffi_r_hat
 
 if TYPE_CHECKING:
     from .stan import StanOutputBase
@@ -29,48 +29,40 @@ class Summarizer:
         return np.std(self._stacked, axis=0, ddof=1)
 
     def ess(self) -> np.ndarray:
-        out = np.zeros((self.num_params,))
-        err = ctypes.pointer(ctypes.c_void_p())
-        rc = _ffi_ess(
-            self.stacked_draws,
-            self.num_draws,
-            self.num_params,
-            self.lengths,
-            self.num_chains,
+        out = np.zeros((self._num_params,))
+        _ffi_ess(
+            self._stacked,
+            self._num_draws,
+            self._num_params,
+            self._lengths,
+            self._num_chains,
             out,
-            err,
         )
-        raise_for_error(rc, err)
+
         return out
 
     def r_hat(self) -> np.ndarray:
-        out = np.zeros((self.num_params,))
-        err = ctypes.pointer(ctypes.c_void_p())
-        rc = _ffi_r_hat(
-            self.stacked_draws,
-            self.num_draws,
-            self.num_params,
-            self.lengths,
-            self.num_chains,
+        out = np.zeros((self._num_params,))
+        _ffi_r_hat(
+            self._stacked,
+            self._num_draws,
+            self._num_params,
+            self._lengths,
+            self._num_chains,
             out,
-            err,
         )
-        raise_for_error(rc, err)
         return out
 
     def mcse(self) -> np.ndarray:
-        out = np.zeros((self.num_params,))
-        err = ctypes.pointer(ctypes.c_void_p())
-        rc = _ffi_mcse(
-            self.stacked_draws,
-            self.num_draws,
-            self.num_params,
-            self.lengths,
-            self.num_chains,
+        out = np.zeros((self._num_params,))
+        _ffi_mcse(
+            self._stacked,
+            self._num_draws,
+            self._num_params,
+            self._lengths,
+            self._num_chains,
             out,
-            err,
         )
-        raise_for_error(rc, err)
         return out
 
 

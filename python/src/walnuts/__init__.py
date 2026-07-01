@@ -10,7 +10,7 @@ except ImportError as e:
         ) from e
 
 
-from .summary import Summarizer, ess, mcse, r_hat, mean, variance, standard_deviation
+from .summary import Summarizer, ess, mcse, mean, r_hat, standard_deviation, variance
 
 __all__ = [
     "walnuts_stan",

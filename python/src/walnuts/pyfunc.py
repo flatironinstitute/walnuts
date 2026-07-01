@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Union
 
 import numpy as np
 
-from ._ffi import _ffi_sample_cfunc, logp_cfunc_type, raise_for_error
+from ._ffi import _ffi_sample_cfunc, logp_cfunc_type
 from .util import WarmupInfo, rand_u32
 
 
@@ -140,8 +140,7 @@ def walnuts_pyfunc(
         logp_c = logp_c_trampoline
         logp_c_data = ctypes.byref(ctypes.py_object(logp))
 
-    err = ctypes.pointer(ctypes.c_void_p())
-    rc = _ffi_sample_cfunc(
+    _ffi_sample_cfunc(
         logp_c,
         logp_c_data,
         num_params,
@@ -179,9 +178,7 @@ def walnuts_pyfunc(
         lengths_out,
         stepsize_out,
         inv_metric_out,
-        err,
     )
-    raise_for_error(rc, err)
 
     outputs = []
     for i in range(num_chains):

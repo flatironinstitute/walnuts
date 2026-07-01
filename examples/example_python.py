@@ -1,7 +1,9 @@
-import os, time
+import os
+import time
+
+import bridgestan
 
 import walnuts
-import bridgestan
 
 
 def timed(f):
@@ -39,8 +41,8 @@ m = bridgestan.StanModel(
 
 summarize("stan", timed(walnuts.walnuts_stan)(m, seed=1234))
 
-import scipy.stats
 import numpy as np
+import scipy.stats
 
 
 def logp(x):
@@ -50,8 +52,8 @@ def logp(x):
 summarize("pyfunc", timed(walnuts.walnuts_pyfunc)(logp, num_params=2))
 
 import numba
-from numba_stats import norm
 from numba import types
+from numba_stats import norm
 
 
 @numba.cfunc(

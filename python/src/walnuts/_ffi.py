@@ -1,14 +1,13 @@
-from contextlib import ExitStack
 import atexit
 import ctypes
+import functools
 import importlib.resources
 import sys
-
+from contextlib import ExitStack
 from pathlib import Path
 
 import numpy as np
 from numpy.ctypeslib import ndpointer
-
 
 # loading the library
 # mostly taken from the guide at https://scikit-build-core.readthedocs.io/en/latest/guide/faqs.html#shipping-a-library-to-load-with-ctypes,
@@ -146,8 +145,81 @@ _common_summary_argtypes = [
 
 # getting function pointers
 
-_ffi_sample_cfunc = _lib.walnutpie_sample_cfunc
-_ffi_sample_cfunc.restype = ctypes.c_int
+_get_error_msg = _lib.walnutpie_get_error_message
+_get_error_msg.restype = ctypes.c_char_p
+_get_error_msg.argtypes = [ctypes.c_void_p]
+
+_get_error_type = _lib.walnutpie_get_error_type
+_get_error_type.restype = ctypes.c_int  # really enum
+
+_get_error_type.argtypes = [ctypes.c_void_p]
+_free_error = _lib.walnutpie_destroy_error
+_free_error.restype = None
+_free_error.argtypes = [ctypes.c_void_p]
+
+
+class ErrorHandledCFunc:
+    """Wrap fallible Walnutpie C functions to automate their error handling.
+
+    All fallible functions must return an int and accept an error pointer as the final
+    argument. This wrapper transforms them into functions that return None but throw
+    the appropriate exception on error.
+    """
+
+    # corresponding to WalnutpieErrorType
+    _exception_types: list[BaseException] = [
+        RuntimeError,
+        ValueError,
+        KeyboardInterrupt,
+    ]
+
+    def __init__(self, f):
+        f.restype = ctypes.c_int
+        f.errcheck = ErrorHandledCFunc._check_rc
+        functools.update_wrapper(self, f)
+
+    def __call__(self, *args):
+        ptr = ctypes.pointer(ctypes.c_void_p())
+        self.__wrapped__(*args, ptr)
+
+    def __setattr__(self, name, value):
+        if name == "argtypes":
+            if value[-1] != err_ptr:
+                raise AttributeError(
+                    "Last entry of 'argtypes' must be err_ptr for ErrorHandledCFunc functions"
+                )
+            self.__wrapped__.__setattr__(name, value)
+        super().__setattr__(name, value)
+
+    @classmethod
+    def _check_rc(cls, rc, f, args):
+        if rc == 0:
+            return
+
+        if f.argtypes[-1] != err_ptr:
+            raise ValueError(
+                "Internal error: erroring functions must accept err_ptr as "
+                "final argument but this did not. "
+                f"Function returned code {rc}"
+            )
+
+        ptr = args[-1]
+        if ptr.contents:
+            msg = _get_error_msg(ptr.contents).decode("utf-8")
+            exception_type = _get_error_type(ptr.contents)
+            _free_error(ptr.contents)
+            # funny variable name because the 'raise' line gets shown to the user
+            CPlusPlusError = cls._exception_types[exception_type]
+            raise CPlusPlusError(msg)
+        else:
+            raise RuntimeError(f"Unknown error, function returned code {rc}")
+
+
+def erroring(f):
+    return ErrorHandledCFunc(f)
+
+
+_ffi_sample_cfunc = erroring(_lib.walnutpie_sample_cfunc)
 _ffi_sample_cfunc.argtypes = [
     logp_cfunc_type,  # callback
     ctypes.c_void_p,  # data pointer
@@ -155,8 +227,8 @@ _ffi_sample_cfunc.argtypes = [
     nullable_double_array,  # inits
 ] + _common_sampling_argtypes
 
-_ffi_sample_bridgestan = _lib.walnutpie_sample_bridgestan
-_ffi_sample_bridgestan.restype = ctypes.c_int
+
+_ffi_sample_bridgestan = erroring(_lib.walnutpie_sample_bridgestan)
 _ffi_sample_bridgestan.argtypes = [
     ctypes.c_char_p,  # model so
     ctypes.c_char_p,  # model data
@@ -164,43 +236,18 @@ _ffi_sample_bridgestan.argtypes = [
     ctypes.c_char_p,  # inits
 ] + _common_sampling_argtypes
 
-_ffi_ess = _lib.walnutpie_ess
-_ffi_ess.restype = ctypes.c_int
+_ffi_ess = erroring(_lib.walnutpie_ess)
 _ffi_ess.argtypes = _common_summary_argtypes
-_ffi_r_hat = _lib.walnutpie_r_hat
-_ffi_r_hat.restype = ctypes.c_int
+
+_ffi_r_hat = erroring(_lib.walnutpie_r_hat)
 _ffi_r_hat.argtypes = _common_summary_argtypes
-_ffi_mcse = _lib.walnutpie_mcse
-_ffi_mcse.restype = ctypes.c_int
+
+_ffi_mcse = erroring(_lib.walnutpie_mcse)
 _ffi_mcse.argtypes = _common_summary_argtypes
 
-_get_error_msg = _lib.walnutpie_get_error_message
-_get_error_msg.restype = ctypes.c_char_p
-_get_error_msg.argtypes = [ctypes.c_void_p]
-_get_error_type = _lib.walnutpie_get_error_type
-_get_error_type.restype = ctypes.c_int  # really enum
-_get_error_type.argtypes = [ctypes.c_void_p]
-_free_error = _lib.walnutpie_destroy_error
-_free_error.restype = None
-_free_error.argtypes = [ctypes.c_void_p]
 
 # TODO
 # _get_separator = _lib.walnutpie_separator_char
 # _get_separator.restype = ctypes.c_char
 # _get_separator.argtypes = []
 # _sep = _get_separator()
-
-
-_exception_types = [RuntimeError, ValueError, KeyboardInterrupt]
-
-
-def raise_for_error(rc: int, err):
-    if rc != 0:
-        if err.contents:
-            msg = _get_error_msg(err.contents).decode("utf-8")
-            exception_type = _get_error_type(err.contents)
-            _free_error(err.contents)
-            exn = _exception_types[exception_type]
-            raise exn(msg)
-        else:
-            raise RuntimeError(f"Unknown error, function returned code {rc}")

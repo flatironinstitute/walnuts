@@ -1,7 +1,33 @@
-from walnuts import *
+import os, time
 
-import os
+import walnuts
 import bridgestan
+
+
+def timed(f):
+    def f_timed(*args, **kwargs):
+        start = time.perf_counter()
+        res = f(*args, **kwargs)
+        end = time.perf_counter()
+        print(f"{f.__name__} took {end-start:0.6f}s")
+        return res
+
+    return f_timed
+
+
+def summarize(name, fit):
+    summarizer = walnuts.Summarizer(fit)
+    mean = summarizer.mean()
+    std = summarizer.standard_deviation()
+    ess = summarizer.ess()
+    r_hat = summarizer.r_hat()
+    draws = summarizer._stacked.shape[0]
+    print(f"{name}\tdim\tmean\tstd\tess\trhat\tdraws")
+    for i in range(len(mean)):
+        print(
+            f"\t{i}\t{mean[i]:.4f}\t{std[i]:.4f}\t{ess[i]:.2f}\t{r_hat[i]:.4f}\t{draws}"
+        )
+
 
 m = bridgestan.StanModel(
     os.path.join(
@@ -11,7 +37,7 @@ m = bridgestan.StanModel(
     make_args=["STAN_THREADS=1"],
 )
 
-print([(c["alpha"].mean(axis=0), c["alpha"].shape) for c in walnuts_stan(m, seed=1234)])
+summarize("stan", timed(walnuts.walnuts_stan)(m, seed=1234))
 
 import scipy.stats
 import numpy as np
@@ -21,7 +47,7 @@ def logp(x):
     return np.sum(scipy.stats.norm.logpdf(x)), -x
 
 
-print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp, num_params=2)])
+summarize("pyfunc", timed(walnuts.walnuts_pyfunc)(logp, num_params=2))
 
 import numba
 from numba_stats import norm
@@ -46,4 +72,4 @@ def logp_numba(size, x_, grad_, lp, _):
     return 0
 
 
-print([(c.mean(axis=0), c.shape) for c in walnuts_pyfunc(logp_numba, num_params=2)])
+summarize("numba", timed(walnuts.walnuts_pyfunc)(logp_numba, num_params=2))

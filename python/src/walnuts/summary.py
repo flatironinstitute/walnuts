@@ -1,4 +1,3 @@
-import ctypes
 from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
@@ -13,15 +12,21 @@ class Summarizer:
     def __init__(self, draws: Union[List[np.ndarray], List["StanOutputBase"]]):
         if hasattr(draws[0], "parameters"):  # StanOutputBase
             draws = [c.data for c in draws]
-        self.stacked_draws = np.concat(draws)
-        self.num_draws, self.num_params = self.stacked_draws.shape
+        self._stacked = np.concat(draws)
+        self._num_draws, self._num_params = self._stacked.shape
 
-        self.lengths = np.array([c.shape[0] for c in draws], dtype=np.int32)
-        self.num_chains = len(draws)
+        self._lengths = np.array([c.shape[0] for c in draws], dtype=np.int32)
+        self._num_chains = len(draws)
 
-    # TODO: mean, variance, stddev, and quantiles: I don't think any of these really need FFI?
+    # I don't think any of these really need FFI?
     def mean(self):
-        return np.mean(self.stacked_draws, axis=0)
+        return np.mean(self._stacked, axis=0)
+
+    def variance(self):
+        return np.var(self._stacked, axis=0, ddof=1)
+
+    def standard_deviation(self):
+        return np.std(self._stacked, axis=0, ddof=1)
 
     def ess(self) -> np.ndarray:
         out = np.zeros((self.num_params,))
@@ -79,3 +84,17 @@ def r_hat(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
 
 def mcse(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     return Summarizer(draws).mcse()
+
+
+def mean(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    return Summarizer(draws).mean()
+
+
+def variance(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    return Summarizer(draws).variance()
+
+
+def standard_deviation(
+    draws: Union[List[np.ndarray], List["StanOutputBase"]]
+) -> np.ndarray:
+    return Summarizer(draws).standard_deviation()

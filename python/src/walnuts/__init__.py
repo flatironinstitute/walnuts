@@ -9,7 +9,19 @@ except ImportError as e:
             "Failed to load walnuts_stan. Is bridgestan installed and working?"
         ) from e
 
-from .summary import Summarizer, ess, mcse, r_hat
 
-__all__ = ["walnuts_stan", "walnuts_pyfunc", "logp_cfunc_type", "r_hat", "ess", "mcse", "Summarizer"]
+from .summary import Summarizer, ess, mcse, r_hat, mean, variance, standard_deviation
+
+__all__ = [
+    "walnuts_stan",
+    "walnuts_pyfunc",
+    "logp_cfunc_type",
+    "r_hat",
+    "ess",
+    "mcse",
+    "mean",
+    "variance",
+    "standard_deviation",
+    "Summarizer",
+]
 __version__ = "0.0.1"

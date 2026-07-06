@@ -1,4 +1,3 @@
-import ctypes
 import os
 from typing import Any, Dict, List, Mapping, Optional, Union
 
@@ -6,7 +5,7 @@ import bridgestan
 import numpy as np
 import stanio
 
-from ._ffi import _ffi_sample_bridgestan
+from ._ffi import _ffi_sample_bridgestan, print_callback, WALNUTPIE_SEP
 from .util import WarmupInfo, rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
@@ -142,7 +141,7 @@ def _encode_stan_inits(inits, chains, seed) -> Union[bytes, None]:
             inits = inits.create_inits(chains=chains, seed=seed)
 
         if isinstance(inits, list):
-            inits_encoded = _sep.join(encode_stan_json(init) for init in inits)
+            inits_encoded = WALNUTPIE_SEP.join(encode_stan_json(init) for init in inits)
         else:
             inits_encoded = encode_stan_json(inits)
     return inits_encoded
@@ -193,8 +192,9 @@ def walnuts_stan(
     seed = seed or rand_u32()
 
     if model.model_version() < (2, 9, 0):
-        # TODO assert bridgestan is at least 2.9
-        pass
+        raise ValueError(
+            "BridgeStan version must be at least 2.9.0 for use with walnuts"
+        )
 
     model_params = model.param_unc_num()
     param_names = model.param_names(include_tp=True, include_gq=True)
@@ -223,8 +223,9 @@ def walnuts_stan(
     lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
 
     _ffi_sample_bridgestan(
-        model.lib_path.encode(),  # TODO: alternative that doesn't require double instantiation?
+        model.lib_path.encode(),
         model.data.encode(),
+        print_callback,
         model.seed,
         _encode_stan_inits(inits, num_chains, seed),
         num_chains,

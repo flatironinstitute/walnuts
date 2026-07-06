@@ -14,8 +14,6 @@
 #include <string>
 #include <vector>
 
-
-
 // TODO: consider using something like https://github.com/martin-olivier/dylib/
 #if defined _WIN32 || defined __MINGW32__
 // hacky way to get dlopen and friends on Windows
@@ -102,7 +100,8 @@ using unique_bs_rng = std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)>;
 
 class DynamicStanModel {
  public:
-  DynamicStanModel(const char* model_path, const char* data, unsigned int seed)
+  DynamicStanModel(const char* model_path, const char* data, unsigned int seed,
+                   STREAM_CALLBACK callback = nullptr)
       : library_(internal::dlopen_safe(model_path)),
         model_ptr_(internal::make_model(library_, data, seed)),
         free_error_msg_(dlsym_cast(library_, bs_free_error_msg)),
@@ -113,7 +112,10 @@ class DynamicStanModel {
         param_initialize_(dlsym_cast(library_, bs_param_initialize)),
         param_names_(dlsym_cast(library_, bs_param_names)),
         rng_construct_(dlsym_cast(library_, bs_rng_construct)),
-        rng_destruct_(dlsym_cast(library_, bs_rng_destruct)) {}
+        rng_destruct_(dlsym_cast(library_, bs_rng_destruct)) {
+    auto set_print_callback = dlsym_cast(library_, bs_set_print_callback);
+    set_print_callback(callback, nullptr);
+  }
 
   std::size_t unconstrained_dimensions() const {
     return static_cast<std::size_t>(param_unc_num_(model_ptr_.get()));

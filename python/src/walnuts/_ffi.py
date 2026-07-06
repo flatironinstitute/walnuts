@@ -82,7 +82,6 @@ logp_cfunc_type = ctypes.CFUNCTYPE(
 )
 
 
-# TODO actually use print_callback in underlying call
 print_callback_type = ctypes.CFUNCTYPE(
     None, ctypes.POINTER(ctypes.c_char), ctypes.c_size_t, ctypes.c_bool
 )
@@ -232,6 +231,7 @@ _ffi_sample_bridgestan = erroring(_lib.walnutpie_sample_bridgestan)
 _ffi_sample_bridgestan.argtypes = [
     ctypes.c_char_p,  # model so
     ctypes.c_char_p,  # model data
+    print_callback_type,
     ctypes.c_uint,  # model seed
     ctypes.c_char_p,  # inits
 ] + _common_sampling_argtypes
@@ -246,8 +246,7 @@ _ffi_mcse = erroring(_lib.walnutpie_mcse)
 _ffi_mcse.argtypes = _common_summary_argtypes
 
 
-# TODO
-# _get_separator = _lib.walnutpie_separator_char
-# _get_separator.restype = ctypes.c_char
-# _get_separator.argtypes = []
-# _sep = _get_separator()
+_get_separator = _lib.walnutpie_separator_char
+_get_separator.restype = ctypes.c_char
+_get_separator.argtypes = []
+WALNUTPIE_SEP = _get_separator()

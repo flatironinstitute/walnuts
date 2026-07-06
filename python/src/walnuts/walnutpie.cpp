@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <bridgestan.h>
 #include <Eigen/Dense>
 #include <walnuts.hpp>
 #include <walnuts/load_stan.hpp>
@@ -88,6 +89,30 @@ walnuts::MarkovChainsUnified make_chains(const double* draws, int num_draws,
     lengths_vec[i] = lengths[i];
   }
   return walnuts::MarkovChainsUnified(draws_map, lengths_vec);
+}
+
+std::vector<std::string> split(const char* str, char sep) {
+  if (str == nullptr) {
+    return {};
+  }
+
+  std::vector<std::string> res;
+
+  const char* cursor = str;
+  const char* current = str;
+  while (*cursor != '\0') {
+    if (*cursor == sep) {
+      res.emplace_back(current, cursor - current);
+      current = cursor + 1;
+    }
+    cursor++;
+  }
+
+  if (cursor - current > 1) {
+    res.emplace_back(current, cursor - current);
+  }
+
+  return res;
 }
 
 }  // namespace walnutpie
@@ -187,14 +212,18 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
   });
 }
 
+static constexpr const char SEPARATOR = '\x1C';  ///< ASCII file separator
+WALNUTPIE_EXPORT char walnutpie_separator_char() { return SEPARATOR; }
+
 WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
-    const char* bs_dll, const char* json_data, unsigned int model_seed,
-    const char* inits, size_t num_chains, unsigned int seed, unsigned int id,
-    double init_radius, const double* init_inv_metric, int min_warmup_iter,
-    int max_warmup_iter, int min_sampling_iter, int max_sampling_iter,
-    int max_trajectory_doublings, int max_step_halvings, int min_micro_steps,
-    double max_hamiltonian_error, double step_size_converge_tol,
-    double mass_converge_tol, double rhat_converge_tol, double mass_init_count,
+    const char* bs_dll, const char* json_data, STREAM_CALLBACK callback,
+    unsigned int model_seed, const char* inits, size_t num_chains,
+    unsigned int seed, unsigned int id, double init_radius,
+    const double* init_inv_metric, int min_warmup_iter, int max_warmup_iter,
+    int min_sampling_iter, int max_sampling_iter, int max_trajectory_doublings,
+    int max_step_halvings, int min_micro_steps, double max_hamiltonian_error,
+    double step_size_converge_tol, double mass_converge_tol,
+    double rhat_converge_tol, double mass_init_count,
     double mass_additive_smoothing, double max_macro_steps_target,
     double step_size_init, double step_accept_rate_target,
     double step_learning_rate, double step_gradient_decay,
@@ -206,7 +235,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
   using walnuts::unique_bs_rng;
 
   return error::catch_exceptions(err, [&]() {
-    DynamicStanModel stan_model(bs_dll, json_data, model_seed);
+    DynamicStanModel stan_model(bs_dll, json_data, model_seed, callback);
 
     int draws_offset = stan_model.constrained_dimensions() *
                        (max_sampling_iter + max_warmup_iter * save_warmup);
@@ -229,13 +258,25 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
       std::seed_seq ss{seed, 1u};
       std::vector<std::uint32_t> seeds(num_chains);
       ss.generate(seeds.begin(), seeds.end());
+
+      std::vector<std::string> chain_inits = split(inits, SEPARATOR);
+      if (!chain_inits.empty() && chain_inits.size() != 1 &&
+          chain_inits.size() != num_chains) {
+        throw std::invalid_argument("Number of parameter initializations "
+                                    "provided must be 0, 1, or match "
+                                    "the number of chains");
+      }
+
       for (size_t i = 0; i < num_chains; ++i) {
         rngs.push_back(stan_model.make_rng(seeds[i]));
 
-        // TODO need some sort of init separation per chain. In tinystan used
-        // a 'magic' separator
-        theta_inits.push_back(
-            stan_model.initialize(inits, rngs[i], init_radius));
+        if (chain_inits.size() <= 1) {
+          theta_inits.push_back(
+              stan_model.initialize(inits, rngs[i], init_radius));
+        } else {
+          theta_inits.push_back(stan_model.initialize(chain_inits[i].c_str(),
+                                                      rngs[i], init_radius));
+        }
 
         handlers.emplace_back(
             stan_model, rngs[i], out + draws_offset * i,

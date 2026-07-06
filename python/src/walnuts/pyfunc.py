@@ -131,12 +131,12 @@ def walnuts_pyfunc(
         # numba's @cfunc decorator, which should generate very fast code
         logp_c = logp.ctypes
         logp_c_data = None
-    # elif jax: # TODO
     elif isinstance(logp, tuple):
         logp_c = logp[0]
         logp_c_data = ctypes.byref(logp[1]) if logp[1] is not None else None
     else:
         # if we just have a generic python function, best we can do is wrap it
+        # TODO: does a faster path exist for JAX?
         logp_c = logp_c_trampoline
         logp_c_data = ctypes.byref(ctypes.py_object(logp))
 

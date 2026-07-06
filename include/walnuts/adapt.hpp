@@ -139,9 +139,7 @@ class AdaptWorker {
         publish_snapshot(iter);
       }
     }
-    if (iter % warmup_config_.get().publish_stride() != 0) {
-      publish_snapshot(iter);
-    }
+    publish_snapshot(iter - 1);
   }
 
  private:

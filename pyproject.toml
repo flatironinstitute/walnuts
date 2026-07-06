@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "scikit-build-core @ git+https://github.com/scikit-build/scikit-build-core.git",
+    "scikit-build-core >= 1.0",
 ]
 
 build-backend = "scikit_build_core.build"
@@ -25,16 +25,20 @@ dynamic = ["version"]
 [project.optional-dependencies]
 stan = ["bridgestan>=2.9.0", "stanio"]
 compiled = ["numba"]
+test = ["pytest", "scipy"]
+test-fast = ["pytest", "numba", "numba_stats"]
+
 
 [tool.isort]
 profile = "black"
 
 [tool.scikit-build]
-minimum-version = "0.10"
+minimum-version = "1.0"
 cmake.source-dir = "."
 build.targets = ["walnutpie"]
 cmake.args = ["-G Ninja"]
 cmake.define = {"WALNUTS_BUILD_EXAMPLES" = "OFF"}
+cmake.build-type = "RelWithDebInfo"
 
 build.verbose = true
 logging.level = "INFO"

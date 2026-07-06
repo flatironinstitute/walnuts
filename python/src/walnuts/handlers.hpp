@@ -32,6 +32,7 @@ class BufferHandler {
     Eigen::Map<Eigen::VectorXd>(out + n_ * position.size(), position.size()) =
         position;
     n_++;
+    n_warmup_++;
   }
 
   void on_warmup_complete(double step_size, const Eigen::VectorXd& inv_metric) {
@@ -42,7 +43,6 @@ class BufferHandler {
       std::copy(inv_metric.data(), inv_metric.data() + inv_metric.size(),
                 inv_metric_out);
     }
-    n_warmup_ = n_;
   }
 
   int written_sampling() const { return n_ - n_warmup_; }

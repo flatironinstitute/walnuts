@@ -188,9 +188,7 @@ def walnuts_pyfunc(
         warmup_info = WarmupInfo(
             stepsize=stepsize_out[i],
             inv_metric=inv_metric_out[i] if inv_metric_out is not None else None,
-            warmup_draws=(
-                out[i, 0 : warmup_written + samples_written, :] if save_warmup else None
-            ),
+            warmup_draws=(out[i, 0:warmup_written, :] if save_warmup else None),
         )
 
         output_chain = WalnutsOutputArray(

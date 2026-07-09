@@ -1,17 +1,16 @@
 #pragma once
 
-#include <Eigen/Dense>
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <deque>
-#include <exception>
 #include <functional>
 #include <latch>
 #include <limits>
 #include <stop_token>
 #include <thread>
 #include <vector>
+
+#include <Eigen/Dense>
 
 #include "walnuts/concepts.hpp"
 #include "walnuts/config.hpp"
@@ -55,23 +54,15 @@ struct alignas(FALSE_SHARING_GUARD_SIZE) AdaptSnapshot {
 };
 
 /**
- * A triple buffer of adaptation snapshots.
- *
- * @see `walnuts::SpscBuffer`
- * @see `walnuts::AdaptSnapshot`
- */
-using Buffer = SpscBuffer<AdaptSnapshot>;
-
-/**
  * @brief Return a deque of buffers of the given sizes.
  *
  * @param[in] num_chains The number of Markov chains.
  * @param[in] dim The number of dimensions.
  * @return The buffer container.
  */
-inline std::deque<Buffer> construct_buffers(std::size_t num_chains,
-                                            std::size_t dim) {
-  std::deque<Buffer> buffers;
+inline std::deque<SpscBuffer<AdaptSnapshot>> construct_buffers(
+    std::size_t num_chains, std::size_t dim) {
+  std::deque<SpscBuffer<AdaptSnapshot>> buffers;
   auto snapshot = AdaptSnapshot(static_cast<Eigen::Index>(dim));
   for (std::size_t m = 0; m < num_chains; ++m) {
     buffers.emplace_back(snapshot);
@@ -91,23 +82,18 @@ class AdaptWorker {
   /**
    * @brief Construct an adaptation worker with the specified configuration.
    *
-   * @param[in] chain_id The identifier for which chain this is.
-   * @param[in] init_cfg The initialization configuragation.
    * @param[in] warmup_cfg The configuration for warmup.
-   * @param[in] buffer The buffer to hold the adaptation states.
-   * @param[in] start_gate A latch to gate work to start synchronously across
-   * workers.
    * @param[in] adapter The base sampler, methods of which are later called.
+   * @param[out] buffer The buffer to hold the adaptation states.
+   * @param[inout] start_gate A latch to gate work to start synchronously across
+   * workers.
    */
-  AdaptWorker(std::size_t chain_id, const InitConfig& init_cfg,
-              const WarmupConfig& warmup_cfg, Buffer& buffer,
-              std::latch& start_gate, A& adapter)
-      : chain_id_(chain_id),
-        init_config_(init_cfg),
-        warmup_config_(warmup_cfg),
+  AdaptWorker(const WarmupConfig& warmup_cfg, A& adapter,
+              SpscBuffer<AdaptSnapshot>& buffer, std::latch& start_gate)
+      : warmup_config_(warmup_cfg),
+        adapter_(adapter),
         buffer_(buffer),
-        start_gate_(start_gate),
-        adapter_(adapter) {}
+        start_gate_(start_gate) {}
 
   /**
    * @brief The functor called by the thread to do the adaptation.
@@ -153,12 +139,10 @@ class AdaptWorker {
     buffer_.get().publish();
   }
 
-  std::size_t chain_id_;
-  std::reference_wrapper<const InitConfig> init_config_;
   std::reference_wrapper<const WarmupConfig> warmup_config_;
-  std::reference_wrapper<Buffer> buffer_;
-  std::reference_wrapper<std::latch> start_gate_;
   std::reference_wrapper<A> adapter_;
+  std::reference_wrapper<SpscBuffer<AdaptSnapshot>> buffer_;
+  std::reference_wrapper<std::latch> start_gate_;
 };
 
 /**
@@ -180,55 +164,64 @@ struct AdaptResult {
  * @brief The implementation of the control monitor with the adaptation
  * state of each chain and configuration.
  *
- * @param[in,out] buffers The adaptation state of all the chains.
+ * @param[inout] buffers The adaptation state of all the chains.
  * @param[in] init_cfg The initialization configuration.
  * @param[in] warmup_cfg The warmup configuration.
  * @return Statistics for the completed adaptation process.
  */
 template <InterruptCallback IC>
-inline AdaptResult controller_loop(std::deque<Buffer>& buffers,
-                                   std::vector<AdaptSnapshot>& latest,
-                                   const IC& interrupt_callback,
-                                   const InitConfig& init_cfg,
-                                   const WarmupConfig& warmup_cfg) {
+inline AdaptResult controller_loop(
+    std::deque<SpscBuffer<AdaptSnapshot>>& buffers,
+    const IC& interrupt_callback, const InitConfig& init_cfg,
+    const WarmupConfig& warmup_cfg) {
   std::size_t M = init_cfg.num_chains();
   std::size_t D = init_cfg.dims();
 
+  std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   Eigen::VectorXd mean_log_mass(D);
   Eigen::VectorXd geom_mean_mass(D);
   Eigen::VectorXd scratch_mass(D);
+
+  std::size_t max_draws = M * warmup_cfg.max_iter();
   while (true) {
+    bool achieved_min_draws = true;
+    std::size_t num_draws = 0;
+
     mean_log_mass.setZero();
     double mean_log_step = 0.0;
-    std::size_t min_iter = std::numeric_limits<std::size_t>::max();
-    for (std::size_t m = 0; m < M; ++m) {
+
+    for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       latest[m] = buffers[m].read_latest();
-      min_iter = std::min(min_iter, latest[m].iter);
+      if (latest[m].iter < warmup_cfg.min_iter()) {
+        achieved_min_draws = false;
+      }
+      num_draws += latest[m].iter;
+
       mean_log_step += latest[m].log_step;  // means after division
       mean_log_mass += latest[m].log_mass;
     }
-    mean_log_step /= static_cast<double>(M);
-    mean_log_mass /= static_cast<double>(M);
-    geom_mean_mass = mean_log_mass.array().exp().matrix();
+    if (achieved_min_draws) {
+      mean_log_step /= static_cast<double>(M);
+      mean_log_mass /= static_cast<double>(M);
+      geom_mean_mass = mean_log_mass.array().exp().matrix();
 
-    double max_rel_diff_mass = 0.0;
-    double max_rel_diff_step = 0.0;
-    double geom_mean_step = std::exp(mean_log_step);
-    for (std::size_t m = 0; m < M; ++m) {
-      double rel_diff_mass = l2_rel_diff(latest[m].mass, geom_mean_mass);
-      max_rel_diff_mass = std::fmax(max_rel_diff_mass, rel_diff_mass);
-      double chain_m_step = std::exp(latest[m].log_step);
-      double rel_diff_step = (chain_m_step - geom_mean_step) / geom_mean_step;
-      max_rel_diff_step = std::fmax(max_rel_diff_step, rel_diff_step);
-    }
+      double max_rel_diff_mass = 0.0;
+      double max_rel_diff_step = 0.0;
+      double geom_mean_step = std::exp(mean_log_step);
+      for (std::size_t m = 0; m < M; ++m) {
+        double rel_diff_mass = l2_rel_diff(latest[m].mass, geom_mean_mass);
+        max_rel_diff_mass = std::fmax(max_rel_diff_mass, rel_diff_mass);
+        double chain_m_step = std::exp(latest[m].log_step);
+        double rel_diff_step = (chain_m_step - geom_mean_step) / geom_mean_step;
+        max_rel_diff_step = std::fmax(max_rel_diff_step, rel_diff_step);
+      }
 
-    bool enough_iters = min_iter >= warmup_cfg.min_iter();
-    bool converged = enough_iters &&
-                     max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
-                     max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
-    bool hit_max_iter = min_iter == warmup_cfg.max_iter();
-    if (converged || hit_max_iter) {
-      return {geom_mean_mass, std::exp(mean_log_step)};
+      bool converged = max_rel_diff_mass <= warmup_cfg.mass_converge_tol() &&
+                       max_rel_diff_step <= warmup_cfg.step_size_converge_tol();
+      bool hit_max_iter = num_draws == max_draws;
+      if (converged || hit_max_iter) {
+        return {geom_mean_mass, std::exp(mean_log_step)};
+      }
     }
 
     interrupt_callback.throw_if_interrupted();
@@ -243,36 +236,26 @@ inline AdaptResult controller_loop(std::deque<Buffer>& buffers,
  * @tparam IC The type of the interrupt callback.
  * @param[in] init_cfg The initial configuration.
  * @param[in] warmup_cfg The warmup configuration.
- * @param[in,out] adapters The adaptive samplers for each chain.
+ * @param[inout] adapters The adaptive samplers for each chain.
  * @param[in] interrupt_callback The interrupt callback for stopping.
  */
 template <AdaptiveSampler A, InterruptCallback IC>
 inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
                   std::vector<A>& adapters, const IC& interrupt_callback) {
-  std::deque<Buffer> buffers =
+  std::deque<SpscBuffer<AdaptSnapshot>> buffers =
       construct_buffers(init_cfg.num_chains(), init_cfg.dims());
+
   std::latch start_gate(static_cast<std::ptrdiff_t>(init_cfg.num_chains() + 1));
   std::vector<std::jthread> threads;
   threads.reserve(init_cfg.num_chains());
   for (std::size_t m = 0; m < init_cfg.num_chains(); ++m) {
-    threads.emplace_back(AdaptWorker<A>(m, init_cfg, warmup_cfg, buffers[m],
-                                        start_gate, adapters[m]));
+    threads.emplace_back(
+        AdaptWorker<A>(warmup_cfg, adapters[m], buffers[m], start_gate));
   }
-  std::vector<AdaptSnapshot> latest(init_cfg.num_chains());
   start_gate.arrive_and_wait();
-  AdaptResult result;
-  try {
-    result = controller_loop(buffers, latest, interrupt_callback, init_cfg,
-                             warmup_cfg);
-  } catch (const std::exception& e) {
-    for (auto& t : threads) {
-      t.request_stop();
-    }
-    throw(e);
-  }
-  for (auto& t : threads) {
-    t.request_stop();
-  }
+
+  AdaptResult result =
+      controller_loop(buffers, interrupt_callback, init_cfg, warmup_cfg);
 }
 
 }  // namespace walnuts::detail

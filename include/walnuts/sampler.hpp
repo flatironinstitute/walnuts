@@ -3,7 +3,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
-#include <exception>
 #include <functional>
 #include <latch>
 #include <stop_token>
@@ -13,6 +12,7 @@
 #include <Eigen/Dense>
 
 #include "walnuts/concepts.hpp"
+#include "walnuts/config.hpp"
 #include "walnuts/online_moments.hpp"
 #include "walnuts/spsc_buffer.hpp"
 #include "walnuts/util.hpp"
@@ -50,19 +50,16 @@ class ChainWorker {
   /**
    * @brief Construct a woker to embed in a thread for sampling.
    *
-   * @param[in] min_draws The minimum number of draws.
    * @param[in] max_draws The maximum number of draws.
    * @param[in] sampler The sampler.
    * @param[out] buffer The buffer of chain statistics for this chain.
-   * @param[in,out] start_gate The latch gating work and monitoring.
+   * @param[inout] start_gate The latch gating work and monitoring.
    * @param[in] yield_period The period in iterations of this thread
    * yielding.
    */
-  ChainWorker(std::size_t min_draws, std::size_t max_draws, S& sampler,
-              SpscBuffer<ChainStats>& buffer, std::latch& start_gate,
-              std::size_t yield_period = 1024)
-      : min_draws_(min_draws),
-        max_draws_(max_draws),
+  ChainWorker(std::size_t max_draws, S& sampler, SpscBuffer<ChainStats>& buffer,
+              std::latch& start_gate, std::size_t yield_period = 1024)
+      : max_draws_(max_draws),
         sampler_(sampler),
         buffer_(buffer),
         start_gate_(start_gate),
@@ -97,7 +94,6 @@ class ChainWorker {
   }
 
  private:
-  const std::size_t min_draws_;
   const std::size_t max_draws_;
   std::reference_wrapper<S> sampler_;
   WelfordAccumulator logp_stats_;
@@ -110,39 +106,36 @@ class ChainWorker {
  * @brief The function called by the controller to monitor the threads
  * for the chains.
  *
- * @param[in,out] stats_by_chain The per-chain objects holding the
+ * @param[inout] stats_by_chain The per-chain objects holding the
  * statistics to monitor.
- * @param[in] rhat_threshold When R-hat falls below this value, sampling
- * terminates.
- * @param[in,out] start_gate The latch gating the monitor and thread workers
- * to synchronize starting.
- * @param[in] min_draws_per_chain The minimum number of iterations per chain.
- * @param[in] max_draws_per_chain The maximum number of iterations per chain.
+ * @param[in] config The sampler configuration.
+ * @param[in] global_handler The callback for rhat values.
+ * @param[in] interrupt_callback The interrupt callback for stopping.
  * @param[in] eval_period The period between initiating cross-chain R-hat
  * calculations.
  */
 template <GlobalHandler GH, InterruptCallback IC>
 static void controller_loop(
     std::vector<SpscBuffer<ChainStats>>& stats_by_chain, GH& global_handler,
-    const IC& interrupt_callback, double rhat_threshold, std::latch& start_gate,
-    std::size_t min_draws_per_chain, std::size_t max_draws_per_chain,
+    const IC& interrupt_callback, const SamplingConfig& config,
     std::chrono::nanoseconds eval_period = std::chrono::milliseconds{1}) {
   interactive_qos();  // Apple silicon highest priority; o.w. no-op
   const std::size_t M = stats_by_chain.size();
   Eigen::VectorXd chain_means(M);
   Eigen::VectorXd chain_variances(M);
-  std::vector<std::size_t> counts(M, 0);
 
-  start_gate.arrive_and_wait();
   auto next = std::chrono::steady_clock::now() + eval_period;
+  std::size_t max_draws = M * config.max_iter();
   while (true) {
     bool achieved_min_draws = true;
+    std::size_t num_draws = 0;
     for (std::size_t m = 0; m < M && achieved_min_draws; ++m) {
       const ChainStats& u = stats_by_chain[m].read_latest();
-      counts[m] = u.count;
-      if (counts[m] < min_draws_per_chain) {
+      if (u.count < config.min_iter()) {
         achieved_min_draws = false;
       }
+      num_draws += u.count;
+
       chain_means(static_cast<Eigen::Index>(m)) = u.sample_mean;
       chain_variances(static_cast<Eigen::Index>(m)) = u.sample_var;
     }
@@ -151,8 +144,10 @@ static void controller_loop(
       double mean_of_variances = chain_variances.mean();
       double r_hat = std::sqrt(1 + variance_of_means / mean_of_variances);
       global_handler.on_r_hat(r_hat);
-      std::size_t num_draws = sum(counts);
-      if (r_hat <= rhat_threshold || num_draws == M * max_draws_per_chain) {
+
+      bool converged = r_hat <= config.rhat_converge_tol();
+      bool hit_max_iter = num_draws == max_draws;
+      if (converged || hit_max_iter) {
         return;
       }
     }
@@ -173,38 +168,27 @@ static void controller_loop(
  * @tparam S The type of the sampler.
  * @tparam GH The type of the global handler.
  * @tparam IC The type of the interrupt callback.
+ * @param[in] config The sampler configuration.
  * @param[in] samplers The vector of samplers.
- * @param[in,out] global_handler The global event handler for sampling.
+ * @param[inout] global_handler The global event handler for sampling.
  * @param[in] interrupt_callback The interrupt callback for stopping.
- * @param[in] rhat_threshold The threshold below which sampling is stopped.
- * @param[in] min_draws_per_chain The minimum number of draws per chain.
- * @param[in] max_draws_per_chain The maximum number of draws per chain.
  */
 template <Sampler S, GlobalHandler GH, InterruptCallback IC>
-inline void sample(std::vector<S>& samplers, GH& global_handler,
-                   const IC& interrupt_callback, double rhat_threshold,
-                   std::size_t min_draws_per_chain,
-                   std::size_t max_draws_per_chain) {
+inline void sample(const SamplingConfig& config, std::vector<S>& samplers,
+                   GH& global_handler, const IC& interrupt_callback) {
   std::size_t M = samplers.size();
-  std::vector<SpscBuffer<ChainStats>> stats_by_chain(M);
+  std::vector<SpscBuffer<ChainStats>> buffers(M);
   std::latch start_gate(static_cast<std::ptrdiff_t>(M + 1));
   std::vector<std::jthread> threads;
   threads.reserve(M);
   for (std::size_t m = 0; m < M; ++m) {
-    threads.emplace_back(ChainWorker<S>(min_draws_per_chain,
-                                        max_draws_per_chain, samplers[m],
-                                        stats_by_chain[m], start_gate));
+    threads.emplace_back(
+        ChainWorker<S>(config.max_iter(), samplers[m], buffers[m], start_gate));
   }
-  try {
-    controller_loop(stats_by_chain, global_handler, interrupt_callback,
-                    rhat_threshold, start_gate, min_draws_per_chain,
-                    max_draws_per_chain, std::chrono::milliseconds{1});
-  } catch (const std::exception& e) {
-    for (auto& t : threads) {
-      t.request_stop();
-    }
-    throw(e);
-  }
+
+  start_gate.arrive_and_wait();
+
+  controller_loop(buffers, global_handler, interrupt_callback, config);
 }
 
 }  // namespace walnuts::detail

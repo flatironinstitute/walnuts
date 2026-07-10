@@ -223,6 +223,43 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
 }
 
 /**
+ * @brief Return the difference in log density (negative Hamiltonian)
+ * between the intial position and momentum and the result of taking
+ * one leapfrog step with the specified inverse mass matrix and step size.
+ *
+ * As an internal function called by an algorithm that controls the
+ * inverse mass matrix and step size, there is no error checking to
+ * enusre `theta`, `rho`, and `inv_M` are all the same size, that
+ * `inv_M` has all finite positive entries, and that the step size is
+ * finite and positive.
+ *
+ * @tparam F The type of the log density and gradient function.
+ * @param[in] theta The starting position.
+ * @param[in] rho The starting momentum.
+ * @param[in] inv_M The diagonal of the diagonal inverse mass matrix.
+ * @param[in] step The step size.
+ */
+template <LogpGrad F>
+double leapfrog_error(const F& logp_grad,
+		      const Eigen::VectorXd& theta,
+		      const Eigen::VectorXd& rho,
+		      const Eigen::VectorXd& inv_M,
+		      double step) {
+  Eigen::VectorXd grad;
+  double logp;
+  logp_grad(theta, logp, grad);
+  logp += detail::logp_momentum(rho, inv_M);
+  Eigen::VectorXd rho_star = rho + 0.5 * step * grad;
+  Eigen::VectorXd theta_star = theta + step * (inv_M.array() * rho_star.array()).matrix();
+  double logp_star;
+  logp_grad(theta_star, logp_star, grad);
+  rho_star = rho_star + 0.5 * step * grad;
+  logp_star += detail::logp_momentum(rho_star, inv_M);
+  double diff = logp_star - logp;
+  return diff;
+}  
+
+/**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.
  *

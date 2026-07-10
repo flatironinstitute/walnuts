@@ -16,6 +16,8 @@
 
 namespace walnuts {
 
+  
+
 /**
  * @brief The initialization configuration for a single Markov chain.
  *
@@ -451,7 +453,63 @@ class InitConfigBuilder {
                       std::move(masses_)};
   }
 
+  /**
+   * @brief Heuristically adapt the initial step sizes, then return
+   * the initialization configuration.  
+   *
+   * @tparam RNG Type of the base random number generator.
+   * @tparam F Type of the log density and gradient function.
+   * @param[in] rng The base random number generator.
+   * @param[in] logp_grad The log density and gradient function.
+   */
+  template <std::uniform_random_bit_generator RNG, LogpGrad F>
+  InitConfig adapt_step_build(RNG& rng, const F& logp_grad) {
+    for (std::size_t c = 0; c < num_chains_; ++c) {
+      step_sizes_[c] = adapt_step(rng, logp_grad, positions_[c],
+				  masses_[c], step_sizes_[c]);
+    }
+    return build();
+  }
+
  private:
+  /**
+   * @brief Return the adapted step size for the specified initial
+   * step size, given an initial position and inverse mass matrix.
+   *
+   * The algorithm randomly generates a momentum.  Then until
+   * the Metropolis acceptance rate is below 0.9, it continues
+   * to double the step size.   Then until the Metropolis accept
+   * rate is above 0.6, it continues to divide it by sqrt(2).
+   * This is a slightly more fine-grained version of the heuristic
+   * step size initialization used by NUTS.
+   *
+   * @tparam RNG Type of the base random number generator.
+   * @tparam F Type of the log density and gradient function.
+   * @param[in] rng The base random number generator.
+   * @param[in] logp_grad The log density and gradient function.
+   * @param theta The initial position.
+   * @param inv_M The diagonal of the diagonal inverse mass matrix.
+   * @param step The initial step size guess.
+   * @return The adapted step size.
+   */
+  template <std::uniform_random_bit_generator RNG, LogpGrad F>
+  double adapt_step(RNG& rng, const F& logp_grad,
+		    const Eigen::VectorXd& theta,
+		    const Eigen::VectorXd& inv_M,
+		    double step) {
+    detail::Random<RNG> rand(rng);
+    Eigen::VectorXd rho = (rand.standard_normal(static_cast<Eigen::Index>(dims_))
+			   .array() / inv_M.array().sqrt()).matrix();
+    while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step)
+	   > std::log(0.9)) {
+      step *= 2;
+    }
+    while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step) < std::log(0.6)) {
+      step *= std::sqrt(0.5);
+    }
+    return step;
+  }
+  
   std::size_t num_chains_;
   std::size_t dims_;
   std::vector<double> step_sizes_;

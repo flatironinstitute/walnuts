@@ -267,21 +267,6 @@ TEST(LogpMomentum, KnownValueLinearTransform) {
 
 // NoExceptLogpGrad class *******************************************
 
-struct ThrowingLogpGrad {
-  void operator()(const Eigen::VectorXd& x, double& logp,
-                  Eigen::VectorXd& grad) const {
-    throw std::runtime_error("logp_grad failed");
-  }
-};
-
-struct GoodLogpGrad {
-  void operator()(const Eigen::VectorXd& x, double& logp,
-                  Eigen::VectorXd& grad) const {
-    logp = -0.5 * x.squaredNorm();
-    grad = -x;
-  }
-};
-
 TEST(NoExceptLogpGrad, NormalEvaluation) {
   GoodLogpGrad f;
   walnuts::detail::NoExceptLogpGrad wrapped(f);
@@ -390,4 +375,101 @@ TEST(DetailVariance, ShiftInvariantQuadraticScale) {
   EXPECT_DOUBLE_EQ(
       walnuts::detail::variance((5.7 + (13.2 * xs).array()).matrix()),
       13.2 * 13.2 * walnuts::detail::variance(xs));
+}
+
+// leapfrog_error() function ****************************************
+
+double solution(double step, double inv_M, double rho) {
+  return -1.0 / 8.0 * std::pow(step, 4) * std::pow(inv_M, 3) * std::pow(rho, 2);
+}  
+  
+
+// Solution -1/8 * step^4 * inv_M^3 * rho^2
+
+TEST(DetailLeapfrogError, ZeroStateIsZero) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta = Eigen::VectorXd::Zero(3);
+  Eigen::VectorXd rho = Eigen::VectorXd::Zero(3);
+  Eigen::VectorXd inv_M = Eigen::VectorXd::Ones(3);
+  EXPECT_DOUBLE_EQ(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, 1.0),
+                   0.0);
+}
+
+TEST(DetailLeapfrogError, ZeroThetaUnitEverything) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(1), rho(1), inv_M(1);
+  theta << 0.0;
+  rho << 2.5;
+  inv_M << 0.3;
+  double step = 0.75;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
+              solution(step, inv_M[0], rho[0]), 1e-12);
+}
+
+TEST(DetailLeapfrogError, ZeroThetaTwoDimSums) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta = Eigen::VectorXd::Zero(2);
+  Eigen::VectorXd rho = Eigen::VectorXd::Ones(2);
+  Eigen::VectorXd inv_M = Eigen::VectorXd::Ones(2);
+  // doubles with two dimensions
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, 1.0),
+              2 * solution(1.0, 1.0, 1.0), 1e-12);
+}
+
+TEST(DetailLeapfrogError, ZeroThetaNonUnitInvMass) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(1), rho(1), inv_M(1);
+  theta << 0.0;
+  rho << 1.0;
+  inv_M << 0.25;
+  double step = 1.0;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
+	      solution(step, inv_M[0], rho[0]),
+	      1e-12);
+}
+
+// halving step size divides error by 16
+TEST(DetailLeapfrogError, ZeroThetaStepScalesAsFourthPower) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(1), rho(1), inv_M(1);
+  theta << 0.0;
+  rho << 1.0;
+  inv_M << 1.0;
+  double step = 1.0;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
+	      solution(step, inv_M[0], rho[0]), 1e-12);
+  step = 0.5;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
+	      solution(1.0, inv_M[0], rho[0]) / 16, 1e-12);
+}
+
+TEST(DetailLeapfrogError, GeneralOneDimByHand) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(1), rho(1), inv_M(1);
+  theta << 1.0;
+  rho << 1.0;
+  inv_M << 1.0;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, 1.0),
+              -5.0 / 32.0, 1e-12);
+}
+
+TEST(DetailLeapfrogError, ZeroMomentumByHand) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(1), rho(1), inv_M(1);
+  theta << 1.0;
+  rho << 0.0;
+  inv_M << 1.0;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, 1.0),
+              3.0 / 32.0, 1e-12);
+}
+
+TEST(DetailLeapfrogError, TinyStepIsNearlyZero) {
+  GoodLogpGrad f;
+  Eigen::VectorXd theta(2), rho(2), inv_M(2);
+  theta << 1.0, -2.0;
+  rho << 0.5, 1.0;
+  inv_M << 1.0, 1.0;
+  double step = 1e-4;
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
+	      0.0, 1e-12);
 }

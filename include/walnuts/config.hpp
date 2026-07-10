@@ -488,18 +488,19 @@ class InitConfigBuilder {
    * @param[in] rng The base random number generator.
    * @param[in] logp_grad The log density and gradient function.
    * @param theta The initial position.
-   * @param inv_M The diagonal of the diagonal inverse mass matrix.
+   * @param M The diagonal of the diagonal mass matrix.
    * @param step The initial step size guess.
    * @return The adapted step size.
    */
   template <std::uniform_random_bit_generator RNG, LogpGrad F>
   double adapt_step(RNG& rng, const F& logp_grad,
 		    const Eigen::VectorXd& theta,
-		    const Eigen::VectorXd& inv_M,
+		    const Eigen::VectorXd& M,
 		    double step) {
     detail::Random<RNG> rand(rng);
+    Eigen::VectorXd inv_M = M.array().inverse().matrix();
     Eigen::VectorXd rho = (rand.standard_normal(static_cast<Eigen::Index>(dims_))
-			   .array() / inv_M.array().sqrt()).matrix();
+			   .array() * M.array().sqrt()).matrix();
     while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step)
 	   > std::log(0.9)) {
       step *= 2;

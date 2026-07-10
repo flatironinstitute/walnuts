@@ -49,7 +49,7 @@ int main() {
   std::size_t seed = 48;
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
-  std::size_t num_chains = 2;
+  std::size_t num_chains = 4;
   std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;

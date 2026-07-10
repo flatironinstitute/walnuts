@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include <../tests/test_util.hpp>
+#include "test_util.hpp"
 #include <walnuts.hpp>
 
 // class InitChainConfig ********************************************
@@ -475,6 +475,62 @@ TEST(InitConfigBuilder, MethodChainingReturnsBuilder) {
 
   chained_builder = chained_builder.positions(pos);
   EXPECT_EQ(&builder, &chained_builder);
+}
+
+// adapt_step_build (heuristic step init)
+
+TEST(InitConfigBuilder, AdaptStepBuildConvergesFromLowAndHigh) {
+  std::mt19937 rng_low(287456);
+  double low = walnuts::InitConfigBuilder(1, 3)
+                   .step_sizes(1e-4)
+                   .adapt_step_build(rng_low, std_normal)
+                   .step_size(0);
+  std::mt19937 rng_high(287456);
+  double high = walnuts::InitConfigBuilder(1, 3)
+                    .step_sizes(100.0)
+                    .adapt_step_build(rng_high, std_normal)
+                    .step_size(0);
+  // tiny step meets big step to within factor of 2
+  EXPECT_NEAR(std::log2(low), std::log2(high), 1.01);
+}
+
+double geo_mean_adapted_step(std::size_t D, double inv_mass,
+                             unsigned base_seed, int num_seeds) {
+  Eigen::VectorXd m =
+      Eigen::VectorXd::Constant(static_cast<Eigen::Index>(D), inv_mass);
+  double log_sum = 0.0;
+  for (int i = 0; i < num_seeds; ++i) {
+    std::mt19937 rng(base_seed + static_cast<unsigned>(i));
+    double s = walnuts::InitConfigBuilder(1, D)
+                   .masses(m)
+                   .adapt_step_build(rng, std_normal)
+                   .step_size(0);
+    log_sum += std::log(s);
+  }
+  return std::exp(log_sum / num_seeds);
+}
+
+TEST(InitConfigBuilder, AdaptStepScalesDownWithDimension) {
+  int rng_seed = 185737;
+  double h1     = geo_mean_adapted_step(1,     1.0, rng_seed, 256);
+  double h100   = geo_mean_adapted_step(100,   1.0, rng_seed, 64);
+  double h10000 = geo_mean_adapted_step(10000, 1.0, rng_seed, 16);
+
+  // optimal leapfrog step scales D^{-1/4} as D -> infinity
+  EXPECT_GT(h1, h100);
+  EXPECT_GT(h100, h10000);
+  EXPECT_NEAR(std::log(h100 / h10000), 0.25 * std::log(100.0), 0.5);
+  EXPECT_GT(h1 / h10000, 4.0);  
+}
+
+TEST(InitConfigBuilder, AdaptStepScalesWithInverseMass) {
+  int rng_seed = 285222;
+  const std::size_t D = 10;
+  double h_unit  = geo_mean_adapted_step(D, 1.0,   rng_seed, 1024);
+  double h_heavy = geo_mean_adapted_step(D, 100.0, rng_seed, 1024);
+  double h_light = geo_mean_adapted_step(D, 0.01,  rng_seed, 1024);
+  EXPECT_NEAR(h_heavy / h_unit, 10, 1);
+  EXPECT_NEAR(h_unit / h_light, 10, 1);
 }
 
 // classes WarmupConfig and WarmupConfigBuilder *********************

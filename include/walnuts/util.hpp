@@ -236,7 +236,7 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
  * @tparam F The type of the log density and gradient function.
  * @param[in] theta The starting position.
  * @param[in] rho The starting momentum.
- * @param[in] inv_M The diagonal of the diagonal inverse mass matrix.
+ * @param[in] M The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The step size.
  */
 template <LogpGrad F>

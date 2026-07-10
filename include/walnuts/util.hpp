@@ -257,8 +257,52 @@ double leapfrog_error(const F& logp_grad,
   logp_star += detail::logp_momentum(rho_star, inv_M);
   double diff = logp_star - logp;
   return diff;
-}  
+}
 
+/**
+ * @brief Return the adapted step size for the specified initial
+ * step size, given an initial position and inverse mass matrix.
+ *
+ * The algorithm randomly generates a momentum.  Then until
+ * the Metropolis acceptance rate is below 0.9, it continues
+ * to double the step size.   Then until the Metropolis accept
+ * rate is above 0.6, it continues to divide it by sqrt(2).
+ * This is a slightly more fine-grained version of the heuristic
+ * step size initialization used by NUTS.
+ *
+ * There is no error testing here for consistency because this
+ * function is called from a controlled setting.
+ *
+ * @tparam RNG Type of the base random number generator.
+ * @tparam F Type of the log density and gradient function.
+ * @param[in] rng The base random number generator.
+ * @param[in] logp_grad The log density and gradient function.
+ * @param theta The initial position.
+ * @param M The diagonal of the diagonal mass matrix.
+ * @param step The initial step size guess.
+ * @param D The dimensioanlity
+ * @return The adapted step size.
+ */
+ template <std::uniform_random_bit_generator RNG, LogpGrad F>
+ double adapt_step(RNG& rng, const F& logp_grad,
+		   const Eigen::VectorXd& theta,
+		   const Eigen::VectorXd& M,
+		   double step,
+		   std::size_t D) {
+   detail::Random<RNG> rand(rng);
+   Eigen::VectorXd inv_M = M.array().inverse().matrix();
+   Eigen::VectorXd rho = (rand.standard_normal(static_cast<Eigen::Index>(D))
+			  .array() * M.array().sqrt()).matrix();
+   while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step)
+	  > std::log(0.9)) {
+     step *= 2;
+   }
+   while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step) < std::log(0.6)) {
+     step *= std::sqrt(0.5);
+   }
+   return step;
+ }
+  
 /**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.

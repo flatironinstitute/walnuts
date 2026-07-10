@@ -224,12 +224,20 @@ static bool within_tolerance(const F& logp_grad,
                              Eigen::VectorXd& grad_next) {
   double half_step = 0.5 * step;
   double logp = logp_next;
-  for (std::size_t n = 0; n < num_steps; ++n) {
-    rho_next += half_step * grad_next;
+  if (num_steps == 0) {
+    logp_next += logp_momentum(rho_next, inv_mass);
+    return std::abs(logp_next - logp) <= max_error;
+  }
+  // unroll leapfrog for efficiency here
+  rho_next += half_step * grad_next;
+  theta_next.array() += step * inv_mass.array() * rho_next.array();
+  logp_grad(theta_next, logp_next, grad_next);
+  for (std::size_t n = 1; n < num_steps; ++n) {
+    rho_next += step * grad_next;
     theta_next.array() += step * inv_mass.array() * rho_next.array();
     logp_grad(theta_next, logp_next, grad_next);
-    rho_next += half_step * grad_next;
   }
+  rho_next += half_step * grad_next;
   logp_next += logp_momentum(rho_next, inv_mass);
   return std::abs(logp_next - logp) <= max_error;  // only tests one way
 }
@@ -325,12 +333,16 @@ static bool macro_step(const F& logp_grad, const Eigen::VectorXd& inv_mass,
     rho_next = rho;
     grad_next = grad;
     double half_step = 0.5 * step;
-    for (std::size_t n = 0; n < num_steps; ++n) {
-      rho_next += half_step * grad_next;
+    // unroll leapfrog algorithm, assuming min_micro_steps > 0
+    rho_next += half_step * grad_next;
+    theta_next.array() += step * inv_mass.array() * rho_next.array();
+    logp_grad(theta_next, logp_pos_next, grad_next);
+    for (std::size_t n = 1; n < num_steps; ++n) {
+      rho_next += step * grad_next;
       theta_next.array() += step * inv_mass.array() * rho_next.array();
       logp_grad(theta_next, logp_pos_next, grad_next);
-      rho_next += half_step * grad_next;
     }
+    rho_next += half_step * grad_next;
     logp_next = logp_pos_next + logp_momentum(rho_next, inv_mass);
     if (num_steps == min_micro_steps) {
       double min_accept = std::exp(-std::fabs(logp - logp_next));

@@ -5,6 +5,21 @@
 
 #include <Eigen/Dense>
 
+struct ThrowingLogpGrad {
+  void operator()(const Eigen::VectorXd& x, double& logp,
+                  Eigen::VectorXd& grad) const {
+    throw std::runtime_error("logp_grad failed");
+  }
+};
+
+struct GoodLogpGrad {
+  void operator()(const Eigen::VectorXd& x, double& logp,
+                  Eigen::VectorXd& grad) const {
+    logp = -0.5 * x.squaredNorm();
+    grad = -x;
+  }
+};
+
 static std::vector<double> inf_nan() {
   std::vector<double> result;
   result.push_back(std::numeric_limits<double>::quiet_NaN());

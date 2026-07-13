@@ -16,6 +16,8 @@
 
 namespace walnuts {
 
+  
+
 /**
  * @brief The initialization configuration for a single Markov chain.
  *
@@ -449,6 +451,24 @@ class InitConfigBuilder {
   InitConfig build() {
     return InitConfig{std::move(step_sizes_), std::move(positions_),
                       std::move(masses_)};
+  }
+
+  /**
+   * @brief Heuristically adapt the initial step sizes, then return
+   * the initialization configuration.  
+   *
+   * @tparam RNG Type of the base random number generator.
+   * @tparam F Type of the log density and gradient function.
+   * @param[in] rng The base random number generator.
+   * @param[in] logp_grad The log density and gradient function.
+   */
+  template <std::uniform_random_bit_generator RNG, LogpGrad F>
+  InitConfig adapt_step_build(RNG& rng, const F& logp_grad) {
+    for (std::size_t c = 0; c < num_chains_; ++c) {
+      step_sizes_[c] = detail::adapt_step(rng, logp_grad, positions_[c],
+					  masses_[c], step_sizes_[c], dims_);
+    }
+    return build();
   }
 
  private:

@@ -49,14 +49,16 @@ int main() {
   std::size_t seed = 48;
   std::seed_seq seed_seq_for_init{seed, static_cast<std::size_t>(0)};
   std::mt19937 rng{seed_seq_for_init};
-  std::size_t num_chains = 32;
+  std::size_t num_chains = 4;
   std::size_t dims = 100;
 
   walnuts::CppInterruptCallback interrupt_callback;
   walnuts::GlobalStore global_handler;
   std::vector<walnuts::ChainStore> chain_handlers(num_chains);
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims).build();
+  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
+    .step_sizes(100.2)  // test that adapt_step works with absurd init
+    .adapt_step_build(rng, logp_grad);
 
   auto warmup_cfg =
       walnuts::WarmupConfigBuilder().min_max_iter(50, 2000).build();

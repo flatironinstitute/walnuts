@@ -72,8 +72,12 @@ void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
     init_cfg_builder.masses(logp, mass_additive_smoothing);
   }
 
+  std::seed_seq ss{seed, 2u};
+  std::mt19937_64 init_rng(ss);
+
   walnuts::WalnutsConfig walnuts_cfg{
-      init_cfg_builder.build(), std::move(warmup_cfg), std::move(sample_cfg)};
+      init_cfg_builder.adapt_step_build(init_rng, logp), std::move(warmup_cfg),
+      std::move(sample_cfg)};
 
   DummyGlobalHandler global;
   walnuts::walnuts<std::mt19937_64>(seed + id + num_chains, handlers, global,

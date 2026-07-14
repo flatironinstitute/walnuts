@@ -74,6 +74,86 @@ def walnuts_pyfunc(
     save_warmup: bool = False,
     refresh: int = 0,
 ) -> list[WalnutsOutputArray]:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    logp : Union[ Callable[[np.ndarray], tuple[float, np.ndarray]], &quot;numba.core.ccallback.CFunc&quot;, tuple[ctypes.CFUNCTYPE, Any], ]
+        _description_
+    num_params : Optional[int], optional
+        _description_, by default None
+    inits : Optional[np.ndarray], optional
+        _description_, by default None
+    num_chains : int, optional
+        _description_, by default 4
+    seed : Optional[int], optional
+        _description_, by default None
+    id : int, optional
+        _description_, by default 1
+    init_radius : float, optional
+        _description_, by default 2.0
+    init_inv_metric : Optional[np.ndarray], optional
+        _description_, by default None
+    save_inv_metric : bool, optional
+        _description_, by default False
+    min_warmup_iter : int, optional
+        _description_, by default 50
+    max_warmup_iter : int, optional
+        _description_, by default 1000
+    min_sampling_iter : int, optional
+        _description_, by default 50
+    max_sampling_iter : int, optional
+        _description_, by default 1000
+    max_trajectory_doublings : int, optional
+        _description_, by default 5
+    max_step_halvings : int, optional
+        _description_, by default 5
+    min_micro_steps : int, optional
+        _description_, by default 1
+    max_hamiltonian_error : float, optional
+        _description_, by default 0.5
+    step_size_converge_tol : float, optional
+        _description_, by default 0.1
+    mass_converge_tol : float, optional
+        _description_, by default 1.0
+    rhat_converge_tol : float, optional
+        _description_, by default 1.01
+    mass_init_count : float, optional
+        _description_, by default 4.0
+    mass_additive_smoothing : float, optional
+        _description_, by default 1e-5
+    max_macro_steps_target : float, optional
+        _description_, by default 15.0
+    step_size_init : float, optional
+        _description_, by default 1.0
+    step_accept_rate_target : float, optional
+        _description_, by default 0.8
+    step_learning_rate : float, optional
+        _description_, by default 0.05
+    step_gradient_decay : float, optional
+        _description_, by default 0.8
+    step_sq_gradient_decay : float, optional
+        _description_, by default 0.9
+    step_stabilization : float, optional
+        _description_, by default 1e-4
+    step_learn_rate_decay : float, optional
+        _description_, by default 0.5
+    save_warmup : bool, optional
+        _description_, by default False
+    refresh : int, optional
+        _description_, by default 0
+
+    Returns
+    -------
+    list[WalnutsOutputArray]
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
     if num_params is None:
         if inits is None:
             raise ValueError("must specify at least one of num_params or inits")

@@ -9,6 +9,10 @@ if TYPE_CHECKING:
 
 
 class Summarizer:
+    """
+    _summary_
+    """
+
     def __init__(self, draws: Union[List[np.ndarray], List["StanOutputBase"]]):
         if hasattr(draws[0], "parameters"):  # StanOutputBase
             draws = [c.data for c in draws]
@@ -20,15 +24,47 @@ class Summarizer:
 
     # I don't think any of these really need FFI?
     def mean(self):
+        """
+        _summary_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         return np.mean(self._stacked, axis=0)
 
     def variance(self):
+        """
+        _summary_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         return np.var(self._stacked, axis=0, ddof=1)
 
     def standard_deviation(self):
+        """
+        _summary_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         return np.std(self._stacked, axis=0, ddof=1)
 
     def ess(self) -> np.ndarray:
+        """
+        _summary_
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
         out = np.zeros((self._num_params,))
         _ffi_ess(
             self._stacked,
@@ -42,6 +78,14 @@ class Summarizer:
         return out
 
     def r_hat(self) -> np.ndarray:
+        """
+        _summary_
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
         out = np.zeros((self._num_params,))
         _ffi_r_hat(
             self._stacked,
@@ -54,6 +98,14 @@ class Summarizer:
         return out
 
     def mcse(self) -> np.ndarray:
+        """
+        _summary_
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+        """
         out = np.zeros((self._num_params,))
         _ffi_mcse(
             self._stacked,
@@ -67,26 +119,104 @@ class Summarizer:
 
 
 def ess(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).ess()
 
 
 def r_hat(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).r_hat()
 
 
 def mcse(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).mcse()
 
 
 def mean(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).mean()
 
 
 def variance(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).variance()
 
 
 def standard_deviation(
-    draws: Union[List[np.ndarray], List["StanOutputBase"]]
+    draws: Union[List[np.ndarray], List["StanOutputBase"]],
 ) -> np.ndarray:
+    """
+    _summary_
+
+    Parameters
+    ----------
+    draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     return Summarizer(draws).standard_deviation()

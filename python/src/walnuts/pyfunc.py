@@ -10,6 +10,9 @@ from .util import WarmupInfo, rand_u32
 # Wrapper around ndarray that lets us set extra attributes
 # https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
 class WalnutsOutputArray(np.ndarray):
+
+    warmup: WarmupInfo[np.ndarray]  #: TODO doc
+
     def __new__(cls, input_array, warmup: WarmupInfo[np.ndarray]):
         obj = np.asarray(input_array).view(cls)
 

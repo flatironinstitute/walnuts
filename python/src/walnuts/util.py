@@ -14,6 +14,6 @@ T = TypeVar("T")
 
 @dataclass
 class WarmupInfo(Generic[T]):
-    stepsize: float
-    inv_metric: Optional[np.ndarray]
-    warmup_draws: Optional[T]
+    stepsize: float  #: TODO doc
+    inv_metric: Optional[np.ndarray]  #: TODO doc
+    warmup_draws: Optional[T]  #: TODO doc

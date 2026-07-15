@@ -182,7 +182,6 @@ namespace walnuts {
  *
  * A type `H` satisfies `Handler` if it provides:
  *  - `on_r_hat(double)` callable on a non-const instance, returning `void`,
- *  - `received_interrupt()` called when sampling or warmup should stop.
  */
 template <typename H>
 concept GlobalHandler = requires(H& h, const H& ch, double r_hat) {

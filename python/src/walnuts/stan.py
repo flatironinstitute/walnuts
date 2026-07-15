@@ -83,6 +83,8 @@ class StanOutput(StanOutputBase):
         warmup: WarmupInfo[StanOutputBase],
     ):
         super().__init__(parameters, data)
+
+        #: TODO doc
         self.warmup = warmup
 
     def create_inits(

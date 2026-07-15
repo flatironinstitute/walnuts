@@ -1,0 +1,4 @@
+breathe
+sphinx
+pydata-sphinx-theme
+sphinx-copybutton

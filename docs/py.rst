@@ -9,6 +9,10 @@ Sampling functions
 .. autofunction:: walnuts.walnuts_pyfunc
 .. autofunction:: walnuts.walnuts_stan
 
+
+Output Classes
+______________
+
 .. autoclass:: walnuts.pyfunc::WalnutsOutputArray
    :members:
    :show-inheritance:
@@ -17,6 +21,9 @@ Sampling functions
    :members:
    :inherited-members:
    :show-inheritance:
+   :special-members: __getitem__
+
+.. autoclass:: walnuts.stan::StanOutputBase
 
 .. autoclass:: walnuts.util::WarmupInfo
    :members:

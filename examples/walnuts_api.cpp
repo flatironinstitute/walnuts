@@ -10,8 +10,9 @@
 
 // overincludes, but it's what a client would call
 #include <walnuts.hpp>
+#include "handlers.hpp"
 
-double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
+double geom_mean_step(const std::vector<ChainStore>& handlers) {
   if (handlers.size() == 0) {
     return 0.0;
   }
@@ -22,8 +23,7 @@ double geom_mean_step(const std::vector<walnuts::ChainStore>& handlers) {
   return std::exp(sum / handlers.size());
 }
 
-Eigen::VectorXd geom_mean_inv_mass(
-    const std::vector<walnuts::ChainStore>& handlers) {
+Eigen::VectorXd geom_mean_inv_mass(const std::vector<ChainStore>& handlers) {
   if (handlers.size() == 0) {
     return {};
   }
@@ -52,13 +52,14 @@ int main() {
   std::size_t num_chains = 4;
   std::size_t dims = 100;
 
-  walnuts::CppInterruptCallback interrupt_callback;
-  walnuts::GlobalStore global_handler;
-  std::vector<walnuts::ChainStore> chain_handlers(num_chains);
+  CppInterruptCallback interrupt_callback;
+  GlobalStore global_handler;
+  std::vector<ChainStore> chain_handlers(num_chains);
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, dims)
-    .step_sizes(100.2)  // test that adapt_step works with absurd init
-    .adapt_step_build(rng, logp_grad);
+  auto init_cfg =
+      walnuts::InitConfigBuilder(num_chains, dims)
+          .step_sizes(100.2)  // test that adapt_step works with absurd init
+          .adapt_step_build(rng, logp_grad);
 
   auto warmup_cfg =
       walnuts::WarmupConfigBuilder().min_max_iter(50, 2000).build();
@@ -101,9 +102,9 @@ int main() {
   std::cout << "WRITING BINARY TO FILES: step_size.wal, mass_matrix.wal, "
                "sample.wal\n\n";
 
-  walnuts::write_step_size("step_size.wal", chain_handlers);
-  walnuts::write_mass_matrix("mass_matrix.wal", chain_handlers);
-  walnuts::write_sample("sample.wal", chain_handlers);
+  write_step_size("step_size.wal", chain_handlers);
+  write_mass_matrix("mass_matrix.wal", chain_handlers);
+  write_sample("sample.wal", chain_handlers);
 
   std::cout << "FINISHED NORMALLY." << std::endl << std::endl;
 }

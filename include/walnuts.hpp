@@ -10,7 +10,6 @@
 #include "walnuts/api.hpp"
 #include "walnuts/concepts.hpp"
 #include "walnuts/config.hpp"
-#include "walnuts/handlers.hpp"
 #include "walnuts/online_moments.hpp"
 #include "walnuts/sampler.hpp"
 #include "walnuts/spsc_buffer.hpp"

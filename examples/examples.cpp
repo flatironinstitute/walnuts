@@ -4,6 +4,7 @@
 #include <random>
 
 #include <walnuts.hpp>
+#include "handlers.hpp"
 
 static double total_time = 0.0;
 static std::size_t count = 0;
@@ -113,7 +114,7 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::cout << "Warmup configuration:\n" << warmup_cfg << std::endl;
   std::cout << "Sampling configuration:\n" << sampling_cfg << std::endl;
 
-  walnuts::ChainStore handler;
+  ChainStore handler;
   walnuts::AdaptiveWalnuts adapt(rng, handler, target_logp_grad,
                                  init_cfg.init_chain_config(0), warmup_cfg,
                                  sampling_cfg);

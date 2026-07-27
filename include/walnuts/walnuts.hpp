@@ -641,7 +641,7 @@ class WalnutsSampler {
                  double max_error)
       : rand_(rng),
         sample_handler_(sample_handler),
-        logp_grad_(logp_grad),
+        logp_grad_(logp_grad, sample_handler),
         theta_(theta),
         inv_mass_(inv_mass),
         cholesky_mass_(inv_mass.array().sqrt().inverse().matrix()),
@@ -735,7 +735,7 @@ class WalnutsSampler {
   std::reference_wrapper<H> sample_handler_;
 
   /** The target log density/gradient function. */
-  const detail::NoExceptLogpGrad<F> logp_grad_;
+  const detail::NoExceptLogpGrad<F, H> logp_grad_;
 
   /** The current position. */
   Eigen::VectorXd theta_;

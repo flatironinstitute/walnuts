@@ -210,7 +210,7 @@ class AdaptiveWalnuts {
         sampling_cfg_(std::cref(sampling_cfg)),
         rand_(rng),
         handler_(handler),
-        logp_grad_(logp_grad),
+        logp_grad_(logp_grad, handler),
         theta_(init_chain_cfg.position()),
         iteration_(0),
         adam_(init_chain_cfg.step_size(), warmup_cfg.step_accept_rate_target(),
@@ -343,7 +343,7 @@ class AdaptiveWalnuts {
   std::reference_wrapper<H> handler_;
 
   /** The target log density/gradient function. */
-  const detail::NoExceptLogpGrad<F> logp_grad_;
+  const detail::NoExceptLogpGrad<F, H> logp_grad_;
 
   /** The current state. */
   Eigen::VectorXd theta_;

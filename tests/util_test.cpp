@@ -269,7 +269,8 @@ TEST(LogpMomentum, KnownValueLinearTransform) {
 
 TEST(NoExceptLogpGrad, NormalEvaluation) {
   GoodLogpGrad f;
-  walnuts::detail::NoExceptLogpGrad wrapped(f);
+  TattleTaleHandler h;
+  walnuts::detail::NoExceptLogpGrad wrapped(f, h);
   Eigen::VectorXd x(3);
   x << 1.0, 2.0, 3.0;
   double logp;
@@ -281,7 +282,8 @@ TEST(NoExceptLogpGrad, NormalEvaluation) {
 
 TEST(NoExceptLogpGrad, ExceptionSetsNegInfAndZeroGrad) {
   ThrowingLogpGrad f;
-  walnuts::detail::NoExceptLogpGrad wrapped(f);
+  TattleTaleHandler h;
+  walnuts::detail::NoExceptLogpGrad wrapped(f, h);
   Eigen::VectorXd x(3);
   x << 1.0, 2.0, 3.0;
   double logp = 0.0;
@@ -289,6 +291,7 @@ TEST(NoExceptLogpGrad, ExceptionSetsNegInfAndZeroGrad) {
   wrapped(x, logp, grad);
   EXPECT_EQ(logp, -std::numeric_limits<double>::infinity());
   expect_near(grad, Eigen::VectorXd::Zero(3).eval());
+  EXPECT_EQ(h.latest_err, ThrowingLogpGrad::ERRORMSG);
 }
 
 // grad() function **************************************************
@@ -381,8 +384,7 @@ TEST(DetailVariance, ShiftInvariantQuadraticScale) {
 
 double solution(double step, double inv_M, double rho) {
   return -1.0 / 8.0 * std::pow(step, 4) * std::pow(inv_M, 3) * std::pow(rho, 2);
-}  
-  
+}
 
 // Solution -1/8 * step^4 * inv_M^3 * rho^2
 
@@ -424,8 +426,7 @@ TEST(DetailLeapfrogError, ZeroThetaNonUnitInvMass) {
   inv_M << 0.25;
   double step = 1.0;
   EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
-	      solution(step, inv_M[0], rho[0]),
-	      1e-12);
+              solution(step, inv_M[0], rho[0]), 1e-12);
 }
 
 // halving step size divides error by 16
@@ -437,10 +438,10 @@ TEST(DetailLeapfrogError, ZeroThetaStepScalesAsFourthPower) {
   inv_M << 1.0;
   double step = 1.0;
   EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
-	      solution(step, inv_M[0], rho[0]), 1e-12);
+              solution(step, inv_M[0], rho[0]), 1e-12);
   step = 0.5;
   EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
-	      solution(1.0, inv_M[0], rho[0]) / 16, 1e-12);
+              solution(1.0, inv_M[0], rho[0]) / 16, 1e-12);
 }
 
 TEST(DetailLeapfrogError, GeneralOneDimByHand) {
@@ -470,6 +471,6 @@ TEST(DetailLeapfrogError, TinyStepIsNearlyZero) {
   rho << 0.5, 1.0;
   inv_M << 1.0, 1.0;
   double step = 1e-4;
-  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step),
-	      0.0, 1e-12);
+  EXPECT_NEAR(walnuts::detail::leapfrog_error(f, theta, rho, inv_M, step), 0.0,
+              1e-12);
 }

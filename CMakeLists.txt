@@ -70,9 +70,8 @@ target_include_directories(BridgeStan::BridgeStan INTERFACE
 )
 
 #############################
-## Windows pathces         ##
+## Windows patches         ##
 #############################
-
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_link_options(-static-libgcc -static-libstdc++ -static -lpthread)
 endif()
@@ -80,7 +79,6 @@ endif()
 #############################
 ## Making Walnuts Library  ##
 #############################
-
 add_library(walnuts INTERFACE)
 target_include_directories(walnuts INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
@@ -127,7 +125,6 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
 )
-
 
 find_program(CLANG_FORMAT_BIN clang-format)
 

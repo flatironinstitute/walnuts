@@ -6,12 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "walnuts"
+project = "Walnuts"
 import datetime
 
 year = datetime.date.today().year
-copyright = f"{year}, walnuts Developers"
-author = "walnuts Developers"
+copyright = f"{year}, Walnuts Developers"
+author = "Walnuts Developers"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

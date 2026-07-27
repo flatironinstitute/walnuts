@@ -10,10 +10,20 @@ if TYPE_CHECKING:
 
 class Summarizer:
     """
-    _summary_
+    A class to hold multivariate Markov chain Monte Carlo draws and provide
+    summary statistics for their variables.
     """
-
     def __init__(self, draws: Union[List[np.ndarray], List["StanOutputBase"]]):
+        """
+        Construct an instance from a list of multivariate Markov chains.
+
+        Parameters
+        ----------
+        draws
+            A list of Markov chains represented as matrices with one row per draw or
+            a list of Stan outputs.
+        """
+
         if hasattr(draws[0], "parameters"):  # StanOutputBase
             draws = [c.data for c in draws]
         self._stacked = np.concat(draws)
@@ -25,45 +35,51 @@ class Summarizer:
     # I don't think any of these really need FFI?
     def mean(self):
         """
-        _summary_
+        Compute the arithmetic mean of sampled variables across all draws.
 
         Returns
         -------
-        _type_
-            _description_
+        np.ndarray
+            The posterior means.
         """
         return np.mean(self._stacked, axis=0)
 
     def variance(self):
         """
-        _summary_
+        Compute the sample variance (ddof = 1) of the sampled variables across
+        all draws.
 
         Returns
         -------
-        _type_
-            _description_
+        np.ndarray
+            The posterior sample variances.
         """
         return np.var(self._stacked, axis=0, ddof=1)
 
     def standard_deviation(self):
         """
-        _summary_
+        Compute the sample standard deviation (ddof = 1) of the sampled
+        variables across all draws.
 
         Returns
         -------
-        _type_
-            _description_
+        np.ndarray
+            The posterior sample standard deviations.
         """
         return np.std(self._stacked, axis=0, ddof=1)
 
     def ess(self) -> np.ndarray:
         """
-        _summary_
-
+        Return the estimated effective sample size of the sampled variables.
+        
+        The implementation uses initial monotonic sequence estimators for
+        integrated autocorrelation.  It also discounts ESS for non-convergence
+        across chains.
+          
         Returns
         -------
         np.ndarray
-            _description_
+            The estimated effective sample sizes.
         """
         out = np.zeros((self._num_params,))
         _ffi_ess(
@@ -79,12 +95,18 @@ class Summarizer:
 
     def r_hat(self) -> np.ndarray:
         """
-        _summary_
+        Return the potential scale reduction statistic R-hat for the sampled
+        variables.
+
+        The definition of R-hat for ragged chains is conservative in
+        that it (a) weighs each chain identically, not by chain length,
+        and  (b) replaces the factor of (N - 1) / N when all chains are
+        of length N with 1.
 
         Returns
         -------
         np.ndarray
-            _description_
+            The R-hat statistics.
         """
         out = np.zeros((self._num_params,))
         _ffi_r_hat(
@@ -99,12 +121,16 @@ class Summarizer:
 
     def mcse(self) -> np.ndarray:
         """
-        _summary_
+        Return an estimate of the Monte Carlo standard error for the sampled
+        variables.
+
+        The MCSE is computed in the standard way as the estimated standard
+        deviation divided by the square root of the estimated sample size.
 
         Returns
         -------
         np.ndarray
-            _description_
+            The Monte Carlo standard error estimates.
         """
         out = np.zeros((self._num_params,))
         _ffi_mcse(
@@ -120,85 +146,105 @@ class Summarizer:
 
 def ess(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
-    _summary_
+    Return the estimated effective sample size of the sampled variables.
+    
+    The implementation uses initial monotonic sequence estimators for
+    integrated autocorrelation.  It also discounts ESS for non-convergence
+    across chains.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
     np.ndarray
-        _description_
+        The estimated effective sample sizes.
     """
     return Summarizer(draws).ess()
 
 
 def r_hat(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
-    _summary_
+    Return the potential scale reduction statistic R-hat for the sampled
+    variables.
+
+    The definition of R-hat for ragged chains is conservative in
+    that it (a) weighs each chain identically, not by chain length,
+    and  (b) replaces the factor of (N - 1) / N when all chains are
+    of length N with 1.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
     np.ndarray
-        _description_
+        The R-hat statistics.
     """
     return Summarizer(draws).r_hat()
 
 
 def mcse(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
-    _summary_
+    Return an estimate of the Monte Carlo standard error for the sampled
+    variables.
+
+    The MCSE is computed in the standard way as the estimated standard
+    deviation divided by the square root of the estimated sample size.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
     np.ndarray
-        _description_
+        The Monte Carlo standard error estimates.
     """
     return Summarizer(draws).mcse()
 
 
 def mean(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
-    _summary_
+    Compute the arithmetic mean of sampled variables across all draws.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
     np.ndarray
-        _description_
+        The posterior means.
     """
     return Summarizer(draws).mean()
 
 
 def variance(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
-    _summary_
+    Compute the sample variance (ddof = 1) of the sampled variables across
+    all draws.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
-    np.ndarray
-        _description_
+    np.ndarray 
+       The posterior sample variances.
     """
     return Summarizer(draws).variance()
 
@@ -207,16 +253,18 @@ def standard_deviation(
     draws: Union[List[np.ndarray], List["StanOutputBase"]],
 ) -> np.ndarray:
     """
-    _summary_
+    Compute the sample standard deviation (ddof = 1) of the sampled
+    variables across all draws.
 
     Parameters
     ----------
     draws : Union[List[np.ndarray], List[&quot;StanOutputBase&quot;]]
-        _description_
+        A list of Markov chains represented as matrices with one row per draw or
+        a list of Stan outputs.
 
     Returns
     -------
     np.ndarray
-        _description_
+        The posterior sample standard deviations.
     """
     return Summarizer(draws).standard_deviation()

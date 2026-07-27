@@ -279,6 +279,61 @@ brew install include-what-you-use
 ```
 
 
+## Building the Python interface
+
+### Prerequisites
+
+The Python documentation is built using Sphinx, which in
+turn depends on Doxygen.  
+
+Doxygen must be installed at the system level.
+
+The other dependencies, which are `sphinx`, `pydata-sphinx-theme`,
+`sphinx-copybutton`, and `breathe`, can be pip installed, either
+directly or through the `requirements.txt` specification.
+
+
+```sh
+pip install '.[stan]' -r docs/requirements.txt
+```
+
+
+### Documentation source
+
+The top level organization of the API documentation is controlled
+through `.rst` files (reStructuredText format) in 
+
+* `docs/*.rst`,
+
+with `docs/index.rst` as the root.  It's probably easiest to let an
+LLM translate markdown to Sphinx's reStructuredText format.
+
+The Python API documentation is generated directly from inline
+docstrings. 
+
+
+### Building the documentation
+
+First, install the prerequisites (see above).  
+
+To build the documentation, change directories to `walnuts/docs`
+(where `walnuts` is the top level repository directory) and run the
+following command.
+
+```sh
+sphinx-build -b html . _build/html
+```
+
+The top level of the docs land in the directory specified by the last
+argument, 
+
+* Documentation root:  `_build/html/index.html`.
+
+### Publishing the documentation on GitHub Pages
+
+TBD.
+
+
 ## Project overview
 
 The project directory structure is as follows.

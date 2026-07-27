@@ -291,7 +291,7 @@ TEST(NoExceptLogpGrad, ExceptionSetsNegInfAndZeroGrad) {
   wrapped(x, logp, grad);
   EXPECT_EQ(logp, -std::numeric_limits<double>::infinity());
   expect_near(grad, Eigen::VectorXd::Zero(3).eval());
-  EXPECT_EQ(h.latest_err, ThrowingLogpGrad::ERRORMSG);
+  EXPECT_EQ(h.latest_err, ThrowingLogpGrad::ERROR_MSG);
 }
 
 // grad() function **************************************************

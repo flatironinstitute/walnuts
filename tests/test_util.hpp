@@ -6,10 +6,10 @@
 #include <Eigen/Dense>
 
 struct ThrowingLogpGrad {
-  static constexpr char const* const ERRORMSG = "logp_grad failed";
+  static constexpr char const* const ERROR_MSG = "logp_grad failed";
   void operator()(const Eigen::VectorXd& x, double& logp,
                   Eigen::VectorXd& grad) const {
-    throw std::runtime_error(ERRORMSG);
+    throw std::runtime_error(ERROR_MSG);
   }
 };
 

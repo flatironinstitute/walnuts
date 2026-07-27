@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Union
 
 import numpy as np
 
-from ._ffi import _ffi_sample_cfunc, logp_cfunc_type
+from ._ffi import _ffi_sample_cfunc, logp_cfunc_type, print_callback
 from .util import WarmupInfo, rand_u32
 
 
@@ -75,6 +75,7 @@ def walnuts_pyfunc(
     step_stabilization: float = 1e-4,
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
+    refresh: int = 0,
 ) -> list[WalnutsOutputArray]:
     """
     _summary_
@@ -143,6 +144,8 @@ def walnuts_pyfunc(
         _description_, by default 0.5
     save_warmup : bool, optional
         _description_, by default False
+    refresh : int, optional
+        Period between iteration console feedback, with 0 indicating no feedback, non-netative, by default 0
 
     Returns
     -------
@@ -257,6 +260,8 @@ def walnuts_pyfunc(
         lengths_out,
         stepsize_out,
         inv_metric_out,
+        refresh,
+        print_callback,
     )
 
     outputs = []

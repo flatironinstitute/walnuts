@@ -59,6 +59,7 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
   detail::adapt(config.init(), config.warmup(), adapters, interrupt_callback);
 
   std::vector<Sampler> samplers;
+  samplers.reserve(adapters.size());
   for (std::size_t n = 0; n < adapters.size(); ++n) {
     samplers.emplace_back(std::move(adapters[n].sampler()));
   }

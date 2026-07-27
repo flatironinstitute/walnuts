@@ -81,7 +81,6 @@ logp_cfunc_type = ctypes.CFUNCTYPE(
     ctypes.c_void_p,  # data
 )
 
-
 print_callback_type = ctypes.CFUNCTYPE(
     None, ctypes.POINTER(ctypes.c_char), ctypes.c_size_t, ctypes.c_bool
 )
@@ -92,6 +91,7 @@ def print_callback(msg, size, is_error):
     print(
         ctypes.string_at(msg, size).decode("utf-8"),
         file=sys.stderr if is_error else sys.stdout,
+        end="",
     )
 
 
@@ -128,6 +128,8 @@ _common_sampling_argtypes = [
     int_array,  # final lengths
     nullable_double_array,  # stepsize out
     nullable_double_array,  # metric out
+    ctypes.c_int,  # refresh
+    print_callback_type,
     err_ptr,
 ]
 
@@ -226,11 +228,15 @@ _ffi_sample_cfunc.argtypes = [
 ] + _common_sampling_argtypes
 
 
+bs_print_callback_type = ctypes.CFUNCTYPE(
+    None, ctypes.POINTER(ctypes.c_char), ctypes.c_size_t, ctypes.c_bool
+)
+
 _ffi_sample_bridgestan = erroring(_lib.walnutpie_sample_bridgestan)
 _ffi_sample_bridgestan.argtypes = [
     ctypes.c_char_p,  # model so
     ctypes.c_char_p,  # model data
-    print_callback_type,
+    bs_print_callback_type,
     ctypes.c_uint,  # model seed
     ctypes.c_char_p,  # inits
 ] + _common_sampling_argtypes

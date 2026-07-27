@@ -5,7 +5,12 @@ import bridgestan
 import numpy as np
 import stanio
 
-from ._ffi import _ffi_sample_bridgestan, print_callback, WALNUTPIE_SEP
+from ._ffi import (
+    _ffi_sample_bridgestan,
+    bs_print_callback_type,
+    WALNUTPIE_SEP,
+    print_callback,
+)
 from .util import WarmupInfo, rand_u32
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
@@ -149,6 +154,14 @@ def _encode_stan_inits(inits, chains, seed) -> Union[bytes, None]:
     return inits_encoded
 
 
+@bs_print_callback_type
+def bs_print_callback(msg, size, is_error):
+    print(
+        ctypes.string_at(msg, size).decode("utf-8"),
+        file=sys.stderr if is_error else sys.stdout,
+    )
+
+
 def walnuts_stan(
     model: bridgestan.StanModel,
     *,
@@ -181,6 +194,7 @@ def walnuts_stan(
     step_stabilization: float = 1e-4,
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
+    refresh: int = 0,
 ) -> list[StanOutput]:
     """
     _summary_
@@ -247,6 +261,8 @@ def walnuts_stan(
         The learning rate decay for Adam, non-negative, by default 0.5
     save_warmup : bool, optional
         Set to True to save warmup iterations, by default False
+    refresh : int, optional
+        Period between iteration console feedback, with 0 indicating no feedback, non-netative, by default 0
 
     Returns
     -------
@@ -336,7 +352,7 @@ def walnuts_stan(
     _ffi_sample_bridgestan(
         model.lib_path.encode(),
         model.data.encode(),
-        print_callback,
+        bs_print_callback,
         model.seed,
         _encode_stan_inits(inits, num_chains, seed),
         num_chains,
@@ -371,6 +387,8 @@ def walnuts_stan(
         lengths_out,
         stepsize_out,
         inv_metric_out,
+        refresh,
+        print_callback,
     )
 
     outputs = []

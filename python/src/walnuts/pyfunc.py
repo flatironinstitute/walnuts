@@ -75,7 +75,6 @@ def walnuts_pyfunc(
     step_stabilization: float = 1e-4,
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
-    refresh: int = 0,
 ) -> list[WalnutsOutputArray]:
     """
     _summary_
@@ -144,8 +143,6 @@ def walnuts_pyfunc(
         _description_, by default 0.5
     save_warmup : bool, optional
         _description_, by default False
-    refresh : int, optional
-        _description_, by default 0
 
     Returns
     -------
@@ -255,7 +252,6 @@ def walnuts_pyfunc(
         step_stabilization,
         step_learn_rate_decay,
         save_warmup,
-        refresh,
         out,
         out.size,
         lengths_out,

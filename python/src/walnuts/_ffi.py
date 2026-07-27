@@ -123,7 +123,6 @@ _common_sampling_argtypes = [
     ctypes.c_double,  # step_stabilization
     ctypes.c_double,  # step_learn_rate_decay
     ctypes.c_bool,  # save_warmup
-    ctypes.c_int,  # refresh
     double_array,
     ctypes.c_size_t,  # buffer size
     int_array,  # final lengths

@@ -181,7 +181,6 @@ def walnuts_stan(
     step_stabilization: float = 1e-4,
     step_learn_rate_decay: float = 0.5,
     save_warmup: bool = False,
-    refresh: int = 0,
 ) -> list[StanOutput]:
     """
     _summary_
@@ -248,8 +247,6 @@ def walnuts_stan(
         The learning rate decay for Adam, non-negative, by default 0.5
     save_warmup : bool, optional
         Set to True to save warmup iterations, by default False
-    refresh : int, optional
-        Period between iteration console feedback, with 0 indicating no feedback, non-netative, by default 0
 
     Returns
     -------
@@ -294,7 +291,6 @@ def walnuts_stan(
         - ``step_sq_gradient_decay`` <= 0
         - ``step_stabiliziation`` < 0
         - ``step_learn_rate_decay`` < 0
-        - ``refresh`` < 0
     """
     # these are checked here because they're sizes for "out"
     if num_chains < 1:
@@ -370,7 +366,6 @@ def walnuts_stan(
         step_stabilization,
         step_learn_rate_decay,
         save_warmup,
-        refresh,
         out,
         out.size,
         lengths_out,

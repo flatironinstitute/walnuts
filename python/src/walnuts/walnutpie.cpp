@@ -144,7 +144,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
     double step_size_init, double step_accept_rate_target,
     double step_learning_rate, double step_gradient_decay,
     double step_sq_gradient_decay, double step_stabilization,
-    double step_learn_rate_decay, bool save_warmup, int refresh, double* out,
+    double step_learn_rate_decay, bool save_warmup, double* out,
     size_t out_size, int* final_lengths, double* stepsize_out,
     double* inv_metric_out, WalnutpieError** err) {
   return error::catch_exceptions(err, [&]() {
@@ -232,7 +232,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
     double step_size_init, double step_accept_rate_target,
     double step_learning_rate, double step_gradient_decay,
     double step_sq_gradient_decay, double step_stabilization,
-    double step_learn_rate_decay, bool save_warmup, int refresh, double* out,
+    double step_learn_rate_decay, bool save_warmup, double* out,
     size_t out_size, int* final_lengths, double* stepsize_out,
     double* inv_metric_out, WalnutpieError** err) {
   using walnuts::DynamicStanModel;

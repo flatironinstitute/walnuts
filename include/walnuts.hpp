@@ -1,7 +1,5 @@
 #pragma once
 
-/// \file bridgestan.h
-
 // IWYU pragma: begin_keep
 
 #include "walnuts/adam.hpp"

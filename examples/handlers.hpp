@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -13,9 +14,9 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/validate.hpp"
+#include <walnuts/validate.hpp>
 
-namespace walnuts::detail {
+namespace detail {
 
 /**
  * @brief Internal flag with value `true` if C++ received `SIGINT`.
@@ -53,9 +54,23 @@ static void write_vector(std::ostream& os, const Eigen::VectorXd& v) {
   os.write(data, size);
 }
 
-}  // namespace walnuts::detail
+/**
+ * @brief Validate that the specified stream is open.
+ *
+ * @tparam S The type of the stream.
+ * @param[in] s The stream.
+ * @param[in] name The name of the stream.
+ * @throw invalid_argument If the stream is not open.
+ */
+template <typename S>
+inline void validate_open(const S& s, const std::string& name) {
+  if (s.is_open()) {
+    return;
+  }
+  throw std::invalid_argument("could not open stream from: " + name);
+}
 
-namespace walnuts {
+}  // namespace detail
 
 /**
  * @brief An interrupt callback for C++.
@@ -155,6 +170,12 @@ class ChainStore {
   void on_sample(const Eigen::VectorXd& position, double lp) {
     draws_.push_back(position);
     lps_.push_back(lp);
+  }
+
+  void on_logp_exception(const Eigen::VectorXd& position,
+                         const std::exception& exn) const noexcept {
+    std::cout << "Logp failed with exception " << exn.what() << " at "
+              << position.transpose() << "\n";
   }
 
   /**
@@ -437,5 +458,3 @@ static void write_sample(const std::string& file_name,
   detail::validate_open(os, file_name);
   write_sample(os, handlers, include_warmup);
 }
-
-}  // namespace walnuts

@@ -1,7 +1,3 @@
-.. walnuts documentation master file, created by
-   sphinx-quickstart on Wed Jul 15 12:56:38 2026.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 WALNUTS DOCUMENTATION
 ======================================================================
@@ -9,16 +5,16 @@ WALNUTS DOCUMENTATION
 This is the documentation for Walnuts, a Markov chain Monte Carlo
 (MCMC) sampler for differentiable target log densities.
 
-       
+
 C++ core
 ----------------------------------------------------------------------
 
 Walnuts is implemented in multi-threaded C++20.
 
-.. toctree::  
-   :maxdepth: 2  
+.. toctree::
+   :maxdepth: 2
 
-   cpp  
+   cpp
 
 Python interface
 ----------------------------------------------------------------------
@@ -30,7 +26,6 @@ Walnuts provides a Python API.
 
    py
 
-:ref:`genindex`
 
 The Python API accepts target log densities and gradients coded in
 Python, including models coded in `NumPyro
@@ -40,7 +35,7 @@ Python, including models coded in `NumPyro
 foreign function calls.
 
 `Stan <https://mc-stan.org>`__ models can be accessed directly at the C++ level through
-`BridgeStan <https://roualdes.us/bridgestan/latest/>`__.     
+`BridgeStan <https://roualdes.us/bridgestan/latest/>`__.
 
 
 License
@@ -69,13 +64,13 @@ In addition to these sampling improvements over HMC, the Walnuts
 implementation here departs from the Nuts implementation found in
 Stan (and elsewhere) in several ways.
 
-#. For estimating a mass matrix during warmup, Walnuts uses an online 
-   (iteration by iteration) version of `Nutpie 
-   <https://arxiv.org/abs/2603.18845v1>`__ warmup that takes a 
-   geometric mean of estimates based on the inverse covariance of 
+#. For estimating a mass matrix during warmup, Walnuts uses an online
+   (iteration by iteration) version of `Nutpie
+   <https://arxiv.org/abs/2603.18845v1>`__ warmup that takes a
+   geometric mean of estimates based on the inverse covariance of
    draws and covariance of scores; the past is exponentially discounted on
-   a diminishing schedule to follow Stan's geometrically increasing history 
-   lengths. 
+   a diminishing schedule to follow Stan's geometrically increasing history
+   lengths.
 
 #. For estimating the maximum step size during warmup, Walnuts uses `Adam
    <https://arxiv.org/abs/1412.6980>`__ rather than dual averaging for
@@ -84,7 +79,7 @@ Stan (and elsewhere) in several ways.
 #. For running chains, Walnuts uses asynchronous threading and monitors
    progress through lock-free buffers in an additional thread, with
    automatic stopping when convergence is detected to within a
-   specified threshold.  
+   specified threshold.
 
 #. For posterior analysis of the resulting varying-length Markov
    chains, Walnuts provides estimators for posterior means, standard
@@ -93,4 +88,3 @@ Stan (and elsewhere) in several ways.
 
 .. #. There is an efficient binary output format in addition to a
       slow, but directly portable comma-separated value format.
-

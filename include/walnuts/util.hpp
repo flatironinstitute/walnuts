@@ -240,17 +240,16 @@ inline double logp_momentum(const Eigen::VectorXd& rho,
  * @param[in] step The step size.
  */
 template <LogpGrad F>
-double leapfrog_error(const F& logp_grad,
-		      const Eigen::VectorXd& theta,
-		      const Eigen::VectorXd& rho,
-		      const Eigen::VectorXd& inv_M,
-		      double step) {
+double leapfrog_error(const F& logp_grad, const Eigen::VectorXd& theta,
+                      const Eigen::VectorXd& rho, const Eigen::VectorXd& inv_M,
+                      double step) {
   Eigen::VectorXd grad;
   double logp;
   logp_grad(theta, logp, grad);
   logp += detail::logp_momentum(rho, inv_M);
   Eigen::VectorXd rho_star = rho + 0.5 * step * grad;
-  Eigen::VectorXd theta_star = theta + step * (inv_M.array() * rho_star.array()).matrix();
+  Eigen::VectorXd theta_star =
+      theta + step * (inv_M.array() * rho_star.array()).matrix();
   double logp_star;
   logp_grad(theta_star, logp_star, grad);
   rho_star = rho_star + 0.5 * step * grad;
@@ -283,33 +282,33 @@ double leapfrog_error(const F& logp_grad,
  * @param D The dimensioanlity
  * @return The adapted step size.
  */
- template <std::uniform_random_bit_generator RNG, LogpGrad F>
- double adapt_step(RNG& rng, const F& logp_grad,
-		   const Eigen::VectorXd& theta,
-		   const Eigen::VectorXd& M,
-		   double step,
-		   std::size_t D) {
-   detail::Random<RNG> rand(rng);
-   Eigen::VectorXd inv_M = M.array().inverse().matrix();
-   Eigen::VectorXd rho = (rand.standard_normal(static_cast<Eigen::Index>(D))
-			  .array() * M.array().sqrt()).matrix();
-   while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step)
-	  > std::log(0.9)) {
-     step *= 2;
-   }
-   while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step) < std::log(0.6)) {
-     step *= std::sqrt(0.5);
-   }
-   return step;
- }
-  
+template <std::uniform_random_bit_generator RNG, LogpGrad F>
+double adapt_step(RNG& rng, const F& logp_grad, const Eigen::VectorXd& theta,
+                  const Eigen::VectorXd& M, double step, std::size_t D) {
+  detail::Random<RNG> rand(rng);
+  Eigen::VectorXd inv_M = M.array().inverse().matrix();
+  Eigen::VectorXd rho =
+      (rand.standard_normal(static_cast<Eigen::Index>(D)).array() *
+       M.array().sqrt())
+          .matrix();
+  while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step) >
+         std::log(0.9)) {
+    step *= 2;
+  }
+  while (detail::leapfrog_error(logp_grad, theta, rho, inv_M, step) <
+         std::log(0.6)) {
+    step *= std::sqrt(0.5);
+  }
+  return step;
+}
+
 /**
  * @brief A wrapper for a log density and gradient function that traps
  * exceptions.
  *
  * @tparam F Type of underlying log density and gradient function.
  */
-template <LogpGrad F>
+template <LogpGrad F, ErrorCallback H>
 class NoExceptLogpGrad {
  public:
   /**
@@ -321,8 +320,10 @@ class NoExceptLogpGrad {
    *
    * @param[in] logp_grad The base log density and gradient function, called
    * back.
+   * @param[in] handler The sample handler, used when exceptions are thrown.
    */
-  NoExceptLogpGrad(const F& logp_grad) : logp_grad_(std::cref(logp_grad)) {}
+  NoExceptLogpGrad(const F& logp_grad, H& handler)
+      : logp_grad_(std::cref(logp_grad)), handler_(handler) {}
 
   /**
    * @brief Given the specified position, set the log density and
@@ -336,9 +337,9 @@ class NoExceptLogpGrad {
                   Eigen::VectorXd& grad) const noexcept {
     try {
       logp_grad_.get()(x, logp, grad);
-    } catch (...) {
+    } catch (const std::exception& e) {
+      handler_.get().on_logp_exception(x, e);
       // logp_grad failure equivalent to -inf log density
-      // TODO: add logging for this kind of thing
       logp = -std::numeric_limits<double>::infinity();
       grad.setZero(x.size());
     }
@@ -346,6 +347,7 @@ class NoExceptLogpGrad {
 
   /** The log density and gradient function. */
   const std::reference_wrapper<const F> logp_grad_;
+  const std::reference_wrapper<H> handler_;
 };
 
 /**

@@ -189,77 +189,112 @@ def walnuts_stan(
     Parameters
     ----------
     model : bridgestan.StanModel
-        _description_
+        The BridgeStan model to fit
     num_chains : int, optional
-        _description_, by default 4
+        The number of Markov chains to run, positive, by default 4
     inits : Union[StanData, List[StanData], None], optional
-        _description_, by default None
+        Constrained initialization to use for all chains, or a list of constrained initializations, one for each chain, or ``None`` to indicate fully random initialization, by default None
     seed : Optional[int], optional
-        _description_, by default None
+        The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate from the system time, by default ``None``
     id : int, optional
         _description_, by default 1
     init_radius : float, optional
-        _description_, by default 2.0
+        The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
-        _description_, by default None
+        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained) dimension, by default None
     save_inv_metric : bool, optional
-        _description_, by default False
+        Set to ``True`` to save the inverse metric after adaptation, by default False
     min_warmup_iter : int, optional
-        _description_, by default 50
+        The minimum number of warmup iterations, greater than or equal to 0, by default 50
     max_warmup_iter : int, optional
-        _description_, by default 1000
+        The maximum number of warmup iterations, greater than or equal to ``min_warmup_iter``, by default 1000
     min_sampling_iter : int, optional
-        _description_, by default 50
+        The minimum number of sampling iterations, greater than or equal to 0, by default 50
     max_sampling_iter : int, optional
-        _description_, by default 1000
+        The maximum number of sampling iterations, greater than or equal to ``min_sampling_iter``, by default 1000
     max_trajectory_doublings : int, optional
-        _description_, by default 5
+        The maximum number of trajectory doublings for the no-U-turn sampler, positive, by default 5
     max_step_halvings : int, optional
-        _description_, by default 5
+        The maximum number of step size halvings in Walnuts, non-negative, by default 5
     min_micro_steps : int, optional
-        _description_, by default 1
+        The minimum number of micro steps per macro step, positive, by default 1
     max_hamiltonian_error : float, optional
-        _description_, by default 0.5
+        The maximum error allowed in the Hamiltonian, positive, by default 0.5
     step_size_converge_tol : float, optional
-        _description_, by default 0.1
+        The relative converge tolerance for difference in step sizes from the geometric mean across chains, positive, by default 0.1
     mass_converge_tol : float, optional
-        _description_, by default 1.0
+        The relative mass matrix norm convergence tolerance from the geometric mean across chains, by default 1.0
     rhat_converge_tol : float, optional
-        _description_, by default 1.01
+        The convergence tolernace for R-hat, greater than 1, by default 1.01
     mass_init_count : float, optional
-        _description_, by default 4.0
+        The pseudo-observation count for the initial mass matrix, positive, by default 4.0
     mass_additive_smoothing : float, optional
-        _description_, by default 1e-5
+        The amount to add to the mass matrix estimators for smoothing, non-negative, by default 1e-5
     max_macro_steps_target : float, optional
-        _description_, by default 15.0
+        The target maximum number of macro steps for adaptation, positive, by default 15.0
     step_size_init : float, optional
-        _description_, by default 1.0
+        The initial step size, positive, by default 1.0
     step_accept_rate_target : float, optional
-        _description_, by default 0.8
+        The acceptance rate target for step size adaptation, in (0, 1), by default 0.8
     step_learning_rate : float, optional
-        _description_, by default 0.05
+        The learning rate for step size in Adam, positive, by default 0.05
     step_gradient_decay : float, optional
-        _description_, by default 0.8
+        The step size gradient decay in Adam, positive, by default 0.8
     step_sq_gradient_decay : float, optional
-        _description_, by default 0.9
+        The step size square gradient decay in Adam, positive, by default 0.9
     step_stabilization : float, optional
-        _description_, by default 1e-4
+        The additive step stabilization factor for Adam, non-negative, by default 1e-4
     step_learn_rate_decay : float, optional
-        _description_, by default 0.5
+        The learning rate decay for Adam, non-negative, by default 0.5
     save_warmup : bool, optional
-        _description_, by default False
+        Set to True to save warmup iterations, by default False
     refresh : int, optional
-        _description_, by default 0
+        Period between iteration console feedback, with 0 indicating no feedback, non-netative, by default 0
 
     Returns
     -------
     list[StanOutput]
-        _description_
+        A list of Stan fits, one per Markov chain, which may not all have the same number of draws
 
     Raises
     ------
     ValueError
-        _description_
+        If any argument is out of its valid range or has inconsistent
+        dimensionality; see Notes.
+
+    Notes
+    -----
+    ValueError
+        Raised if any of the following hold:
+
+        - ``num_chains`` < 1
+        - ``inits`` is not the size of the number of chains, or
+          has members of the wrong dimensionality
+        - ``seed`` < 0
+        - ``init_radius`` < 0
+        - ``init_inv_metric`` has negative entries or is the wrong
+          dimensionality
+        - ``min_warmup_iter`` < 0
+        - ``max_warmup_iter`` < ``min_warmup_iter``
+        - ``max_trajectory_doublings`` < 1
+        - ``max_step_halvings`` < 0
+        - ``min_micro_steps`` < 1
+        - ``max_hamiltonian_error`` <= 0
+        - ``step_size_converge_tol`` < 0
+        - ``mass_converge_tol`` < 0
+        - ``rhat_converge_tol`` <= 1
+        - ``mass_init_count`` <= 0
+        - ``mass_additive_smoothing`` < 0
+        - ``max_macro_steps_target`` < 1
+        - ``step_size_init`` <= 0
+        - ``step_accept_rate_target`` < 0 or
+          ``step_accept_rate_target`` > 1
+        - ``step_learning_rate`` <= 0
+        - ``step_gradient_decay`` <= 0
+        - ``step_sq_gradient_decay`` <= 0
+        - ``step_stabiliziation`` < 0
+        - ``step_learn_rate_decay`` < 0
+        - ``refresh`` < 0
     """
     # these are checked here because they're sizes for "out"
     if num_chains < 1:

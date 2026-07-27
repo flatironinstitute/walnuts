@@ -6,9 +6,10 @@
 #include <Eigen/Dense>
 
 struct ThrowingLogpGrad {
+  static constexpr char const* const ERROR_MSG = "logp_grad failed";
   void operator()(const Eigen::VectorXd& x, double& logp,
                   Eigen::VectorXd& grad) const {
-    throw std::runtime_error("logp_grad failed");
+    throw std::runtime_error(ERROR_MSG);
   }
 };
 
@@ -18,6 +19,17 @@ struct GoodLogpGrad {
     logp = -0.5 * x.squaredNorm();
     grad = -x;
   }
+};
+
+struct TattleTaleHandler {
+  void on_logp_exception(const Eigen::VectorXd position,
+                         const std::exception& e) {
+    latest_err = e.what();
+    latest_err_pos = position;
+  }
+
+  std::string latest_err;
+  Eigen::VectorXd latest_err_pos;
 };
 
 static std::vector<double> inf_nan() {
@@ -55,8 +67,8 @@ static std::vector<double> inf_nan_neg_zero_leq_one() {
 
 template <int R, int C>
 static void expect_near(const Eigen::Matrix<double, R, C>& x,
-			const Eigen::Matrix<double, R, C>& y,
-			double tolerance = 1e-10) {
+                        const Eigen::Matrix<double, R, C>& y,
+                        double tolerance = 1e-10) {
   EXPECT_EQ(x.size(), y.size());
   for (Eigen::Index n = 0; n < x.size(); ++n) {
     EXPECT_NEAR(x(n), y(n), tolerance);

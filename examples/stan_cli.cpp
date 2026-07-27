@@ -88,6 +88,12 @@ class StanHandler {
   void on_warmup_complete(double step_size,
                           const Eigen::VectorXd& diag_inv_mass) {}
 
+  void on_logp_exception(const Eigen::VectorXd& position,
+                         const std::exception& exn) const noexcept {
+    std::cout << "Logp failed with exception " << exn.what() << " at "
+              << position.transpose() << "\n";
+  }
+
   void summarize() {
     auto names = model_.param_names();
     ::summarize(names, draws_);

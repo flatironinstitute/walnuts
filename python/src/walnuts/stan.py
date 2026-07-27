@@ -183,7 +183,8 @@ def walnuts_stan(
     save_warmup: bool = False,
 ) -> list[StanOutput]:
     """
-    _summary_
+    Sample from the specified Stan model using the specified
+    configuration.
 
     Parameters
     ----------
@@ -192,7 +193,7 @@ def walnuts_stan(
     num_chains : int, optional
         The number of Markov chains to run, positive, by default 4
     inits : Union[StanData, List[StanData], None], optional
-        Constrained initialization to use for all chains, or a list of constrained initializations, one for each chain, or ``None`` to indicate fully random initialization, by default None
+        The constrained initialization to use for all chains, or a list of constrained initializations, one for each chain, or ``None`` to indicate fully random initialization, by default None
     seed : Optional[int], optional
         The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate from the system time, by default ``None``
     id : int, optional
@@ -200,9 +201,9 @@ def walnuts_stan(
     init_radius : float, optional
         The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
-        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained) dimension, by default None
+        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained) dimension, by default ``None``
     save_inv_metric : bool, optional
-        Set to ``True`` to save the inverse metric after adaptation, by default False
+        Set to ``True`` to save the inverse metric after adaptation, by default ``False``
     min_warmup_iter : int, optional
         The minimum number of warmup iterations, greater than or equal to 0, by default 50
     max_warmup_iter : int, optional
@@ -246,12 +247,12 @@ def walnuts_stan(
     step_learn_rate_decay : float, optional
         The learning rate decay for Adam, non-negative, by default 0.5
     save_warmup : bool, optional
-        Set to True to save warmup iterations, by default False
+        Set to ``True`` to save warmup iterations, by default ``False``
 
     Returns
     -------
     list[StanOutput]
-        A list of Stan fits, one per Markov chain, which may not all have the same number of draws
+        A list of Stan fits of length ``num_chains``, which may not all have the same number of draws
 
     Raises
     ------

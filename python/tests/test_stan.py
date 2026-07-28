@@ -2,39 +2,17 @@ import pytest
 import numpy as np
 import pathlib
 
-import walnuts
 import bridgestan
+import walnuts
 
 HERE = pathlib.Path(__file__).parent
 
-import platform
-
-if platform.system() == "Windows":
-    import os
-
-    bridgestan.compile.compile_model(
-        HERE / "simple.stan",
-        make_args=["STAN_THREADS=1"],
-    )
-
-    tbb_path = os.path.abspath(
-        os.path.join(
-            bridgestan.compile.get_bridgestan_path(),
-            "stan",
-            "lib",
-            "stan_math",
-            "lib",
-            "tbb",
-        )
-    )
-    os.environ["PATH"] = tbb_path + ";" + os.environ["PATH"]
-    os.add_dll_directory(tbb_path)
-
-model = bridgestan.StanModel(
+model_so = bridgestan.compile.compile_model(
     HERE / "simple.stan",
-    {"N": 2},
     make_args=["STAN_THREADS=1"],
 )
+
+model = bridgestan.StanModel(model_so, {"N": 2})
 
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])

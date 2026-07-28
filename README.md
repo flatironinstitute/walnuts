@@ -15,6 +15,30 @@ The project is distributed under the following licenses.
 * Documentation: [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.en)
 
 
+## Dependencies
+
+The dependencies may all be downloaded through CMake (see the next
+section).
+
+### Required build dependencies
+
+* [Eigen C++ template library for linear algebra](https://eigen.tuxfamily.org/index.php?title=Main_Page)
+([MPLv2 licensed](https://www.mozilla.org/en-US/MPL/2.0/))
+
+### Required test dependencies
+
+* [Google test](https://github.com/google/googletest) ([BSD-3
+licensed](https://opensource.org/license/bsd-3-clause))
+
+
+### Optional build dependences
+
+Running Stan models requires the BridgeStan interface.  See the BridgeStan documentation for more
+information on its dependencies.
+
+* [BridgeStan](https://github.com/roualdes/bridgestan)  ([BSD-3
+licensed](https://opensource.org/license/bsd-3-clause))
+
 ## Command Line Interface (CLI)
 
 Building `examples/stan_cli` creates a command-line interface to
@@ -36,54 +60,54 @@ The command-line options can be retrieved with the `--help` option.
 
 ```bash
 :build$ examples/stan_cli --help
-Run WALNUTs on a Stan model 
+Run WALNUTs on a Stan model
 
 
 examples/stan_cli [OPTIONS] model [data]
 
 
 POSITIONALS:
-  model TEXT:FILE REQUIRED    Path to the Stan model library (.so from CmdStan{,Py,R}) 
-  data TEXT:FILE              Path to the Stan model data (.json, optional) 
+  model TEXT:FILE REQUIRED    Path to the Stan model library (.so from CmdStan{,Py,R})
+  data TEXT:FILE              Path to the Stan model data (.json, optional)
 
 OPTIONS:
-  --help              Print this help message and exit 
-  --seed UINT [29294659]  
-                      Random seed (default randomize with clock) 
-  --warmup UINT:NONNEGATIVE [128]  
-                      Number of warmup iterations 
-  --samples UINT:POSITIVE [128]  
-                      Number of samples to draw 
-  --max-depth UINT:POSITIVE [10]  
-                      Maximum depth for NUTS trajectory doublings 
-  --max-step-depth UINT:POSITIVE [8]  
-                      Maximum depth for the step size adaptation 
-  --min-micro-steps UINT:POSITIVE [1]  
-                      Minimum micro steps per macro step 
-  --max-error FLOAT:POSITIVE [0.5]  
-                      Maximum error allowed in joint densities 
-  --init FLOAT:NONNEGATIVE [2]  
-                      Range [-init,init] for uniform parameter initial values 
-  --mass-init-count FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]  
-                      Initial count for the mass matrix adaptation 
-  --mass-iteration-offset FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]  
-                      Offset for the mass matrix adaptation iterations 
-  --mass-additive-smoothing FLOAT:POSITIVE [1e-05]  
-                      Additive smoothing for the mass matrix adaptation 
-  --step-size-init FLOAT:POSITIVE [1]  
-                      Initial step size for the step size adaptation 
-  --step-accept-rate-target FLOAT:FLOAT in [2.22507e-308 - 1] [0.8]  
-                      Target acceptance rate for the step size adaptation 
-  --step-learning-rate FLOAT:POSITIVE [0.2]  
-                      Learning rates for step adaptation 
-  --step-beta1 FLOAT:FLOAT in [2.22507e-308 - 1] [0.3]  
-                      Decay rate of gradient moving average for step adaptation 
-  --step-beta2 FLOAT:FLOAT in [2.22507e-308 - 1] [0.99]  
-                      Decay rate of squared gradient moving average for step adaptation 
-  --step-epsilon FLOAT:POSITIVE [0.0001]  
-                      Update stabilization term for step size adaptation 
-  --output TEXT:PATH(non-existing) 
-                      Output file for the draws 
+  --help              Print this help message and exit
+  --seed UINT [29294659]
+                      Random seed (default randomize with clock)
+  --warmup UINT:NONNEGATIVE [128]
+                      Number of warmup iterations
+  --samples UINT:POSITIVE [128]
+                      Number of samples to draw
+  --max-depth UINT:POSITIVE [10]
+                      Maximum depth for NUTS trajectory doublings
+  --max-step-depth UINT:POSITIVE [8]
+                      Maximum depth for the step size adaptation
+  --min-micro-steps UINT:POSITIVE [1]
+                      Minimum micro steps per macro step
+  --max-error FLOAT:POSITIVE [0.5]
+                      Maximum error allowed in joint densities
+  --init FLOAT:NONNEGATIVE [2]
+                      Range [-init,init] for uniform parameter initial values
+  --mass-init-count FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]
+                      Initial count for the mass matrix adaptation
+  --mass-iteration-offset FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]
+                      Offset for the mass matrix adaptation iterations
+  --mass-additive-smoothing FLOAT:POSITIVE [1e-05]
+                      Additive smoothing for the mass matrix adaptation
+  --step-size-init FLOAT:POSITIVE [1]
+                      Initial step size for the step size adaptation
+  --step-accept-rate-target FLOAT:FLOAT in [2.22507e-308 - 1] [0.8]
+                      Target acceptance rate for the step size adaptation
+  --step-learning-rate FLOAT:POSITIVE [0.2]
+                      Learning rates for step adaptation
+  --step-beta1 FLOAT:FLOAT in [2.22507e-308 - 1] [0.3]
+                      Decay rate of gradient moving average for step adaptation
+  --step-beta2 FLOAT:FLOAT in [2.22507e-308 - 1] [0.99]
+                      Decay rate of squared gradient moving average for step adaptation
+  --step-epsilon FLOAT:POSITIVE [0.0001]
+                      Update stabilization term for step size adaptation
+  --output TEXT:PATH(non-existing)
+                      Output file for the draws
 ```
 
 The documentation automatically generated by `CLI11` library we use to
@@ -93,33 +117,6 @@ documentation suggests the seed is constant.  In the bounds on
 `double` values, rounded scientific notation is used rather than
 providing the semantic constraint that the value must fall in the open
 interval (0, 1).
-
-## Dependencies
-
-The dependencies may all be downloaded through CMake (see the next
-section).
-
-### Required build dependencies
-
-* [Eigen C++ template library for linear algebra](https://eigen.tuxfamily.org/index.php?title=Main_Page)
-([MPLv2 licensed](https://www.mozilla.org/en-US/MPL/2.0/))
-
-### Required test dependencies
-
-* [Google test](https://github.com/google/googletest) ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause))
-
-### Required documentation dependencies
-
-* [Doxygen](https://www.doxygen.nl/#google_vignette) ([GPLv1 licensed](https://www.gnu.org/licenses/old-licenses/gpl-1.0.html))
-
-### Optional build dependences
-
-Running Stan models requires the BridgeStan interface.  See the BridgeStan documentation for more
-information on its dependencies.
-
-* [BridgeStan](https://github.com/roualdes/bridgestan)  ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause))
 
 ## Command-line tool dependency
 
@@ -157,12 +154,11 @@ Some common options are:
 
 - `-B <build_dir>` - Specify the build directory where the build files will be generated. If omitted, the directory you run the command from will be used.
 - `-DCMAKE_BUILD_TYPE=Debug` - Set the build type to Debug.
-- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release. 
+- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release.
 - `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
 - `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
-- `-DWALNUTS_BUILD_DOCS=ON` - Enable building of the documentation (currently on by default).
 - `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
-- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan). 
+- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
 - `-DWALNUTS_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.
 
 Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
@@ -245,27 +241,15 @@ xcrun llvm-cov show ./tests/summary_test \
 ```
 
 Finally, inspect the html output.
-	
-```bash
-open coverage_html/index.html	
-```
-
-### Documentation
-
-To build the C++ documentation using Doxygen:
 
 ```bash
-cmake --build . --target doc
+open coverage_html/index.html
 ```
-
-The root of the generated doc will be found in
-
-* `./html/index.html`.
 
 
 ### Include what you use
 
-To run IWYU, 
+To run IWYU,
 
 ```sh
 cd walnuts/iwyu
@@ -279,60 +263,44 @@ brew install include-what-you-use
 ```
 
 
-## Building the Python interface
+## Documentation
 
 ### Prerequisites
 
-The Python documentation is built using Sphinx, which in
-turn depends on Doxygen.  
+The documentation is built using Sphinx, which in turn uses Doxygen for
+processing our C++ source files. Doxygen must be installed at the system level.
 
-Doxygen must be installed at the system level.
-
-The other dependencies, which are `sphinx`, `pydata-sphinx-theme`,
-`sphinx-copybutton`, and `breathe`, can be pip installed, either
-directly or through the `requirements.txt` specification.
-
+The other dependencies, can be pip installed. The recommended way
+to install these is to run the following command from the top-level directory
+of the repo:
 
 ```sh
 pip install '.[stan]' -r docs/requirements.txt
 ```
 
-
-### Documentation source
-
-The top level organization of the API documentation is controlled
-through `.rst` files (reStructuredText format) in 
-
-* `docs/*.rst`,
-
-with `docs/index.rst` as the root.  It's probably easiest to let an
-LLM translate markdown to Sphinx's reStructuredText format.
-
-The Python API documentation is generated directly from inline
-docstrings. 
-
-
 ### Building the documentation
 
-First, install the prerequisites (see above).  
 
-To build the documentation, change directories to `walnuts/docs`
-(where `walnuts` is the top level repository directory) and run the
-following command.
-
+To build the documentation after the prerequisites are installed,
+change directories to the `docs/` subfolder of the repository and run `make`
+with the desired format, e.g. `html`:
 ```sh
-sphinx-build -b html . _build/html
+cd docs/
+make html
 ```
+(if `make` is not installed, the second command is equivalent to `sphinx-build -b html . _build/html`)
 
-The top level of the docs land in the directory specified by the last
-argument, 
+The above will output the documentation website in `_build/html`. Other valid
+formats include `latexpdf`, which will require a LaTeX toolchain installed.
 
-* Documentation root:  `_build/html/index.html`.
+### Documentation sources
 
-### Publishing the documentation on GitHub Pages
+The top level organization of the API documentation is controlled
+through `.rst` files (reStructuredText format) in 'docs/'
+with `docs/index.rst` as the root.
 
-TBD.
-
+The Python and C++ API doc are automatically generated from the
+docstrings/comments in the respective source files.
 
 ## Project overview
 

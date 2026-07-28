@@ -16,8 +16,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ##########################
 option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
 option(WALNUTS_BUILD_TESTS "Build the test targets for the library" OFF)
-option(WALNUTS_BUILD_DOCS "Build the documentation for the library" OFF)
-option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF) 
+option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
 option(WALNUTS_COVERAGE "Enable source-based test coverage instrumentation" OFF)
 
 ##########################
@@ -30,15 +29,15 @@ set(EIGEN_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/eigen")
 set(EIGEN_TAG 3.4.0)
 # only clone on first configure
 if(NOT EXISTS "${EIGEN_SRC_DIR}/Eigen")
-  message(STATUS "Cloning Eigen ${EIGEN_TAG}…")
-# this is working around an issue with Eigen that may no longer be an issue  
-  execute_process(
+    message(STATUS "Cloning Eigen ${EIGEN_TAG}…")
+    # this is working around an issue with Eigen that may no longer be an issue
+    execute_process(
     COMMAND ${GIT_EXECUTABLE} clone --branch ${EIGEN_TAG} --depth 1 -- https://gitlab.com/libeigen/eigen.git ${EIGEN_SRC_DIR}
     RESULT_VARIABLE _git_result
   )
-  if(NOT _git_result EQUAL 0)
-    message(FATAL_ERROR "Git clone of Eigen failed")
-  endif()
+    if(NOT _git_result EQUAL 0)
+        message(FATAL_ERROR "Git clone of Eigen failed")
+    endif()
 endif()
 
 # now expose it as a pure‐header interface target
@@ -73,7 +72,7 @@ target_include_directories(BridgeStan::BridgeStan INTERFACE
 ## Windows patches         ##
 #############################
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_link_options(-static-libgcc -static-libstdc++ -static -lpthread)
+    add_link_options(-static-libgcc -static-libstdc++ -static -lpthread)
 endif()
 
 #############################
@@ -96,7 +95,7 @@ endif()
 ##       Examples       ##
 ##########################
 if (WALNUTS_BUILD_EXAMPLES)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
 endif()
 
 ##########################
@@ -111,8 +110,8 @@ endif ()
 ##       Tests         ##
 ##########################
 if (WALNUTS_BUILD_TESTS)
-  enable_testing()
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    enable_testing()
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()
 
 ##########################
@@ -129,7 +128,7 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
 find_program(CLANG_FORMAT_BIN clang-format)
 
 if (CLANG_FORMAT_BIN)
-  add_custom_target(
+    add_custom_target(
     format
     COMMAND ${CLANG_FORMAT_BIN}
       -i
@@ -138,30 +137,5 @@ if (CLANG_FORMAT_BIN)
     COMMENT "Running clang-format on source files"
   )
 else()
-  message(WARNING "clang-format not found. 'format' target will not be available.")
+    message(WARNING "clang-format not found. 'format' target will not be available.")
 endif()
-
-##########################
-##     Doxygen Docs     ##
-########################## 
-if (WALNUTS_BUILD_DOCS)
-  find_package(Doxygen REQUIRED)
-
-  file(GLOB_RECURSE WALNUT_HEADERS
-      "${CMAKE_CURRENT_SOURCE_DIR}/include/walnuts/*.hpp")
-
-  set(DOXYGEN_FILE_PATTERNS    "*.hpp")
-  set(DOXYGEN_GENERATE_HTML    YES)
-  set(DOXYGEN_GENERATE_LATEX   NO)
-  set(DOXYGEN_GENERATE_XML     YES)
-  set(DOXYGEN_EXTRACT_ALL      NO)
-  set(DOXYGEN_CITE_BIB_FILES   "${CMAKE_CURRENT_SOURCE_DIR}/docs/refs.bib")
-
-  doxygen_add_docs(
-    doc
-    ${WALNUT_HEADERS}
-    COMMENT "Generate API documentation in ${DOXYGEN_OUTPUT_DIRECTORY}"
-  )
-endif()
-
-

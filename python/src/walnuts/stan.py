@@ -45,6 +45,9 @@ class StanOutputBase:
         """Extract a parameter from the Stan output."""
         return self.get(key)
 
+    def __len__(self) -> int:
+        return len(self._data)
+
     def get(self, key: str) -> np.ndarray:
         """
         Extract a parameter from the Stan output.
@@ -294,6 +297,10 @@ def walnuts_stan(
     if model.model_version() < (2, 9, 0):
         raise ValueError(
             "BridgeStan version must be at least 2.9.0 for use with walnuts"
+        )
+    if "STAN_THREADS=true" not in model.model_info():
+        raise ValueError(
+            "BridgeStan model must be compiled with STAN_THREADS for use with walnuts"
         )
 
     model_params = model.param_unc_num()

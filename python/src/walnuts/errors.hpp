@@ -72,28 +72,10 @@ inline auto catch_exceptions(WalnutpieError** err, F f) {
 }
 
 template <typename T>
-inline void check_positive(const char* name, T val) {
-  if (val <= 0) {
-    std::stringstream msg;
-    msg << name << " must be positive, was " << val;
-    throw std::invalid_argument(msg.str());
-  }
-}
-
-template <typename T>
 inline void check_nonnegative(const char* name, T val) {
   if (val < 0) {
     std::stringstream msg;
     msg << name << " must be non-negative, was " << val;
-    throw std::invalid_argument(msg.str());
-  }
-}
-
-inline void check_between(const char* name, double val, double lb, double ub) {
-  if (val < lb || val > ub) {
-    std::stringstream msg;
-    msg << name << " must be between " << lb << " and " << ub << ", was "
-        << val;
     throw std::invalid_argument(msg.str());
   }
 }

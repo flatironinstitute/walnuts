@@ -14,8 +14,8 @@ concurrency:
 
 jobs:
   pytest:
-    name: Test (${{matrix.os.name}} / Python ${{matrix.python-version}})
-    runs-on: ${{matrix.os.name}}-${{matrix.os.version || 'latest'}}
+    name: Test (${{matrix.os.name}}${{ case(matrix.os.arch, format(' ({0})', matrix.os.arch), '')}} / Python ${{matrix.python-version}})
+    runs-on: ${{matrix.os.name}}-${{matrix.os.version || 'latest'}}${{ case(matrix.os.arch, format('-{0}', matrix.os.arch), '')}}
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +25,8 @@ jobs:
             - name: macos
               version: 26
             - name: macos
-              version: 26-intel
+              version: 26
+              arch: intel
 
         python-version: ["3.10", "3.14"]
 
@@ -49,7 +50,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.bridgestan/
-          key: ${{ matrix.os.name }}${{ matrix.os.version }}-bridgestan-290
+          key: ${{ matrix.os.name }}${{ matrix.os.arch }}-bridgestan-290
 
       - name: Test
         run: pytest python/

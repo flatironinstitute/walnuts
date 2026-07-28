@@ -11,7 +11,7 @@ class WalnutsOutputArray(np.ndarray):
     """
     An adapter for ``ndarray`` to set extra atrributes.
 
-    See the numpy.org documentation: `Adding extra attributes to ndarray <https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray>`__.  
+    See the numpy.org documentation: `Adding extra attributes to ndarray <https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray>`__.
     """
 
     warmup: WarmupInfo[np.ndarray]
@@ -47,9 +47,9 @@ def walnuts_pyfunc(
         "numba.core.ccallback.CFunc",
         tuple[ctypes.CFUNCTYPE, Any],
     ],
+    *,
     num_params: Optional[int] = None,
     inits: Optional[np.ndarray] = None,
-    *,
     num_chains: int = 4,
     seed: Optional[int] = None,
     id: int = 1,

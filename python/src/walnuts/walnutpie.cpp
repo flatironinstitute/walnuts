@@ -189,16 +189,19 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
       init_cfg_builder.positions(rng, init_radius);
     }
 
+    std::vector<PythonPrinter> printers;
     std::vector<BufferHandler> handlers;
+    printers.reserve(num_chains);
     handlers.reserve(num_chains);
     for (size_t i = 0; i < num_chains; ++i) {
+      printers.emplace_back(print, i + 1, refresh);
       handlers.emplace_back(
           out + draws_offset * i,
           stepsize_out != nullptr ? stepsize_out + i : nullptr,
           inv_metric_out != nullptr ? inv_metric_out + i * num_params : nullptr,
-          save_warmup, i + 1, refresh, print);
+          save_warmup, printers[i]);
     }
-    GlobalHandler global(refresh != 0, print);
+    GlobalHandler global(printers[0]);
     run_sampler(
         logp, num_params, init_cfg_builder, handlers, global, num_chains, seed,
         id, init_inv_metric, min_warmup_iter, max_warmup_iter,
@@ -259,9 +262,11 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
 
     std::vector<unique_bs_rng> rngs;
     std::vector<Eigen::VectorXd> theta_inits;
+    std::vector<PythonPrinter> printers;
     std::vector<StanBufferHandler> handlers;
     rngs.reserve(num_chains);
     theta_inits.reserve(num_chains);
+    printers.reserve(num_chains);
     handlers.reserve(num_chains);
     {
       std::seed_seq ss{seed, 1u};
@@ -287,13 +292,14 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
                                                       rngs[i], init_radius));
         }
 
+        printers.emplace_back(print, i + 1, refresh);
         handlers.emplace_back(
             stan_model, rngs[i], out + draws_offset * i,
             stepsize_out != nullptr ? stepsize_out + i : nullptr,
             inv_metric_out != nullptr
                 ? inv_metric_out + i * stan_model.unconstrained_dimensions()
                 : nullptr,
-            save_warmup, i + 1, refresh, print);
+            save_warmup, printers[i]);
       }
     }
 
@@ -303,7 +309,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
             .step_sizes(step_size_init)
             .positions(theta_inits);
 
-    GlobalHandler global(refresh != 0, print);
+    GlobalHandler global(printers[0]);
     run_sampler(logp, stan_model.unconstrained_dimensions(), init_cfg_builder,
                 handlers, global, num_chains, seed, id, init_inv_metric,
                 min_warmup_iter, max_warmup_iter, min_sampling_iter,

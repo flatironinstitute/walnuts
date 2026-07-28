@@ -45,6 +45,9 @@ class StanOutputBase:
         """Extract a parameter from the Stan output."""
         return self.get(key)
 
+    def __len__(self) -> int:
+        return len(self._data)
+
     def get(self, key: str) -> np.ndarray:
         """
         Extract a parameter from the Stan output.
@@ -207,15 +210,20 @@ def walnuts_stan(
     num_chains : int, optional
         The number of Markov chains to run, positive, by default 4
     inits : Union[StanData, List[StanData], None], optional
-        The constrained initialization to use for all chains, or a list of constrained initializations, one for each chain, or ``None`` to indicate fully random initialization, by default None
+        The constrained initialization to use for all chains, or a list of constrained
+        initializations, one for each chain, or ``None`` to indicate fully random initialization,
+        by default None
     seed : Optional[int], optional
-        The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate from the system time, by default ``None``
+        The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate
+        from the system time, by default ``None``
     id : int, optional
-        _description_, by default 1
+        Numeric id for the first chain, by default 1. The remaining chains are given consecutive ids following this one.
+        This controls the random number generation, along with the ``seed``.
     init_radius : float, optional
         The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
-        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained) dimension, by default ``None``
+        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed
+        (unconstrained) dimension, by default ``None``
     save_inv_metric : bool, optional
         Set to ``True`` to save the inverse metric after adaptation, by default ``False``
     min_warmup_iter : int, optional
@@ -235,7 +243,8 @@ def walnuts_stan(
     max_hamiltonian_error : float, optional
         The maximum error allowed in the Hamiltonian, positive, by default 0.5
     step_size_converge_tol : float, optional
-        The relative converge tolerance for difference in step sizes from the geometric mean across chains, positive, by default 0.1
+        The relative converge tolerance for difference in step sizes from the geometric mean across chains,
+        positive, by default 0.1
     mass_converge_tol : float, optional
         The relative mass matrix norm convergence tolerance from the geometric mean across chains, by default 1.0
     rhat_converge_tol : float, optional
@@ -273,41 +282,7 @@ def walnuts_stan(
     Raises
     ------
     ValueError
-        If any argument is out of its valid range or has inconsistent
-        dimensionality; see Notes.
-
-    Notes
-    -----
-    ValueError
-        Raised if any of the following hold:
-
-        - ``num_chains`` < 1
-        - ``inits`` is not the size of the number of chains, or
-          has members of the wrong dimensionality
-        - ``seed`` < 0
-        - ``init_radius`` < 0
-        - ``init_inv_metric`` has negative entries or is the wrong
-          dimensionality
-        - ``min_warmup_iter`` < 0
-        - ``max_warmup_iter`` < ``min_warmup_iter``
-        - ``max_trajectory_doublings`` < 1
-        - ``max_step_halvings`` < 0
-        - ``min_micro_steps`` < 1
-        - ``max_hamiltonian_error`` <= 0
-        - ``step_size_converge_tol`` < 0
-        - ``mass_converge_tol`` < 0
-        - ``rhat_converge_tol`` <= 1
-        - ``mass_init_count`` <= 0
-        - ``mass_additive_smoothing`` < 0
-        - ``max_macro_steps_target`` < 1
-        - ``step_size_init`` <= 0
-        - ``step_accept_rate_target`` < 0 or
-          ``step_accept_rate_target`` > 1
-        - ``step_learning_rate`` <= 0
-        - ``step_gradient_decay`` <= 0
-        - ``step_sq_gradient_decay`` <= 0
-        - ``step_stabiliziation`` < 0
-        - ``step_learn_rate_decay`` < 0
+        If any argument is out of its valid range (documented above) or has inconsistent dimensionality.
     """
     # these are checked here because they're sizes for "out"
     if num_chains < 1:
@@ -322,6 +297,10 @@ def walnuts_stan(
     if model.model_version() < (2, 9, 0):
         raise ValueError(
             "BridgeStan version must be at least 2.9.0 for use with walnuts"
+        )
+    if "STAN_THREADS=true" not in model.model_info():
+        raise ValueError(
+            "BridgeStan model must be compiled with STAN_THREADS for use with walnuts"
         )
 
     model_params = model.param_unc_num()

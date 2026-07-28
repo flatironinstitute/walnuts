@@ -7,8 +7,6 @@ from ._ffi import _ffi_sample_cfunc, logp_cfunc_type, print_callback
 from .util import WarmupInfo, rand_u32
 
 
-# Wrapper around ndarray that lets us set extra attributes
-# https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray
 class WalnutsOutputArray(np.ndarray):
     """
     An adapter for ``ndarray`` to set extra atrributes.
@@ -89,21 +87,29 @@ def walnuts_pyfunc(
     Parameters
     ----------
     logp : Union[ Callable[[np.ndarray], tuple[float, np.ndarray]], numba.core.ccallback.CFunc, tuple[ctypes.CFUNCTYPE, Any], ]
-        The target log density and gradient function.
+        The target log density and gradient function. Acceptable formats include:
+         - A function that accepts an :py:class:`numpy.ndarray` and returns a tuple of the log density and gradient.
+         - A :py:func:`numba.cfunc` of type ``(size_t, doubleptr, doubleptr, doubleptr, voidptr)``
+           which accepts the position as the second argument and sets the gradient in argument 3 and log density in argument 4.
+         - A tuple of a ``ctypes`` callback of the same signature and an arbitrary data argument passed through the final pointer.
     num_params : Optional[int], optional
         The dimensionality, by default ``None``
     inits : Optional[np.ndarray], optional
-        The constrained initialization to use for all chains, or a list of constrained initializations, one for each chain, or ``None`` to indicate fully random initialization, by default ``None``
+        The constrained initialization to use for all chains, or a list of constrained initializations, one for each chain,
+        or ``None`` to indicate fully random initialization, by default ``None``
     num_chains : int, optional
         The number of Markov chains to run, positive, by default 4
     seed : Optional[int], optional
-        The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate from the system time, by default ``None``
+        The pseudo-random number generator seed, non-negative, or ``None`` to automatically generate from the system time,
+        by default ``None``
     id : int, optional
-        _description_, by default 1
+        Numeric id for the first chain, by default 1. The remaining chains are given consecutive ids following this one.
+        This controls the random number generation, along with the ``seed``.
     init_radius : float, optional
         The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
-        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained) dimension, by default ``None``
+        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained)
+        dimension, by default ``None``
     save_inv_metric : bool, optional
         Set to ``True`` to save the inverse metric after adaptation, by default ``False``
     min_warmup_iter : int, optional
@@ -123,7 +129,8 @@ def walnuts_pyfunc(
     max_hamiltonian_error : float, optional
         The maximum error allowed in the Hamiltonian, positive, by default 0.5
     step_size_converge_tol : float, optional
-        The relative converge tolerance for difference in step sizes from the geometric mean across chains, positive, by default 0.1
+        The relative converge tolerance for difference in step sizes from the geometric mean across chains, positive,
+        by default 0.1
     mass_converge_tol : float, optional
         The relative mass matrix norm convergence tolerance from the geometric mean across chains, by default 1.0
     rhat_converge_tol : float, optional
@@ -157,46 +164,12 @@ def walnuts_pyfunc(
     Returns
     -------
     list[WalnutsOutputArray]
-        A list of Markov chain of length ``num_chains``, whihc may not all have the same number of draws
+        A list of Markov chain of length ``num_chains``, which may not all have the same number of draws
 
     Raises
     ------
     ValueError
-        If any argument is out of its valid range or has inconsistent
-        dimensionality; see Notes.
-
-    Notes
-    -----
-    ValueError
-        Raised if any of the following hold:
-
-        - ``num_chains`` < 1
-        - ``inits`` is not the size of the number of chains, or
-          has members of the wrong dimensionality
-        - ``seed`` < 0
-        - ``init_radius`` < 0
-        - ``init_inv_metric`` has negative entries or is the wrong
-          dimensionality
-        - ``min_warmup_iter`` < 0
-        - ``max_warmup_iter`` < ``min_warmup_iter``
-        - ``max_trajectory_doublings`` < 1
-        - ``max_step_halvings`` < 0
-        - ``min_micro_steps`` < 1
-        - ``max_hamiltonian_error`` <= 0
-        - ``step_size_converge_tol`` < 0
-        - ``mass_converge_tol`` < 0
-        - ``rhat_converge_tol`` <= 1
-        - ``mass_init_count`` <= 0
-        - ``mass_additive_smoothing`` < 0
-        - ``max_macro_steps_target`` < 1
-        - ``step_size_init`` <= 0
-        - ``step_accept_rate_target`` < 0 or
-          ``step_accept_rate_target`` > 1
-        - ``step_learning_rate`` <= 0
-        - ``step_gradient_decay`` <= 0
-        - ``step_sq_gradient_decay`` <= 0
-        - ``step_stabiliziation`` < 0
-        - ``step_learn_rate_decay`` < 0
+        If any argument is out of its valid range (documented above) or has inconsistent dimensionality.
     """
     if num_params is None:
         if inits is None:

@@ -25,8 +25,8 @@ dynamic = ["version"]
 [project.optional-dependencies]
 stan = ["bridgestan>=2.9.0", "stanio"]
 compiled = ["numba"]
-test = ["pytest", "scipy"]
-test-fast = ["pytest", "numba", "numba_stats"]
+test = ["pytest", "scipy", "bridgestan"]
+test-fast = ["pytest", "numba", "numba_stats", "bridgestan"]
 
 
 [tool.isort]

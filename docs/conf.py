@@ -70,10 +70,11 @@ intersphinx_mapping = {
     ),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "bridgestan": ("https://roualdes.us/bridgestan/latest/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
 }
 
 
-breathe_projects = {"walnuts": "_build/breathe/doxygen/walnuts/xml/"}
+breathe_projects = {"walnuts": "../build/xml/"}
 breathe_projects_source = {
     "walnuts": (
         "../include/",

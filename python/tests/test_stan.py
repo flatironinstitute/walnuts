@@ -7,6 +7,29 @@ import bridgestan
 
 HERE = pathlib.Path(__file__).parent
 
+import platform
+
+if platform.system() == "Windows":
+    import os
+
+    bridgestan.compile.compile_model(
+        HERE / "simple.stan",
+        make_args=["STAN_THREADS=1"],
+    )
+
+    tbb_path = os.path.abspath(
+        os.path.join(
+            bridgestan.compile.get_bridgestan_path(),
+            "stan",
+            "lib",
+            "stan_math",
+            "lib",
+            "tbb",
+        )
+    )
+    os.environ["PATH"] = tbb_path + ";" + os.environ["PATH"]
+    os.add_dll_directory(tbb_path)
+
 model = bridgestan.StanModel(
     HERE / "simple.stan",
     {"N": 2},

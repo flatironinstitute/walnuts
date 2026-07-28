@@ -2,16 +2,17 @@ import pytest
 import numpy as np
 import pathlib
 
-import walnuts
 import bridgestan
+import walnuts
 
 HERE = pathlib.Path(__file__).parent
 
-model = bridgestan.StanModel(
+model_so = bridgestan.compile.compile_model(
     HERE / "simple.stan",
-    {"N": 2},
     make_args=["STAN_THREADS=1"],
 )
+
+model = bridgestan.StanModel(model_so, {"N": 2})
 
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])

@@ -14,18 +14,20 @@ concurrency:
 
 jobs:
   pytest:
-    name: Test (${{matrix.os.name}} / Python ${{matrix.python-version}})
-    runs-on: ${{matrix.os.name}}-${{matrix.os.version || 'latest'}}
+    name: Test (${{ matrix.os.os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os.runs-on }}
     strategy:
       fail-fast: false
       matrix:
         os:
-            - name: windows
-            - name: ubuntu
-            - name: macos
-              version: 26
-            - name: macos
-              version: 26-intel
+          - os: windows
+            runs-on: windows-latest
+          - os: linux
+            runs-on: ubuntu-latest
+          - os: macos-arm
+            runs-on: macos-26
+          - os: macos-x86_64
+            runs-on: macos-26-intel
 
         python-version: ["3.10", "3.14"]
 
@@ -42,14 +44,14 @@ jobs:
         run: pip install .[test]
 
       - name: Install additional test dependencies
-        if: matrix.os.version != '26-intel'
+        if: matrix.os.os != 'macos-x86_64'
         run: pip install .[test-fast]
 
       - name: BridgeStan cache
         uses: actions/cache@v6
         with:
           path: ~/.bridgestan/
-          key: ${{ runner.os }}-bridgestan-290
+          key: ${{ matrix.os.os }}${{ matrix.os.arch }}-bridgestan-290
 
       - name: Test
         run: pytest python/

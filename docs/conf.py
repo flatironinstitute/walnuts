@@ -74,7 +74,7 @@ intersphinx_mapping = {
 }
 
 
-breathe_projects = {"walnuts": "../build/xml/"}
+breathe_projects = {"walnuts": "_build/breathe/doxygen/walnuts/xml/"}
 breathe_projects_source = {
     "walnuts": (
         "../include/",
@@ -91,13 +91,16 @@ breathe_projects_source = {
 breathe_default_project = "walnuts"
 breathe_show_include = False
 
+import pathlib
+
 # doxygen doesn't like  __attribute and __declspec
 # https://www.doxygen.nl/manual/preprocessing.html
-# breathe_doxygen_config_options = {
-#     "ENABLE_PREPROCESSING": "YES",
-#     "MACRO_EXPANSION": "YES",
-#     "EXPAND_ONLY_PREDEF": "YES",
-#     "PREDEFINED": "WALNUTS_STRONG_INLINE=",
-# }
+breathe_doxygen_config_options = {
+    "ENABLE_PREPROCESSING": "YES",
+    "MACRO_EXPANSION": "YES",
+    "EXPAND_ONLY_PREDEF": "YES",
+    "PREDEFINED": "WALNUTS_STRONG_INLINE=",
+    "CITE_BIB_FILES": pathlib.Path(__file__).parent / "refs.bib",
+}
 
 autoclass_content = "both"

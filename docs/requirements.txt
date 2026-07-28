@@ -2,5 +2,11 @@ breathe
 sphinx
 pydata-sphinx-theme
 sphinx-copybutton
+# notebook compatibility
 ipykernel
 nbsphinx
+# for the example
+scipy
+numba
+numba_stats
+bridgestan

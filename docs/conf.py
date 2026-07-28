@@ -70,6 +70,7 @@ intersphinx_mapping = {
     ),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "bridgestan": ("https://roualdes.us/bridgestan/latest/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
 }
 
 

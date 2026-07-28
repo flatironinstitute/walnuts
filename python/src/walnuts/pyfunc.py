@@ -14,7 +14,7 @@ class WalnutsOutputArray(np.ndarray):
     An adapter for ``ndarray`` to set extra atrributes.
 
     See the numpy.org documentation: `Adding extra attributes to ndarray <https://numpy.org/doc/stable/user/basics.subclassing.html#simple-example-adding-an-extra-attribute-to-ndarray>`__.  
-
+    """
 
     warmup: WarmupInfo[np.ndarray]
 
@@ -88,7 +88,7 @@ def walnuts_pyfunc(
 
     Parameters
     ----------
-    logp : Union[ Callable[[np.ndarray], tuple[float, np.ndarray]], &quot;numba.core.ccallback.CFunc&quot;, tuple[ctypes.CFUNCTYPE, Any], ]
+    logp : Union[ Callable[[np.ndarray], tuple[float, np.ndarray]], numba.core.ccallback.CFunc, tuple[ctypes.CFUNCTYPE, Any], ]
         The target log density and gradient function.
     num_params : Optional[int], optional
         The dimensionality, by default ``None``
@@ -149,13 +149,10 @@ def walnuts_pyfunc(
     step_learn_rate_decay : float, optional
         The learning rate decay for Adam, non-negative, by default 0.5
     save_warmup : bool, optional
-<<<<<<< HEAD
         Set to ``True`` to save warmup iterations, by default ``False``
-=======
-        _description_, by default False
     refresh : int, optional
-        Period between iteration console feedback, with 0 indicating no feedback, non-netative, by default 0
->>>>>>> 7e688150927729f12c689f9a0410bc19783b656c
+        Period between iteration console feedback, with 0 indicating no
+        feedback, non-negative, by default 0
 
     Returns
     -------

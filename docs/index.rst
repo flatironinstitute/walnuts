@@ -6,16 +6,6 @@ This is the documentation for Walnuts, a Markov chain Monte Carlo
 (MCMC) sampler for differentiable target log densities.
 
 
-C++ core
-----------------------------------------------------------------------
-
-Walnuts is implemented in multi-threaded C++20.
-
-.. toctree::
-   :maxdepth: 2
-
-   cpp
-
 Python interface
 ----------------------------------------------------------------------
 
@@ -24,8 +14,9 @@ Walnuts provides a Python interface.
 .. toctree::
    :maxdepth: 2
 
+   install
    py
-
+   example.ipynb
 
 The Python API accepts target log densities and gradients coded in
 Python, including models coded in `NumPyro
@@ -35,6 +26,15 @@ Python, including models coded in `NumPyro
 foreign function calls. `Stan <https://mc-stan.org>`__ models can be accessed directly at the C++ level through
 `BridgeStan <https://roualdes.us/bridgestan/latest/>`__.
 
+C++ core
+----------------------------------------------------------------------
+
+Walnuts is implemented in multi-threaded C++20.
+
+.. toctree::
+   :maxdepth: 2
+
+   cpp
 
 License
 ----------------------------------------------------------------------

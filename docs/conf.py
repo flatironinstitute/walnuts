@@ -26,6 +26,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "breathe",
+    "nbsphinx",
 ]
 
 templates_path = ["_templates"]
@@ -36,7 +37,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
-html_static_path = ["_static"]
+html_static_path = []
 
 # html_favicon = "_static/image/favicon.ico"
 
@@ -102,3 +103,5 @@ breathe_show_include = False
 # }
 
 autoclass_content = "both"
+
+nbsphinx_allow_errors = False

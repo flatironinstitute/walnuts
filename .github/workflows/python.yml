@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.bridgestan/
-          key: ${{ runner.os }}-bridgestan-290
+          key: ${{ matrix.os.name }}${{ matrix.os.version }}-bridgestan-290
 
       - name: Test
         run: pytest python/

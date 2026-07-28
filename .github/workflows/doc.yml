@@ -38,6 +38,12 @@ jobs:
       - name: Install package
         run: pip install .[stan]
 
+      - name: BridgeStan cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.bridgestan/
+          key: linux-bridgestan-290
+
       - name: Build docs
         run: |
           cd docs/

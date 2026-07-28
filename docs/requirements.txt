@@ -2,4 +2,5 @@ breathe
 sphinx
 pydata-sphinx-theme
 sphinx-copybutton
+ipykernel
 nbsphinx

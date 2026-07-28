@@ -564,9 +564,18 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * R-hat = sqrt(1 + sample_variance(mu) ./ mean(sigma_sq))
  * @endcode
  *
- * See Gelman and Rubin (1992 @cite gelman1992inference) for the original
- * definition of R-hat and Margossian (2025 @cite margossian2025nested) for the
- * one used here.
+ * For the original R-hat, see: Gelman, Andrew and Rubin, Donald
+ * B. 1992.  [Inference from Iterative Simulation Using Multiple
+ * Sequences](https://projecteuclid.org/journals/statistical-science/volume-7/issue-4/Inference-from-Iterative-Simulation-Using-Multiple-Sequences/10.1214/ss/1177011136.pdf).
+ * Statistical Science.
+ * 
+ * For the derivation of the equal length chain basis of the
+ * definition here, see: Margossian, Charles C and Hoffman, Matthew D
+ * and Sountsov, Pavel and Riou-Durand, Lionel and Vehtari, Aki and
+ * Gelman, Andrew. 2025. [Nested R-hat: Assessing the convergence of
+ * Markov chain Monte Carlo when running many short
+ * chains](https://projecteuclid.org/journals/bayesian-analysis/volume-20/issue-4/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full). Bayesian
+ * Analysis.
  *
  * This function will throw an exception if there is a chain with
  * fewer than three draws.  The number is because it requires at least
@@ -625,24 +634,26 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  *
  * The implementation is based on the one in Stan.
  *
- * @see Gelman et al. (2013 @cite gelman2013bda3) <a
- * href="https://sites.stat.columbia.edu/gelman/book/"><i>Bayesian Data
- * Analysis</i></a>
+ * See Gelman, Andrew and Carlin, John B and Stern, Hal S and Dunson,
+ * David B and Vehtari, Aki and Rubin, Donald B. 2014. [Bayesian Data
+ * Analysis](https://sites.stat.columbia.edu/gelman/book/), Third
+ * Edition. CRC Press.
  *
- * @see Margossian et al. (2025 @cite margossian2025nested) <a
- * href="https://projecteuclid.org/journals/bayesian-analysis/advance-publication/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full">Nested
- * R-hat: Assessing the convergence of Markov chain Monte Carlo when
- * running many short chains</a>.
+ * @see  Margossian, Charles C and Hoffman, Matthew D
+ * and Sountsov, Pavel and Riou-Durand, Lionel and Vehtari, Aki and
+ * Gelman, Andrew. 2025. [Nested R-hat: Assessing the convergence of
+ * Markov chain Monte Carlo when running many short
+ * chains](https://projecteuclid.org/journals/bayesian-analysis/volume-20/issue-4/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full). Bayesian
+ * Analysis.
  *
- * @see Stan Development Team. (2026 @cite standev2026ref). <a
- * href="https://mc-stan.org/docs/reference-manual/">Stan Reference
- * Manual</a>.
+ * See: The Stan Development Team. 2026.  (The Stan Reference
+ * Manual)[https://mc-stan.org/docs/reference-manual/].  Version 2.39.
+ * Stan Web Site.
  *
- * @see Stan Development Team. (2026).  C++ Source Code: <a
- * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/ess.hpp">
- * Effective sample size</a> and <a
- * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp">R-hat</a>.
- * GitHub.
+ * See the Stan C++ source code for [effective sample size
+ * (ESS)](https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/ess.hpp)
+ * and
+ * [R-hat](https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp). GitHub.
  *
  * @tparam MC The type of the Markov chain sequence.
  * @param[in] chains The Markov chains.

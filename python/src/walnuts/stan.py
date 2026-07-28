@@ -82,6 +82,16 @@ class StanOutput(StanOutputBase):
 
     If a specific parameter is needed, it can be extracted using the
     :meth:`~StanOutput.get` method, or by using the object as a dictionary.
+
+
+    Parameters
+    ----------
+    parameters : List[str]
+        The names of the (constrained) model parameters, in output order.
+    data : np.ndarray
+        The raw sampler output.
+    warmup : WarmupInfo[StanOutputBase]
+        The warmup diagnostics and warmup draws for this chain.
     """
 
     def __init__(
@@ -92,7 +102,6 @@ class StanOutput(StanOutputBase):
     ):
         super().__init__(parameters, data)
 
-        #: TODO doc
         self.warmup = warmup
 
     def create_inits(

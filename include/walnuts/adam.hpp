@@ -23,11 +23,14 @@ namespace walnuts::detail {
  * 1`; Nuts used `learn_rate_decay = 0.75` for dual averaging and
  * `learn_rate_decay=0.5` is a reasonable default for Adam.
  *
- * @see Kingma and Ba (2014; @cite kingma2014adam) for the original
- * Adam algorithm.
+ * See: Kingma, Diederik P and Ba, Jimmy L. 2014.  [Adam: A method for
+ * stochastic optimization].  Proceedings of the 3rd International
+ * Conference on Learning Representations (ICLR).
  *
- * @see Zou et al. (2019 @cite zou2019sufficient) for the proof of
- * convergence with step-size decay.
+ * For convergence with step-size decay, see: Zou, Fangyu and Shen, Li
+ * and Jie, Zequn and Zhang, Weizhong and Liu, Wei. 2019. A sufficient
+ * condition for convergences of Adam and RMSProp. Proceedings of the
+ * IEEE/CVF Conference on Computer Vision and Pattern Recognition.
  */
 class Adam {
  public:

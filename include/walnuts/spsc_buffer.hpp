@@ -60,9 +60,8 @@ namespace walnuts::detail {
  * a dirty bit to an index, or return the index from a potentially
  * dirty bit.
  *
- * See @cite brilliantsugar2024triplebuffer.
- * brilliantsugar. 2024. How I learned to stop worrying and love
- * juggling C++ atomics.
+ * See brilliantsugar. 2024. [How I learned to stop worrying and love
+ * juggling C++ atomics](https://brilliantsugar.github.io/posts/how-i-learned-to-stop-worrying-and-love-juggling-c++-atomics/).  brilliantsugar blog.
  *
  * @tparam T Type of value buffered.
  */

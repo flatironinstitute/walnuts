@@ -19,7 +19,7 @@ Walnuts is implemented in multi-threaded C++20.
 Python interface
 ----------------------------------------------------------------------
 
-Walnuts provides a Python API.
+Walnuts provides a Python interface.
 
 .. toctree::
    :maxdepth: 2
@@ -32,9 +32,7 @@ Python, including models coded in `NumPyro
 <https://num.pyro.ai/en/latest/index.html>`__, `PyMC
 <https://www.pymc.io/welcome.html>`__, `JAX
 <https://docs.jax.dev/en/latest/>`__, or directly in Python, even with
-foreign function calls.
-
-`Stan <https://mc-stan.org>`__ models can be accessed directly at the C++ level through
+foreign function calls. `Stan <https://mc-stan.org>`__ models can be accessed directly at the C++ level through
 `BridgeStan <https://roualdes.us/bridgestan/latest/>`__.
 
 
@@ -44,9 +42,9 @@ License
 Walnuts is distributed under the
 `MIT License <https://opensource.org/license/mit>`__.
 
-Stan and BridgeStan are distributed under the `BSD-3
-<https://opensource.org/license/bsd-3-clause>`__ license. These
-packages are only required to run models coded in Stan.
+BridgeStan is distributed under the `BSD-3
+<https://opensource.org/license/bsd-3-clause>`__ license. BridgeStan
+is only required to run models coded in Stan.
 
 
 About the Walnuts Sampler
@@ -62,7 +60,7 @@ dynamic step-size selection to deal with multi-scale target densities.
 
 In addition to these sampling improvements over HMC, the Walnuts
 implementation here departs from the Nuts implementation found in
-Stan (and elsewhere) in several ways.
+Stan (and elsewhere) in the following ways.
 
 #. For estimating a mass matrix during warmup, Walnuts uses an online
    (iteration by iteration) version of `Nutpie
@@ -79,7 +77,8 @@ Stan (and elsewhere) in several ways.
 #. For running chains, Walnuts uses asynchronous threading and monitors
    progress through lock-free buffers in an additional thread, with
    automatic stopping when convergence is detected to within a
-   specified threshold.
+   specified threshold.  It can also run chains for fixed numbers of
+   iterations to produce equal-length warmup and sampling chains.
 
 #. For posterior analysis of the resulting varying-length Markov
    chains, Walnuts provides estimators for posterior means, standard

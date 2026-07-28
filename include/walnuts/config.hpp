@@ -334,16 +334,21 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the masses using the Nutpie outer product strategy.
    *
-   * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
-   * the initialization uses a smoothed negative outer product of
-   * gradient, which is the absolute value of the outer product of
-   * gradients linearly interpolated with a unit matrix with weight
-   * `mass_smoothing` on the unit matrix and `1 - mass_smoothing` on
-   * the regularized outer product.
+   * Following Nutpie, the initialization uses a smoothed negative
+   * outer product of gradient, which is the absolute value of the
+   * outer product of gradients linearly interpolated with a unit
+   * matrix with weight `mass_smoothing` on the unit matrix and `1 -
+   * mass_smoothing` on the regularized outer product.
    *
    * If the flag `average_masses` is `true`, then each chain's mass
    * matrix is set to the geometric average of the per-chain mass
    * matrixes.
+   *
+   * See: Seyboldt, Adrian and Carlson, Eliot and Carpenter,
+   * Bob. 2026.  [Preconditioning Hamiltonian Monte Carlo by
+   * minimizing Fisher
+   * divergence](https://arxiv.org/abs/2603.18845v1).  arXiv
+   * 2603.18845.
    *
    * @tparam LPG The type of the log density and gradient function.
    * @param[in] logp_grad The log density and gradient function, called back.

@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.bridgestan/
-          key: ${{ matrix.os.name }}${{ matrix.os.arch }}-bridgestan-290
+          key: ${{ matrix.os.os }}${{ matrix.os.arch }}-bridgestan-290
 
       - name: Test
         run: pytest python/

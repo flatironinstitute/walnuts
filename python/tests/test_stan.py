@@ -3,7 +3,7 @@ import numpy as np
 import pathlib
 
 import bridgestan
-import walnuts
+import walnuts as wp
 
 HERE = pathlib.Path(__file__).parent
 
@@ -17,7 +17,7 @@ model = bridgestan.StanModel(model_so, {"N": 2})
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])
 def test_warmup_requested_iter(MIN, MAX):
-    fit = walnuts.walnuts_stan(
+    fit = wp.walnuts_stan(
         model,
         min_warmup_iter=MIN,
         max_warmup_iter=MAX,
@@ -31,7 +31,7 @@ def test_warmup_requested_iter(MIN, MAX):
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])
 def test_sampling_requested_iter(MIN, MAX):
-    fit = walnuts.walnuts_stan(
+    fit = wp.walnuts_stan(
         model,
         min_sampling_iter=MIN,
         max_sampling_iter=MAX,
@@ -44,7 +44,7 @@ def test_sampling_requested_iter(MIN, MAX):
 
 def test_invalid_requested_iter():
     with pytest.raises(ValueError, match="min_iter must be"):
-        walnuts.walnuts_stan(model, min_sampling_iter=100, max_sampling_iter=99)
+        wp.walnuts_stan(model, min_sampling_iter=100, max_sampling_iter=99)
 
 
 def assert_draws_match(fit1, fit2):

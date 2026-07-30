@@ -7,9 +7,9 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "walnuts"
-description = "the Within-orbit Adaptive Leapfrog No-U-Turn Sampler"
+description = "Walnuts sampling with Nutpie adaptation"
 readme = "python/README.md"
-license = { text = "BSD-3-Clause" }
+license = { text = "MIT License" }
 authors = [
     { name = "Brian Ward", email = "bward@flatironinstitute.org" },
     { name = "Bob Carpenter", email = "bcarpenter@flatironinstitute.org" },

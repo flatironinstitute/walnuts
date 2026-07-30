@@ -288,10 +288,18 @@ with the desired format, e.g. `html`:
 cd docs/
 make html
 ```
-(if `make` is not installed, the second command is equivalent to `sphinx-build -b html . _build/html`)
+(if `make` is not installed, the second command is equivalent to
+`sphinx-build -b html . _build/html`) 
 
 The above will output the documentation website in `_build/html`. Other valid
-formats include `latexpdf`, which will require a LaTeX toolchain installed.
+formats include `latexpdf`, which will require a LaTeX toolchain
+installed.
+
+The following packages are required to build the documentation.
+```sh
+pip install sphinx, pydata_sphinx_theme, nbsphinx, sphinx_copybutton,
+sphinx-rtd-theme, myst-parser, breathe
+```
 
 ### Documentation sources
 

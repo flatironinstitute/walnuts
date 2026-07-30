@@ -1,15 +1,46 @@
 
-WALNUTS DOCUMENTATION
+``walnutpie``
 ======================================================================
 
-This is the documentation for Walnuts, a Markov chain Monte Carlo
-(MCMC) sampler for differentiable target log densities.
+``walnutpie`` is a Python package for Markov chain Monte Carlo
+(MCMC) sampling of differentiable target log densities.
 
+- ``walnutpie`` includes adapters for models coded in Stan, PyMC,
+  NumPyro, JAX, Numba, or models may be coded directly in Python.
+       
+- The underlying sampler is `Walnuts
+  <https://www.jmlr.org/beta/papers/v27/25-1452.html>`, which adds
+  dynamic step-size adaptation to the no-U-turn sampler
+  <https://jmlr.org/beta/papers/v15/hoffman14a.html>`__ (Nuts), which
+  in turn is based on `Hamiltonian Monte Carlo
+  <https://arxiv.org/abs/1206.1901>`__ (HMC).
 
-Python interface
+- The mass matrix and step-size adaptation scheme use an online
+  variant of `Nutpie <https://arxiv.org/abs/2603.18845v1>`__
+
+- For estimating the maximum step size during warmup, Walnuts uses `Adam
+  <https://arxiv.org/abs/1412.6980>`__ rather than dual averaging for
+  stochastic gradient descent.
+
+- Chain execution is multithreaded with optional convergence detection
+  for warmup and sampling through lock-free buffers.
+
+- Posterior analysis tools are included for the varying-length
+  chains produced by asynchronous automatic stopping.
+  
+
+Installation and dependencies
 ----------------------------------------------------------------------
 
-Walnuts provides a Python interface.
+Installation can be managed through ``pip``.
+
+.. code-block:: bash
+
+   pip install walnutpie
+
+The only required depenency is ``numpy``.  Models can be coded
+with `bridgestan` though models
+can be coded with ``bridgestan``, ``jax``, or ``numba``. 
 
 .. toctree::
    :maxdepth: 2
@@ -18,72 +49,60 @@ Walnuts provides a Python interface.
    py
    example.ipynb
 
-The Python API accepts target log densities and gradients coded in
-Python, including models coded in `NumPyro
+``walnutpie`` accepts target log densities and gradients coded in `NumPyro
 <https://num.pyro.ai/en/latest/index.html>`__, `PyMC
 <https://www.pymc.io/welcome.html>`__, `JAX
 <https://docs.jax.dev/en/latest/>`__, or directly in Python, even with
-foreign function calls. `Stan <https://mc-stan.org>`__ models can be accessed directly at the C++ level through
-`BridgeStan <https://roualdes.us/bridgestan/latest/>`__.
+foreign function calls. `Stan <https://mc-stan.org>`__ models can be
+accessed directly at the C++ level through `BridgeStan
+<https://roualdes.us/bridgestan/latest/>`__.
 
-C++ core
+
+Getting started
 ----------------------------------------------------------------------
 
-Walnuts is implemented in multi-threaded C++20.
+``walnutpie`` includes an executable Python notebook with getting
+started examples using ``bridgestan`` and ``numba``.
+
+- `Getting started with walnutpie <https://github.com/flatironinstitute/walnuts/blob/python-interface/docs/example.ipynb>`__
+
+
+C++ public interface documentation
+----------------------------------------------------------------------
+
+Walnuts is implemented in multi-threaded C++20 with a stable
+client-facing API.
 
 .. toctree::
    :maxdepth: 2
 
    cpp
 
+   
 License
 ----------------------------------------------------------------------
 
-Walnuts is distributed under the
-`MIT License <https://opensource.org/license/mit>`__.
+- ``walnutpie`` is distributed under the `MIT License <https://opensource.org/license/mit>`__.
 
-BridgeStan is distributed under the `BSD-3
+- ``bridgestan`` is distributed under the `BSD-3
 <https://opensource.org/license/bsd-3-clause>`__ license. BridgeStan
-is only required to run models coded in Stan.
+is optional and only required to run models coded in Stan.
 
 
-About the Walnuts Sampler
+Bug reports and feature requests
 ----------------------------------------------------------------------
 
-`Walnuts <https://www.jmlr.org/beta/papers/v27/25-1452.html>`__ is a
-Markov chain Monte Carlo (MCMC) sampler based the `no-U-turn sampler
-<https://jmlr.org/beta/papers/v15/hoffman14a.html>`__ (Nuts), which in
-turn is based on `Hamiltonian Monte Carlo
-<https://arxiv.org/abs/1206.1901>`__ (HMC). Nuts
-adds dynamic integration time selection to HMC. Walnuts introduces
-dynamic step-size selection to deal with multi-scale target densities.
+Bug reports and feature requests are handled through GitHub.
 
-In addition to these sampling improvements over HMC, the Walnuts
-implementation here departs from the Nuts implementation found in
-Stan (and elsewhere) in the following ways.
+- `_Walnuts issue tracker <https://github.com/flatironinstitute/walnuts/issues>`__
 
-#. For estimating a mass matrix during warmup, Walnuts uses an online
-   (iteration by iteration) version of `Nutpie
-   <https://arxiv.org/abs/2603.18845v1>`__ warmup that takes a
-   geometric mean of estimates based on the inverse covariance of
-   draws and covariance of scores; the past is exponentially discounted on
-   a diminishing schedule to follow Stan's geometrically increasing history
-   lengths.
 
-#. For estimating the maximum step size during warmup, Walnuts uses `Adam
-   <https://arxiv.org/abs/1412.6980>`__ rather than dual averaging for
-   stochastic gradient descent.
+Developers and other contributors
+----------------------------------------------------------------------
 
-#. For running chains, Walnuts uses asynchronous threading and monitors
-   progress through lock-free buffers in an additional thread, with
-   automatic stopping when convergence is detected to within a
-   specified threshold.  It can also run chains for fixed numbers of
-   iterations to produce equal-length warmup and sampling chains.
+We welcome new developers to the project and try to maintain a
+friendly and constructive environment.  To get started, see the
+developers guide on GitHub:
 
-#. For posterior analysis of the resulting varying-length Markov
-   chains, Walnuts provides estimators for posterior means, standard
-   deviations, quantiles, R-hat, effective sample size, and Monte
-   Carlo standard error.
+- `Contributing to walnutpie <https://github.com/flatironinstitute/walnuts/blob/python-interface/DEVELOPERS.md>`__
 
-.. #. There is an efficient binary output format in addition to a
-      slow, but directly portable comma-separated value format.

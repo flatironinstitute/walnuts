@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-import walnuts
+import walnuts as wp
 
 
 ## define our test target. use numba if available, for faster tests
@@ -37,7 +37,7 @@ except Exception:
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])
 def test_warmup_requested_iter(MIN, MAX):
-    fit = walnuts.walnuts_pyfunc(
+    fit = wp.walnuts_pyfunc(
         logp,
         num_params=2,
         min_warmup_iter=MIN,
@@ -52,7 +52,7 @@ def test_warmup_requested_iter(MIN, MAX):
 
 @pytest.mark.parametrize("MIN,MAX", [(10, 12), (77, 77), [10, 30]])
 def test_sampling_requested_iter(MIN, MAX):
-    fit = walnuts.walnuts_pyfunc(
+    fit = wp.walnuts_pyfunc(
         logp,
         num_params=2,
         min_sampling_iter=MIN,
@@ -66,7 +66,7 @@ def test_sampling_requested_iter(MIN, MAX):
 
 def test_invalid_requested_iter():
     with pytest.raises(ValueError, match="min_iter must be"):
-        walnuts.walnuts_pyfunc(
+        wp.walnuts_pyfunc(
             logp, num_params=2, min_sampling_iter=100, max_sampling_iter=99
         )
 
@@ -89,7 +89,7 @@ def assert_draws_match(fit1, fit2):
 def test_seed_works():
     # turn off dynamic warmup
     warmup_length = 400
-    fit1 = walnuts.walnuts_pyfunc(
+    fit1 = wp.walnuts_pyfunc(
         logp,
         num_params=4,
         seed=1234,
@@ -98,7 +98,7 @@ def test_seed_works():
         save_warmup=True,
         save_inv_metric=True,
     )
-    fit2 = walnuts.walnuts_pyfunc(
+    fit2 = wp.walnuts_pyfunc(
         logp,
         num_params=4,
         seed=1234,
@@ -111,7 +111,7 @@ def test_seed_works():
     # check that draws agree with the same seed
     assert_draws_match(fit1, fit2)
 
-    fit3 = walnuts.walnuts_pyfunc(
+    fit3 = wp.walnuts_pyfunc(
         logp,
         num_params=4,
         seed=452,

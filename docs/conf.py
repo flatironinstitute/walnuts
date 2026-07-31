@@ -10,6 +10,8 @@ author = "Walnutpie Developers"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+latex_engine = "xelatex"
+
 extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",

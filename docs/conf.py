@@ -1,10 +1,4 @@
 # Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
-
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "Walnutpie"
 import datetime
@@ -63,6 +57,8 @@ html_context = {
 
 # latex_logo = "_static/image/logo.pdf"
 
+# -- Sphinx plugin configuration -------------------------------------------------
+
 intersphinx_mapping = {
     "python": (
         "https://docs.python.org/3/",
@@ -72,7 +68,6 @@ intersphinx_mapping = {
     "bridgestan": ("https://roualdes.us/bridgestan/latest/", None),
     "numba": ("https://numba.readthedocs.io/en/stable/", None),
 }
-
 
 breathe_projects = {"walnutpie": "_build/breathe/doxygen/walnutpie/xml/"}
 breathe_projects_source = {
@@ -90,16 +85,6 @@ breathe_projects_source = {
 }
 breathe_default_project = "walnutpie"
 breathe_show_include = False
-
-# doxygen doesn't like  __attribute and __declspec
-# https://www.doxygen.nl/manual/preprocessing.html
-# breathe_doxygen_config_options = {
-#     "ENABLE_PREPROCESSING": "YES",
-#     "MACRO_EXPANSION": "YES",
-#     "EXPAND_ONLY_PREDEF": "YES",
-#     "PREDEFINED": "WALNUTPIE_STRONG_INLINE=",
-#     "CITE_BIB_FILES": pathlib.Path(__file__).parent / "refs.bib",
-# }
 
 autoclass_content = "both"
 

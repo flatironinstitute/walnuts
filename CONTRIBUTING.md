@@ -47,6 +47,12 @@ walnutpie/
 ```
 
 
+## C++ standard
+
+We are currently using [C++20](https://cppreference.com/cpp/20).
+
+We use `clang-format` for style standardization (see below).
+
 ## Building the C++ library
 
 We use [CMake](https://cmake.org/) to manage dependencies and build
@@ -60,8 +66,9 @@ top-level `walnutpie` directory.
 cmake <options> <repo_root>
 ```
 
-where `<options>` are the CMake options and `<repo_root>` is the root
-directory of the repository (where `CMakeLists.txt` is found).
+Here, `<options>` is a sequence of CMake options and `<repo_root>` is
+the root directory of the repository (where `CMakeLists.txt` is
+found).
 
 Some common options are:
 
@@ -91,7 +98,9 @@ cmake --build build/ -j4
 
 ### Running the C++ tests
 
-We recommend using `ctest`, which is distributed with CMake.
+Unit tests are written using
+[GoogleTest](https://google.github.io/googletest/).  We recommend
+running the tests using `ctest`, which is distributed with CMake.
 
 ```sh
 cmake --build build/ -j4
@@ -101,9 +110,10 @@ ctest --output-on-failure
 
 #### Test coverage reports
 
-Test coverage can be generated if you are using a LLVM-based toolchain.
-To test code coverage during testing, you will have to specify the
-top-level `cmake` call to include `DWALNUTPIE_COVERAGE=ON`.
+Test coverage reports can be generated if you are using a LLVM-based
+C++ toolchain.  To test code coverage during testing, you will have to
+specify the top-level `cmake` call to include
+`DWALNUTPIE_COVERAGE=ON`.
 
 The steps are to first run the test, directing the summary to the named
 `.profraw` file.
@@ -145,11 +155,12 @@ open coverage_html/index.html
   licensed](https://opensource.org/license/mit)). Can be used to improve
   allocator performance.
 * Optional: [CLI11](https://cliutils.github.io/CLI11/) ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause)). Used by the example programs
+licensed](https://opensource.org/license/bsd-3-clause)). Used only by
+the example programs, not int he API itself
 
 ### Test dependencies
 
-* Required: [Google test](https://github.com/google/googletest) ([BSD-3
+* Required: [GoogleTest](https://github.com/google/googletest) ([BSD-3
 licensed](https://opensource.org/license/bsd-3-clause))
 
 ### Developer dependencies
@@ -157,51 +168,81 @@ licensed](https://opensource.org/license/bsd-3-clause))
 These are not managed by CMake and should be installed from your system package
 manager (`brew`, `apt`, etc) as needed.
 
-* clang-format
-* include-what-you-use
+* `clang-format`
+* `include-what-you-use`
 
 ## Building the Python library
 
 The Python build uses a combination of CMake and
-[scikit-build-core](https://scikit-build-core.readthedocs.io/en/latest/). The
-only required runtime dependency is [numpy](https://numpy.org/),
-though both
-[BridgeStan](https://roualdes.us/bridgestan/latest/languages/python.html) and
-[numba](https://numba.pydata.org/) will be used if installed.
+[scikit-build-core](https://scikit-build-core.readthedocs.io/en/latest/). 
 
-The recommended way for developers to install the library is to run the
-following command from the top-level directory of the repository.
+The only required runtime dependency is 
+
+* [NumPy](https://numpy.org/)
+
+The two optional dependencies are 
+
+* [BridgeStan](https://roualdes.us/bridgestan/latest/languages/python.html),
+which can be used to connect to Stan models directly in C++.
+* [Numba](https://numba.pydata.org/), which can be used to accelerate
+models written directly in Python.
+
+The Python library my be installed by running the following command
+command from the top-level directory of the repository (the one with
+`pyproject.toml` in it).
 
 ```bash
 pip install -e .
 ```
 
-This will install the package in 'editable mode', which means local changes to
-the Python or C++ files will be picked up and used when Python is restarted.
+This will install the package in editable mode, which means local
+changes to the Python or C++ files will be picked up and used when
+Python is restarted.
 
 ### Running the Python tests
 
-We rely on a few extra packages for testing, these can be installed
-with `pip install -e '.[test]'`. One of these is
-[pytest](https://docs.pytest.org/en/stable/), which is used to actually launch
-the test suite:
+The extra packages used only for testing can be installed with `pip
+install -e '.[test]'`. To launch the Python tests, use
+[pytest](https://docs.pytest.org/en/stable/),
+which is downloaded as part of installing `.[test]`.  
 
 ```bash
 pytest python/ -v
 ```
 
-## Building the Documentation
 
-The documentation is built using
-[Sphinx](https://www.sphinx-doc.org/en/master/index.html).
+## Documentation
 
-The top level organization of the API documentation is controlled
-through `.rst` files (reStructuredText format) in 'docs/'
-with `docs/index.rst` as the root.
+### API documentation
+
+The C++ and Python API documentation is generated from docstrings
+encoded in the text files.  We use standard
+[Doxygen](https://www.doxygen.nl/) style for C++ and [NumPy docstring
+style](https://numpydoc.readthedocs.io/en/latest/format.html) for the
+Python API.
+
+### Additional documentation
+
+Additional package documentation is coded in [reStructuredText
+format](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html).
+The top-level organization of the Python API documentation is
+controlled through the reStructuredText files (suffix `.rst`) 'docs/'.
+The root of the generated documentation is with `docs/index.rst` as
+the root.
+
+### Documented examples
+
+Examples are automatically generated using the latest code through
+[Jupyter notebooks](https://jupyter.org/).
+
+### Building the documentation
+
+The documentation is built using [Sphinx](https://www.sphinx-doc.org/).
 
 The Python and C++ API doc are automatically generated from the
 docstrings/comments in the respective source files. This requires
-[Doxygen](https://www.doxygen.nl/) to be installed at the system level.
+[Doxygen](https://www.doxygen.nl/) and [Pandoc](https://pandoc.org/)
+to be installed at the system level.
 
 
 The other dependencies, including Sphinx itself, can be pip installed. The
@@ -212,16 +253,29 @@ top-level directory of the repo:
 pip install '.[stan]' -r docs/requirements.txt
 ```
 
-To build the documentation after the prerequisites are installed,
-change directories to the `docs/` subfolder of the repository and run `make`
-with the desired format, e.g. `html`:
+To build the HTML documentation after the prerequisites are installed,
+change directories to the `docs/` subfolder of the repository (the one
+with `index.rst` in it)
 ```sh
 cd docs/
+```
+and then run Make with target `html`.
+```sh
 make html
 ```
-(if `make` is not installed, the second command is equivalent to
-`sphinx-build -b html . _build/html`)
+If `make` is not installed in your system, you can replace `make html` with
+```sh
+sphinx-build -b html . _build/html
+```
+If the build is successful, the root of the documentation will be
+found in `_build/html/index.html` (in the `docs` directory).
 
-The above will output the documentation website in `_build/html`. Other valid
-formats include `latexpdf`, which will require a LaTeX toolchain
-installed.
+To build a PDF document, use
+```sh
+make latexpdf
+```
+Making the PDF document requires a LaTeX toolchain including the
+command `xelatex` to be installed at the system level.  `xelatex` is
+required to deal with embedded unicode. If the uild is successful, the
+PDF documentation will be found in `_build/latex/walnutpie.pdf` (in
+the `docs` directory).

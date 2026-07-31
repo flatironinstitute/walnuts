@@ -5,8 +5,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <walnutpie.hpp>
 #include "test_util.hpp"
-#include <walnuts.hpp>
 
 // class InitChainConfig ********************************************
 
@@ -15,7 +15,7 @@ TEST(InitChainConfig, ConstructorStoresStepSize) {
   position << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 0.5, 1.5;
-  walnuts::InitChainConfig cfg(0.1, position, mass);
+  walnutpie::InitChainConfig cfg(0.1, position, mass);
   EXPECT_DOUBLE_EQ(cfg.step_size(), 0.1);
 }
 
@@ -24,7 +24,7 @@ TEST(InitChainConfig, ConstructorStoresPosition) {
   position << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 0.5, 1.5;
-  walnuts::InitChainConfig cfg(0.1, position, mass);
+  walnutpie::InitChainConfig cfg(0.1, position, mass);
   ASSERT_EQ(cfg.position().size(), Eigen::Index{2});
   EXPECT_DOUBLE_EQ(cfg.position()(0), 1.0);
   EXPECT_DOUBLE_EQ(cfg.position()(1), 2.0);
@@ -35,7 +35,7 @@ TEST(InitChainConfig, ConstructorStoresMass) {
   position << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 0.5, 1.5;
-  walnuts::InitChainConfig cfg(0.1, position, mass);
+  walnutpie::InitChainConfig cfg(0.1, position, mass);
   ASSERT_EQ(cfg.mass().size(), Eigen::Index{2});
   EXPECT_DOUBLE_EQ(cfg.mass()(0), 0.5);
   EXPECT_DOUBLE_EQ(cfg.mass()(1), 1.5);
@@ -46,7 +46,7 @@ TEST(InitChainConfig, PositionIsReturnedByReference) {
   position << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 0.5, 1.5;
-  walnuts::InitChainConfig cfg(0.1, position, mass);
+  walnutpie::InitChainConfig cfg(0.1, position, mass);
   EXPECT_EQ(&cfg.position(), &cfg.position());
 }
 
@@ -55,7 +55,7 @@ TEST(InitChainConfig, MassIsReturnedByReference) {
   position << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 0.5, 1.5;
-  walnuts::InitChainConfig cfg(0.1, position, mass);
+  walnutpie::InitChainConfig cfg(0.1, position, mass);
   EXPECT_EQ(&cfg.mass(), &cfg.mass());
 }
 
@@ -67,7 +67,7 @@ TEST(InitConfigBuilder, DefaultsAreCorrect) {
   Eigen::Index D_Eigen = Eigen::Index{2};
   std::size_t D = 2;
   std::size_t M = 3;
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(M, D).build();
+  walnutpie::InitConfig cfg = walnutpie::InitConfigBuilder(M, D).build();
   EXPECT_EQ(cfg.num_chains(), M);
   EXPECT_EQ(cfg.dims(), D);
   for (std::size_t m = 0; m < M; ++m) {
@@ -80,7 +80,7 @@ TEST(InitConfigBuilder, DefaultsAreCorrect) {
 }
 
 TEST(InitConfigBuilder, EmptyConfigHasZeroDims) {
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(0, 0).build();
+  walnutpie::InitConfig cfg = walnutpie::InitConfigBuilder(0, 0).build();
   EXPECT_EQ(cfg.num_chains(), std::size_t{0});
   EXPECT_EQ(cfg.dims(), std::size_t{0});
   EXPECT_TRUE(cfg.step_sizes().empty());
@@ -91,8 +91,8 @@ TEST(InitConfigBuilder, EmptyConfigHasZeroDims) {
 // step size (double)
 
 TEST(InitConfigBuilder, ScalarStepSizeSetsAllChains) {
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 2).step_sizes(0.5).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).step_sizes(0.5).build();
   EXPECT_EQ(cfg.step_sizes().size(), std::size_t{3});
   for (std::size_t n = 0; n < 3; ++n) {
     EXPECT_DOUBLE_EQ(cfg.step_size(n), 0.5);
@@ -101,7 +101,7 @@ TEST(InitConfigBuilder, ScalarStepSizeSetsAllChains) {
 
 TEST(InitConfigBuilder, ScalarStepSizeThrowsOnNonPositive) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     EXPECT_THROW(b.step_sizes(x), std::invalid_argument);
   }
 }
@@ -110,26 +110,26 @@ TEST(InitConfigBuilder, ScalarStepSizeThrowsOnNonPositive) {
 
 TEST(InitConfigBuilder, VectorStepSizesSetPerChain) {
   std::vector<double> sizes{0.1, 0.2, 0.3};
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 2).step_sizes(sizes).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).step_sizes(sizes).build();
   for (std::size_t n = 0; n < 3; ++n) {
     EXPECT_DOUBLE_EQ(cfg.step_size(n), sizes[n]);
   }
 }
 
 TEST(InitConfigBuilder, VectorStepSizesThrowsOnWrongSize) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<double> wrong_num_chains{0.1, 0.2};
   EXPECT_THROW(b.step_sizes(wrong_num_chains), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, VectorStepSizesThrowsOnNonPositiveElement) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     std::vector<double> bad{0.1, x, 0.3};
     EXPECT_THROW(b.step_sizes(bad), std::invalid_argument);
 
-    walnuts::InitConfigBuilder b2(3, 2);
+    walnutpie::InitConfigBuilder b2(3, 2);
     std::vector<double> bad2{x, 0.1, 0.3};
     EXPECT_THROW(b2.step_sizes(bad2), std::invalid_argument);
   }
@@ -140,15 +140,15 @@ TEST(InitConfigBuilder, VectorStepSizesThrowsOnNonPositiveElement) {
 TEST(InitConfigBuilder, ScalarPositionSetsAllChains) {
   Eigen::VectorXd pos(2);
   pos << 3.0, 4.0;
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 2).positions(pos).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).positions(pos).build();
   for (std::size_t n = 0; n < 3; ++n) {
     expect_near(cfg.position(n), pos, 1e-10);
   }
 }
 
 TEST(InitConfigBuilder, ScalarPositionThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   Eigen::VectorXd wrong_dims(3);
   wrong_dims << 1.0, 2.0, 3.0;
   EXPECT_THROW(b.positions(wrong_dims), std::invalid_argument);
@@ -156,7 +156,7 @@ TEST(InitConfigBuilder, ScalarPositionThrowsOnWrongDims) {
 
 TEST(InitConfigBuilder, ScalarPositionThrowsOnNonFinite) {
   for (auto x : inf_nan()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     Eigen::VectorXd non_finite(2);
     non_finite << 1.0, x;
     EXPECT_THROW(b.positions(non_finite), std::invalid_argument);
@@ -170,28 +170,28 @@ TEST(InitConfigBuilder, VectorPositionsSetsPerChain) {
   vs[0] << 1.0, 2.0;
   vs[1] << 3.0, 4.0;
   vs[2] << 5.0, 6.0;
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 2).positions(vs).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).positions(vs).build();
   for (std::size_t m = 0; m < 3; ++m) {
     expect_near(cfg.position(m), vs[m]);
   }
 }
 
 TEST(InitConfigBuilder, VectorPositionsThrowsOnWrongNumberOfChains) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_chains(2, Eigen::VectorXd::Zero(2));
   EXPECT_THROW(b.positions(wrong_chains), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, VectorPositionsThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_dims(3, Eigen::VectorXd::Zero(3));
   EXPECT_THROW(b.positions(wrong_dims), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, VectorPositionsThrowsOnNonFinite) {
   for (auto x : inf_nan()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     std::vector<Eigen::VectorXd> non_finite(3, Eigen::VectorXd::Zero(2));
     non_finite[1](0) = x;
     EXPECT_THROW(b.positions(non_finite), std::invalid_argument);
@@ -205,28 +205,28 @@ TEST(InitConfigBuilder, MovePositionsSetsPerChain) {
   vs[0] << 1.0, 2.0;
   vs[1] << 3.0, 4.0;
   std::vector<Eigen::VectorXd> vs_expected = vs;
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(2, 2).positions(std::move(vs)).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(2, 2).positions(std::move(vs)).build();
   for (std::size_t m = 0; m < 2; ++m) {
     expect_near(cfg.position(m), vs_expected[m]);
   }
 }
 
 TEST(InitConfigBuilder, MovePositionsThrowsOnWrongNumberOfChains) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_chains(2, Eigen::VectorXd::Zero(2));
   EXPECT_THROW(b.positions(std::move(wrong_chains)), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, MovePositionsThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_dims(3, Eigen::VectorXd::Zero(3));
   EXPECT_THROW(b.positions(std::move(wrong_dims)), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, MovePositionsThrowsOnNonFinite) {
   for (auto x : inf_nan()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     std::vector<Eigen::VectorXd> bad(3, Eigen::VectorXd::Zero(2));
     bad[0](1) = x;
     EXPECT_THROW(b.positions(std::move(bad)), std::invalid_argument);
@@ -237,8 +237,8 @@ TEST(InitConfigBuilder, MovePositionsThrowsOnNonFinite) {
 
 TEST(InitConfigBuilder, RandomPositionsHaveCorrectShape) {
   std::mt19937 rng(139872);
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 4).positions(rng, 1.0).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 4).positions(rng, 1.0).build();
   EXPECT_EQ(cfg.positions().size(), std::size_t{3});
   for (std::size_t n = 0; n < 3; ++n) {
     EXPECT_EQ(cfg.position(n).size(), Eigen::Index{4});
@@ -247,10 +247,10 @@ TEST(InitConfigBuilder, RandomPositionsHaveCorrectShape) {
 
 TEST(InitConfigBuilder, RandomPositionsScaledByInitScale) {
   std::mt19937 rng1(876), rng2(876);
-  walnuts::InitConfig cfg1 =
-      walnuts::InitConfigBuilder(2, 3).positions(rng1, 1.0).build();
-  walnuts::InitConfig cfg2 =
-      walnuts::InitConfigBuilder(2, 3).positions(rng2, 2.0).build();
+  walnutpie::InitConfig cfg1 =
+      walnutpie::InitConfigBuilder(2, 3).positions(rng1, 1.0).build();
+  walnutpie::InitConfig cfg2 =
+      walnutpie::InitConfigBuilder(2, 3).positions(rng2, 2.0).build();
   for (std::size_t n = 0; n < 2; ++n) {
     expect_near(cfg2.position(n), (2.0 * cfg1.position(n)).eval());
   }
@@ -259,7 +259,7 @@ TEST(InitConfigBuilder, RandomPositionsScaledByInitScale) {
 TEST(InitConfigBuilder, RandomPositionsThrowsOnNonPositiveScale) {
   for (auto x : inf_nan_neg_zero()) {
     std::mt19937 rng(58375232);
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     EXPECT_THROW(b.positions(rng, x), std::invalid_argument);
   }
 }
@@ -269,15 +269,15 @@ TEST(InitConfigBuilder, RandomPositionsThrowsOnNonPositiveScale) {
 TEST(InitConfigBuilder, ScalarMassSetsAllChains) {
   Eigen::VectorXd mass(2);
   mass << 2.0, 3.0;
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(3, 2).masses(mass).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).masses(mass).build();
   for (std::size_t n = 0; n < 3; ++n) {
     expect_near(cfg.mass(n), mass);
   }
 }
 
 TEST(InitConfigBuilder, ScalarMassThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   Eigen::VectorXd wrong_dims(3);
   wrong_dims << 1.0, 2.0, 3.0;
   EXPECT_THROW(b.masses(wrong_dims), std::invalid_argument);
@@ -285,7 +285,7 @@ TEST(InitConfigBuilder, ScalarMassThrowsOnWrongDims) {
 
 TEST(InitConfigBuilder, ScalarMassThrowsOnNonPositiveElement) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     Eigen::VectorXd bad(2);
     bad << 1.0, x;
     EXPECT_THROW(b.masses(bad), std::invalid_argument);
@@ -301,27 +301,28 @@ TEST(InitConfigBuilder, VectorMassesSetsPerChain) {
   vs[0] << 1.0, 2.0;
   vs[1] << 3.0, 4.0;
   vs[2] << 5.0, 6.0;
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(3, 2).masses(vs).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(3, 2).masses(vs).build();
   for (std::size_t m = 0; m < 3; ++m) {
     expect_near(cfg.mass(m), vs[m]);
   }
 }
 
 TEST(InitConfigBuilder, VectorMassesThrowsOnWrongNumberOfChains) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_chains(2, Eigen::VectorXd::Ones(2));
   EXPECT_THROW(b.masses(wrong_chains), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, VectorMassesThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_dims(3, Eigen::VectorXd::Ones(3));
   EXPECT_THROW(b.masses(wrong_dims), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, VectorMassesThrowsOnNonPositive) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     std::vector<Eigen::VectorXd> bad(3, Eigen::VectorXd::Ones(2));
     bad[1](0) = x;
     EXPECT_THROW(b.masses(bad), std::invalid_argument);
@@ -336,28 +337,28 @@ TEST(InitConfigBuilder, MoveMassesSetsPerChain) {
   vs[1] << 3.0, 4.0;
   std::vector<Eigen::VectorXd> expected = vs;
 
-  walnuts::InitConfig cfg =
-      walnuts::InitConfigBuilder(2, 2).masses(std::move(vs)).build();
+  walnutpie::InitConfig cfg =
+      walnutpie::InitConfigBuilder(2, 2).masses(std::move(vs)).build();
   for (std::size_t n = 0; n < 2; ++n) {
     expect_near(cfg.mass(n), expected[n]);
   }
 }
 
 TEST(InitConfigBuilder, MoveMassesThrowsOnWrongNumberOfChains) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_chains(2, Eigen::VectorXd::Ones(2));
   EXPECT_THROW(b.masses(std::move(wrong_chains)), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, MoveMassesThrowsOnWrongDims) {
-  walnuts::InitConfigBuilder b(3, 2);
+  walnutpie::InitConfigBuilder b(3, 2);
   std::vector<Eigen::VectorXd> wrong_dims(3, Eigen::VectorXd::Ones(3));
   EXPECT_THROW(b.masses(std::move(wrong_dims)), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, MoveMassesThrowsOnNonPositiveElement) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::InitConfigBuilder b(3, 2);
+    walnutpie::InitConfigBuilder b(3, 2);
     std::vector<Eigen::VectorXd> bad(3, Eigen::VectorXd::Ones(2));
     bad[2](1) = x;
     EXPECT_THROW(b.masses(std::move(bad)), std::invalid_argument);
@@ -369,10 +370,10 @@ TEST(InitConfigBuilder, MoveMassesThrowsOnNonPositiveElement) {
 TEST(InitConfigBuilder, LogpGradMassesHaveCorrectShape) {
   Eigen::VectorXd pos(2);
   pos << 1.0, 2.0;
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(3, 2)
-                                .positions(pos)
-                                .masses(std_normal, 0.5)
-                                .build();
+  walnutpie::InitConfig cfg = walnutpie::InitConfigBuilder(3, 2)
+                                  .positions(pos)
+                                  .masses(std_normal, 0.5)
+                                  .build();
   EXPECT_EQ(cfg.masses().size(), std::size_t{3});
   for (std::size_t n = 0; n < 3; ++n) {
     EXPECT_EQ(cfg.mass(n).size(), Eigen::Index{2});
@@ -386,10 +387,10 @@ TEST(InitConfigBuilder, LogpGradMassesMatchHandCalculation) {
   Eigen::VectorXd pos(2);
   pos << 1.0, 2.0;
   const double s = 0.5;
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(1, 2)
-                                .positions(pos)
-                                .masses(std_normal, s)
-                                .build();
+  walnutpie::InitConfig cfg = walnutpie::InitConfigBuilder(1, 2)
+                                  .positions(pos)
+                                  .masses(std_normal, s)
+                                  .build();
   Eigen::VectorXd expected(2);
   expected(0) = (1 - s) * 1.0 + s;
   expected(1) = (1 - s) * 2.0 + s;
@@ -399,13 +400,13 @@ TEST(InitConfigBuilder, LogpGradMassesMatchHandCalculation) {
 TEST(InitConfigBuilder, LogpGradMassesOneThrows) {
   Eigen::VectorXd pos(2);
   pos << 100.0, -50.0;
-  auto builder = walnuts::InitConfigBuilder(2, 2);
+  auto builder = walnutpie::InitConfigBuilder(2, 2);
   auto& builder_chain = builder.positions(pos);
   EXPECT_THROW(builder_chain.masses(std_normal, 1.0), std::invalid_argument);
 }
 
 TEST(InitConfigBuilder, LogpGradMassesThrowsOnInvalidSmoothing) {
-  walnuts::InitConfigBuilder b(2, 2);
+  walnutpie::InitConfigBuilder b(2, 2);
   for (auto x : inf_nan_neg()) {
     EXPECT_THROW(b.masses(std_normal, x), std::invalid_argument);
   }
@@ -414,13 +415,13 @@ TEST(InitConfigBuilder, LogpGradMassesThrowsOnInvalidSmoothing) {
 TEST(InitConfigBuilder, LogpGradMassesAveraged) {
   for (auto sz : std::vector<double>{1, 2, 9, 32}) {
     std::mt19937 rng(139872);
-    auto init_config = walnuts::InitConfigBuilder(sz, sz)
+    auto init_config = walnutpie::InitConfigBuilder(sz, sz)
                            .positions(rng, 1.0)
                            .masses(std_normal, 0.01, false)
                            .build();
 
     std::mt19937 rng_avg(139872);
-    auto init_config_avg = walnuts::InitConfigBuilder(sz, sz)
+    auto init_config_avg = walnutpie::InitConfigBuilder(sz, sz)
                                .positions(rng_avg, 1.0)
                                .masses(std_normal, 0.01, true)
                                .build();
@@ -447,12 +448,12 @@ TEST(InitConfig, InitChainConfigReturnsCorrectValues) {
   pos << 1.0, 2.0;
   Eigen::VectorXd mass(2);
   mass << 3.0, 4.0;
-  walnuts::InitConfig cfg = walnuts::InitConfigBuilder(3, 2)
-                                .step_sizes(0.25)
-                                .positions(pos)
-                                .masses(mass)
-                                .build();
-  walnuts::InitChainConfig cc = cfg.init_chain_config(0);
+  walnutpie::InitConfig cfg = walnutpie::InitConfigBuilder(3, 2)
+                                  .step_sizes(0.25)
+                                  .positions(pos)
+                                  .masses(mass)
+                                  .build();
+  walnutpie::InitChainConfig cc = cfg.init_chain_config(0);
   EXPECT_DOUBLE_EQ(cc.step_size(), 0.25);
   expect_near(cc.position(), pos);
   expect_near(cc.mass(), mass);
@@ -465,7 +466,7 @@ TEST(InitConfigBuilder, MethodChainingReturnsBuilder) {
   pos << 0.5, -0.5;
   Eigen::VectorXd mass(2);
   mass << 3.0, 4.0;
-  auto builder = walnuts::InitConfigBuilder(3, 2);
+  auto builder = walnutpie::InitConfigBuilder(3, 2);
 
   auto& chained_builder = builder.step_sizes(0.3);
   EXPECT_EQ(&builder, &chained_builder);
@@ -481,12 +482,12 @@ TEST(InitConfigBuilder, MethodChainingReturnsBuilder) {
 
 TEST(InitConfigBuilder, AdaptStepBuildConvergesFromLowAndHigh) {
   std::mt19937 rng_low(287456);
-  double low = walnuts::InitConfigBuilder(1, 3)
+  double low = walnutpie::InitConfigBuilder(1, 3)
                    .step_sizes(1e-4)
                    .adapt_step_build(rng_low, std_normal)
                    .step_size(0);
   std::mt19937 rng_high(287456);
-  double high = walnuts::InitConfigBuilder(1, 3)
+  double high = walnutpie::InitConfigBuilder(1, 3)
                     .step_sizes(100.0)
                     .adapt_step_build(rng_high, std_normal)
                     .step_size(0);
@@ -494,14 +495,14 @@ TEST(InitConfigBuilder, AdaptStepBuildConvergesFromLowAndHigh) {
   EXPECT_NEAR(std::log2(low), std::log2(high), 1.01);
 }
 
-double geo_mean_adapted_step(std::size_t D, double inv_mass,
-                             unsigned base_seed, int num_seeds) {
+double geo_mean_adapted_step(std::size_t D, double inv_mass, unsigned base_seed,
+                             int num_seeds) {
   Eigen::VectorXd m =
       Eigen::VectorXd::Constant(static_cast<Eigen::Index>(D), inv_mass);
   double log_sum = 0.0;
   for (int i = 0; i < num_seeds; ++i) {
     std::mt19937 rng(base_seed + static_cast<unsigned>(i));
-    double s = walnuts::InitConfigBuilder(1, D)
+    double s = walnutpie::InitConfigBuilder(1, D)
                    .masses(m)
                    .adapt_step_build(rng, std_normal)
                    .step_size(0);
@@ -512,23 +513,23 @@ double geo_mean_adapted_step(std::size_t D, double inv_mass,
 
 TEST(InitConfigBuilder, AdaptStepScalesDownWithDimension) {
   int rng_seed = 185737;
-  double h1     = geo_mean_adapted_step(1,     1.0, rng_seed, 256);
-  double h100   = geo_mean_adapted_step(100,   1.0, rng_seed, 64);
+  double h1 = geo_mean_adapted_step(1, 1.0, rng_seed, 256);
+  double h100 = geo_mean_adapted_step(100, 1.0, rng_seed, 64);
   double h10000 = geo_mean_adapted_step(10000, 1.0, rng_seed, 16);
 
   // optimal leapfrog step scales D^{-1/4} as D -> infinity
   EXPECT_GT(h1, h100);
   EXPECT_GT(h100, h10000);
   EXPECT_NEAR(std::log(h100 / h10000), 0.25 * std::log(100.0), 0.5);
-  EXPECT_GT(h1 / h10000, 4.0);  
+  EXPECT_GT(h1 / h10000, 4.0);
 }
 
 TEST(InitConfigBuilder, AdaptStepScalesWithInverseMass) {
   int rng_seed = 285222;
   const std::size_t D = 10;
-  double h_unit  = geo_mean_adapted_step(D, 1.0,   rng_seed, 1024);
+  double h_unit = geo_mean_adapted_step(D, 1.0, rng_seed, 1024);
   double h_heavy = geo_mean_adapted_step(D, 100.0, rng_seed, 1024);
-  double h_light = geo_mean_adapted_step(D, 0.01,  rng_seed, 1024);
+  double h_light = geo_mean_adapted_step(D, 0.01, rng_seed, 1024);
   EXPECT_NEAR(h_heavy / h_unit, 10, 1);
   EXPECT_NEAR(h_unit / h_light, 10, 1);
 }
@@ -538,7 +539,7 @@ TEST(InitConfigBuilder, AdaptStepScalesWithInverseMass) {
 // default build
 
 TEST(WarmupConfig, DefaultValuesAreCorrect) {
-  walnuts::WarmupConfig cfg = walnuts::WarmupConfigBuilder().build();
+  walnutpie::WarmupConfig cfg = walnutpie::WarmupConfigBuilder().build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{50});
   EXPECT_EQ(cfg.max_iter(), std::size_t{1000});
   EXPECT_DOUBLE_EQ(cfg.step_size_converge_tol(), 0.1);
@@ -559,35 +560,35 @@ TEST(WarmupConfig, DefaultValuesAreCorrect) {
 // min_max_iter()
 
 TEST(WarmupConfigBuilder, MinMaxIterSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().min_max_iter(10, 500).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().min_max_iter(10, 500).build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{10});
   EXPECT_EQ(cfg.max_iter(), std::size_t{500});
 }
 
 TEST(WarmupConfigBuilder, MinMaxIterAllowsEqualMinAndMax) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().min_max_iter(100, 100).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().min_max_iter(100, 100).build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{100});
   EXPECT_EQ(cfg.max_iter(), std::size_t{100});
 }
 
 TEST(WarmupConfigBuilder, MinMaxIterThrowsWhenMinExceedsMax) {
-  walnuts::WarmupConfigBuilder b;
+  walnutpie::WarmupConfigBuilder b;
   EXPECT_THROW(b.min_max_iter(500, 10), std::invalid_argument);
 }
 
 // step_size_converge_tol()
 
 TEST(WarmupConfigBuilder, StepSizeConvergeTolSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_size_converge_tol(0.05).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_size_converge_tol(0.05).build();
   EXPECT_DOUBLE_EQ(cfg.step_size_converge_tol(), 0.05);
 }
 
 TEST(WarmupConfigBuilder, StepSizeConvergeTolThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_size_converge_tol(x), std::invalid_argument);
   }
 }
@@ -595,14 +596,14 @@ TEST(WarmupConfigBuilder, StepSizeConvergeTolThrowsOnBadValues) {
 // mass_converge_tol()
 
 TEST(WarmupConfigBuilder, MassConvergeTolSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().mass_converge_tol(0.5).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().mass_converge_tol(0.5).build();
   EXPECT_DOUBLE_EQ(cfg.mass_converge_tol(), 0.5);
 }
 
 TEST(WarmupConfigBuilder, MassConvergeTolThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.mass_converge_tol(x), std::invalid_argument);
   }
 }
@@ -610,14 +611,14 @@ TEST(WarmupConfigBuilder, MassConvergeTolThrowsOnBadValues) {
 // mass_init_count()
 
 TEST(WarmupConfigBuilder, MassInitCountSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().mass_init_count(10.0).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().mass_init_count(10.0).build();
   EXPECT_DOUBLE_EQ(cfg.mass_init_count(), 10.0);
 }
 
 TEST(WarmupConfigBuilder, MassInitCountThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.mass_init_count(x), std::invalid_argument);
   }
 }
@@ -625,14 +626,14 @@ TEST(WarmupConfigBuilder, MassInitCountThrowsOnBadValues) {
 // mass_additive_smoothing()
 
 TEST(WarmupConfigBuilder, MassAdditiveSmoothingSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().mass_additive_smoothing(0.01).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().mass_additive_smoothing(0.01).build();
   EXPECT_DOUBLE_EQ(cfg.mass_additive_smoothing(), 0.01);
 }
 
 TEST(WarmupConfigBuilder, MassAdditiveSmoothingThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.mass_additive_smoothing(x), std::invalid_argument);
   }
 }
@@ -640,14 +641,14 @@ TEST(WarmupConfigBuilder, MassAdditiveSmoothingThrowsOnBadValues) {
 // max_macro_steps_target()
 
 TEST(WarmupConfigBuilder, MaxMacroStepsTargetSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().max_macro_steps_target(20.0).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().max_macro_steps_target(20.0).build();
   EXPECT_DOUBLE_EQ(cfg.max_macro_steps_target(), 20.0);
 }
 
 TEST(WarmupConfigBuilder, MaxMacroStepsTargetThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.max_macro_steps_target(x), std::invalid_argument);
   }
 }
@@ -655,14 +656,14 @@ TEST(WarmupConfigBuilder, MaxMacroStepsTargetThrowsOnBadValues) {
 // step_accept_rate_target()
 
 TEST(WarmupConfigBuilder, StepAcceptRateTargetSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_accept_rate_target(0.65).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_accept_rate_target(0.65).build();
   EXPECT_DOUBLE_EQ(cfg.step_accept_rate_target(), 0.65);
 }
 
 TEST(WarmupConfigBuilder, StepAcceptRateTargetThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero_geq_one()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_accept_rate_target(x), std::invalid_argument);
   }
 }
@@ -670,14 +671,14 @@ TEST(WarmupConfigBuilder, StepAcceptRateTargetThrowsOnBadValues) {
 // step_learning_rate()
 
 TEST(WarmupConfigBuilder, StepLearningRateSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_learning_rate(0.1).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_learning_rate(0.1).build();
   EXPECT_DOUBLE_EQ(cfg.step_learning_rate(), 0.1);
 }
 
 TEST(WarmupConfigBuilder, StepLearningRateThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_learning_rate(x), std::invalid_argument);
   }
 }
@@ -685,14 +686,14 @@ TEST(WarmupConfigBuilder, StepLearningRateThrowsOnBadValues) {
 // step_gradient_decay
 
 TEST(WarmupConfigBuilder, StepGradientDecaySetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_gradient_decay(0.9).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_gradient_decay(0.9).build();
   EXPECT_DOUBLE_EQ(cfg.step_gradient_decay(), 0.9);
 }
 
 TEST(WarmupConfigBuilder, StepGradientDecayThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero_geq_one()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_gradient_decay(x), std::invalid_argument);
   }
 }
@@ -700,14 +701,14 @@ TEST(WarmupConfigBuilder, StepGradientDecayThrowsOnBadValues) {
 // step_sq_gradient_decay
 
 TEST(WarmupConfigBuilder, StepSqGradientDecaySetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_sq_gradient_decay(0.95).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_sq_gradient_decay(0.95).build();
   EXPECT_DOUBLE_EQ(cfg.step_sq_gradient_decay(), 0.95);
 }
 
 TEST(WarmupConfigBuilder, StepSqGradientDecayThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero_geq_one()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_sq_gradient_decay(x), std::invalid_argument);
   }
 }
@@ -715,14 +716,14 @@ TEST(WarmupConfigBuilder, StepSqGradientDecayThrowsOnBadValues) {
 // step_stabilization()
 
 TEST(WarmupConfigBuilder, StepStabilizationSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_stabilization(1e-3).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_stabilization(1e-3).build();
   EXPECT_DOUBLE_EQ(cfg.step_stabilization(), 1e-3);
 }
 
 TEST(WarmupConfigBuilder, StepStabilizationThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_stabilization(x), std::invalid_argument);
   }
 }
@@ -730,14 +731,14 @@ TEST(WarmupConfigBuilder, StepStabilizationThrowsOnBadValues) {
 // step_learn_rate_decay()
 
 TEST(WarmupConfigBuilder, StepLearnRateDecaySetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().step_learn_rate_decay(0.75).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().step_learn_rate_decay(0.75).build();
   EXPECT_DOUBLE_EQ(cfg.step_learn_rate_decay(), 0.75);
 }
 
 TEST(WarmupConfigBuilder, StepLearnRateDecayThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero_geq_one()) {
-    walnuts::WarmupConfigBuilder b;
+    walnutpie::WarmupConfigBuilder b;
     EXPECT_THROW(b.step_learn_rate_decay(x), std::invalid_argument);
   }
 }
@@ -745,33 +746,33 @@ TEST(WarmupConfigBuilder, StepLearnRateDecayThrowsOnBadValues) {
 // publish_stride()
 
 TEST(WarmupConfigBuilder, PublishStrideSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().publish_stride(10).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().publish_stride(10).build();
   EXPECT_EQ(cfg.publish_stride(), std::size_t{10});
 }
 
 TEST(WarmupConfigBuilder, PublishStrideThrowsOnZero) {
-  walnuts::WarmupConfigBuilder b;
+  walnutpie::WarmupConfigBuilder b;
   EXPECT_THROW(b.publish_stride(0), std::invalid_argument);
 }
 
 // yield_period()
 
 TEST(WarmupConfigBuilder, YieldPeriodSetsCorrectly) {
-  walnuts::WarmupConfig cfg =
-      walnuts::WarmupConfigBuilder().yield_period(64).build();
+  walnutpie::WarmupConfig cfg =
+      walnutpie::WarmupConfigBuilder().yield_period(64).build();
   EXPECT_EQ(cfg.yield_period(), std::size_t{64});
 }
 
 TEST(WarmupConfigBuilder, YieldPeriodThrowsOnZero) {
-  walnuts::WarmupConfigBuilder b;
+  walnutpie::WarmupConfigBuilder b;
   EXPECT_THROW(b.yield_period(0), std::invalid_argument);
 }
 
 // chaining
 
 TEST(WarmupConfigBuilder, ChainReferenceIdentity) {
-  walnuts::WarmupConfigBuilder builder;
+  walnutpie::WarmupConfigBuilder builder;
   auto& builder_chain = builder.min_max_iter(25, 200)
                             .step_size_converge_tol(0.05)
                             .mass_converge_tol(0.5)
@@ -790,7 +791,7 @@ TEST(WarmupConfigBuilder, ChainReferenceIdentity) {
 }
 
 TEST(WarmupConfigBuilder, FullChainProducesCorrectConfig) {
-  walnuts::WarmupConfigBuilder builder;
+  walnutpie::WarmupConfigBuilder builder;
   auto cfg = builder.min_max_iter(25, 200)
                  .step_size_converge_tol(0.05)
                  .mass_converge_tol(0.5)
@@ -828,7 +829,7 @@ TEST(WarmupConfigBuilder, FullChainProducesCorrectConfig) {
 // default build
 
 TEST(SamplingConfig, DefaultValuesAreCorrect) {
-  walnuts::SamplingConfig cfg = walnuts::SamplingConfigBuilder().build();
+  walnutpie::SamplingConfig cfg = walnutpie::SamplingConfigBuilder().build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{50});
   EXPECT_EQ(cfg.max_iter(), std::size_t{1000});
   EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{5});
@@ -841,63 +842,63 @@ TEST(SamplingConfig, DefaultValuesAreCorrect) {
 // min_max_iter()
 
 TEST(SamplingConfigBuilder, MinMaxIterSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().min_max_iter(10, 500).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().min_max_iter(10, 500).build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{10});
   EXPECT_EQ(cfg.max_iter(), std::size_t{500});
 }
 
 TEST(SamplingConfigBuilder, MinMaxIterAllowsEqualMinAndMax) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().min_max_iter(100, 100).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().min_max_iter(100, 100).build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{100});
   EXPECT_EQ(cfg.max_iter(), std::size_t{100});
 }
 
 TEST(SamplingConfigBuilder, MinMaxIterThrowsWhenMinExceedsMax) {
-  walnuts::SamplingConfigBuilder b;
+  walnutpie::SamplingConfigBuilder b;
   EXPECT_THROW(b.min_max_iter(500, 10), std::invalid_argument);
 }
 
 // max_trajectory_doublings()
 
 TEST(SamplingConfigBuilder, MaxTrajectoryDoublingsSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().max_trajectory_doublings(10).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().max_trajectory_doublings(10).build();
   EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{10});
 }
 
 TEST(SamplingConfigBuilder, MaxTrajectoryDoublingsAllowsZero) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().max_trajectory_doublings(0).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().max_trajectory_doublings(0).build();
   EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{0});
 }
 
 // max_step_halvings()
 
 TEST(SamplingConfigBuilder, MaxStepHalvingsSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().max_step_halvings(8).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().max_step_halvings(8).build();
   EXPECT_EQ(cfg.max_step_halvings(), std::size_t{8});
 }
 
 TEST(SamplingConfigBuilder, MaxStepHalvingsAllowsZero) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().max_step_halvings(0).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().max_step_halvings(0).build();
   EXPECT_EQ(cfg.max_step_halvings(), std::size_t{0});
 }
 
 // max_hamiltonian_error()
 
 TEST(SamplingConfigBuilder, MaxHamiltonianErrorSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().max_hamiltonian_error(1.0).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().max_hamiltonian_error(1.0).build();
   EXPECT_DOUBLE_EQ(cfg.max_hamiltonian_error(), 1.0);
 }
 
 TEST(SamplingConfigBuilder, MaxHamiltonianErrorThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero()) {
-    walnuts::SamplingConfigBuilder b;
+    walnutpie::SamplingConfigBuilder b;
     EXPECT_THROW(b.max_hamiltonian_error(x), std::invalid_argument);
   }
 }
@@ -905,27 +906,27 @@ TEST(SamplingConfigBuilder, MaxHamiltonianErrorThrowsOnBadValues) {
 // min_micro_steps()
 
 TEST(SamplingConfigBuilder, MinMicroStepsSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().min_micro_steps(4).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().min_micro_steps(4).build();
   EXPECT_EQ(cfg.min_micro_steps(), std::size_t{4});
 }
 
 TEST(SamplingConfigBuilder, MinMicroStepsThrowsOnZero) {
-  walnuts::SamplingConfigBuilder b;
+  walnutpie::SamplingConfigBuilder b;
   EXPECT_THROW(b.min_micro_steps(0), std::invalid_argument);
 }
 
 // rhat_converge_tol()
 
 TEST(SamplingConfigBuilder, RhatConvergeTolSetsCorrectly) {
-  walnuts::SamplingConfig cfg =
-      walnuts::SamplingConfigBuilder().rhat_converge_tol(1.05).build();
+  walnutpie::SamplingConfig cfg =
+      walnutpie::SamplingConfigBuilder().rhat_converge_tol(1.05).build();
   EXPECT_DOUBLE_EQ(cfg.rhat_converge_tol(), 1.05);
 }
 
 TEST(SamplingConfigBuilder, RhatConvergeTolThrowsOnBadValues) {
   for (auto x : inf_nan_neg_zero_leq_one()) {
-    walnuts::SamplingConfigBuilder b;
+    walnutpie::SamplingConfigBuilder b;
     EXPECT_THROW(b.rhat_converge_tol(x), std::invalid_argument);
   }
 }
@@ -933,14 +934,14 @@ TEST(SamplingConfigBuilder, RhatConvergeTolThrowsOnBadValues) {
 // chaining
 
 TEST(SamplingConfigBuilder, FullChainProducesCorrectConfig) {
-  walnuts::SamplingConfig cfg = walnuts::SamplingConfigBuilder()
-                                    .min_max_iter(25, 200)
-                                    .max_trajectory_doublings(8)
-                                    .max_step_halvings(3)
-                                    .max_hamiltonian_error(1.0)
-                                    .min_micro_steps(2)
-                                    .rhat_converge_tol(1.05)
-                                    .build();
+  walnutpie::SamplingConfig cfg = walnutpie::SamplingConfigBuilder()
+                                      .min_max_iter(25, 200)
+                                      .max_trajectory_doublings(8)
+                                      .max_step_halvings(3)
+                                      .max_hamiltonian_error(1.0)
+                                      .min_micro_steps(2)
+                                      .rhat_converge_tol(1.05)
+                                      .build();
   EXPECT_EQ(cfg.min_iter(), std::size_t{25});
   EXPECT_EQ(cfg.max_iter(), std::size_t{200});
   EXPECT_EQ(cfg.max_trajectory_doublings(), std::size_t{8});
@@ -951,7 +952,7 @@ TEST(SamplingConfigBuilder, FullChainProducesCorrectConfig) {
 }
 
 TEST(SamplingConfigBuilder, ChainingReferenceEquality) {
-  walnuts::SamplingConfigBuilder builder = walnuts::SamplingConfigBuilder();
+  walnutpie::SamplingConfigBuilder builder = walnutpie::SamplingConfigBuilder();
   auto& builder_chain = builder.min_max_iter(25, 200)
                             .max_trajectory_doublings(8)
                             .max_step_halvings(3)
@@ -964,10 +965,10 @@ TEST(SamplingConfigBuilder, ChainingReferenceEquality) {
 // classes WalnutsConfig and WalnutsConfigBuilder *******************
 
 TEST(WalnutsConfig, MembersAreIndependent) {
-  walnuts::WalnutsConfig cfg{
-      walnuts::InitConfigBuilder(2, 3).step_sizes(0.25).build(),
-      walnuts::WarmupConfigBuilder().min_max_iter(10, 200).build(),
-      walnuts::SamplingConfigBuilder().min_max_iter(5, 100).build()};
+  walnutpie::WalnutsConfig cfg{
+      walnutpie::InitConfigBuilder(2, 3).step_sizes(0.25).build(),
+      walnutpie::WarmupConfigBuilder().min_max_iter(10, 200).build(),
+      walnutpie::SamplingConfigBuilder().min_max_iter(5, 100).build()};
 
   EXPECT_EQ(cfg.warmup().min_iter(), std::size_t{10});
   EXPECT_EQ(cfg.warmup().max_iter(), std::size_t{200});

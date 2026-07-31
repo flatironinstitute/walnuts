@@ -13,15 +13,15 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/util.hpp"
-#include "walnuts/validate.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/util.hpp"
+#include "walnutpie/validate.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
- * trajectory required for WALNUTS.
+ * trajectory required for WALNUTPIE.
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
@@ -586,9 +586,9 @@ class NoOpStepSizeAdapter {
   }
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
  * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
@@ -765,4 +765,4 @@ class WalnutsSampler {
   const detail::NoOpStepSizeAdapter no_op_step_size_adapter_;
 };
 
-}  // namespace walnuts
+}  // namespace walnutpie

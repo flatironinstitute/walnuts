@@ -5,9 +5,9 @@
 #include <concepts>
 #include <cstdint>
 
-#include "walnuts/util.hpp"
+#include "walnutpie/util.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A single-producer, single-consumer buffer backed by a
@@ -61,7 +61,9 @@ namespace walnuts::detail {
  * dirty bit.
  *
  * See brilliantsugar. 2024. [How I learned to stop worrying and love
- * juggling C++ atomics](https://brilliantsugar.github.io/posts/how-i-learned-to-stop-worrying-and-love-juggling-c++-atomics/).  brilliantsugar blog.
+ * juggling C++
+ * atomics](https://brilliantsugar.github.io/posts/how-i-learned-to-stop-worrying-and-love-juggling-c++-atomics/).
+ * brilliantsugar blog.
  *
  * @tparam T Type of value buffered.
  */
@@ -174,4 +176,4 @@ class SpscBuffer {
   alignas(FALSE_SHARING_GUARD_SIZE) std::uint32_t front_{2};
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

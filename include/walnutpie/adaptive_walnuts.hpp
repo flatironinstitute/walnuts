@@ -9,14 +9,14 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/adam.hpp"
-#include "walnuts/concepts.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/online_moments.hpp"
-#include "walnuts/util.hpp"
-#include "walnuts/walnuts.hpp"
+#include "walnutpie/adam.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/config.hpp"
+#include "walnutpie/online_moments.hpp"
+#include "walnutpie/util.hpp"
+#include "walnutpie/walnuts.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A mass matrix estimator based on exponentially discounted draws
@@ -94,7 +94,7 @@ class MassEstimator {
   }
 
  private:
-  /** The warmup configuration for adaptive Walnuts. */
+  /** The warmup configuration for adaptive Walnutpie. */
   WarmupConfig warmup_cfg_;
 
   /** The online variance estimator for draws. */
@@ -163,9 +163,9 @@ class MinMicroStepsAdaptHandler {
   double count_;
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
  * @brief The adaptive Walnuts sampler.
@@ -362,4 +362,4 @@ class AdaptiveWalnuts {
   detail::MinMicroStepsAdaptHandler min_micro_estimator_;
 };
 
-}  // namespace walnuts
+}  // namespace walnutpie

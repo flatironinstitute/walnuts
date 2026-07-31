@@ -3,11 +3,11 @@
 #include <sstream>
 
 #include <Eigen/Dense>
-#include <walnuts/load_stan.hpp>
+#include <walnutpie/load_stan.hpp>
 
-namespace walnutpie {
-using walnuts::DynamicStanModel;
-using walnuts::unique_bs_rng;
+namespace walnutpy {
+using walnutpie::DynamicStanModel;
+using walnutpie::unique_bs_rng;
 
 /**
  * Callback used for printing.
@@ -175,4 +175,4 @@ class GlobalHandler {
   const PythonPrinter& p;
 };
 
-}  // namespace walnutpie
+}  // namespace walnutpy

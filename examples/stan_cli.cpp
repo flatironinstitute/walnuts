@@ -1,5 +1,5 @@
-#include <walnuts.hpp>
-#include <walnuts/load_stan.hpp>
+#include <walnutpie.hpp>
+#include <walnutpie/load_stan.hpp>
 
 #include <CLI/CLI.hpp>
 #include <Eigen/Dense>
@@ -13,8 +13,8 @@
 #include <string>
 #include <vector>
 
-using walnuts::DynamicStanModel;
-using walnuts::unique_bs_rng;
+using walnutpie::DynamicStanModel;
+using walnutpie::unique_bs_rng;
 
 static void summarize(const std::vector<std::string>& names,
                       const Eigen::MatrixXd& draws) {
@@ -114,10 +114,10 @@ class StanHandler {
 };
 
 StanHandler run_walnuts(DynamicStanModel& model, unsigned int seed,
-                        walnuts::InitConfigBuilder& init_builder,
+                        walnutpie::InitConfigBuilder& init_builder,
                         std::size_t num_warmup, std::size_t num_draws,
-                        bool save_warmup, walnuts::WarmupConfig& warmup_cfg,
-                        walnuts::SamplingConfig& sample_cfg) {
+                        bool save_warmup, walnutpie::WarmupConfig& warmup_cfg,
+                        walnutpie::SamplingConfig& sample_cfg) {
   using Clock = std::chrono::high_resolution_clock;
   auto elapsed_seconds = [](auto t) {
     return std::chrono::duration<double>(Clock::now() - t).count();
@@ -152,8 +152,8 @@ StanHandler run_walnuts(DynamicStanModel& model, unsigned int seed,
   auto inits = init_cfg.init_chain_config(0);
 
   std::mt19937_64 rng{seed};
-  walnuts::AdaptiveWalnuts walnuts(rng, storage, logp, inits, warmup_cfg,
-                                   sample_cfg);
+  walnutpie::AdaptiveWalnuts walnuts(rng, storage, logp, inits, warmup_cfg,
+                                     sample_cfg);
   for (std::size_t w = 0; w < num_warmup; ++w) {
     walnuts();
   }
@@ -188,7 +188,8 @@ int main(int argc, char** argv) {
   std::size_t num_draws = 128;
   bool save_warmup = false;
 
-  walnuts::WarmupConfig default_warmup = walnuts::WarmupConfigBuilder().build();
+  walnutpie::WarmupConfig default_warmup =
+      walnutpie::WarmupConfigBuilder().build();
   double mass_init_count = default_warmup.mass_init_count();
   double mass_additive_smoothing = default_warmup.mass_additive_smoothing();
   double max_macro_steps_target = default_warmup.max_macro_steps_target();
@@ -199,8 +200,8 @@ int main(int argc, char** argv) {
   double step_stabilization = default_warmup.step_stabilization();
   double step_learn_rate_decay = default_warmup.step_learn_rate_decay();
 
-  walnuts::SamplingConfig default_sampling =
-      walnuts::SamplingConfigBuilder().build();
+  walnutpie::SamplingConfig default_sampling =
+      walnutpie::SamplingConfigBuilder().build();
 
   std::size_t max_trajectory_doublings =
       default_sampling.max_trajectory_doublings();
@@ -327,8 +328,8 @@ int main(int argc, char** argv) {
 
   DynamicStanModel model(lib.c_str(), data.c_str(), seed);
 
-  walnuts::WarmupConfig warmup_cfg =
-      walnuts::WarmupConfigBuilder()
+  walnutpie::WarmupConfig warmup_cfg =
+      walnutpie::WarmupConfigBuilder()
           .mass_init_count(mass_init_count)
           .mass_additive_smoothing(mass_additive_smoothing)
           .max_macro_steps_target(max_macro_steps_target)
@@ -340,8 +341,8 @@ int main(int argc, char** argv) {
           .step_learn_rate_decay(step_learn_rate_decay)
           .build();
 
-  walnuts::SamplingConfig sample_cfg =
-      walnuts::SamplingConfigBuilder()
+  walnutpie::SamplingConfig sample_cfg =
+      walnutpie::SamplingConfigBuilder()
           .max_trajectory_doublings(max_trajectory_doublings)
           .max_step_halvings(max_step_halvings)
           .max_hamiltonian_error(max_hamiltonian_error)
@@ -351,7 +352,7 @@ int main(int argc, char** argv) {
   unique_bs_rng rng = model.make_rng(seed);
 
   auto init_cfg =
-      walnuts::InitConfigBuilder{1, model.unconstrained_dimensions()}
+      walnutpie::InitConfigBuilder{1, model.unconstrained_dimensions()}
           .step_sizes(step_size_init)
           .positions(model.initialize(nullptr, rng, init));
 

@@ -11,19 +11,19 @@ typedef enum {
   generic = 0,   ///< A generic runtime error from Stan.
   config = 1,    ///< An invalid configuration for the algorithm.
   interrupt = 2  ///< The user interrupted the algorithm with `Ctrl+C`.
-} WalnutpieErrorType;
+} WalnutpyErrorType;
 
-struct WalnutpieError {
+struct WalnutpyError {
  public:
-  WalnutpieError(const char* msg,
-                 WalnutpieErrorType type = WalnutpieErrorType::generic)
+  WalnutpyError(const char* msg,
+                WalnutpyErrorType type = WalnutpyErrorType::generic)
       : msg(msg), type(type) {}
 
   std::string msg;
-  WalnutpieErrorType type;
+  WalnutpyErrorType type;
 };
 
-namespace walnutpie {
+namespace walnutpy {
 namespace error {
 
 /**
@@ -33,31 +33,31 @@ namespace error {
 class interrupt_exception {};
 
 /**
- * Catches exceptions and stores them in a WalnutpieError.
+ * Catches exceptions and stores them in a WalnutpyError.
  *
  * This returns the result of the function if it succeeds.
  * If it fails, it returns -1 if the function returns an int,
  * nullptr if the function returns a pointer, and void otherwise.
  */
 template <typename F>
-inline auto catch_exceptions(WalnutpieError** err, F f) {
+inline auto catch_exceptions(WalnutpyError** err, F f) {
   try {
     return f();
   } catch (const interrupt_exception& e) {
     if (err != nullptr) {
-      *err = new WalnutpieError("", WalnutpieErrorType::interrupt);
+      *err = new WalnutpyError("", WalnutpyErrorType::interrupt);
     }
   } catch (const std::invalid_argument& e) {
     if (err != nullptr) {
-      *err = new WalnutpieError(e.what(), WalnutpieErrorType::config);
+      *err = new WalnutpyError(e.what(), WalnutpyErrorType::config);
     }
   } catch (const std::exception& e) {
     if (err != nullptr) {
-      *err = new WalnutpieError(e.what());
+      *err = new WalnutpyError(e.what());
     }
   } catch (...) {
     if (err != nullptr) {
-      *err = new WalnutpieError("Unknown error");
+      *err = new WalnutpyError("Unknown error");
     }
   }
 
@@ -81,6 +81,6 @@ inline void check_nonnegative(const char* name, T val) {
 }
 
 }  // namespace error
-}  // namespace walnutpie
+}  // namespace walnutpy
 
 #endif

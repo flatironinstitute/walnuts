@@ -6,7 +6,7 @@ requires = [
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "walnuts"
+name = "walnutpie"
 description = "Walnuts sampling with Nutpie adaptation"
 readme = "python/README.md"
 license = { text = "MIT License" }
@@ -35,9 +35,9 @@ profile = "black"
 [tool.scikit-build]
 minimum-version = "1.0"
 cmake.source-dir = "."
-build.targets = ["walnutpie"]
+build.targets = ["walnutpy"]
 cmake.args = ["-G Ninja"]
-cmake.define = {"WALNUTS_BUILD_EXAMPLES" = "OFF"}
+cmake.define = {"WALNUTPIE_BUILD_EXAMPLES" = "OFF"}
 cmake.build-type = "RelWithDebInfo"
 
 build.verbose = true
@@ -47,7 +47,7 @@ sdist.exclude = ["tests/", "examples/", "docs/", "iwyu/", ".github/",
                  ".gitignore", ".clang-format"]
 wheel.exclude = ["*.cpp", "*.h", "*.hpp"]
 wheel.license-files = ["LICENSE"]
-wheel.packages = ["python/src/walnuts"]
+wheel.packages = ["python/src/walnutpie"]
 # we don't depend on the CPython API
 wheel.py-api = "py3"
 
@@ -59,10 +59,10 @@ editable.rebuild-dir = "build/{wheel_tag}/re"
 [tool.scikit-build.metadata.version]
 # extract version from the source files.
 provider = "scikit_build_core.metadata.regex"
-input = "python/src/walnuts/__init__.py"
+input = "python/src/walnutpie/__init__.py"
 
 [tool.cibuildwheel]
-test-command = "python -c \"import walnuts\""
+test-command = "python -c \"import walnutpie\""
 build-verbosity = 1
 # build 3.10 and latest
 skip = "cp39-* cp311-* cp312-* cp313-*"

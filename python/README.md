@@ -1,1 +1,1 @@
-# walnuts - the Within-orbit Adaptive Leapfrog No-U-Turn Sampler
+# walnutpie - the Within-orbit Adaptive Leapfrog No-U-Turn Sampler

@@ -6,9 +6,9 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/validate.hpp"
+#include "walnutpie/validate.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief Accumulator for online mean and smaple variance calculations.
@@ -246,4 +246,4 @@ class OnlineMoments {
   Eigen::VectorXd sum_sq_dev_;
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

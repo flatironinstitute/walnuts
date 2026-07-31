@@ -6,37 +6,37 @@ Sampling functions
 ------------------
 
 
-.. autofunction:: walnuts.walnuts_pyfunc
-.. autofunction:: walnuts.walnuts_stan
+.. autofunction:: walnutpie.walnuts_pyfunc
+.. autofunction:: walnutpie.walnuts_stan
 
 
 Output Classes
 ______________
 
-.. autoclass:: walnuts.pyfunc::WalnutsOutputArray
+.. autoclass:: walnutpie.pyfunc::WalnutsOutputArray
    :members:
    :show-inheritance:
 
-.. autoclass:: walnuts.stan::StanOutput
+.. autoclass:: walnutpie.stan::StanOutput
    :members:
    :inherited-members:
    :show-inheritance:
    :special-members: __getitem__
 
-.. autoclass:: walnuts.stan::StanOutputBase
+.. autoclass:: walnutpie.stan::StanOutputBase
 
-.. autoclass:: walnuts.util::WarmupInfo
+.. autoclass:: walnutpie.util::WarmupInfo
    :members:
 
 Summary
 -------
 
-.. autoclass:: walnuts.Summarizer
+.. autoclass:: walnutpie.Summarizer
    :members:
 
-.. autofunction:: walnuts.ess
-.. autofunction:: walnuts.r_hat
-.. autofunction:: walnuts.mcse
-.. autofunction:: walnuts.mean
-.. autofunction:: walnuts.variance
-.. autofunction:: walnuts.standard_deviation
+.. autofunction:: walnutpie.ess
+.. autofunction:: walnutpie.r_hat
+.. autofunction:: walnutpie.mcse
+.. autofunction:: walnutpie.mean
+.. autofunction:: walnutpie.variance
+.. autofunction:: walnutpie.standard_deviation

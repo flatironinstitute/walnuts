@@ -12,12 +12,12 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/spsc_buffer.hpp"
-#include "walnuts/util.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/config.hpp"
+#include "walnutpie/spsc_buffer.hpp"
+#include "walnutpie/util.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A struct to represent a snapshot of the adaptation process
@@ -258,4 +258,4 @@ inline void adapt(const InitConfig& init_cfg, const WarmupConfig& warmup_cfg,
       controller_loop(buffers, interrupt_callback, init_cfg, warmup_cfg);
 }
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-import walnuts as wp
+import walnutpie as wp
 
 
 ## define our test target. use numba if available, for faster tests

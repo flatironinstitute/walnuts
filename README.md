@@ -1,9 +1,8 @@
-# Adaptive WALNUTS in C++
+# `walnutpie`: Adaptive WALNUTS in C++
 
-This is a C++ implementation of the following three [Hamiltonian Monte
+This is a C++ implementation and Python wrapper of the following [Hamiltonian Monte
 Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
 
-* [NUTS](https://www.jmlr.org/papers/volume15/hoffman14a/hoffman14a.pdf)
 * [WALNUTS](https://arxiv.org/abs/2506.18746)
 * Adaptive WALNUTS (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
 
@@ -42,7 +41,7 @@ licensed](https://opensource.org/license/bsd-3-clause))
 ## Command Line Interface (CLI)
 
 Building `examples/stan_cli` creates a command-line interface to
-adaptive WALNUTS.  The interface uses BridgeStan to access Stan
+adaptive WALNUTPIE.  The interface uses BridgeStan to access Stan
 models.  To run, compile a Stan model into a shared object (`.so`
 file) using BridgeStan (available in R, Python, Julia, Rust, and C) to
 supply as the `model` argument to `stan_cli`.  The `data` argument
@@ -125,12 +124,12 @@ The command-line interface is built using the following library.
 * [CLI11](https://github.com/CLIUtils/CLI11)  ([BSD-3
 licensed](https://opensource.org/license/bsd-3-clause))
 
-## Using WALNUTS in a C++ project
+## Using walnutpie in a C++ project
 
 This library is header only and only requires Eigen (also header only)
 to run (additional dependencies are required for testing and documentation).
 If your project uses CMake, you can depend on our
-`walnuts` library target. If not, any method of adding the `include/`
+`walnutpie` library target. If not, any method of adding the `include/`
 folder of this repository to your build system's include paths should suffice
 as long as you also provide Eigen yourself.
 
@@ -141,7 +140,7 @@ CMake is required to build the examples and tests.
 ### Configuring the build
 
 The basic configuration is to run the following command from the
-top-level `walnuts` directory.
+top-level `walnutpie` directory.
 
 ```sh
 cmake <options> <repo_root>
@@ -155,11 +154,11 @@ Some common options are:
 - `-B <build_dir>` - Specify the build directory where the build files will be generated. If omitted, the directory you run the command from will be used.
 - `-DCMAKE_BUILD_TYPE=Debug` - Set the build type to Debug.
 - `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release.
-- `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
-- `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
-- `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
-- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
-- `-DWALNUTS_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.
+- `-DWALNUTPIE_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
+- `-DWALNUTPIE_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
+- `-DWALNUTPIE_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
+- `-DWALNUTPIE_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan).
+- `-DWALNUTPIE_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.
 
 Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
 
@@ -173,7 +172,7 @@ cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
 During development, it's more helpful to build everything in debug mode.
 
 ```sh
-cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_EXAMPLES=ON -DWALNUTS_BUILD_DOCS=ON -DWALNUTS_USE_TSAN=ON
+cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug -DWALNUTPIE_BUILD_TESTS=ON -DWALNUTPIE_BUILD_EXAMPLES=ON -DWALNUTPIE_BUILD_DOCS=ON -DWALNUTPIE_USE_TSAN=ON
 ```
 
 `cmake` will cache its output configuration. To clear the entire build
@@ -187,17 +186,33 @@ rm -r build
 The remaining instructions assume that commands are run from whatever
 directory you specified as the build directory (e.g., `./build` in the above command).
 
+### Include what you use
+
+To run IWYU,
+
+```sh
+cd walnutpie/iwyu
+./run-iwyu.sh examples/walnutpie_api.cpp
+```
+
+On Mac OS X, this requires installation of IWYU, which can be done as follows.
+
+```sh
+brew install include-what-you-use
+```
+
+
 ### Building
 
 The easiest way to build the project is with the `cmake --build`
 command. This will build all available executable targets by default.
 
-For example, to build and run the `walnuts_api` example,
+For example, to build and run the `walnutpie_api` example,
 
 ```bash
 cd build
-make walnuts_api
-./examples/walnuts_api
+make walnutpie_api
+./examples/walnutpie_api
 ```
 
 
@@ -206,13 +221,13 @@ make walnuts_api
 Running the tests is easiest with the `ctest` command distributed with CMake.
 
 ```bash
-# assuming you did _not_ specify -DWALNUTS_BUILD_TESTS=OFF earlier...
+# assuming you did _not_ specify -DWALNUTPIE_BUILD_TESTS=OFF earlier...
 cmake --build . --parallel 4
 ctest
 ```
 
 To test code doverage during testing, you will have to specify the
-top-level `cmake` call to include `DWALNUTS_COVERAGE=ON` (perhaps
+top-level `cmake` call to include `DWALNUTPIE_COVERAGE=ON` (perhaps
 after `rm -rf build` to remove the build directory and start over).
 
 The steps are to first run the test, directing the summary to the named
@@ -247,22 +262,6 @@ open coverage_html/index.html
 ```
 
 
-### Include what you use
-
-To run IWYU,
-
-```sh
-cd walnuts/iwyu
-./run-iwyu.sh examples/walnuts_api.cpp
-```
-
-On Mac OS X, this requires installation of IWYU, which can be done as follows.
-
-```sh
-brew install include-what-you-use
-```
-
-
 ## Documentation
 
 ### Prerequisites
@@ -289,7 +288,7 @@ cd docs/
 make html
 ```
 (if `make` is not installed, the second command is equivalent to
-`sphinx-build -b html . _build/html`) 
+`sphinx-build -b html . _build/html`)
 
 The above will output the documentation website in `_build/html`. Other valid
 formats include `latexpdf`, which will require a LaTeX toolchain
@@ -315,7 +314,7 @@ docstrings/comments in the respective source files.
 The project directory structure is as follows.
 
 ```
-walnuts/
+walnutpie/
 ├── CMakeLists.txt
 ├── LICENSE
 ├── README.md
@@ -330,8 +329,8 @@ walnuts/
 │   ├── *.hpp
 │   ├── *.cpp
 ├── include/
-│   ├── walnuts.hpp
-│   └── walnuts/
+│   ├── walnutpie.hpp
+│   └── walnutpie/
 │       └── *.hpp
 └── tests/
     ├── CMakeLists.txt

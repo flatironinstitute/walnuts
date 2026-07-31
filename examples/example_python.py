@@ -3,7 +3,7 @@ import time
 
 import bridgestan
 
-import walnuts
+import walnutpie
 
 
 def timed(f):
@@ -18,7 +18,7 @@ def timed(f):
 
 
 def summarize(name, fit):
-    summarizer = walnuts.Summarizer(fit)
+    summarizer = walnutpie.Summarizer(fit)
     mean = summarizer.mean()
     std = summarizer.standard_deviation()
     ess = summarizer.ess()
@@ -39,7 +39,7 @@ m = bridgestan.StanModel(
     make_args=["STAN_THREADS=1"],
 )
 
-summarize("stan", timed(walnuts.walnuts_stan)(m, seed=1234))
+summarize("stan", timed(walnutpie.walnuts_stan)(m, seed=1234))
 
 import numpy as np
 import scipy.stats
@@ -49,7 +49,7 @@ def logp(x):
     return np.sum(scipy.stats.norm.logpdf(x)), -x
 
 
-summarize("pyfunc", timed(walnuts.walnuts_pyfunc)(logp, num_params=2))
+summarize("pyfunc", timed(walnutpie.walnuts_pyfunc)(logp, num_params=2))
 
 import numba
 from numba import types
@@ -74,4 +74,4 @@ def logp_numba(size, x_, grad_, lp, _):
     return 0
 
 
-summarize("numba", timed(walnuts.walnuts_pyfunc)(logp_numba, num_params=2))
+summarize("numba", timed(walnutpie.walnuts_pyfunc)(logp_numba, num_params=2))

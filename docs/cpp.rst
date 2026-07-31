@@ -9,7 +9,7 @@ ______________
 
 This function will spawn threads to perform end-to-end sampling
 
-.. doxygenfunction:: walnuts::walnuts
+.. doxygenfunction:: walnutpie::walnuts
 
 
 Iterator-style samplers
@@ -17,9 +17,9 @@ _______________________
 
 These classes implement WALNUTS in an iteration-per-call style iterator.
 
-.. doxygenclass:: walnuts::WalnutsSampler
+.. doxygenclass:: walnutpie::WalnutsSampler
    :members:
-.. doxygenclass:: walnuts::AdaptiveWalnuts
+.. doxygenclass:: walnutpie::AdaptiveWalnuts
    :members:
 
 Configuration
@@ -27,29 +27,29 @@ Configuration
 
 The following classes (and their builders) are used to configure WALNUTS
 
-.. doxygenclass:: walnuts::WalnutsConfig
+.. doxygenclass:: walnutpie::WalnutsConfig
    :members:
 
-.. doxygenclass:: walnuts::InitConfigBuilder
+.. doxygenclass:: walnutpie::InitConfigBuilder
    :members:
-.. doxygenclass:: walnuts::WarmupConfigBuilder
+.. doxygenclass:: walnutpie::WarmupConfigBuilder
    :members:
-.. doxygenclass:: walnuts::SamplingConfigBuilder
+.. doxygenclass:: walnutpie::SamplingConfigBuilder
    :members:
 
 
-.. doxygenclass:: walnuts::InitConfig
-.. doxygenclass:: walnuts::WarmupConfig
-.. doxygenclass:: walnuts::SamplingConfig
+.. doxygenclass:: walnutpie::InitConfig
+.. doxygenclass:: walnutpie::WarmupConfig
+.. doxygenclass:: walnutpie::SamplingConfig
 
 
 Concepts
 --------
 
-The following concepts describe the types expected by WALNUTS.
+The following concepts describe the types expected by WALNUTPIE.
 
-.. doxygenconcept:: walnuts::LogpGrad
-.. doxygenconcept:: walnuts::ChainHandler
-.. doxygenconcept:: walnuts::SampleHandler
-.. doxygenconcept:: walnuts::GlobalHandler
-.. doxygenconcept:: walnuts::InterruptCallback
+.. doxygenconcept:: walnutpie::LogpGrad
+.. doxygenconcept:: walnutpie::ChainHandler
+.. doxygenconcept:: walnutpie::SampleHandler
+.. doxygenconcept:: walnutpie::GlobalHandler
+.. doxygenconcept:: walnutpie::InterruptCallback

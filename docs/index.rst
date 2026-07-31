@@ -7,7 +7,7 @@
 
 - ``walnutpie`` includes adapters for models coded in Stan, PyMC,
   NumPyro, JAX, Numba, or models may be coded directly in Python.
-       
+
 - The underlying sampler is `Walnuts
   <https://www.jmlr.org/beta/papers/v27/25-1452.html>`, which adds
   dynamic step-size adaptation to the no-U-turn sampler
@@ -27,7 +27,7 @@
 
 - Posterior analysis tools are included for the varying-length
   chains produced by asynchronous automatic stopping.
-  
+
 
 Installation and dependencies
 ----------------------------------------------------------------------
@@ -40,7 +40,7 @@ Installation can be managed through ``pip``.
 
 The only required depenency is ``numpy``.  Models can be coded
 with `bridgestan` though models
-can be coded with ``bridgestan``, ``jax``, or ``numba``. 
+can be coded with ``bridgestan``, ``jax``, or ``numba``.
 
 .. toctree::
    :maxdepth: 2
@@ -64,13 +64,13 @@ Getting started
 ``walnutpie`` includes an executable Python notebook with getting
 started examples using ``bridgestan`` and ``numba``.
 
-- `Getting started with walnutpie <https://github.com/flatironinstitute/walnuts/blob/python-interface/docs/example.ipynb>`__
+- `Getting started with walnutpie <https://github.com/flatironinstitute/walnutpie/blob/python-interface/docs/example.ipynb>`__
 
 
 C++ public interface documentation
 ----------------------------------------------------------------------
 
-Walnuts is implemented in multi-threaded C++20 with a stable
+``walnutpie`` is implemented in multi-threaded C++20 with a stable
 client-facing API.
 
 .. toctree::
@@ -78,7 +78,7 @@ client-facing API.
 
    cpp
 
-   
+
 License
 ----------------------------------------------------------------------
 
@@ -94,7 +94,7 @@ Bug reports and feature requests
 
 Bug reports and feature requests are handled through GitHub.
 
-- `_Walnuts issue tracker <https://github.com/flatironinstitute/walnuts/issues>`__
+- `_Walnutpie issue tracker <https://github.com/flatironinstitute/walnuts/issues>`__
 
 
 Developers and other contributors
@@ -104,5 +104,4 @@ We welcome new developers to the project and try to maintain a
 friendly and constructive environment.  To get started, see the
 developers guide on GitHub:
 
-- `Contributing to walnutpie <https://github.com/flatironinstitute/walnuts/blob/python-interface/DEVELOPERS.md>`__
-
+- `Contributing to walnutpie <https://github.com/flatironinstitute/walnuts/blob/main/CONTRIBUTING.md>`__

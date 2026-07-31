@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size
@@ -108,4 +108,4 @@ class Adam {
   const double learn_rate_decay_;
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

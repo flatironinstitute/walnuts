@@ -7,18 +7,18 @@
 
 #include <bridgestan.h>
 #include <Eigen/Dense>
-#include <walnuts.hpp>
-#include <walnuts/load_stan.hpp>
+#include <walnutpie.hpp>
+#include <walnutpie/load_stan.hpp>
 
 #include "errors.hpp"
 #include "export.h"
 #include "handlers.hpp"
 #include "interrupts.hpp"
 
-namespace walnutpie {
+namespace walnutpy {
 
-void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
-                 walnuts::InitConfigBuilder& init_cfg_builder, auto& handlers,
+void run_sampler(const walnutpie::LogpGrad auto& logp, int num_params,
+                 walnutpie::InitConfigBuilder& init_cfg_builder, auto& handlers,
                  auto& global, size_t num_chains, unsigned int seed,
                  unsigned int id, const double* init_inv_metric,
                  int min_warmup_iter, int max_warmup_iter,
@@ -31,10 +31,10 @@ void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
                  double step_accept_rate_target, double step_learning_rate,
                  double step_gradient_decay, double step_sq_gradient_decay,
                  double step_stabilization, double step_learn_rate_decay) {
-  interrupt::walnutpie_interrupt_handler interrupt;
+  interrupt::walnutpy_interrupt_handler interrupt;
 
-  walnuts::WarmupConfig warmup_cfg =
-      walnuts::WarmupConfigBuilder()
+  walnutpie::WarmupConfig warmup_cfg =
+      walnutpie::WarmupConfigBuilder()
           .min_max_iter(min_warmup_iter, max_warmup_iter)
           .step_size_converge_tol(step_size_converge_tol)
           .mass_converge_tol(mass_converge_tol)
@@ -51,8 +51,8 @@ void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
           .step_learn_rate_decay(step_learn_rate_decay)
           .build();
 
-  walnuts::SamplingConfig sample_cfg =
-      walnuts::SamplingConfigBuilder()
+  walnutpie::SamplingConfig sample_cfg =
+      walnutpie::SamplingConfigBuilder()
           .min_max_iter(min_sampling_iter, max_sampling_iter)
           .rhat_converge_tol(rhat_converge_tol)
           .max_trajectory_doublings(max_trajectory_doublings)
@@ -75,23 +75,23 @@ void run_sampler(const walnuts::LogpGrad auto& logp, int num_params,
   std::seed_seq ss{seed, 2u};
   std::mt19937_64 init_rng(ss);
 
-  walnuts::WalnutsConfig walnuts_cfg{
+  walnutpie::WalnutsConfig walnuts_cfg{
       init_cfg_builder.adapt_step_build(init_rng, logp), std::move(warmup_cfg),
       std::move(sample_cfg)};
 
-  walnuts::walnuts<std::mt19937_64>(seed + id + num_chains, handlers, global,
-                                    interrupt, logp, walnuts_cfg);
+  walnutpie::walnuts<std::mt19937_64>(seed + id + num_chains, handlers, global,
+                                      interrupt, logp, walnuts_cfg);
 }
 
-walnuts::MarkovChainsUnified make_chains(const double* draws, int num_draws,
-                                         int num_params, const int* lengths,
-                                         int num_chains) {
+walnutpie::MarkovChainsUnified make_chains(const double* draws, int num_draws,
+                                           int num_params, const int* lengths,
+                                           int num_chains) {
   Eigen::Map<const Eigen::MatrixXd> draws_map(draws, num_draws, num_params);
   std::vector<std::size_t> lengths_vec(num_chains);
   for (int i = 0; i < num_chains; i++) {
     lengths_vec[i] = lengths[i];
   }
-  return walnuts::MarkovChainsUnified(draws_map, lengths_vec);
+  return walnutpie::MarkovChainsUnified(draws_map, lengths_vec);
 }
 
 std::vector<std::string> split(const char* str, char sep) {
@@ -118,9 +118,9 @@ std::vector<std::string> split(const char* str, char sep) {
   return res;
 }
 
-}  // namespace walnutpie
+}  // namespace walnutpy
 
-using namespace walnutpie;
+using namespace walnutpy;
 
 extern "C" {
 
@@ -131,7 +131,7 @@ extern "C" {
 typedef int (*LOGP_CFUNC)(size_t theta_size, const double* theta, double* grad,
                           double* lp, void* data);
 
-WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
+WALNUTPY_EXPORT int walnutpie_sample_cfunc(
     LOGP_CFUNC logp_c, void* data, int num_params, const double* inits,
     size_t num_chains, unsigned int seed, unsigned int id, double init_radius,
     const double* init_inv_metric, int min_warmup_iter, int max_warmup_iter,
@@ -146,7 +146,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
     double step_learn_rate_decay, bool save_warmup, double* out,
     size_t out_size, int* final_lengths, double* stepsize_out,
     double* inv_metric_out, int refresh, PRINT_CALLBACK print,
-    WalnutpieError** err) {
+    WalnutpyError** err) {
   return error::catch_exceptions(err, [&]() {
     error::check_nonnegative("refresh", refresh);
 
@@ -170,8 +170,8 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
     };
 
     auto init_cfg_builder =
-        walnuts::InitConfigBuilder{num_chains,
-                                   static_cast<std::size_t>(num_params)}
+        walnutpie::InitConfigBuilder{num_chains,
+                                     static_cast<std::size_t>(num_params)}
             .step_sizes(step_size_init);
     if (inits != nullptr) {
       std::vector<Eigen::VectorXd> theta_inits(num_chains);
@@ -222,9 +222,9 @@ WALNUTPIE_EXPORT int walnutpie_sample_cfunc(
 }
 
 static constexpr const char SEPARATOR = '\x1C';  ///< ASCII file separator
-WALNUTPIE_EXPORT char walnutpie_separator_char() { return SEPARATOR; }
+WALNUTPY_EXPORT char walnutpie_separator_char() { return SEPARATOR; }
 
-WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
+WALNUTPY_EXPORT int walnutpie_sample_bridgestan(
     const char* bs_dll, const char* json_data, STREAM_CALLBACK callback,
     unsigned int model_seed, const char* inits, size_t num_chains,
     unsigned int seed, unsigned int id, double init_radius,
@@ -240,9 +240,9 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
     double step_learn_rate_decay, bool save_warmup, double* out,
     size_t out_size, int* final_lengths, double* stepsize_out,
     double* inv_metric_out, int refresh, PRINT_CALLBACK print,
-    WalnutpieError** err) {
-  using walnuts::DynamicStanModel;
-  using walnuts::unique_bs_rng;
+    WalnutpyError** err) {
+  using walnutpie::DynamicStanModel;
+  using walnutpie::unique_bs_rng;
 
   return error::catch_exceptions(err, [&]() {
     error::check_nonnegative("refresh", refresh);
@@ -304,7 +304,7 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
     }
 
     auto init_cfg_builder =
-        walnuts::InitConfigBuilder{
+        walnutpie::InitConfigBuilder{
             num_chains, static_cast<std::size_t>(theta_inits[0].size())}
             .step_sizes(step_size_init)
             .positions(theta_inits);
@@ -330,61 +330,61 @@ WALNUTPIE_EXPORT int walnutpie_sample_bridgestan(
   });
 }
 
-WALNUTPIE_EXPORT int walnutpie_ess(const double* draws, int num_draws,
-                                   int num_params, const int* lengths,
-                                   int num_chains, double* out,
-                                   WalnutpieError** err) {
+WALNUTPY_EXPORT int walnutpie_ess(const double* draws, int num_draws,
+                                  int num_params, const int* lengths,
+                                  int num_chains, double* out,
+                                  WalnutpyError** err) {
   return error::catch_exceptions(err, [&]() {
     auto chains =
         make_chains(draws, num_draws, num_params, lengths, num_chains);
     Eigen::Map<Eigen::RowVectorXd>(out, num_params) =
-        walnuts::effective_sample_size(chains);
+        walnutpie::effective_sample_size(chains);
     return 0;
   });
 }
 
-WALNUTPIE_EXPORT int walnutpie_r_hat(const double* draws, int num_draws,
-                                     int num_params, const int* lengths,
-                                     int num_chains, double* out,
-                                     WalnutpieError** err) {
-  return error::catch_exceptions(err, [&]() {
-    auto chains =
-        make_chains(draws, num_draws, num_params, lengths, num_chains);
-    Eigen::Map<Eigen::RowVectorXd>(out, num_params) = walnuts::r_hat(chains);
-    return 0;
-  });
-}
-
-WALNUTPIE_EXPORT int walnutpie_mcse(const double* draws, int num_draws,
+WALNUTPY_EXPORT int walnutpie_r_hat(const double* draws, int num_draws,
                                     int num_params, const int* lengths,
                                     int num_chains, double* out,
-                                    WalnutpieError** err) {
+                                    WalnutpyError** err) {
   return error::catch_exceptions(err, [&]() {
     auto chains =
         make_chains(draws, num_draws, num_params, lengths, num_chains);
-    Eigen::Map<Eigen::RowVectorXd>(out, num_params) =
-        walnuts::monte_carlo_standard_error(chains);
+    Eigen::Map<Eigen::RowVectorXd>(out, num_params) = walnutpie::r_hat(chains);
     return 0;
   });
 }
 
-WALNUTPIE_EXPORT const char* walnutpie_get_error_message(
-    const WalnutpieError* err) {
+WALNUTPY_EXPORT int walnutpie_mcse(const double* draws, int num_draws,
+                                   int num_params, const int* lengths,
+                                   int num_chains, double* out,
+                                   WalnutpyError** err) {
+  return error::catch_exceptions(err, [&]() {
+    auto chains =
+        make_chains(draws, num_draws, num_params, lengths, num_chains);
+    Eigen::Map<Eigen::RowVectorXd>(out, num_params) =
+        walnutpie::monte_carlo_standard_error(chains);
+    return 0;
+  });
+}
+
+WALNUTPY_EXPORT const char* walnutpie_get_error_message(
+    const WalnutpyError* err) {
   if (err == nullptr) {
     return "Something went wrong: No error found";
   }
   return err->msg.c_str();
 }
 
-WALNUTPIE_EXPORT WalnutpieErrorType
-walnutpie_get_error_type(const WalnutpieError* err) {
+WALNUTPY_EXPORT WalnutpyErrorType
+walnutpie_get_error_type(const WalnutpyError* err) {
   if (err == nullptr) {
-    return WalnutpieErrorType::generic;
+    return WalnutpyErrorType::generic;
   }
   return err->type;
 }
 
-WALNUTPIE_EXPORT void walnutpie_destroy_error(WalnutpieError* err) {
+WALNUTPY_EXPORT void walnutpie_destroy_error(WalnutpyError* err) {
   delete (err);
 }
 }  // extern "C"

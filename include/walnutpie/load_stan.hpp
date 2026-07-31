@@ -1,5 +1,5 @@
-#ifndef WALNUTS_LOAD_STAN_HPP
-#define WALNUTS_LOAD_STAN_HPP
+#ifndef WALNUTPIE_LOAD_STAN_HPP
+#define WALNUTPIE_LOAD_STAN_HPP
 
 // TODO: not entirely happy with this file living in 'include/',
 // but it is used by both the examples and python bindings
@@ -36,12 +36,12 @@ static char* dlerror() {
 #include <dlfcn.h>
 #endif
 
-namespace walnuts::internal {
+namespace walnutpie::internal {
 
 struct dlclose_deleter {
   void operator()(void*) const {
     // TODO: Crashes on some systems, see
-    // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
+    // https://github.com/flatironinstitute/walnutpie/pull/25#discussion_r2298576937
     // if (handle) {
     //   dlclose(handle);
     // }
@@ -92,9 +92,9 @@ inline unique_bs_model make_model(dynamic_library& library, const char* data,
   return model_ptr;
 }
 
-}  // namespace walnuts::internal
+}  // namespace walnutpie::internal
 
-namespace walnuts {
+namespace walnutpie {
 
 using unique_bs_rng = std::unique_ptr<bs_rng, decltype(&bs_rng_destruct)>;
 
@@ -227,7 +227,7 @@ class DynamicStanModel {
   decltype(&bs_rng_destruct) rng_destruct_;
 };
 
-}  // namespace walnuts
+}  // namespace walnutpie
 
 // macro clean up
 #undef dlsym_cast

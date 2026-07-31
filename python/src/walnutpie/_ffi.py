@@ -18,7 +18,7 @@ try:
     # by trying to import this file as a CPython extension, we trigger
     # a rebuild. The import then fails, since it is just a generic shared
     # object, but that's fine.
-    importlib.resources.files("walnuts.libwalnutpie")
+    importlib.resources.files("walnutpie.libwalnutpy")
 except ImportError:
     pass
 
@@ -33,7 +33,7 @@ atexit.register(_files.close)
 _suffix = {"win32": ".dll", "darwin": ".dylib"}.get(sys.platform, ".so")
 _INSTALL_PATH = _files.enter_context(
     importlib.resources.as_file(
-        importlib.resources.files("walnuts") / f"libwalnutpie{_suffix}"
+        importlib.resources.files("walnutpie") / f"libwalnutpy{_suffix}"
     )
 ).parent
 
@@ -43,12 +43,12 @@ _lib = None
 _exceptions = []
 for path in _PATHS:
     try:
-        _lib = np.ctypeslib.load_library("libwalnutpie", path)
+        _lib = np.ctypeslib.load_library("libwalnutpy", path)
     except Exception as e:
         _exceptions.append(e)
 
 if _lib is None:
-    raise ImportError(f"Failed to load libwalnutpie from {_PATHS}: {_exceptions}")
+    raise ImportError(f"Failed to load libwalnutpy from {_PATHS}: {_exceptions}")
 
 
 # ctypes helpers

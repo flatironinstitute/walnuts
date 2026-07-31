@@ -14,7 +14,7 @@
 
 #include <Eigen/Dense>
 
-#include <walnuts/validate.hpp>
+#include <walnutpie/validate.hpp>
 
 namespace detail {
 

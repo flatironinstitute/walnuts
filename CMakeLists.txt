@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(walnuts
+project(walnutpie
   VERSION 0.1.0
   DESCRIPTION "Header-only Walnut Pie sampler library"
   LANGUAGES CXX
@@ -14,10 +14,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ##########################
 ## Top-Level Options   ##
 ##########################
-option(WALNUTS_BUILD_EXAMPLES "Build the example targets for the library" ON)
-option(WALNUTS_BUILD_TESTS "Build the test targets for the library" OFF)
-option(WALNUTS_USE_MIMALLOC "Statically link mimalloc" OFF)
-option(WALNUTS_COVERAGE "Enable source-based test coverage instrumentation" OFF)
+option(WALNUTPIE_BUILD_EXAMPLES "Build the example targets for the library" ON)
+option(WALNUTPIE_BUILD_TESTS "Build the test targets for the library" OFF)
+option(WALNUTPIE_USE_MIMALLOC "Statically link mimalloc" OFF)
+option(WALNUTPIE_COVERAGE "Enable source-based test coverage instrumentation" OFF)
 
 ##########################
 ## Global Dependencies  ##
@@ -48,8 +48,8 @@ target_include_directories(Eigen3::Eigen INTERFACE
 
 include(FetchContent)
 
-set(WALNUTS_MIMALLOC_TAG "v2.2.3" CACHE STRING "Version of mimalloc to use")
-if(WALNUTS_USE_MIMALLOC)
+set(WALNUTPIE_MIMALLOC_TAG "v2.2.3" CACHE STRING "Version of mimalloc to use")
+if(WALNUTPIE_USE_MIMALLOC)
     set(MI_BUILD_TESTS  OFF CACHE BOOL "" FORCE)
     set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
     set(MI_PADDING      OFF CACHE BOOL "" FORCE)
@@ -57,7 +57,7 @@ if(WALNUTS_USE_MIMALLOC)
     FetchContent_Declare(
             mimalloc
             GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
-            GIT_TAG ${WALNUTS_MIMALLOC_TAG}
+            GIT_TAG ${WALNUTPIE_MIMALLOC_TAG}
     )
     FetchContent_MakeAvailable(mimalloc)
 endif()
@@ -75,26 +75,26 @@ if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_link_options(-static-libgcc -static-libstdc++ -static -lpthread)
 endif()
 
-#############################
-## Making Walnuts Library  ##
-#############################
-add_library(walnuts INTERFACE)
-target_include_directories(walnuts INTERFACE
+###############################
+## Making Walnutpie Library  ##
+###############################
+add_library(walnutpie INTERFACE)
+target_include_directories(walnutpie INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>  # for builds
   $<INSTALL_INTERFACE:include>                            # for installs
 )
 
-target_link_libraries(walnuts INTERFACE Eigen3::Eigen)
+target_link_libraries(walnutpie INTERFACE Eigen3::Eigen)
 
-if (WALNUTS_USE_MIMALLOC)
-    target_link_libraries(walnuts INTERFACE mimalloc-static)
+if (WALNUTPIE_USE_MIMALLOC)
+    target_link_libraries(walnutpie INTERFACE mimalloc-static)
 endif()
 
 
 ##########################
 ##       Examples       ##
 ##########################
-if (WALNUTS_BUILD_EXAMPLES)
+if (WALNUTPIE_BUILD_EXAMPLES)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/examples")
 endif()
 
@@ -109,7 +109,7 @@ endif ()
 ##########################
 ##       Tests         ##
 ##########################
-if (WALNUTS_BUILD_TESTS)
+if (WALNUTPIE_BUILD_TESTS)
     enable_testing()
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()

@@ -192,4 +192,4 @@ cython_debug/
 *.DS_Store
 
 
-python/src/walnuts/export.h
+python/src/walnutpie/export.h

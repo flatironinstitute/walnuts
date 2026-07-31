@@ -6,12 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Walnuts"
+project = "Walnutpie"
 import datetime
 
 year = datetime.date.today().year
-copyright = f"{year}, Walnuts Developers"
-author = "Walnuts Developers"
+copyright = f"{year}, Walnutpie Developers"
+author = "Walnutpie Developers"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -74,21 +74,21 @@ intersphinx_mapping = {
 }
 
 
-breathe_projects = {"walnuts": "_build/breathe/doxygen/walnuts/xml/"}
+breathe_projects = {"walnutpie": "_build/breathe/doxygen/walnutpie/xml/"}
 breathe_projects_source = {
-    "walnuts": (
+    "walnutpie": (
         "../include/",
         [
-            "walnuts.hpp",
-            "walnuts/api.hpp",
-            "walnuts/concepts.hpp",
-            "walnuts/config.hpp",
-            "walnuts/walnuts.hpp",
-            "walnuts/adaptive_walnuts.hpp",
+            "walnutpie.hpp",
+            "walnutpie/api.hpp",
+            "walnutpie/concepts.hpp",
+            "walnutpie/config.hpp",
+            "walnutpie/walnuts.hpp",
+            "walnutpie/adaptive_walnuts.hpp",
         ],
     )
 }
-breathe_default_project = "walnuts"
+breathe_default_project = "walnutpie"
 breathe_show_include = False
 
 # doxygen doesn't like  __attribute and __declspec
@@ -97,7 +97,7 @@ breathe_show_include = False
 #     "ENABLE_PREPROCESSING": "YES",
 #     "MACRO_EXPANSION": "YES",
 #     "EXPAND_ONLY_PREDEF": "YES",
-#     "PREDEFINED": "WALNUTS_STRONG_INLINE=",
+#     "PREDEFINED": "WALNUTPIE_STRONG_INLINE=",
 #     "CITE_BIB_FILES": pathlib.Path(__file__).parent / "refs.bib",
 # }
 

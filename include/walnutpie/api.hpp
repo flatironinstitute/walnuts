@@ -6,14 +6,14 @@
 #include <utility>
 #include <vector>
 
-#include "walnuts/adapt.hpp"
-#include "walnuts/adaptive_walnuts.hpp"
-#include "walnuts/concepts.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/sampler.hpp"
-#include "walnuts/walnuts.hpp"
+#include "walnutpie/adapt.hpp"
+#include "walnutpie/adaptive_walnuts.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/config.hpp"
+#include "walnutpie/sampler.hpp"
+#include "walnutpie/walnuts.hpp"
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
  * Return the chain records from running Walnuts with the specified
@@ -26,7 +26,7 @@ namespace walnuts {
  * @param[in] global_handler The handler for global cross-chain events.
  * @param[in] interrupt_callback The callback for stopping.
  * @param[in] log_p_grad The log density and gradient function, called back.
- * @param[in] config The configuration for Walnuts.
+ * @param[in] config The configuration for Walnutpie.
  * @throws std::invalid_argument If the number of handlers doesn't match
  * the initialization configuration's number of chains.
  */
@@ -68,4 +68,4 @@ inline void walnuts(std::size_t seed, std::vector<H>& chain_handlers,
                  interrupt_callback);
 }
 
-}  // namespace walnuts
+}  // namespace walnutpie

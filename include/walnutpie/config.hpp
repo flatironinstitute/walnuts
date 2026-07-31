@@ -10,13 +10,11 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/util.hpp"
-#include "walnuts/validate.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/util.hpp"
+#include "walnutpie/validate.hpp"
 
-namespace walnuts {
-
-  
+namespace walnutpie {
 
 /**
  * @brief The initialization configuration for a single Markov chain.
@@ -460,7 +458,7 @@ class InitConfigBuilder {
 
   /**
    * @brief Heuristically adapt the initial step sizes, then return
-   * the initialization configuration.  
+   * the initialization configuration.
    *
    * @tparam RNG Type of the base random number generator.
    * @tparam F Type of the log density and gradient function.
@@ -471,7 +469,7 @@ class InitConfigBuilder {
   InitConfig adapt_step_build(RNG& rng, const F& logp_grad) {
     for (std::size_t c = 0; c < num_chains_; ++c) {
       step_sizes_[c] = detail::adapt_step(rng, logp_grad, positions_[c],
-					  masses_[c], step_sizes_[c], dims_);
+                                          masses_[c], step_sizes_[c], dims_);
     }
     return build();
   }
@@ -918,9 +916,9 @@ class SamplingConfig {
   std::size_t max_step_halvings() const noexcept { return max_step_halvings_; }
 
   /**
-   * @brief Return the maximum error in the Hamiltonian allowed for Walnuts.
+   * @brief Return the maximum error in the Hamiltonian allowed for Walnutpie.
    *
-   * @return The maximum error in the Hamiltonian allowed for Walnuts.
+   * @return The maximum error in the Hamiltonian allowed for Walnutpie.
    */
   double max_hamiltonian_error() const noexcept {
     return max_hamiltonian_error_;
@@ -1005,9 +1003,9 @@ class SamplingConfigBuilder {
   }
 
   /**
-   * @brief Set the maximum error in the Hamiltonian for Walnuts.
+   * @brief Set the maximum error in the Hamiltonian for Walnutpie.
    *
-   * @param[in] v The maximum error in the Hamiltonian for Walnuts.
+   * @param[in] v The maximum error in the Hamiltonian for Walnutpie.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the error is not finite and positive.
    */
@@ -1078,7 +1076,7 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
 }
 
 /**
- * @brief Encapsulated configuration for Walnuts.
+ * @brief Encapsulated configuration for Walnutpie.
  *
  * Walnuts configurations include initialization, warmup, and sampling
  * configurations.
@@ -1098,7 +1096,7 @@ class WalnutsConfig {
   WalnutsConfig(InitConfig init, WarmupConfig warmup, SamplingConfig sampling)
       : init_(std::move(init)),
         warmup_(std::move(warmup)),
-        sampling_(std::move(sampling)) {};
+        sampling_(std::move(sampling)){};
 
   /**
    * @brief Return the initialization configuration.
@@ -1148,4 +1146,4 @@ inline std::ostream& operator<<(std::ostream& out, const WalnutsConfig& cfg) {
   return out;
 }
 
-}  // namespace walnuts
+}  // namespace walnutpie

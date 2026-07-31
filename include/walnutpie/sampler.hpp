@@ -11,13 +11,13 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/config.hpp"
-#include "walnuts/online_moments.hpp"
-#include "walnuts/spsc_buffer.hpp"
-#include "walnuts/util.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/config.hpp"
+#include "walnutpie/online_moments.hpp"
+#include "walnutpie/spsc_buffer.hpp"
+#include "walnutpie/util.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A struct to hold the within chain summary statistics for
@@ -191,4 +191,4 @@ inline void sample(const SamplingConfig& config, std::vector<S>& samplers,
   controller_loop(buffers, global_handler, interrupt_callback, config);
 }
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

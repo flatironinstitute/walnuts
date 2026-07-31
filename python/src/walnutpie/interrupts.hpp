@@ -7,17 +7,17 @@
 #include "errors.hpp"
 
 #if defined _WIN32 || defined __MINGW32__
-#define WALNUTPIE_ON_WINDOWS 1
+#define WALNUTPY_ON_WINDOWS 1
 #else
-#define WALNUTPIE_ON_WINDOWS 0
+#define WALNUTPY_ON_WINDOWS 0
 #endif
 
-#if WALNUTPIE_ON_WINDOWS
+#if WALNUTPY_ON_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
-namespace walnutpie {
+namespace walnutpy {
 namespace interrupt {
 
 static volatile std::sig_atomic_t interrupted = false;
@@ -31,17 +31,17 @@ static volatile std::sig_atomic_t interrupted = false;
  * This uses RAII to install a custom signal handler which is later
  * removed, restoring the previous handler if one existed.
  */
-class walnutpie_interrupt_handler {
+class walnutpy_interrupt_handler {
 #if !WALNUTPIE_ON_WINDOWS  // POSIX signals
  public:
-  walnutpie_interrupt_handler() {
+  walnutpy_interrupt_handler() {
     interrupted = false;
 
     memset(&custom, 0, sizeof(custom));
     sigemptyset(&custom.sa_mask);
     sigaddset(&custom.sa_mask, SIGINT);
     custom.sa_flags = SA_RESETHAND;
-    custom.sa_handler = &walnutpie_interrupt_handler::signal_handler;
+    custom.sa_handler = &walnutpy_interrupt_handler::signal_handler;
     sigaction(SIGINT, &custom, &before);
   }
 
@@ -50,7 +50,7 @@ class walnutpie_interrupt_handler {
    * REPL where `Ctrl+C` is used to interrupt the current command, not terminate
    * the program.
    */
-  virtual ~walnutpie_interrupt_handler() { sigaction(SIGINT, &before, NULL); }
+  virtual ~walnutpy_interrupt_handler() { sigaction(SIGINT, &before, NULL); }
 
   static void signal_handler(int signal) { interrupted = true; }
 
@@ -60,10 +60,10 @@ class walnutpie_interrupt_handler {
 
 #else  // Windows
  public:
-  walnutpie_interrupt_handler() {
+  walnutpy_interrupt_handler() {
     interrupted = false;
 
-    SetConsoleCtrlHandler(walnutpie_interrupt_handler::signal_handler, TRUE);
+    SetConsoleCtrlHandler(walnutpy_interrupt_handler::signal_handler, TRUE);
   }
 
   /**
@@ -71,8 +71,8 @@ class walnutpie_interrupt_handler {
    * REPL where `Ctrl+C` is used to interrupt the current command, not terminate
    * the program.
    */
-  virtual ~walnutpie_interrupt_handler() {
-    SetConsoleCtrlHandler(walnutpie_interrupt_handler::signal_handler, FALSE);
+  virtual ~walnutpy_interrupt_handler() {
+    SetConsoleCtrlHandler(walnutpy_interrupt_handler::signal_handler, FALSE);
   }
 
   static BOOL WINAPI signal_handler(DWORD type) {
@@ -90,17 +90,17 @@ class walnutpie_interrupt_handler {
  public:
   void throw_if_interrupted() const {
     if (interrupted) {
-      throw walnutpie::error::interrupt_exception();
+      throw walnutpy::error::interrupt_exception();
     }
   }
 
-  walnutpie_interrupt_handler(const walnutpie_interrupt_handler&) = delete;
-  walnutpie_interrupt_handler(walnutpie_interrupt_handler&&) = delete;
-  walnutpie_interrupt_handler operator=(const walnutpie_interrupt_handler&) =
+  walnutpy_interrupt_handler(const walnutpy_interrupt_handler&) = delete;
+  walnutpy_interrupt_handler(walnutpy_interrupt_handler&&) = delete;
+  walnutpy_interrupt_handler operator=(const walnutpy_interrupt_handler&) =
       delete;
-  walnutpie_interrupt_handler operator=(walnutpie_interrupt_handler&&) = delete;
+  walnutpy_interrupt_handler operator=(walnutpy_interrupt_handler&&) = delete;
 };
 
 }  // namespace interrupt
-}  // namespace walnutpie
+}  // namespace walnutpy
 #endif

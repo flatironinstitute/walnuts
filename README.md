@@ -1,4 +1,4 @@
-# `walnutpie`: Adaptive WALNUTS in C++
+# `walnutpie`: Adaptive WALNUTS in Python and C++
 
 This is a C++ implementation and Python wrapper of the following [Hamiltonian Monte
 Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
@@ -22,7 +22,7 @@ For more information, consult [the documentation](https://flatironinstitute.gith
 
 ## Using walnutpie in a C++ project
 
-This library is header-only and only requires
+The `walnutpie` library is header-only and only requires
 [Eigen](https://gitlab.com/libeigen/eigen) (also header-only) to use.
 
 If your project uses CMake, you can depend on our

@@ -76,7 +76,7 @@ static void summarize(const std::vector<Eigen::VectorXd>& draws) {
 
 template <typename F>
 static void run_adaptive_walnuts(F& target_logp_grad) {
-  std::cout << "\nRUN ADAPTIVE WALNUTS" << std::endl;
+  std::cout << "\nRun adaptive Walnuts" << std::endl;
 
   unsigned int seed = 876254;
   std::mt19937 rng(seed);

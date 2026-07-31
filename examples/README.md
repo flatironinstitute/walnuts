@@ -8,7 +8,7 @@ these examples.
 ## Stan CLI
 
 Building `examples/stan_cli` creates a command-line interface to
-adaptive WALNUTS. The interface uses
+adaptive Walnuts. The interface uses
 [BridgeStan](github.com/roualdes/bridgestan) to access Stan models. To run,
 compile a Stan model into a shared object (`.so` file) using BridgeStan to
 supply as the `model` argument to `stan_cli`. The `data` argument should be in
@@ -37,7 +37,7 @@ OPTIONS:
   --samples UINT:POSITIVE [128]
                       Number of samples to draw
   --max-depth UINT:POSITIVE [10]
-                      Maximum depth for NUTS trajectory doublings
+                      Maximum depth for Nuts trajectory doublings
   --max-step-depth UINT:POSITIVE [8]
                       Maximum depth for the step size adaptation
   --min-micro-steps UINT:POSITIVE [1]

@@ -267,7 +267,7 @@ double leapfrog_error(const F& logp_grad, const Eigen::VectorXd& theta,
  * to double the step size.   Then until the Metropolis accept
  * rate is above 0.6, it continues to divide it by sqrt(2).
  * This is a slightly more fine-grained version of the heuristic
- * step size initialization used by NUTS.
+ * step size initialization used by Nuts.
  *
  * There is no error testing here for consistency because this
  * function is called from a controlled setting.

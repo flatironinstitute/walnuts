@@ -5,13 +5,13 @@
 ``walnutpie`` is a Python package for Markov chain Monte Carlo
 (MCMC) sampling of differentiable target log densities.
 
-- ``walnutpie`` includes adapters for models coded in Stan, PyMC,
-  NumPyro, JAX, Numba, or models may be coded directly in Python.
+- ``walnutpie`` can run models coded in Stan, PyMC, NumPyro, JAX,
+  Numba, as well as models coded directly in Python.
 
-- The underlying sampler is `WALNUTS
+- The underlying sampler is `Walnuts
   <https://www.jmlr.org/beta/papers/v27/25-1452.html>`__, which adds
   dynamic step-size adaptation to the `no-U-turn sampler
-  <https://jmlr.org/beta/papers/v15/hoffman14a.html>`__ (NUTS), which in turn is
+  <https://jmlr.org/beta/papers/v15/hoffman14a.html>`__ (Nuts), which in turn is
   based on `Hamiltonian Monte Carlo <https://arxiv.org/abs/1206.1901>`__ (HMC).
 
 - The mass matrix and step-size adaptation scheme use an online

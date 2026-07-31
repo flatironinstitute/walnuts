@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
         ->default_val(save_warmup);
 
     app.add_option("--max-trajectory-doublings", max_trajectory_doublings,
-                   "Maximum depth for NUTS trajectory doublings")
+                   "Maximum depth for Nuts trajectory doublings")
         ->default_val(max_trajectory_doublings)
         ->check(CLI::PositiveNumber);
 

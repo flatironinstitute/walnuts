@@ -21,7 +21,7 @@ namespace walnutpie::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
- * trajectory required for WALNUTS.
+ * trajectory required for Walnuts.
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
@@ -453,7 +453,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
- * @param[in] depth The maximum NUTS depth.
+ * @param[in] depth The maximum Nuts depth.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum error allowed at macro steps.
@@ -506,7 +506,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
  * @param[in] step The macro step size.
- * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
+ * @param[in] max_depth The maximum number of trajectory doublings in Nuts.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum difference in Hamiltonians.
@@ -591,7 +591,7 @@ class NoOpStepSizeAdapter {
 namespace walnutpie {
 
 /**
- * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
+ * @brief The Walnuts Markov chain Monte Carlo (MCMC) sampler.
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initialization, and several tuning parameters.
@@ -606,7 +606,7 @@ template <LogpGrad F, std::uniform_random_bit_generator RNG, SampleHandler H>
 class WalnutsSampler {
  public:
   /**
-   * @brief Construct a WALNUTS sampler from the specified RNG, target log
+   * @brief Construct a Walnuts sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
    * @param[in,out] rng The base random number generator.
@@ -617,7 +617,7 @@ class WalnutsSampler {
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param[in] macro_time The macro time discretization interval.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
-   * NUTS.
+   * Nuts.
    * @param[in] max_step_halvings The maximum number of times the step size is
    * halved.
    * @param[in] min_micro_steps The minimum number of micro steps per macro
@@ -749,7 +749,7 @@ class WalnutsSampler {
   /** The macro time discretization interval for Nuts. */
   const double macro_time_;
 
-  /** The maximum number of doublings in NUTS trajectories. */
+  /** The maximum number of doublings in Nuts trajectories. */
   const std::size_t max_nuts_depth_;
 
   /** The maximum number of halvings of the step size. */

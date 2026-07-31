@@ -1,10 +1,10 @@
-# `walnutpie`: Adaptive WALNUTS in Python and C++
+# `walnutpie`: Adaptive Walnuts in Python and C++
 
 This is a C++ implementation and Python wrapper of the following [Hamiltonian Monte
 Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
 
-* [WALNUTS](https://arxiv.org/abs/2506.18746)
-* Adaptive WALNUTS (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
+* [Walnuts](https://arxiv.org/abs/2506.18746)
+* Adaptive Walnuts (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
 
 ## Documentation
 

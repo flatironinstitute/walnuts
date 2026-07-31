@@ -15,7 +15,7 @@ This function will spawn threads to perform end-to-end sampling
 Iterator-style samplers
 _______________________
 
-These classes implement WALNUTS in an iteration-per-call style iterator.
+These classes implement Walnuts in an iteration-per-call style iterator.
 
 .. doxygenclass:: walnutpie::WalnutsSampler
    :members:
@@ -25,7 +25,7 @@ These classes implement WALNUTS in an iteration-per-call style iterator.
 Configuration
 -------------
 
-The following classes (and their builders) are used to configure WALNUTS
+The following classes (and their builders) are used to configure Walnuts.
 
 .. doxygenclass:: walnutpie::WalnutsConfig
    :members:

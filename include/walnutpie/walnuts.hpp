@@ -21,7 +21,7 @@ namespace walnutpie::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
- * trajectory required for WALNUTPIE.
+ * trajectory required for WALNUTS.
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)

@@ -46,7 +46,7 @@ The following classes (and their builders) are used to configure WALNUTS
 Concepts
 --------
 
-The following concepts describe the types expected by WALNUTPIE.
+The following concepts describe the types expected by `walnutpie`.
 
 .. doxygenconcept:: walnutpie::LogpGrad
 .. doxygenconcept:: walnutpie::ErrorCallback

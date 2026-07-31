@@ -1,5 +1,5 @@
-#ifndef WALNUTPIE_INTERRUPT_HPP
-#define WALNUTPIE_INTERRUPT_HPP
+#ifndef WALNUTPY_INTERRUPT_HPP
+#define WALNUTPY_INTERRUPT_HPP
 
 #include <csignal>
 #include <cstring>
@@ -32,7 +32,7 @@ static volatile std::sig_atomic_t interrupted = false;
  * removed, restoring the previous handler if one existed.
  */
 class walnutpy_interrupt_handler {
-#if !WALNUTPIE_ON_WINDOWS  // POSIX signals
+#if !WALNUTPY_ON_WINDOWS  // POSIX signals
  public:
   walnutpy_interrupt_handler() {
     interrupted = false;

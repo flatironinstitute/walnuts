@@ -8,7 +8,7 @@ import stanio
 from ._ffi import (
     _ffi_sample_bridgestan,
     bs_print_callback_type,
-    WALNUTPIE_SEP,
+    WALNUTPY_SEP,
     print_callback,
 )
 from .util import WarmupInfo, rand_u32
@@ -160,7 +160,7 @@ def _encode_stan_inits(inits, chains, seed) -> Union[bytes, None]:
             inits = inits.create_inits(chains=chains, seed=seed)
 
         if isinstance(inits, list):
-            inits_encoded = WALNUTPIE_SEP.join(encode_stan_json(init) for init in inits)
+            inits_encoded = WALNUTPY_SEP.join(encode_stan_json(init) for init in inits)
         else:
             inits_encoded = encode_stan_json(inits)
     return inits_encoded

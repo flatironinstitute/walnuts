@@ -65,7 +65,7 @@ def assert_draws_match(fit1, fit2):
 def test_seed_works():
     # turn off dynamic warmup
     warmup_length = 400
-    fit1 = walnutpie.walnuts_stan(
+    fit1 = wp.walnuts_stan(
         model,
         seed=1234,
         min_warmup_iter=warmup_length,
@@ -73,7 +73,7 @@ def test_seed_works():
         save_warmup=True,
         save_inv_metric=True,
     )
-    fit2 = walnutpie.walnuts_stan(
+    fit2 = wp.walnuts_stan(
         model,
         seed=1234,
         min_warmup_iter=warmup_length,
@@ -85,7 +85,7 @@ def test_seed_works():
     # check that draws agree with the same seed
     assert_draws_match(fit1, fit2)
 
-    fit3 = walnutpie.walnuts_stan(
+    fit3 = wp.walnuts_stan(
         model,
         seed=452,
         min_warmup_iter=warmup_length,

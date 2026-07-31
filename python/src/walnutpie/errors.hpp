@@ -1,5 +1,5 @@
-#ifndef WALNUTPIE_ERRORS_HPP
-#define WALNUTPIE_ERRORS_HPP
+#ifndef WALNUTPY_ERRORS_HPP
+#define WALNUTPY_ERRORS_HPP
 
 #include <cstdlib>
 #include <mutex>

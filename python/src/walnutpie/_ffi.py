@@ -254,4 +254,4 @@ _ffi_mcse.argtypes = _common_summary_argtypes
 _get_separator = _lib.walnutpie_separator_char
 _get_separator.restype = ctypes.c_char
 _get_separator.argtypes = []
-WALNUTPIE_SEP = _get_separator()
+WALNUTPY_SEP = _get_separator()

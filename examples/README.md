@@ -8,16 +8,11 @@ these examples.
 ## Stan CLI
 
 Building `examples/stan_cli` creates a command-line interface to
-adaptive WALNUTPIE.  The interface uses
+adaptive WALNUTS. The interface uses
 [BridgeStan](github.com/roualdes/bridgestan) to access Stan models. To run,
-compile a Stan model into a shared object (`.so` file) using BridgeStan
-(available in R, Python, Julia, Rust, and C) to supply as the `model` argument
-to `stan_cli`. The `data` argument should be in the usual Stan JSON data format.
-
-The mass adaptation follows a continuous form of Nutpie.  The step
-size adaptation uses the Adam stochastic gradient descent (SGD)
-optimizer in the same way NUTS and Nutpie use dual averaging SGD.
-
+compile a Stan model into a shared object (`.so` file) using BridgeStan to
+supply as the `model` argument to `stan_cli`. The `data` argument should be in
+the usual Stan JSON data format.
 
 The command-line options can be retrieved with the `--help` option.
 

@@ -187,8 +187,9 @@ class InitConfig {
 /**
  * @brief The builder for initialization configurations.
  *
- * The usage to return an `InitChainConfig` is `InitConfigBuilder(4,
- * 20).step_sizes(0.5).build();` with any number of config methods
+ * The usage to return an `InitConfig` is
+ * `InitConfigBuilder(4, 20).step_sizes(0.5).build();`
+ * with any number of config methods
  * chained between the construction and call to build.
  */
 class InitConfigBuilder {
@@ -1096,7 +1097,7 @@ class WalnutsConfig {
   WalnutsConfig(InitConfig init, WarmupConfig warmup, SamplingConfig sampling)
       : init_(std::move(init)),
         warmup_(std::move(warmup)),
-        sampling_(std::move(sampling)){};
+        sampling_(std::move(sampling)) {};
 
   /**
    * @brief Return the initialization configuration.

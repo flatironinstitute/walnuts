@@ -253,9 +253,6 @@ concept ChainHandler =
  * to evaluate, and the second and third are output parameters set to the
  * log density and its gradient, respectively.
  *
- * The callable is permitted to throw exceptions; see `ExceptionFreeLogpGrad`
- * for the noexcept variant.
- *
  * @tparam F The callable type to constrain.
  */
 template <typename F>

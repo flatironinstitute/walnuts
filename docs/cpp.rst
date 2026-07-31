@@ -49,7 +49,8 @@ Concepts
 The following concepts describe the types expected by WALNUTPIE.
 
 .. doxygenconcept:: walnutpie::LogpGrad
-.. doxygenconcept:: walnutpie::ChainHandler
+.. doxygenconcept:: walnutpie::ErrorCallback
 .. doxygenconcept:: walnutpie::SampleHandler
+.. doxygenconcept:: walnutpie::ChainHandler
 .. doxygenconcept:: walnutpie::GlobalHandler
 .. doxygenconcept:: walnutpie::InterruptCallback

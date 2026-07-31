@@ -108,8 +108,9 @@ def walnuts_pyfunc(
     init_radius : float, optional
         The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
-        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed (unconstrained)
-        dimension, by default ``None``
+        The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed
+        (unconstrained) dimension, or ``None``, in which case the mass matrix is initialized with a smoothed
+        negative outer product of gradients at the initial position, by default ``None``
     save_inv_metric : bool, optional
         Set to ``True`` to save the inverse metric after adaptation, by default ``False``
     min_warmup_iter : int, optional

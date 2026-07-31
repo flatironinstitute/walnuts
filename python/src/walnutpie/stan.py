@@ -209,8 +209,8 @@ def walnuts_stan(
     refresh: int = 0,
 ) -> list[StanOutput]:
     """
-    Sample from the specified Stan model using the specified
-    configuration.
+    Sample from the specified `Stan <https://mc-stan.org/>`__ model
+    using the specified configuration.
 
     Parameters
     ----------
@@ -232,7 +232,8 @@ def walnuts_stan(
         The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default 2.0
     init_inv_metric : Optional[np.ndarray], optional
         The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed
-        (unconstrained) dimension, by default ``None`` # TODO describe what gets used in the None case
+        (unconstrained) dimension, or ``None``, in which case the mass matrix is initialized with a smoothed
+        negative outer product of gradients at the initial position, by default ``None``
     save_inv_metric : bool, optional
         Set to ``True`` to save the inverse metric after adaptation, by default ``False``
     min_warmup_iter : int, optional

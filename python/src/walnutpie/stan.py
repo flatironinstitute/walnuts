@@ -56,7 +56,7 @@ class StanOutputBase:
         Parameters
         ----------
         key : str
-            name of the parameter to extract
+            The name of the parameter to extract.
 
         Returns
         -------
@@ -113,7 +113,7 @@ class StanOutput(StanOutputBase):
         Parameters
         ----------
         chains : int, optional
-            Number of chains needed, by default 4
+            The number of chains needed, by default 4
         seed : Optional[int], optional
             The seed to use for the random number generator.
             If not provided, a random seed will be generated.

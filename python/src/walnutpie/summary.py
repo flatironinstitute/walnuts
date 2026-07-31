@@ -32,7 +32,7 @@ class Summarizer:
         self._lengths = np.array([c.shape[0] for c in draws], dtype=np.int32)
         self._num_chains = len(draws)
 
-    # I don't think any of these really need FFI?
+    # Implement the simple functions directly in Python rather than with ffi       
     def mean(self):
         """
         Compute the arithmetic mean of sampled variables across all draws.

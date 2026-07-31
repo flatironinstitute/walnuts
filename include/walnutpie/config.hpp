@@ -956,9 +956,13 @@ class SamplingConfig {
 /**
  * @brief The builder for sampling configurations.
  *
- * An example use would be
- * `SampleConfigBuilder(50u,
- * 100u).max_step_halvings(4u).min_micro_steps(2u).build()`.
+ * An example use would be:
+ * @code
+ * SampleConfigBuilder(50u, 100u)
+ *     .max_step_halvings(4u)
+ *     .min_micro_steps(2u)
+ *     .build();
+ * @endcode
  */
 class SamplingConfigBuilder {
  public:

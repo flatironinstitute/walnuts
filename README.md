@@ -1,11 +1,39 @@
-# Adaptive WALNUTS in C++
+# `walnutpie`: Adaptive Walnuts in Python and C++
 
-This is a C++ implementation of the following three [Hamiltonian Monte
+This is a C++ implementation and Python wrapper of the following [Hamiltonian Monte
 Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
 
-* [NUTS](https://www.jmlr.org/papers/volume15/hoffman14a/hoffman14a.pdf)
-* [WALNUTS](https://arxiv.org/abs/2506.18746)
-* Adaptive WALNUTS (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
+* [Walnuts](https://arxiv.org/abs/2506.18746)
+* Adaptive Walnuts (continuous form of [Nutpie](https://github.com/pymc-devs/nutpie)-style adaptation)
+
+## Documentation
+
+Documentation for `walnutpie` can be found on [Github Pages](https://flatironinstitute.github.io/walnuts/latest/).
+
+## Using walnutpie from Python
+
+`walnutpie` is distributed on PyPI and can be installed with
+
+```bash
+pip install walnutpie
+```
+
+For more information, consult [the documentation](https://flatironinstitute.github.io/walnuts/latest/install.html).
+
+## Using walnutpie in a C++ project
+
+The `walnutpie` library is header-only and only requires
+[Eigen](https://gitlab.com/libeigen/eigen) (also header-only) to use.
+
+If your project uses CMake, you can depend on our
+`walnutpie` library target. If not, any method of adding the `include/`
+folder of this repository to your build system's include paths should suffice
+as long as you also provide Eigen yourself. See the [examples/
+directory](./examples/) for more on usage.
+
+## For developers
+
+Interested in editing the code or contributing to `walnutpie`? Consult [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Licensing
 
@@ -13,297 +41,3 @@ The project is distributed under the following licenses.
 
 * Code: [MIT License](https://opensource.org/license/mit)
 * Documentation: [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.en)
-
-
-## Command Line Interface (CLI)
-
-Building `examples/stan_cli` creates a command-line interface to
-adaptive WALNUTS.  The interface uses BridgeStan to access Stan
-models.  To run, compile a Stan model into a shared object (`.so`
-file) using BridgeStan (available in R, Python, Julia, Rust, and C) to
-supply as the `model` argument to `stan_cli`.  The `data` argument
-should be in the usual Stan JSON data format.
-
-The mass adaptation follows a continuous form of Nutpie.  The step
-size adaptation uses the Adam stochastic gradient descent (SGD)
-optimizer in the same way NUTS and Nutpie use dual averaging SGD.
-
-The plan going forward is to provide wrappers along the lines of
-[TinyStan](https://github.com/WardBrian/tinystan) and
-[Nutpie](https://github.com/pymc-devs/nutpie).
-
-The command-line options can be retrieved with the `--help` option.
-
-```bash
-:build$ examples/stan_cli --help
-Run WALNUTs on a Stan model 
-
-
-examples/stan_cli [OPTIONS] model [data]
-
-
-POSITIONALS:
-  model TEXT:FILE REQUIRED    Path to the Stan model library (.so from CmdStan{,Py,R}) 
-  data TEXT:FILE              Path to the Stan model data (.json, optional) 
-
-OPTIONS:
-  --help              Print this help message and exit 
-  --seed UINT [29294659]  
-                      Random seed (default randomize with clock) 
-  --warmup UINT:NONNEGATIVE [128]  
-                      Number of warmup iterations 
-  --samples UINT:POSITIVE [128]  
-                      Number of samples to draw 
-  --max-depth UINT:POSITIVE [10]  
-                      Maximum depth for NUTS trajectory doublings 
-  --max-step-depth UINT:POSITIVE [8]  
-                      Maximum depth for the step size adaptation 
-  --min-micro-steps UINT:POSITIVE [1]  
-                      Minimum micro steps per macro step 
-  --max-error FLOAT:POSITIVE [0.5]  
-                      Maximum error allowed in joint densities 
-  --init FLOAT:NONNEGATIVE [2]  
-                      Range [-init,init] for uniform parameter initial values 
-  --mass-init-count FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]  
-                      Initial count for the mass matrix adaptation 
-  --mass-iteration-offset FLOAT:FLOAT in [1 - 1.79769e+308] [1.1]  
-                      Offset for the mass matrix adaptation iterations 
-  --mass-additive-smoothing FLOAT:POSITIVE [1e-05]  
-                      Additive smoothing for the mass matrix adaptation 
-  --step-size-init FLOAT:POSITIVE [1]  
-                      Initial step size for the step size adaptation 
-  --step-accept-rate-target FLOAT:FLOAT in [2.22507e-308 - 1] [0.8]  
-                      Target acceptance rate for the step size adaptation 
-  --step-learning-rate FLOAT:POSITIVE [0.2]  
-                      Learning rates for step adaptation 
-  --step-beta1 FLOAT:FLOAT in [2.22507e-308 - 1] [0.3]  
-                      Decay rate of gradient moving average for step adaptation 
-  --step-beta2 FLOAT:FLOAT in [2.22507e-308 - 1] [0.99]  
-                      Decay rate of squared gradient moving average for step adaptation 
-  --step-epsilon FLOAT:POSITIVE [0.0001]  
-                      Update stabilization term for step size adaptation 
-  --output TEXT:PATH(non-existing) 
-                      Output file for the draws 
-```
-
-The documentation automatically generated by `CLI11` library we use to
-parse the command line is literal about instantiated constraints and
-defaults.  Even though the default `seed` changes each iteration, the
-documentation suggests the seed is constant.  In the bounds on
-`double` values, rounded scientific notation is used rather than
-providing the semantic constraint that the value must fall in the open
-interval (0, 1).
-
-## Dependencies
-
-The dependencies may all be downloaded through CMake (see the next
-section).
-
-### Required build dependencies
-
-* [Eigen C++ template library for linear algebra](https://eigen.tuxfamily.org/index.php?title=Main_Page)
-([MPLv2 licensed](https://www.mozilla.org/en-US/MPL/2.0/))
-
-### Required test dependencies
-
-* [Google test](https://github.com/google/googletest) ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause))
-
-### Required documentation dependencies
-
-* [Doxygen](https://www.doxygen.nl/#google_vignette) ([GPLv1 licensed](https://www.gnu.org/licenses/old-licenses/gpl-1.0.html))
-
-### Optional build dependences
-
-Running Stan models requires the BridgeStan interface.  See the BridgeStan documentation for more
-information on its dependencies.
-
-* [BridgeStan](https://github.com/roualdes/bridgestan)  ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause))
-
-## Command-line tool dependency
-
-The command-line interface is built using the following library.
-
-* [CLI11](https://github.com/CLIUtils/CLI11)  ([BSD-3
-licensed](https://opensource.org/license/bsd-3-clause))
-
-## Using WALNUTS in a C++ project
-
-This library is header only and only requires Eigen (also header only)
-to run (additional dependencies are required for testing and documentation).
-If your project uses CMake, you can depend on our
-`walnuts` library target. If not, any method of adding the `include/`
-folder of this repository to your build system's include paths should suffice
-as long as you also provide Eigen yourself.
-
-## Building the examples and tests
-
-CMake is required to build the examples and tests.
-
-### Configuring the build
-
-The basic configuration is to run the following command from the
-top-level `walnuts` directory.
-
-```sh
-cmake <options> <repo_root>
-```
-
-where `<options>` are the CMake options and `<repo_root>` is the root
-directory of the repository (where `CMakeLists.txt` is found).
-
-Some common options are:
-
-- `-B <build_dir>` - Specify the build directory where the build files will be generated. If omitted, the directory you run the command from will be used.
-- `-DCMAKE_BUILD_TYPE=Debug` - Set the build type to Debug.
-- `-DCMAKE_BUILD_TYPE=Release` - Set the build type to Release. 
-- `-DWALNUTS_BUILD_TESTS=ON` - Enable building of the tests (currently on by default).
-- `-DWALNUTS_BUILD_EXAMPLES=ON` - Enable building of the examples (currently on by default).
-- `-DWALNUTS_BUILD_DOCS=ON` - Enable building of the documentation (currently on by default).
-- `-DWALNUTS_USE_MIMALLOC=ON` - Link against the [mimalloc](https://github.com/microsoft/mimalloc), a MIT licensed custom memory allocator which can improve performance.
-- `-DWALNUTS_BUILD_STAN=ON` - Enable the example program which uses Stan via [BridgeStan](github.com/roualdes/bridgestan). 
-- `-DWALNUTS_USE_TSAN=ON` - Turn on the [thread sanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)---only available if building with Clang.
-
-Other options can be found in the CMake help output or [documentation](https://cmake.org/cmake/help/latest/manual/cmake.1.html).
-
-For example, a basic configuration which creates a `./build` directory in the repo
-root can be done with
-
-```sh
-cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release
-```
-
-During development, it's more helpful to build everything in debug mode.
-
-```sh
-cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Debug -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_EXAMPLES=ON -DWALNUTS_BUILD_DOCS=ON -DWALNUTS_USE_TSAN=ON
-```
-
-`cmake` will cache its output configuration. To clear the entire build
-and start from scratch, just delete the automatically generated
-`build` subdirectory.
-
-```sh
-rm -r build
-```
-
-The remaining instructions assume that commands are run from whatever
-directory you specified as the build directory (e.g., `./build` in the above command).
-
-### Building
-
-The easiest way to build the project is with the `cmake --build`
-command. This will build all available executable targets by default.
-
-For example, to build and run the `walnuts_api` example,
-
-```bash
-cd build
-make walnuts_api
-./examples/walnuts_api
-```
-
-
-### Testing
-
-Running the tests is easiest with the `ctest` command distributed with CMake.
-
-```bash
-# assuming you did _not_ specify -DWALNUTS_BUILD_TESTS=OFF earlier...
-cmake --build . --parallel 4
-ctest
-```
-
-To test code doverage during testing, you will have to specify the
-top-level `cmake` call to include `DWALNUTS_COVERAGE=ON` (perhaps
-after `rm -rf build` to remove the build directory and start over).
-
-The steps are to first run the test, directing the summary to the named
-`.profraw` file.
-
-
-```bash
-LLVM_PROFILE_FILE="summary_test.profraw" ./tests/summary_test
-```
-
-Then, (using `xcrun` on a Mac), call `llvm-profdata` to merge the data into a
-`.profdata` file.
-
-```bash
-xcrun llvm-profdata merge -sparse summary_test.profraw -o summary_test.profdata
-```
-
-Next, (also using `xcrun`), convert the generated `.profdata` file into html.
-
-```bash
-xcrun llvm-cov show ./tests/summary_test \
-    -instr-profile=summary_test.profdata \
-    -ignore-filename-regex='_deps|gtest' \
-    -format=html \
-    -output-dir=coverage_html
-```
-
-Finally, inspect the html output.
-	
-```bash
-open coverage_html/index.html	
-```
-
-### Documentation
-
-To build the C++ documentation using Doxygen:
-
-```bash
-cmake --build . --target doc
-```
-
-The root of the generated doc will be found in
-
-* `./html/index.html`.
-
-
-### Include what you use
-
-To run IWYU, 
-
-```sh
-cd walnuts/iwyu
-./run-iwyu.sh examples/walnuts_api.cpp
-```
-
-On Mac OS X, this requires installation of IWYU, which can be done as follows.
-
-```sh
-brew install include-what-you-use
-```
-
-
-## Project overview
-
-The project directory structure is as follows.
-
-```
-walnuts/
-├── CMakeLists.txt
-├── LICENSE
-├── README.md
-├── cmake/
-│   ├── iwyu.imp
-│   ├── run-iwyu.sh
-│   └── tsan-suppressions.txt
-├── docs/
-│   └── refs.bib
-├── examples/
-│   ├── CMakeLists.txt
-│   ├── *.hpp
-│   ├── *.cpp
-├── include/
-│   ├── walnuts.hpp
-│   └── walnuts/
-│       └── *.hpp
-└── tests/
-    ├── CMakeLists.txt
-    ├── *_test.cpp
-
-```

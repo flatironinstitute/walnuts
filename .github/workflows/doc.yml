@@ -1,0 +1,80 @@
+name: walnutpie documentation
+
+on:
+  push:
+    branches:
+      - "main"
+
+  workflow_dispatch: {}
+
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out github
+        uses: actions/checkout@v7
+        with:
+            persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies (python)
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install --upgrade -r docs/requirements.txt
+
+      - name: Install os dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install pandoc doxygen -y
+
+      - name: Install package
+        run: pip install .[stan]
+
+      - name: BridgeStan cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.bridgestan/
+          key: linux-bridgestan-290
+
+      - name: Build docs
+        run: |
+          cd docs/
+          make html
+
+      - name: Check out github
+        uses: actions/checkout@v7
+        with:
+          path: docs/_build/github-docs
+          ref: gh-pages
+          persist-credentials: true
+
+      - name: Commit html docs
+        run: |
+          cd docs/_build/
+
+          ls
+
+          rm -rf github-docs/latest
+          cp -r html github-docs/latest
+
+          cd github-docs/
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add .
+          git commit --amend -m "Rebuild docs"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: gh-pages
+          directory: docs/_build/github-docs
+          force: true

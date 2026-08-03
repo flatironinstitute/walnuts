@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * The Adam stochastic gradient optimizer specialized for step-size
@@ -16,18 +16,21 @@ namespace walnuts::detail {
  *
  * This implementation includes a learning rate schedule that divides
  * the specified learning rate by `pow(t, learn_rate_decay)` in
- * iteration `t` (indexed from 1).  The standard version of Adam uses
+ * iteration `t` (indexed from 1). The standard version of Adam uses
  * `learn_decay_rate = 0`, so that the learning rate stays fixed and
  * estimates continue to bounce around with new observations. With
  * stepsize decay, Adam converges as long as `0 < learn_rate_decay <=
  * 1`; Nuts used `learn_rate_decay = 0.75` for dual averaging and
  * `learn_rate_decay=0.5` is a reasonable default for Adam.
  *
- * @see Kingma and Ba (2014; @cite kingma2014adam) for the original
- * Adam algorithm.
+ * See: Kingma, Diederik P and Ba, Jimmy L. 2014. [Adam: A method for
+ * stochastic optimization]. Proceedings of the 3rd International
+ * Conference on Learning Representations (ICLR).
  *
- * @see Zou et al. (2019 @cite zou2019sufficient) for the proof of
- * convergence with step-size decay.
+ * For convergence with step-size decay, see: Zou, Fangyu and Shen, Li
+ * and Jie, Zequn and Zhang, Weizhong and Liu, Wei. 2019. A sufficient
+ * condition for convergences of Adam and RMSProp. Proceedings of the
+ * IEEE/CVF Conference on Computer Vision and Pattern Recognition.
  */
 class Adam {
  public:
@@ -105,4 +108,4 @@ class Adam {
   const double learn_rate_decay_;
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

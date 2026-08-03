@@ -10,13 +10,11 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/util.hpp"
-#include "walnuts/validate.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/util.hpp"
+#include "walnutpie/validate.hpp"
 
-namespace walnuts {
-
-  
+namespace walnutpie {
 
 /**
  * @brief The initialization configuration for a single Markov chain.
@@ -165,7 +163,7 @@ class InitConfig {
    * @brief Construct an initialization configuration.
    *
    * This constructor does not validate arguments because it is only
-   * called internally.  It only implements rvalue moves because that
+   * called internally. It only implements rvalue moves because that
    * is the only way it is called.
    *
    * @param[in] step_sizes The step sizes.
@@ -189,8 +187,9 @@ class InitConfig {
 /**
  * @brief The builder for initialization configurations.
  *
- * The usage to return an `InitChainConfig` is `InitConfigBuilder(4,
- * 20).step_sizes(0.5).build();` with any number of config methods
+ * The usage to return an `InitConfig` is
+ * `InitConfigBuilder(4, 20).step_sizes(0.5).build();`
+ * with any number of config methods
  * chained between the construction and call to build.
  */
 class InitConfigBuilder {
@@ -334,16 +333,21 @@ class InitConfigBuilder {
   /**
    * @brief Initialize the masses using the Nutpie outer product strategy.
    *
-   * Following Nutpie (Seyboldt et al. 2026 @cite seyboldt2025nutpie),
-   * the initialization uses a smoothed negative outer product of
-   * gradient, which is the absolute value of the outer product of
-   * gradients linearly interpolated with a unit matrix with weight
-   * `mass_smoothing` on the unit matrix and `1 - mass_smoothing` on
-   * the regularized outer product.
+   * Following Nutpie, the initialization uses a smoothed negative
+   * outer product of gradient, which is the absolute value of the
+   * outer product of gradients linearly interpolated with a unit
+   * matrix with weight `mass_smoothing` on the unit matrix and `1 -
+   * mass_smoothing` on the regularized outer product.
    *
    * If the flag `average_masses` is `true`, then each chain's mass
    * matrix is set to the geometric average of the per-chain mass
    * matrixes.
+   *
+   * See: Seyboldt, Adrian and Carlson, Eliot and Carpenter,
+   * Bob. 2026. [Preconditioning Hamiltonian Monte Carlo by
+   * minimizing Fisher
+   * divergence](https://arxiv.org/abs/2603.18845v1). arXiv
+   * 2603.18845.
    *
    * @tparam LPG The type of the log density and gradient function.
    * @param[in] logp_grad The log density and gradient function, called back.
@@ -455,7 +459,7 @@ class InitConfigBuilder {
 
   /**
    * @brief Heuristically adapt the initial step sizes, then return
-   * the initialization configuration.  
+   * the initialization configuration.
    *
    * @tparam RNG Type of the base random number generator.
    * @tparam F Type of the log density and gradient function.
@@ -466,7 +470,7 @@ class InitConfigBuilder {
   InitConfig adapt_step_build(RNG& rng, const F& logp_grad) {
     for (std::size_t c = 0; c < num_chains_; ++c) {
       step_sizes_[c] = detail::adapt_step(rng, logp_grad, positions_[c],
-					  masses_[c], step_sizes_[c], dims_);
+                                          masses_[c], step_sizes_[c], dims_);
     }
     return build();
   }
@@ -503,7 +507,7 @@ inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
 }
 
 /**
- * @brief The warmup configuration object.  The object supplies methods
+ * @brief The warmup configuration object. The object supplies methods
  * for all of the tuning parameters for warmup.
  */
 class WarmupConfig {
@@ -913,9 +917,9 @@ class SamplingConfig {
   std::size_t max_step_halvings() const noexcept { return max_step_halvings_; }
 
   /**
-   * @brief Return the maximum error in the Hamiltonian allowed for Walnuts.
+   * @brief Return the maximum error in the Hamiltonian allowed for Walnutpie.
    *
-   * @return The maximum error in the Hamiltonian allowed for Walnuts.
+   * @return The maximum error in the Hamiltonian allowed for Walnutpie.
    */
   double max_hamiltonian_error() const noexcept {
     return max_hamiltonian_error_;
@@ -952,9 +956,13 @@ class SamplingConfig {
 /**
  * @brief The builder for sampling configurations.
  *
- * An example use would be
- * `SampleConfigBuilder(50u,
- * 100u).max_step_halvings(4u).min_micro_steps(2u).build()`.
+ * An example use would be:
+ * @code
+ * SampleConfigBuilder(50u, 100u)
+ *     .max_step_halvings(4u)
+ *     .min_micro_steps(2u)
+ *     .build();
+ * @endcode
  */
 class SamplingConfigBuilder {
  public:
@@ -1000,9 +1008,9 @@ class SamplingConfigBuilder {
   }
 
   /**
-   * @brief Set the maximum error in the Hamiltonian for Walnuts.
+   * @brief Set the maximum error in the Hamiltonian for Walnutpie.
    *
-   * @param[in] v The maximum error in the Hamiltonian for Walnuts.
+   * @param[in] v The maximum error in the Hamiltonian for Walnutpie.
    * @return A reference to this builder for chaining.
    * @throw std::invalid_argument If the error is not finite and positive.
    */
@@ -1073,7 +1081,7 @@ inline std::ostream& operator<<(std::ostream& out, const SamplingConfig& cfg) {
 }
 
 /**
- * @brief Encapsulated configuration for Walnuts.
+ * @brief Encapsulated configuration for Walnutpie.
  *
  * Walnuts configurations include initialization, warmup, and sampling
  * configurations.
@@ -1143,4 +1151,4 @@ inline std::ostream& operator<<(std::ostream& out, const WalnutsConfig& cfg) {
   return out;
 }
 
-}  // namespace walnuts
+}  // namespace walnutpie

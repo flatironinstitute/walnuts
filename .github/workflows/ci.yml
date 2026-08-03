@@ -1,4 +1,4 @@
-name: walnuts tests
+name: walnutpie c++
 
 on:
   push:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
+    name: Build and test (${{matrix.cfg.os}}/${{matrix.cfg.compiler}})
     runs-on: ${{matrix.cfg.os}}-${{matrix.cfg.version || 'latest'}}
     strategy:
       fail-fast: false
@@ -35,10 +35,10 @@ jobs:
 
     steps:
       - name: Check out github
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Dependency caching
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: deps-cache
         with:
           path: ./build/_deps/
@@ -53,14 +53,14 @@ jobs:
 
       - name: Build
         run: |
-          cmake -S . -B build/ -G Ninja -DWALNUTS_BUILD_TESTS=ON -DWALNUTS_BUILD_STAN=ON -DWALNUTS_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B build/ -G Ninja -DWALNUTPIE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build/ --parallel 4 --config RelWithDebInfo
 
       - name: Run examples
         run: |
           cd build/
           ls -lha examples/
-          ./examples/walnuts_api${{ matrix.cfg.os == 'windows' && '.exe' || '' }}
+          ./examples/walnutpie_api${{ matrix.cfg.os == 'windows' && '.exe' || '' }}
         shell: bash
 
       - name: Test

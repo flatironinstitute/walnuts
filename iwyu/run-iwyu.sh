@@ -16,7 +16,7 @@ fi
 # Build --check_also flags for all project headers, excluding umbrella
 CHECK_ALSO=()
 while IFS= read -r hpp; do
-  if [[ "$hpp" != *"include/walnuts.hpp" ]]; then
+  if [[ "$hpp" != *"include/walnutpie.hpp" ]]; then
     CHECK_ALSO+=(-Xiwyu --check_also="$hpp")
   fi
 done < <(find "$PROJECT_ROOT/include" -name '*.hpp')

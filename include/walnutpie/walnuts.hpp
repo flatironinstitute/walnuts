@@ -13,19 +13,19 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
-#include "walnuts/util.hpp"
-#include "walnuts/validate.hpp"
+#include "walnutpie/concepts.hpp"
+#include "walnutpie/util.hpp"
+#include "walnutpie/validate.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief A class for holding the minimal information in a Hamiltonian
- * trajectory required for WALNUTS.
+ * trajectory required for Walnuts.
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
- * gradient of target log density.  It also holds a selected state,
+ * gradient of target log density. It also holds a selected state,
  * the gradient of the selected state, and the log of the sum of all
  * joint densities on the trajectory. The gradients could be recomputed,
  * but storing them serves as a local cache.
@@ -134,13 +134,13 @@ class SpanW {
  * @brief Return a tuple of the arguments ordered by direction.
 
  * The arguments are forwarded as is the returned tuple and returned
- * by reference, so function arguments must stay in scope.  If the
+ * by reference, so function arguments must stay in scope. If the
  * template argument `D` is `Direction::Forward`, then the tuple is
  * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
  * `(x2, x1)`.
  *
  * The template parameter `T` is generic in order to allow reference
- * collapsing in callers.  Working through all of the types and forwarding
+ * collapsing in callers. Working through all of the types and forwarding
  * here, the type of the return
  *
  * @tparam D The `Direction` in which to combine the arguments
@@ -390,14 +390,14 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @brief Extend the specified span with a span of a single state.
  *
  * Given the specified span and direction `D`, build a new leaf span consisting
- * of a single state.  If `D` is `Forward`, the leaf extends the specified span
- * forward in time; if `Backward, it extends the span backward in time.
+ * of a single state. If `D` is `Forward`, the leaf extends the specified span
+ * forward in time; if `Backward`, it extends the span backward in time.
  *
  * The step-size adaptation handler is called with the acceptance of each
  * macro step attempt.
  *
  * The step size is reduced so that the Hamiltonian is conserved
- * within the specified error.  The mass matrix and macro step size
+ * within the specified error. The mass matrix and macro step size
  * are passed on to the leapfrog algorithm.
  *
  * The result is `std::optional` and will be `std::nullopt` only if the
@@ -453,7 +453,7 @@ static std::optional<SpanW> build_leaf(const F& logp_grad, const SpanW& span,
  * @param[in] logp_grad The log density/gradient function.
  * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
  * @param[in] step The macro step size.
- * @param[in] depth The maximum NUTS depth.
+ * @param[in] depth The maximum Nuts depth.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum error allowed at macro steps.
@@ -506,7 +506,7 @@ static std::optional<SpanW> build_span(Random<RNG>& rng, const F& logp_grad,
  * @param[in] chol_mass The diagonal of the diagonal Cholesky factor of the mass
  * matrix.
  * @param[in] step The macro step size.
- * @param[in] max_depth The maximum number of trajectory doublings in NUTS.
+ * @param[in] max_depth The maximum number of trajectory doublings in Nuts.
  * @param[in] max_step_halvings The maximum number of halvings of the step size.
  * @param[in] min_micro_steps The minimum number of micro steps per macro step.
  * @param[in] max_error The maximum difference in Hamiltonians.
@@ -586,12 +586,12 @@ class NoOpStepSizeAdapter {
   }
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
- * @brief The WALNUTS Markov chain Monte Carlo (MCMC) sampler.
+ * @brief The Walnuts Markov chain Monte Carlo (MCMC) sampler.
  *
  * The sampler is constructed with a base random number generator, a log density
  * and gradient function, an initialization, and several tuning parameters.
@@ -606,7 +606,7 @@ template <LogpGrad F, std::uniform_random_bit_generator RNG, SampleHandler H>
 class WalnutsSampler {
  public:
   /**
-   * @brief Construct a WALNUTS sampler from the specified RNG, target log
+   * @brief Construct a Walnuts sampler from the specified RNG, target log
    * density/gradient initialization, and tuning parameters.
    *
    * @param[in,out] rng The base random number generator.
@@ -617,7 +617,7 @@ class WalnutsSampler {
    * @param[in] inv_mass The diagonal of the diagonal inverse mass matrix.
    * @param[in] macro_time The macro time discretization interval.
    * @param[in] max_nuts_depth The maximum number of trajectory doublings for
-   * NUTS.
+   * Nuts.
    * @param[in] max_step_halvings The maximum number of times the step size is
    * halved.
    * @param[in] min_micro_steps The minimum number of micro steps per macro
@@ -749,7 +749,7 @@ class WalnutsSampler {
   /** The macro time discretization interval for Nuts. */
   const double macro_time_;
 
-  /** The maximum number of doublings in NUTS trajectories. */
+  /** The maximum number of doublings in Nuts trajectories. */
   const std::size_t max_nuts_depth_;
 
   /** The maximum number of halvings of the step size. */
@@ -765,4 +765,4 @@ class WalnutsSampler {
   const detail::NoOpStepSizeAdapter no_op_step_size_adapter_;
 };
 
-}  // namespace walnuts
+}  // namespace walnutpie

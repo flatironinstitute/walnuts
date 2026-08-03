@@ -6,7 +6,7 @@
 
 #include <Eigen/Dense>
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief Concept for a type with a `.size()` member function.
@@ -158,9 +158,9 @@ concept AdaptiveSampler = requires(A& a, const A& ca) {
   { ca.log_mass() } -> std::convertible_to<Eigen::VectorXd>;
 };
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
  * @brief Concept for a handler of cross-chain events.
@@ -169,7 +169,6 @@ namespace walnuts {
  *
  * A type `H` satisfies `Handler` if it provides:
  *  - `on_r_hat(double)` callable on a non-const instance, returning `void`,
- *  - `received_interrupt()` called when sampling or warmup should stop.
  */
 template <typename H>
 concept GlobalHandler = requires(H& h, const H& ch, double r_hat) {
@@ -254,9 +253,6 @@ concept ChainHandler =
  * to evaluate, and the second and third are output parameters set to the
  * log density and its gradient, respectively.
  *
- * The callable is permitted to throw exceptions; see `ExceptionFreeLogpGrad`
- * for the noexcept variant.
- *
  * @tparam F The callable type to constrain.
  */
 template <typename F>
@@ -296,4 +292,4 @@ concept MarkovChainSequence =
       { m.draws(dim_index) } -> std::convertible_to<Eigen::VectorXd>;
     };
 
-}  // namespace walnuts
+}  // namespace walnutpie

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include <walnuts.hpp>
+#include <walnutpie.hpp>
 #include "test_util.hpp"
 
 // MarkovChainsSplit class ******************************************
@@ -31,28 +31,28 @@ std::vector<Eigen::MatrixXd> make_example_chains() {
 
 TEST(MarkovChainsSplit, ConstructorThrowsOnEmptyChains) {
   std::vector<Eigen::MatrixXd> chains;
-  EXPECT_THROW(walnuts::MarkovChainsSplit{chains}, std::invalid_argument);
+  EXPECT_THROW(walnutpie::MarkovChainsSplit{chains}, std::invalid_argument);
 }
 
 TEST(MarkovChainsSplit, ConstructorThrowsOnZeroRowChain) {
   std::vector<Eigen::MatrixXd> chains;
   chains.emplace_back(Eigen::MatrixXd::Zero(2, 3));
   chains.emplace_back(Eigen::MatrixXd(0, 3));
-  EXPECT_THROW(walnuts::MarkovChainsSplit{chains}, std::invalid_argument);
+  EXPECT_THROW(walnutpie::MarkovChainsSplit{chains}, std::invalid_argument);
 }
 
 TEST(MarkovChainsSplit, ConstructorThrowsOnInconsistentNumberOfColumns) {
   std::vector<Eigen::MatrixXd> chains;
   chains.emplace_back(Eigen::MatrixXd::Zero(2, 3));
   chains.emplace_back(Eigen::MatrixXd::Zero(2, 4));
-  EXPECT_THROW(walnuts::MarkovChainsSplit{chains}, std::invalid_argument);
+  EXPECT_THROW(walnutpie::MarkovChainsSplit{chains}, std::invalid_argument);
 }
 
 // accessors
 
 TEST(MarkovChainsSplit, SizeAccessorsReturnExpectedValues) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   EXPECT_EQ(mcs.num_chains(), std::size_t{3});
   EXPECT_EQ(mcs.num_draws(), std::size_t{8});
   EXPECT_EQ(mcs.dims(), std::size_t{2});
@@ -63,7 +63,7 @@ TEST(MarkovChainsSplit, SizeAccessorsReturnExpectedValues) {
 
 TEST(MarkovChainsSplit, ChainViewReturnsCorrectChain) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   for (std::size_t m = 0; m < chains.size(); ++m) {
     Eigen::MatrixXd view = mcs.chain_view(m);
     ASSERT_EQ(view.rows(), chains[m].rows());
@@ -74,7 +74,7 @@ TEST(MarkovChainsSplit, ChainViewReturnsCorrectChain) {
 
 TEST(MarkovChainsSplit, ChainViewThrowsOnOutOfRangeIndex) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   EXPECT_THROW(mcs.chain_view(3), std::out_of_range);
   EXPECT_THROW(mcs.chain_view(99), std::out_of_range);
 }
@@ -83,7 +83,7 @@ TEST(MarkovChainsSplit, ChainViewThrowsOnOutOfRangeIndex) {
 
 TEST(MarkovChainsSplit, DrawsConcatenatesAcrossChains) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
 
   Eigen::VectorXd expected_d0(8);
   expected_d0 << 1, 3, 5, 7, 9, 11, 13, 15;
@@ -101,7 +101,7 @@ TEST(MarkovChainsSplit, DrawsConcatenatesAcrossChains) {
 
 TEST(MarkovChainsSplit, DrawsThrowsOnOutOfRangeDimension) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   EXPECT_THROW(mcs.draws(-1), std::out_of_range);
   EXPECT_THROW(mcs.draws(2), std::out_of_range);
   EXPECT_THROW(mcs.draws(100), std::out_of_range);
@@ -115,7 +115,7 @@ TEST(MarkovChainsSplit, SingleChainSingleDrawSingleDimension) {
   c << 42.0;
   chains.push_back(std::move(c));
 
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   EXPECT_EQ(mcs.num_chains(), std::size_t{1});
   EXPECT_EQ(mcs.num_draws(), std::size_t{1});
   EXPECT_EQ(mcs.dims(), std::size_t{1});
@@ -142,14 +142,14 @@ const std::vector<std::size_t> chain_sizes{2, 3, 3};
 TEST(MarkovChainsUnified, ConstructorThrowsOnChainSizesMismatch) {
   Eigen::MatrixXd draws = make_unified_draws();
   std::vector<std::size_t> wrong_sizes{2, 3, 2};
-  EXPECT_THROW(walnuts::MarkovChainsUnified(draws, wrong_sizes),
+  EXPECT_THROW(walnutpie::MarkovChainsUnified(draws, wrong_sizes),
                std::invalid_argument);
 }
 
 TEST(MarkovChainsUnified, ConstructorThrowsOnChainSizesTooLarge) {
   Eigen::MatrixXd draws = make_unified_draws();
   std::vector<std::size_t> wrong_sizes{2, 3, 4};
-  EXPECT_THROW(walnuts::MarkovChainsUnified(draws, wrong_sizes),
+  EXPECT_THROW(walnutpie::MarkovChainsUnified(draws, wrong_sizes),
                std::invalid_argument);
 }
 
@@ -157,7 +157,7 @@ TEST(MarkovChainsUnified, ConstructorThrowsOnChainSizesTooLarge) {
 
 TEST(MarkovChainsUnified, SizeAccessorsReturnExpectedValues) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   EXPECT_EQ(mcu.num_chains(), std::size_t{3});
   EXPECT_EQ(mcu.num_draws(), std::size_t{8});
   EXPECT_EQ(mcu.dims(), std::size_t{2});
@@ -168,7 +168,7 @@ TEST(MarkovChainsUnified, SizeAccessorsReturnExpectedValues) {
 
 TEST(MarkovChainsUnified, ChainViewReturnsCorrectRows) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
 
   // Expected chain contents match the logical split
   Eigen::MatrixXd expected0(2, 2);
@@ -186,14 +186,14 @@ TEST(MarkovChainsUnified, ChainViewReturnsCorrectRows) {
 
 TEST(MarkovChainsUnified, ChainViewIsAViewNotACopy) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::Ref<const Eigen::MatrixXd> view = mcu.chain_view(0);
   EXPECT_EQ(view.data(), draws.data());  // tests memory sharing
 }
 
 TEST(MarkovChainsUnified, ChainViewThrowsOnOutOfRangeIndex) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   EXPECT_THROW(mcu.chain_view(3), std::out_of_range);
   EXPECT_THROW(mcu.chain_view(99), std::out_of_range);
 }
@@ -202,7 +202,7 @@ TEST(MarkovChainsUnified, ChainViewThrowsOnOutOfRangeIndex) {
 
 TEST(MarkovChainsUnified, DrawsReturnsCorrectColumn) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
 
   Eigen::VectorXd expected_d0(8);
   expected_d0 << 1, 3, 5, 7, 9, 11, 13, 15;
@@ -217,14 +217,14 @@ TEST(MarkovChainsUnified, DrawsReturnsCorrectColumn) {
 
 TEST(MarkovChainsUnified, DrawsIsAViewNotACopy) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::Ref<const Eigen::VectorXd> col = mcu.draws(0);
   EXPECT_EQ(col.data(), draws.col(0).data());  // test memory sharing
 }
 
 TEST(MarkovChainsUnified, DrawsThrowsOnOutOfRangeDimension) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   EXPECT_THROW(mcu.draws(-1), std::out_of_range);
   EXPECT_THROW(mcu.draws(2), std::out_of_range);
   EXPECT_THROW(mcu.draws(100), std::out_of_range);
@@ -235,7 +235,7 @@ TEST(MarkovChainsUnified, DrawsThrowsOnOutOfRangeDimension) {
 TEST(MarkovChainsUnified, SingleChainSingleDrawSingleDimension) {
   Eigen::MatrixXd draws(1, 1);
   draws << 42.0;
-  walnuts::MarkovChainsUnified mcu(draws, {1});
+  walnutpie::MarkovChainsUnified mcu(draws, {1});
   EXPECT_EQ(mcu.num_chains(), std::size_t{1});
   EXPECT_EQ(mcu.num_draws(), std::size_t{1});
   EXPECT_EQ(mcu.dims(), std::size_t{1});
@@ -247,8 +247,8 @@ TEST(MarkovChainsUnified, SingleChainSingleDrawSingleDimension) {
 
 TEST(Mean, MarkovChainsSplitReturnsCorrectMean) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd m = walnuts::mean(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd m = walnutpie::mean(mcs);
   ASSERT_EQ(m.size(), 2);
   EXPECT_DOUBLE_EQ(m(0), 8.0);
   EXPECT_DOUBLE_EQ(m(1), 9.0);
@@ -256,8 +256,8 @@ TEST(Mean, MarkovChainsSplitReturnsCorrectMean) {
 
 TEST(Mean, MarkovChainsUnifiedReturnsCorrectMean) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  Eigen::RowVectorXd m = walnuts::mean(mcu);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::RowVectorXd m = walnutpie::mean(mcu);
   ASSERT_EQ(m.size(), 2);
   EXPECT_DOUBLE_EQ(m(0), 8.0);
   EXPECT_DOUBLE_EQ(m(1), 9.0);
@@ -268,24 +268,24 @@ TEST(Mean, SingleDrawReturnsDrawValue) {
   Eigen::MatrixXd c(1, 1);
   c << 7.5;
   one.push_back(std::move(c));
-  walnuts::MarkovChainsSplit single(one);
-  Eigen::RowVectorXd m = walnuts::mean(single);
+  walnutpie::MarkovChainsSplit single(one);
+  Eigen::RowVectorXd m = walnutpie::mean(single);
   ASSERT_EQ(m.size(), 1);
   EXPECT_DOUBLE_EQ(m(0), 7.5);
 }
 
 TEST(Mean, ResultSizeMatchesDims) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_EQ(static_cast<std::size_t>(walnuts::mean(mcs).size()), mcs.dims());
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(static_cast<std::size_t>(walnutpie::mean(mcs).size()), mcs.dims());
 }
 
 // sample_variance() function ***************************************
 
 TEST(SampleVariance, MarkovChainsSplitReturnsCorrectVariance) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcs);
   ASSERT_EQ(v.size(), 2);
   EXPECT_DOUBLE_EQ(v(0), 24.0);
   EXPECT_DOUBLE_EQ(v(1), 24.0);
@@ -293,8 +293,8 @@ TEST(SampleVariance, MarkovChainsSplitReturnsCorrectVariance) {
 
 TEST(SampleVariance, MarkovChainsUnifiedReturnsCorrectVariance) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcu);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcu);
   ASSERT_EQ(v.size(), 2);
   EXPECT_DOUBLE_EQ(v(0), 24.0);
   EXPECT_DOUBLE_EQ(v(1), 24.0);
@@ -302,16 +302,16 @@ TEST(SampleVariance, MarkovChainsUnifiedReturnsCorrectVariance) {
 
 TEST(SampleVariance, BothTypesAgreeOnSameData) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  expect_near(walnuts::sample_variance(mcs), walnuts::sample_variance(mcu));
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
+  expect_near(walnutpie::sample_variance(mcs), walnutpie::sample_variance(mcu));
 }
 
 TEST(SampleVariance, ResultSizeMatchesDims) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_EQ(static_cast<std::size_t>(walnuts::sample_variance(mcs).size()),
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(static_cast<std::size_t>(walnutpie::sample_variance(mcs).size()),
             mcs.dims());
 }
 
@@ -320,8 +320,8 @@ TEST(SampleVariance, TwoIdenticalDrawsGivesZeroVariance) {
   Eigen::MatrixXd c(2, 2);
   c << 3.0, 7.0, 3.0, 7.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcs);
   ASSERT_EQ(v.size(), 2);
   EXPECT_DOUBLE_EQ(v(0), 0.0);
   EXPECT_DOUBLE_EQ(v(1), 0.0);
@@ -332,8 +332,8 @@ TEST(SampleVariance, TwoDrawsMatchesHandCalculation) {
   Eigen::MatrixXd c(2, 1);
   c << 1.0, 3.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcs);
   ASSERT_EQ(v.size(), 1);
   EXPECT_DOUBLE_EQ(v(0), 2.0);
 }
@@ -344,8 +344,8 @@ TEST(SampleVariance, SingleDrawReturnsNaN) {
   Eigen::MatrixXd c(1, 2);
   c << 5.0, 3.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcs);
   ASSERT_EQ(v.size(), Eigen::Index{2});
   EXPECT_TRUE(std::isnan(v(0)));
   EXPECT_TRUE(std::isnan(v(1)));
@@ -355,8 +355,8 @@ TEST(SampleVariance, SingleDrawReturnsNaN) {
 
 TEST(SampleStandardDeviation, MarkovChainsSplitReturnsCorrectStdDev) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd sd = walnutpie::sample_standard_deviation(mcs);
   ASSERT_EQ(sd.size(), 2);
   EXPECT_DOUBLE_EQ(sd(0), std::sqrt(24.0));
   EXPECT_DOUBLE_EQ(sd(1), std::sqrt(24.0));
@@ -364,8 +364,8 @@ TEST(SampleStandardDeviation, MarkovChainsSplitReturnsCorrectStdDev) {
 
 TEST(SampleStandardDeviation, MarkovChainsUnifiedReturnsCorrectStdDev) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
-  Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcu);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
+  Eigen::RowVectorXd sd = walnutpie::sample_standard_deviation(mcu);
   ASSERT_EQ(sd.size(), 2);
   EXPECT_DOUBLE_EQ(sd(0), std::sqrt(24.0));
   EXPECT_DOUBLE_EQ(sd(1), std::sqrt(24.0));
@@ -373,9 +373,9 @@ TEST(SampleStandardDeviation, MarkovChainsUnifiedReturnsCorrectStdDev) {
 
 TEST(SampleStandardDeviation, IsSquareRootOfSampleVariance) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
-  Eigen::RowVectorXd v = walnuts::sample_variance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd sd = walnutpie::sample_standard_deviation(mcs);
+  Eigen::RowVectorXd v = walnutpie::sample_variance(mcs);
   expect_near(sd.array().square().matrix().eval(), v);
 }
 
@@ -384,8 +384,8 @@ TEST(SampleStandardDeviation, TwoIdenticalDrawsGivesZeroStdDev) {
   Eigen::MatrixXd c(2, 1);
   c << 5.0, 5.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd sd = walnutpie::sample_standard_deviation(mcs);
   ASSERT_EQ(sd.size(), 1);
   EXPECT_DOUBLE_EQ(sd(0), 0.0);
 }
@@ -395,8 +395,8 @@ TEST(SampleStandardDeviation, SingleDrawReturnsNaN) {
   Eigen::MatrixXd c(1, 2);
   c << 5.0, 3.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd v = walnuts::sample_standard_deviation(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd v = walnutpie::sample_standard_deviation(mcs);
   ASSERT_EQ(v.size(), Eigen::Index{2});
   EXPECT_TRUE(std::isnan(v(0)));
   EXPECT_TRUE(std::isnan(v(1)));
@@ -430,79 +430,79 @@ TEST(SampleStandardDeviation, SingleDrawReturnsNaN) {
 
 TEST(Quantiles, ThrowsOnProbBelowZero) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(2);
   probs << -0.1, 0.5;
-  EXPECT_THROW(walnuts::quantiles(mcs, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcs, probs), std::invalid_argument);
 }
 
 TEST(Quantiles, ThrowsOnProbAboveOne) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
 
   Eigen::VectorXd probs(2);
   probs << 0.5, 1.1;
-  EXPECT_THROW(walnuts::quantiles(mcs, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcs, probs), std::invalid_argument);
 
   Eigen::VectorXd probs2(10);
   probs2 << 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5;
-  EXPECT_NO_THROW(walnuts::quantiles(mcs, probs2));
+  EXPECT_NO_THROW(walnutpie::quantiles(mcs, probs2));
 }
 
 TEST(Quantiles, ThrowsOnProbBelowZeroUnified) {
   auto draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
 
   Eigen::VectorXd probs(2);
   probs << -0.1, 0.5;
-  EXPECT_THROW(walnuts::quantiles(mcu, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcu, probs), std::invalid_argument);
 
   Eigen::VectorXd probs2(10);
   probs2 << 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5;
-  EXPECT_NO_THROW(walnuts::quantiles(mcu, probs2));
+  EXPECT_NO_THROW(walnutpie::quantiles(mcu, probs2));
 }
 
 TEST(Quantiles, ThrowsOnProbAboveOneUnified) {
   auto draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::VectorXd probs(2);
   probs << 0.5, 1.1;
-  EXPECT_THROW(walnuts::quantiles(mcu, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcu, probs), std::invalid_argument);
 }
 
 TEST(Quantiles, ThrowsOnNaNProbSplit) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(2);
   probs << 0.5, std::numeric_limits<double>::quiet_NaN();
-  EXPECT_THROW(walnuts::quantiles(mcs, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcs, probs), std::invalid_argument);
 }
 
 TEST(Quantiles, ThrowsOnNaNProbUnified) {
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::VectorXd probs(2);
   probs << 0.5, -0.1;
-  EXPECT_THROW(walnuts::quantiles(mcu, probs), std::invalid_argument);
+  EXPECT_THROW(walnutpie::quantiles(mcu, probs), std::invalid_argument);
 }
 
 // output shape
 
 TEST(Quantiles, EmptyProbsReturnsEmptyMatrix) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(0);
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   EXPECT_EQ(result.rows(), 0);
   EXPECT_EQ(result.cols(), static_cast<Eigen::Index>(mcs.dims()));
 }
 
 TEST(Quantiles, ResultShapeIsProbs_x_Dims) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(3);
   probs << 0.25, 0.5, 0.75;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   EXPECT_EQ(result.rows(), Eigen::Index{3});
   EXPECT_EQ(result.cols(), Eigen::Index{2});
 }
@@ -511,20 +511,20 @@ TEST(Quantiles, ResultShapeIsProbs_x_Dims) {
 
 TEST(Quantiles, ProbZeroReturnsMinimum) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(1);
   probs << 0.0;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   EXPECT_DOUBLE_EQ(result(0, 0), 1.0);
   EXPECT_DOUBLE_EQ(result(0, 1), 2.0);
 }
 
 TEST(Quantiles, ProbOneReturnsMaximum) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(1);
   probs << 1.0;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   EXPECT_DOUBLE_EQ(result(0, 0), 15.0);
   EXPECT_DOUBLE_EQ(result(0, 1), 16.0);
 }
@@ -533,10 +533,10 @@ TEST(Quantiles, ProbOneReturnsMaximum) {
 
 TEST(Quantiles, QuartilesMatchNumpy) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(5);
   probs << 0.0, 0.25, 0.5, 0.75, 1.0;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   Eigen::MatrixXd expected(5, 2);
   expected << 1.0, 2.0, 4.5, 5.5, 8.0, 9.0, 11.5, 12.5, 15.0, 16.0;
   expect_near(result, expected);
@@ -544,10 +544,10 @@ TEST(Quantiles, QuartilesMatchNumpy) {
 
 TEST(Quantiles, InteriorProbsMatchNumpy) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(3);
   probs << 0.1, 0.6, 0.9;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   Eigen::MatrixXd expected(3, 2);
   expected << 2.4, 3.4, 9.4, 10.4, 13.6, 14.6;
   expect_near(result, expected);
@@ -560,10 +560,10 @@ TEST(Quantiles, DocExampleMatchesPseudocode) {
   Eigen::MatrixXd c(4, 1);
   c << 9.0, 11.0, 5.0, 3.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::VectorXd probs(1);
   probs << 0.6;
-  Eigen::MatrixXd result = walnuts::quantiles(mcs, probs);
+  Eigen::MatrixXd result = walnutpie::quantiles(mcs, probs);
   EXPECT_DOUBLE_EQ(result(0, 0), 8.2);
 }
 
@@ -571,12 +571,13 @@ TEST(Quantiles, DocExampleMatchesPseudocode) {
 
 TEST(Quantiles, BothTypesAgreeOnSameData) {
   auto chains = make_example_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::MatrixXd draws = make_unified_draws();
-  walnuts::MarkovChainsUnified mcu(draws, chain_sizes);
+  walnutpie::MarkovChainsUnified mcu(draws, chain_sizes);
   Eigen::VectorXd probs(5);
   probs << 0.0, 0.25, 0.5, 0.75, 1.0;
-  expect_near(walnuts::quantiles(mcs, probs), walnuts::quantiles(mcu, probs));
+  expect_near(walnutpie::quantiles(mcs, probs),
+              walnutpie::quantiles(mcu, probs));
 }
 
 // autocovariance() function ****************************************
@@ -632,8 +633,8 @@ Eigen::MatrixXd autocovariance_direct(const Eigen::MatrixXd& chain) {
 
 TEST(Autocovariance, ResultShapeIsNumDrawsTimesDims) {
   auto chains = make_acov_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::MatrixXd acov = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::MatrixXd acov = walnutpie::autocovariance(mcs);
   EXPECT_EQ(acov.rows(), static_cast<Eigen::Index>(mcs.num_draws()));
   EXPECT_EQ(acov.cols(), static_cast<Eigen::Index>(mcs.dims()));
 }
@@ -642,8 +643,8 @@ TEST(Autocovariance, ResultShapeIsNumDrawsTimesDims) {
 
 TEST(Autocovariance, LagZeroEqualsChainBiasedVariance) {
   auto chains = make_acov_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::MatrixXd acov = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::MatrixXd acov = walnutpie::autocovariance(mcs);
   // chain 0 starts at row 0: biased var of [1,4]=9/4, [2,6]=4
   EXPECT_NEAR(acov(0, 0), 9.0 / 4.0, 1e-10);
   EXPECT_NEAR(acov(0, 1), 4.0, 1e-10);
@@ -659,8 +660,8 @@ TEST(Autocovariance, LagZeroEqualsChainBiasedVariance) {
 
 TEST(Autocovariance, FullResultMatchesReference) {
   auto chains = make_acov_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::MatrixXd acov = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::MatrixXd acov = walnutpie::autocovariance(mcs);
 
   Eigen::MatrixXd expected(8, 2);
   expected << 9.0 / 4.0, 4.0,     // chain 0, lag 0
@@ -679,8 +680,8 @@ TEST(Autocovariance, FullResultMatchesReference) {
 
 TEST(Autocovariance, MatchesDirectComputationPerChain) {
   auto chains = make_acov_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::MatrixXd acov = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::MatrixXd acov = walnutpie::autocovariance(mcs);
   std::vector<Eigen::Index> starts{0, 2, 5};
   std::vector<Eigen::Index> sizes{2, 3, 3};
   for (std::size_t m = 0; m < 3; ++m) {
@@ -696,8 +697,8 @@ TEST(Autocovariance, LoopFftNextGoodSize) {
   Eigen::MatrixXd c(7, 2);
   c << 3.0, 7.0, 1.0, 9.3, 8.8, 3.0, 7.0, 1.0, 9.3, 8.8, 3.0, 7.0, 1.0, 9.3;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  auto x = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  auto x = walnutpie::autocovariance(mcs);
   EXPECT_EQ(7, x.rows());
   EXPECT_EQ(2, x.cols());
 }
@@ -706,11 +707,11 @@ TEST(Autocovariance, LoopFftNextGoodSize) {
 
 TEST(Autocovariance, BothTypesAgreeOnSameData) {
   auto chains = make_acov_chains();
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
   Eigen::MatrixXd draws(8, 2);
   draws << 1, 2, 4, 6, 3, 8, 7, 1, 2, 9, 6, 4, 1, 7, 8, 2;
-  walnuts::MarkovChainsUnified mcu(draws, {2, 3, 3});
-  expect_near(walnuts::autocovariance(mcs), walnuts::autocovariance(mcu));
+  walnutpie::MarkovChainsUnified mcu(draws, {2, 3, 3});
+  expect_near(walnutpie::autocovariance(mcs), walnutpie::autocovariance(mcu));
 }
 
 // single draw chain
@@ -720,8 +721,8 @@ TEST(Autocovariance, SingleDrawChainGivesZero) {
   Eigen::MatrixXd c(1, 2);
   c << 3.0, 7.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::MatrixXd acov = walnuts::autocovariance(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::MatrixXd acov = walnutpie::autocovariance(mcs);
   ASSERT_EQ(acov.rows(), Eigen::Index{1});
   EXPECT_NEAR(acov(0, 0), 0.0, 1e-10);
   EXPECT_NEAR(acov(0, 1), 0.0, 1e-10);
@@ -752,8 +753,8 @@ TEST(RHat, ThrowsOnSingleChainUnified) {
   Eigen::MatrixXd c(4, 2);
   c << 1, 2, 3, 4, 5, 6, 7, 8;
   std::vector<std::size_t> sizes = {4};
-  walnuts::MarkovChainsUnified mcu(c, sizes);
-  EXPECT_THROW(walnuts::r_hat(mcu), std::invalid_argument);
+  walnutpie::MarkovChainsUnified mcu(c, sizes);
+  EXPECT_THROW(walnutpie::r_hat(mcu), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsOnSingleChainSplit) {
@@ -761,8 +762,8 @@ TEST(RHat, ThrowsOnSingleChainSplit) {
   Eigen::MatrixXd c(4, 2);
   c << 1, 2, 3, 4, 5, 6, 7, 8;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnutpie::r_hat(mcs), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsWhenAnyChainHasFewerThanThreeDraws) {
@@ -773,8 +774,8 @@ TEST(RHat, ThrowsWhenAnyChainHasFewerThanThreeDraws) {
   c1 << 7, 8, 9, 10;
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnutpie::r_hat(mcs), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsWhenFirstChainHasFewerThanThreeDraws) {
@@ -785,24 +786,24 @@ TEST(RHat, ThrowsWhenFirstChainHasFewerThanThreeDraws) {
   c1 << 5, 6, 7, 8, 9, 10;
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_THROW(walnuts::r_hat(mcs), std::invalid_argument);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnutpie::r_hat(mcs), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsWhenAnyChainHasFewerThanThreeDrawsUnified) {
   Eigen::MatrixXd c(5, 2);
   c << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
   std::vector<std::size_t> sizes{3, 2};
-  walnuts::MarkovChainsUnified mcu(c, sizes);
-  EXPECT_THROW(walnuts::r_hat(mcu), std::invalid_argument);
+  walnutpie::MarkovChainsUnified mcu(c, sizes);
+  EXPECT_THROW(walnutpie::r_hat(mcu), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsWhenAnyChainHasOneChainUnified) {
   Eigen::MatrixXd c(5, 2);
   c << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
   std::vector<std::size_t> sizes{5};
-  walnuts::MarkovChainsUnified mcu(c, sizes);
-  EXPECT_THROW(walnuts::r_hat(mcu), std::invalid_argument);
+  walnutpie::MarkovChainsUnified mcu(c, sizes);
+  EXPECT_THROW(walnutpie::r_hat(mcu), std::invalid_argument);
 }
 
 // output shape
@@ -815,8 +816,8 @@ TEST(RHat, ResultSizeMatchesDims) {
   c1 << 4, 5, 6, 7, 5, 6;
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_EQ(walnuts::r_hat(mcs).size(), Eigen::Index{2});
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(walnutpie::r_hat(mcs).size(), Eigen::Index{2});
 }
 
 // converged chains
@@ -833,8 +834,8 @@ TEST(RHat, ConvergedChainsGiveRHatOfOne) {
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
   chains.push_back(std::move(c2));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnutpie::r_hat(mcs);
   ASSERT_EQ(rhat.size(), Eigen::Index{2});
   EXPECT_DOUBLE_EQ(rhat(0), 1.0);
   EXPECT_DOUBLE_EQ(rhat(1), 1.0);
@@ -853,8 +854,8 @@ TEST(RHat, EqualWithinChainVarianceGivesSqrtTen) {
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
   chains.push_back(std::move(c2));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnutpie::r_hat(mcs);
   ASSERT_EQ(rhat.size(), Eigen::Index{2});
   EXPECT_DOUBLE_EQ(rhat(0), std::sqrt(10.0));
   EXPECT_DOUBLE_EQ(rhat(1), std::sqrt(10.0));
@@ -870,8 +871,8 @@ TEST(RHat, RaggedChainsMatchExactFractionalResult) {
   c1 << 4, 2, 6, 4, 5, 3, 7, 5;
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd rhat = walnuts::r_hat(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd rhat = walnutpie::r_hat(mcs);
   ASSERT_EQ(rhat.size(), Eigen::Index{2});
   EXPECT_DOUBLE_EQ(rhat(0), std::sqrt(1.0 + 147.0 / 32.0));
   EXPECT_DOUBLE_EQ(rhat(1), std::sqrt(1.0 + 3.0 / 32.0));
@@ -890,13 +891,13 @@ TEST(RHat, BothTypesAgreeOnSameData) {
   chains.push_back(c0);
   chains.push_back(c1);
   chains.push_back(c2);
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
 
   Eigen::MatrixXd draws(9, 2);
   draws << 1, 10, 2, 8, 3, 9, 4, 5, 6, 7, 5, 6, 7, 2, 9, 4, 8, 3;
-  walnuts::MarkovChainsUnified mcu(draws, {3, 3, 3});
+  walnutpie::MarkovChainsUnified mcu(draws, {3, 3, 3});
 
-  expect_near(walnuts::r_hat(mcs), walnuts::r_hat(mcu));
+  expect_near(walnutpie::r_hat(mcs), walnutpie::r_hat(mcu));
 }
 
 // effective_sample_size() function *********************************
@@ -1020,16 +1021,16 @@ TEST(EffectiveSampleSize, ThrowsOnFewerThanThreeTotalDraws) {
   Eigen::MatrixXd c(2, 2);
   c << 1.0, 2.0, 3.0, 4.0;
   chains.push_back(std::move(c));
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_THROW(walnuts::effective_sample_size(mcs), std::invalid_argument);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_THROW(walnutpie::effective_sample_size(mcs), std::invalid_argument);
 }
 
 TEST(RHat, ThrowsOnFewerThanThreeTotalDrawsUnified) {
   Eigen::MatrixXd c(2, 2);
   c << 1, 2, 3, 4;
   std::vector<std::size_t> sizes{1, 1};
-  walnuts::MarkovChainsUnified mcu(c, sizes);
-  EXPECT_THROW(walnuts::effective_sample_size(mcu), std::invalid_argument);
+  walnutpie::MarkovChainsUnified mcu(c, sizes);
+  EXPECT_THROW(walnutpie::effective_sample_size(mcu), std::invalid_argument);
 }
 
 // output shape
@@ -1037,8 +1038,8 @@ TEST(RHat, ThrowsOnFewerThanThreeTotalDrawsUnified) {
 TEST(EffectiveSampleSize, ResultSizeMatchesDims) {
   std::vector<Eigen::MatrixXd> chains;
   chains.push_back(make_ar1_chain_0());
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_EQ(walnuts::effective_sample_size(mcs).size(),
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(walnutpie::effective_sample_size(mcs).size(),
             static_cast<Eigen::Index>(mcs.dims()));
 }
 
@@ -1049,8 +1050,8 @@ TEST(EffectiveSampleSize, ResultIsPositive) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   EXPECT_TRUE((ess.array() > 0.0).all());
 }
 
@@ -1059,8 +1060,8 @@ TEST(EffectiveSampleSize, ResultIsPositive) {
 TEST(EffectiveSampleSize, SingleChainMatchesPythonReference) {
   std::vector<Eigen::MatrixXd> chains;
   chains.push_back(make_ar1_chain_0());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   ASSERT_EQ(ess.size(), Eigen::Index{2});
   // AR(1) dim must have substantially lower ESS than iid dim
   EXPECT_GT(ess(0), ess(1));
@@ -1074,8 +1075,8 @@ TEST(EffectiveSampleSize, ThreeChainMatchesPythonReference) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   ASSERT_EQ(ess.size(), Eigen::Index{2});
   EXPECT_NEAR(ess(0), 96.256789181, 1e-5);  // not quite 1e-6 tolerance
   EXPECT_NEAR(ess(1), 7.315045989, 1e-5);
@@ -1088,8 +1089,8 @@ TEST(EffectiveSampleSize, IidDimHasHigherEssThanAr1Dim) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   // AR(1) dim must have substantially lower ESS than iid dim
   EXPECT_GT(ess(0), 5.0 * ess(1));
 }
@@ -1102,14 +1103,14 @@ TEST(EffectiveSampleSize, BothTypesAgreeOnSameData) {
   Eigen::MatrixXd c2 = make_ar1_chain_2();
 
   std::vector<Eigen::MatrixXd> chains{c0, c1, c2};
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
 
   Eigen::MatrixXd draws(60, 2);
   draws << c0, c1, c2;  // Eigen comma-init stacks row blocks
-  walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
+  walnutpie::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
-  expect_near(walnuts::effective_sample_size(mcs),
-              walnuts::effective_sample_size(mcu));
+  expect_near(walnutpie::effective_sample_size(mcs),
+              walnutpie::effective_sample_size(mcu));
 }
 
 // test tau_hat floor at 1/log10(N_total)
@@ -1121,8 +1122,8 @@ TEST(EffectiveSampleSize, FloorPreventsTauHatFromGoingTooSmall) {
   c1 << 10.0, 9.9, 10.1;
   chains.push_back(std::move(c0));
   chains.push_back(std::move(c1));
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   EXPECT_GT(ess(0), 0.0);
   const double N_total = 6.0;
   const double floor_ess = N_total * std::log10(N_total);
@@ -1146,8 +1147,8 @@ TEST(EffectiveSampleSize, FloorPreventsTauHatFromGoingTooSmall) {
 TEST(MonteCarloStandardError, ResultSizeMatchesDims) {
   std::vector<Eigen::MatrixXd> chains;
   chains.push_back(make_ar1_chain_0());
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_EQ(walnuts::monte_carlo_standard_error(mcs).size(),
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_EQ(walnutpie::monte_carlo_standard_error(mcs).size(),
             static_cast<Eigen::Index>(mcs.dims()));
 }
 
@@ -1158,8 +1159,8 @@ TEST(MonteCarloStandardError, ResultIsPositive) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  EXPECT_TRUE((walnuts::monte_carlo_standard_error(mcs).array() > 0.0).all());
+  walnutpie::MarkovChainsSplit mcs(chains);
+  EXPECT_TRUE((walnutpie::monte_carlo_standard_error(mcs).array() > 0.0).all());
 }
 
 // matches definition given pieces
@@ -1169,10 +1170,10 @@ TEST(MonteCarloStandardError, EqualsStdDevOverSqrtEss) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd mcse = walnuts::monte_carlo_standard_error(mcs);
-  Eigen::RowVectorXd sd = walnuts::sample_standard_deviation(mcs);
-  Eigen::RowVectorXd ess = walnuts::effective_sample_size(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd mcse = walnutpie::monte_carlo_standard_error(mcs);
+  Eigen::RowVectorXd sd = walnutpie::sample_standard_deviation(mcs);
+  Eigen::RowVectorXd ess = walnutpie::effective_sample_size(mcs);
   expect_near(mcse, (sd.array() / ess.array().sqrt()).matrix().eval());
 }
 
@@ -1183,8 +1184,8 @@ TEST(MonteCarloStandardError, ThreeChainMatchesPythonReference) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd mcse = walnuts::monte_carlo_standard_error(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd mcse = walnutpie::monte_carlo_standard_error(mcs);
   ASSERT_EQ(mcse.size(), Eigen::Index{2});
   EXPECT_NEAR(mcse(0), 0.096327220756986, 1e-7);  // lowered tolerance
   EXPECT_NEAR(mcse(1), 0.250085871061602, 1e-7);
@@ -1197,8 +1198,8 @@ TEST(MonteCarloStandardError, HighAutocorrelationIncreasesError) {
   chains.push_back(make_ar1_chain_0());
   chains.push_back(make_ar1_chain_1());
   chains.push_back(make_ar1_chain_2());
-  walnuts::MarkovChainsSplit mcs(chains);
-  Eigen::RowVectorXd mcse = walnuts::monte_carlo_standard_error(mcs);
+  walnutpie::MarkovChainsSplit mcs(chains);
+  Eigen::RowVectorXd mcse = walnutpie::monte_carlo_standard_error(mcs);
   // AR(1) larger MCSE than i.i.d.
   EXPECT_GT(mcse(1), 2.0 * mcse(0));
 }
@@ -1210,12 +1211,12 @@ TEST(MonteCarloStandardError, BothTypesAgreeOnSameData) {
   Eigen::MatrixXd c1 = make_ar1_chain_1();
   Eigen::MatrixXd c2 = make_ar1_chain_2();
   std::vector<Eigen::MatrixXd> chains{c0, c1, c2};
-  walnuts::MarkovChainsSplit mcs(chains);
+  walnutpie::MarkovChainsSplit mcs(chains);
 
   Eigen::MatrixXd draws(60, 2);
   draws << c0, c1, c2;
-  walnuts::MarkovChainsUnified mcu(draws, {20, 20, 20});
+  walnutpie::MarkovChainsUnified mcu(draws, {20, 20, 20});
 
-  expect_near(walnuts::monte_carlo_standard_error(mcs),
-              walnuts::monte_carlo_standard_error(mcu));
+  expect_near(walnutpie::monte_carlo_standard_error(mcs),
+              walnutpie::monte_carlo_standard_error(mcu));
 }

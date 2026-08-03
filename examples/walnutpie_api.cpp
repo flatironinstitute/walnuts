@@ -9,7 +9,7 @@
 #include <Eigen/Dense>
 
 // overincludes, but it's what a client would call
-#include <walnuts.hpp>
+#include <walnutpie.hpp>
 #include "handlers.hpp"
 
 double geom_mean_step(const std::vector<ChainStore>& handlers) {
@@ -57,15 +57,15 @@ int main() {
   std::vector<ChainStore> chain_handlers(num_chains);
 
   auto init_cfg =
-      walnuts::InitConfigBuilder(num_chains, dims)
+      walnutpie::InitConfigBuilder(num_chains, dims)
           .step_sizes(100.2)  // test that adapt_step works with absurd init
           .adapt_step_build(rng, logp_grad);
 
   auto warmup_cfg =
-      walnuts::WarmupConfigBuilder().min_max_iter(50, 2000).build();
+      walnutpie::WarmupConfigBuilder().min_max_iter(50, 2000).build();
 
   auto sampling_cfg =
-      walnuts::SamplingConfigBuilder().min_max_iter(50, 1000).build();
+      walnutpie::SamplingConfigBuilder().min_max_iter(50, 1000).build();
 
   // std::cout << init_cfg << "\n\n";  // too verbose with multi-chain
   std::cout << warmup_cfg << "\n\n";
@@ -73,10 +73,10 @@ int main() {
 
   // 2) SAMPLE =================================================================
   // output sent to handlers
-  walnuts::WalnutsConfig config{std::move(init_cfg), std::move(warmup_cfg),
-                                std::move(sampling_cfg)};
-  walnuts::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler,
-                                    interrupt_callback, logp_grad, config);
+  walnutpie::WalnutsConfig config{std::move(init_cfg), std::move(warmup_cfg),
+                                  std::move(sampling_cfg)};
+  walnutpie::walnuts<std::mt19937_64>(seed, chain_handlers, global_handler,
+                                      interrupt_callback, logp_grad, config);
 
   // 3) SUMMARIZE ==============================================================
   std::cout << "ADAPTATION RESULT: " << "\n";

@@ -9,9 +9,9 @@
 
 #include <Eigen/Dense>
 
-#include "walnuts/concepts.hpp"
+#include "walnutpie/concepts.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 /**
  * @brief Validate the standard vector is the specified size.
@@ -286,4 +286,4 @@ inline void validate_probability_inclusive(T x, const std::string& name) {
   throw std::invalid_argument(msg);
 }
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail

@@ -1,0 +1,69 @@
+[build-system]
+requires = [
+    "scikit-build-core >= 1.0",
+]
+
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "walnutpie"
+description = "Walnuts sampling with Nutpie adaptation"
+readme = "python/README.md"
+license = { text = "MIT License" }
+authors = [
+    { name = "Brian Ward", email = "bward@flatironinstitute.org" },
+    { name = "Bob Carpenter", email = "bcarpenter@flatironinstitute.org" },
+]
+requires-python = ">=3.9"
+dependencies = ["numpy"]
+dynamic = ["version"]
+
+[project.urls]
+"Homepage" = "https://github.com/flatironinstitute/walnuts"
+"Bug Tracker" = "https://github.com/flatironinstitute/walnuts/issues"
+
+[project.optional-dependencies]
+stan = ["bridgestan>=2.9.0", "stanio"]
+compiled = ["numba"]
+test = ["pytest", "scipy", "bridgestan"]
+test-fast = ["pytest", "numba", "numba_stats", "bridgestan"]
+
+
+[tool.isort]
+profile = "black"
+
+[tool.scikit-build]
+minimum-version = "1.0"
+cmake.source-dir = "."
+build.targets = ["walnutpy"]
+cmake.args = ["-G Ninja"]
+cmake.define = {"WALNUTPIE_BUILD_EXAMPLES" = "OFF"}
+cmake.build-type = "RelWithDebInfo"
+
+build.verbose = true
+logging.level = "INFO"
+
+sdist.exclude = ["tests/", "examples/", "docs/", "iwyu/", ".github/",
+                 ".gitignore", ".clang-format"]
+wheel.exclude = ["*.cpp", "*.h", "*.hpp"]
+wheel.license-files = ["LICENSE"]
+wheel.packages = ["python/src/walnutpie"]
+# we don't depend on the CPython API
+wheel.py-api = "py3"
+
+# needed for pip install -e to work
+build-dir = "build/{wheel_tag}"
+editable.rebuild = true
+editable.rebuild-dir = "build/{wheel_tag}/re"
+
+[tool.scikit-build.metadata.version]
+# extract version from the source files.
+provider = "scikit_build_core.metadata.regex"
+input = "python/src/walnutpie/__init__.py"
+
+[tool.cibuildwheel]
+test-command = "python -c \"import walnutpie\""
+build-verbosity = 1
+# build 3.10 and latest
+skip = "cp39-* cp311-* cp312-* cp313-*"
+archs = "auto64"

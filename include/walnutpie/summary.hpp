@@ -12,9 +12,9 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/FFT>
 
-#include "walnuts/concepts.hpp"
+#include "walnutpie/concepts.hpp"
 
-namespace walnuts::detail {
+namespace walnutpie::detail {
 
 template <typename Derived>
 inline Eigen::RowVectorXd col_means(const Eigen::MatrixBase<Derived>& draws) {
@@ -104,9 +104,9 @@ inline Eigen::RowVectorXd sample_variance(
   return sample_variance(draws, detail::col_means(draws));
 }
 
-}  // namespace walnuts::detail
+}  // namespace walnutpie::detail
 
-namespace walnuts {
+namespace walnutpie {
 
 /**
  * @brief A sequence of Markov chains of possibly varying lengths
@@ -383,7 +383,7 @@ inline Eigen::RowVectorXd mean(const MC& chains) {
  * The variances are calculated for each variable (i.e., each
  * dimension). The formula divides by the number of draws minus one
  * and thus provides an unbiased estimate of the population variance
- * based on a small sample.  If used to calculate the variance of an
+ * based on a small sample. If used to calculate the variance of an
  * entire population, it will be biased to the high side.
  *
  * If there is only one draw in a chain, this function will return
@@ -409,7 +409,7 @@ inline Eigen::RowVectorXd sample_variance(const MC& chains) {
  *
  * The standard deviations are calculated for each variable (i.e.,
  * each dimension). The formula divides by the number of draws minus
- * one.  Unlike the sample variance estimate, sample standard
+ * one. Unlike the sample variance estimate, sample standard
  * deviations are not unbiased estimates of population standard
  * deviations due to the nonlinearity of the square root operation.
  *
@@ -548,13 +548,13 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * @brief Return the chain-balanced ragged R-hat statistics for the chains.
  *
  * The R-hat statistic weights the within-chain mean and variance of each
- * chain equally, no matter how long they are.  The variance term used from
+ * chain equally, no matter how long they are. The variance term used from
  * R-hat is derived from the Margossian (2025) R-hat estimator.
  *
  * The number of draws per chain may vary, so let `chain[k]` be the
  * `N[k] x D` matrix of draws for chain `k`. The means and variances
- * are taken column-wise as in the `walnuts::mean` and
- * `walnuts::sample_variance` functions. Sample variance divides by
+ * are taken column-wise as in the `walnutpie::mean` and
+ * `walnutpie::sample_variance` functions. Sample variance divides by
  * `(N[k] - 1)` for an unbiased estimate of variance.
  *
  * @code
@@ -564,14 +564,23 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * R-hat = sqrt(1 + sample_variance(mu) ./ mean(sigma_sq))
  * @endcode
  *
- * See Gelman and Rubin (1992 @cite gelman1992inference) for the original
- * definition of R-hat and Margossian (2025 @cite margossian2025nested) for the
- * one used here.
+ * For the original R-hat, see: Gelman, Andrew and Rubin, Donald
+ * B. 1992. [Inference from Iterative Simulation Using Multiple
+ * Sequences](https://projecteuclid.org/journals/statistical-science/volume-7/issue-4/Inference-from-Iterative-Simulation-Using-Multiple-Sequences/10.1214/ss/1177011136.pdf).
+ * Statistical Science.
+ *
+ * For the derivation of the equal length chain basis of the
+ * definition here, see: Margossian, Charles C and Hoffman, Matthew D
+ * and Sountsov, Pavel and Riou-Durand, Lionel and Vehtari, Aki and
+ * Gelman, Andrew. 2025. [Nested R-hat: Assessing the convergence of
+ * Markov chain Monte Carlo when running many short
+ * chains](https://projecteuclid.org/journals/bayesian-analysis/volume-20/issue-4/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full).
+ * Bayesian Analysis.
  *
  * This function will throw an exception if there is a chain with
- * fewer than three draws.  The number is because it requires at least
- * three draws to compute a lag-1 autocorrelation.  In practice, we
- * require more than three draws per chain.  25 draws per chain is a
+ * fewer than three draws. The number is because it requires at least
+ * three draws to compute a lag-1 autocorrelation. In practice, we
+ * require more than three draws per chain. 25 draws per chain is a
  * reasonable minimum for practical applications that mix well, but
  * slower mixing problems will require more.
  *
@@ -614,34 +623,37 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  *
  * The effective sample size is adjusted downward when R-hat is
  * greater than 1 (Gelman et al. 2013) using the Margossian (2025)
- * estimator for the combined variance in R-hat.  If only a single
+ * estimator for the combined variance in R-hat. If only a single
  * chain is provided, there is no adjustment.
  *
  * This only uses a number of draws equal to the shortest chain.
  *
- * The algorithm is \f$\mathcal{O}(N log N)\f$ per dimension with N draws.  The
+ * The algorithm is \f$\mathcal{O}(N log N)\f$ per dimension with N draws. The
  * computational bottleneck is that autocovariances are calculated
  * with Eigen's built-in not-so-fast Fourier transform (FFT).
  *
  * The implementation is based on the one in Stan.
  *
- * @see Gelman et al. (2013 @cite gelman2013bda3) <a
- * href="https://sites.stat.columbia.edu/gelman/book/"><i>Bayesian Data
- * Analysis</i></a>
+ * See Gelman, Andrew and Carlin, John B and Stern, Hal S and Dunson,
+ * David B and Vehtari, Aki and Rubin, Donald B. 2014. [Bayesian Data
+ * Analysis](https://sites.stat.columbia.edu/gelman/book/), Third
+ * Edition. CRC Press.
  *
- * @see Margossian et al. (2025 @cite margossian2025nested) <a
- * href="https://projecteuclid.org/journals/bayesian-analysis/advance-publication/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full">Nested
- * R-hat: Assessing the convergence of Markov chain Monte Carlo when
- * running many short chains</a>.
+ * @see  Margossian, Charles C and Hoffman, Matthew D
+ * and Sountsov, Pavel and Riou-Durand, Lionel and Vehtari, Aki and
+ * Gelman, Andrew. 2025. [Nested R-hat: Assessing the convergence of
+ * Markov chain Monte Carlo when running many short
+ * chains](https://projecteuclid.org/journals/bayesian-analysis/volume-20/issue-4/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full).
+ * Bayesian Analysis.
  *
- * @see Stan Development Team. (2026 @cite standev2026ref). <a
- * href="https://mc-stan.org/docs/reference-manual/">Stan Reference
- * Manual</a>.
+ * See: The Stan Development Team. 2026. (The Stan Reference
+ * Manual)[https://mc-stan.org/docs/reference-manual/]. Version 2.39.
+ * Stan Web Site.
  *
- * @see Stan Development Team. (2026).  C++ Source Code: <a
- * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/ess.hpp">
- * Effective sample size</a> and <a
- * href="https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp">R-hat</a>.
+ * See the Stan C++ source code for [effective sample size
+ * (ESS)](https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/ess.hpp)
+ * and
+ * [R-hat](https://github.com/stan-dev/stan/blob/develop/src/stan/analyze/mcmc/rhat.hpp).
  * GitHub.
  *
  * @tparam MC The type of the Markov chain sequence.
@@ -756,4 +768,4 @@ inline Eigen::RowVectorXd monte_carlo_standard_error(const MC& chains) {
   return (sd.array() / ess.array().sqrt());
 }
 
-}  // namespace walnuts
+}  // namespace walnutpie

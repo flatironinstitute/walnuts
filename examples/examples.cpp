@@ -3,7 +3,7 @@
 #include <iostream>
 #include <random>
 
-#include <walnuts.hpp>
+#include <walnutpie.hpp>
 #include "handlers.hpp"
 
 static double total_time = 0.0;
@@ -76,7 +76,7 @@ static void summarize(const std::vector<Eigen::VectorXd>& draws) {
 
 template <typename F>
 static void run_adaptive_walnuts(F& target_logp_grad) {
-  std::cout << "\nRUN ADAPTIVE WALNUTS" << std::endl;
+  std::cout << "\nRun adaptive Walnuts" << std::endl;
 
   unsigned int seed = 876254;
   std::mt19937 rng(seed);
@@ -84,12 +84,12 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::size_t num_chains = 1;
   std::size_t D = 100;
 
-  auto init_cfg = walnuts::InitConfigBuilder(num_chains, D)
+  auto init_cfg = walnutpie::InitConfigBuilder(num_chains, D)
                       .positions(rng, 1.0)
                       .masses(target_logp_grad, 0.01)
                       .build();
 
-  auto warmup_cfg = walnuts::WarmupConfigBuilder()
+  auto warmup_cfg = walnutpie::WarmupConfigBuilder()
                         .min_max_iter(50, 100)
                         .mass_converge_tol(1.0)
                         .step_size_converge_tol(0.1)
@@ -102,7 +102,7 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
                         .step_learn_rate_decay(0.95)
                         .build();
 
-  auto sampling_cfg = walnuts::SamplingConfigBuilder()
+  auto sampling_cfg = walnutpie::SamplingConfigBuilder()
                           .min_max_iter(50, 1000)
                           .min_micro_steps(1)
                           .max_trajectory_doublings(8)
@@ -115,9 +115,9 @@ static void run_adaptive_walnuts(F& target_logp_grad) {
   std::cout << "Sampling configuration:\n" << sampling_cfg << std::endl;
 
   ChainStore handler;
-  walnuts::AdaptiveWalnuts adapt(rng, handler, target_logp_grad,
-                                 init_cfg.init_chain_config(0), warmup_cfg,
-                                 sampling_cfg);
+  walnutpie::AdaptiveWalnuts adapt(rng, handler, target_logp_grad,
+                                   init_cfg.init_chain_config(0), warmup_cfg,
+                                   sampling_cfg);
 
   for (std::size_t n = 0; n < warmup_cfg.max_iter(); ++n) {
     adapt();

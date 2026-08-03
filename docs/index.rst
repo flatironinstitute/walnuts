@@ -75,7 +75,7 @@ Developers and other contributors
 ---------------------------------
 
 We welcome new developers to the project and try to maintain a
-friendly and constructive environment.  To get started, see the
+friendly and constructive environment. To get started, see the
 developers guide on GitHub:
 
 - `Contributing to walnutpie <https://github.com/flatironinstitute/walnuts/blob/main/CONTRIBUTING.md>`__

@@ -14,9 +14,9 @@ namespace walnutpie::detail {
  * @brief Accumulator for online mean and smaple variance calculations.
  *
  * Welford's algorithm stores sufficient statistics with which to
- * compute a running mean and sample variance The accumulator stores
+ * compute a running mean and sample variance. The accumulator stores
  * only three sufficient statistics: a `std::size_t` and two `double`
- * values.  The algorithm is more numerically stable for variance
+ * values. The algorithm is more numerically stable for variance
  * calculations than the naive algorithm.
  */
 class WelfordAccumulator {
@@ -58,7 +58,7 @@ class WelfordAccumulator {
    * @brief Return the sample variance of the observed values.
    *
    * The sample variance is the unbiased estimator of variance.
-   * It divides by number of observations minus one.  Thus if
+   * It divides by number of observations minus one. Thus if
    * there have been fewer than two observations, the sample
    * variance is undefined and `NaN` will be returned.
    *
@@ -89,16 +89,16 @@ class WelfordAccumulator {
  * @brief An accumulator estimating discounted means and variances online.
  *
  * The `observe()` method receives vector value updates and maintains a
- * running estimate of discounted means and variances.  Historical counts
+ * running estimate of discounted means and variances. Historical counts
  * are discounted by the multiplying by the discount factor before each
- * new observation is added (with a count of one).  1 does no discounting
+ * new observation is added (with a count of one). 1 does no discounting
  * and 0 completely forgets the past.
  *
  * The implementation uses a weighted variant of Welford's algorithm that
- * discounts past observations.  It requires a constant memory of size
+ * discounts past observations. It requires a constant memory of size
  * proportional to the dimensionality of the observed vectors (i.e.,
- * O(`dim`)).  Each of its methods runs in time proportional to the size
- * of the update vectors (i.e., O(`dim`)).  Arithmetic is stable
+ * O(`dim`)). Each of its methods runs in time proportional to the size
+ * of the update vectors (i.e., O(`dim`)). Arithmetic is stable
  * following the original Welford accumulator, to which it reduces
  * when `discount_factor = 1`.
  *

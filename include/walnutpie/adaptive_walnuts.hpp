@@ -30,7 +30,7 @@ class MassEstimator {
    * position.
    *
    * The estimator observes positions and their gradients at given iterations
-   * with the function `observe()`.  At each step, the discount factor for
+   * with the function `observe()`. At each step, the discount factor for
    * discounting past draws the online moment estimators is set to
    * ```
    * discount_factor = 1 - 1 / (iter_offset + iter)
@@ -80,7 +80,7 @@ class MassEstimator {
   }
 
   /**
-   * @brief Return an estimate of the inverse mass matrix.  The result
+   * @brief Return an estimate of the inverse mass matrix. The result
    * is the geometric average of the variance of the draws and the
    * inverse variance of the scores.
    *
@@ -172,7 +172,7 @@ namespace walnutpie {
  *
  * The adaptive Walnuts sampler is configured in the constructor, then
  * provides a functor method `operator()()` for returning the next
- * state in warmup.  Warmup re-estimates step size and mass matrix
+ * state in warmup. Warmup re-estimates step size and mass matrix
  * each iteration, exponentially discounting the past.
  *
  * @tparam F Type of log density/gradient function.
@@ -186,8 +186,8 @@ class AdaptiveWalnuts {
    * @brief Construct an adaptive Walnuts sampler.
    *
    * The configuration objects, the base random number generator, and
-   * the log density/gradient function are held by reference.  The RNG
-   * changes state every time a random number is generated.  The
+   * the log density/gradient function are held by reference. The RNG
+   * changes state every time a random number is generated. The
    * target depth specifies the expected Nuts tree depth, which is
    * controlled through the minimum number of micro steps per macro
    * step and adjusted with a mean estimator to achieve this average.
@@ -226,8 +226,8 @@ class AdaptiveWalnuts {
    * @brief Generate the next state for adaptation and the handler.
    *
    * This method should be called a number of time equal to the number
-   * of warmup iterations desired.  These warmup draws are *not* drawn
-   * from a Markov chain and are not valid for inference.  After
+   * of warmup iterations desired. These warmup draws are *not* drawn
+   * from a Markov chain and are not valid for inference. After
    * warmup, call `sampler()` to return a sampler that fixes the
    * tuning parameters and provides a proper Markov chain.
    */
@@ -254,7 +254,7 @@ class AdaptiveWalnuts {
    * @brief Return a Walnuts sampler with the current tuning parameter
    * estimates.
    *
-   * The returned sampler forms a proper Markov chain.  The method passes
+   * The returned sampler forms a proper Markov chain. The method passes
    * along the compound random number generator and log density function and
    * is hence not marked `const`.
    *

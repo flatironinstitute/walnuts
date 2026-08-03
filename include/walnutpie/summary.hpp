@@ -383,7 +383,7 @@ inline Eigen::RowVectorXd mean(const MC& chains) {
  * The variances are calculated for each variable (i.e., each
  * dimension). The formula divides by the number of draws minus one
  * and thus provides an unbiased estimate of the population variance
- * based on a small sample.  If used to calculate the variance of an
+ * based on a small sample. If used to calculate the variance of an
  * entire population, it will be biased to the high side.
  *
  * If there is only one draw in a chain, this function will return
@@ -409,7 +409,7 @@ inline Eigen::RowVectorXd sample_variance(const MC& chains) {
  *
  * The standard deviations are calculated for each variable (i.e.,
  * each dimension). The formula divides by the number of draws minus
- * one.  Unlike the sample variance estimate, sample standard
+ * one. Unlike the sample variance estimate, sample standard
  * deviations are not unbiased estimates of population standard
  * deviations due to the nonlinearity of the square root operation.
  *
@@ -548,7 +548,7 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * @brief Return the chain-balanced ragged R-hat statistics for the chains.
  *
  * The R-hat statistic weights the within-chain mean and variance of each
- * chain equally, no matter how long they are.  The variance term used from
+ * chain equally, no matter how long they are. The variance term used from
  * R-hat is derived from the Margossian (2025) R-hat estimator.
  *
  * The number of draws per chain may vary, so let `chain[k]` be the
@@ -565,7 +565,7 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * @endcode
  *
  * For the original R-hat, see: Gelman, Andrew and Rubin, Donald
- * B. 1992.  [Inference from Iterative Simulation Using Multiple
+ * B. 1992. [Inference from Iterative Simulation Using Multiple
  * Sequences](https://projecteuclid.org/journals/statistical-science/volume-7/issue-4/Inference-from-Iterative-Simulation-Using-Multiple-Sequences/10.1214/ss/1177011136.pdf).
  * Statistical Science.
  *
@@ -578,9 +578,9 @@ Eigen::MatrixXd autocovariance(const MC& chains) {
  * Bayesian Analysis.
  *
  * This function will throw an exception if there is a chain with
- * fewer than three draws.  The number is because it requires at least
- * three draws to compute a lag-1 autocorrelation.  In practice, we
- * require more than three draws per chain.  25 draws per chain is a
+ * fewer than three draws. The number is because it requires at least
+ * three draws to compute a lag-1 autocorrelation. In practice, we
+ * require more than three draws per chain. 25 draws per chain is a
  * reasonable minimum for practical applications that mix well, but
  * slower mixing problems will require more.
  *
@@ -623,12 +623,12 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  *
  * The effective sample size is adjusted downward when R-hat is
  * greater than 1 (Gelman et al. 2013) using the Margossian (2025)
- * estimator for the combined variance in R-hat.  If only a single
+ * estimator for the combined variance in R-hat. If only a single
  * chain is provided, there is no adjustment.
  *
  * This only uses a number of draws equal to the shortest chain.
  *
- * The algorithm is \f$\mathcal{O}(N log N)\f$ per dimension with N draws.  The
+ * The algorithm is \f$\mathcal{O}(N log N)\f$ per dimension with N draws. The
  * computational bottleneck is that autocovariances are calculated
  * with Eigen's built-in not-so-fast Fourier transform (FFT).
  *
@@ -646,8 +646,8 @@ inline Eigen::RowVectorXd r_hat(const MC& chains) {
  * chains](https://projecteuclid.org/journals/bayesian-analysis/volume-20/issue-4/Nested-Rˆ--Assessing-the-Convergence-of-Markov-Chain-Monte/10.1214/24-BA1453.full).
  * Bayesian Analysis.
  *
- * See: The Stan Development Team. 2026.  (The Stan Reference
- * Manual)[https://mc-stan.org/docs/reference-manual/].  Version 2.39.
+ * See: The Stan Development Team. 2026. (The Stan Reference
+ * Manual)[https://mc-stan.org/docs/reference-manual/]. Version 2.39.
  * Stan Web Site.
  *
  * See the Stan C++ source code for [effective sample size

@@ -16,15 +16,15 @@ namespace walnutpie::detail {
  *
  * This implementation includes a learning rate schedule that divides
  * the specified learning rate by `pow(t, learn_rate_decay)` in
- * iteration `t` (indexed from 1).  The standard version of Adam uses
+ * iteration `t` (indexed from 1). The standard version of Adam uses
  * `learn_decay_rate = 0`, so that the learning rate stays fixed and
  * estimates continue to bounce around with new observations. With
  * stepsize decay, Adam converges as long as `0 < learn_rate_decay <=
  * 1`; Nuts used `learn_rate_decay = 0.75` for dual averaging and
  * `learn_rate_decay=0.5` is a reasonable default for Adam.
  *
- * See: Kingma, Diederik P and Ba, Jimmy L. 2014.  [Adam: A method for
- * stochastic optimization].  Proceedings of the 3rd International
+ * See: Kingma, Diederik P and Ba, Jimmy L. 2014. [Adam: A method for
+ * stochastic optimization]. Proceedings of the 3rd International
  * Conference on Learning Representations (ICLR).
  *
  * For convergence with step-size decay, see: Zou, Fangyu and Shen, Li

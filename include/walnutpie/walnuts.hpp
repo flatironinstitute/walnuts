@@ -25,7 +25,7 @@ namespace walnutpie::detail {
  *
  * A span has member variables for the initial and final states' (a)
  * position, (b) momentum, (c) log density of the state, and (d)
- * gradient of target log density.  It also holds a selected state,
+ * gradient of target log density. It also holds a selected state,
  * the gradient of the selected state, and the log of the sum of all
  * joint densities on the trajectory. The gradients could be recomputed,
  * but storing them serves as a local cache.
@@ -134,13 +134,13 @@ class SpanW {
  * @brief Return a tuple of the arguments ordered by direction.
 
  * The arguments are forwarded as is the returned tuple and returned
- * by reference, so function arguments must stay in scope.  If the
+ * by reference, so function arguments must stay in scope. If the
  * template argument `D` is `Direction::Forward`, then the tuple is
  * `(x1, x2)`; if `D` is `Direction::Backward`, the returned tuple is
  * `(x2, x1)`.
  *
  * The template parameter `T` is generic in order to allow reference
- * collapsing in callers.  Working through all of the types and forwarding
+ * collapsing in callers. Working through all of the types and forwarding
  * here, the type of the return
  *
  * @tparam D The `Direction` in which to combine the arguments
@@ -390,14 +390,14 @@ inline SpanW combine(Random<RNG>& rng, SpanW&& span_old, SpanW&& span_new) {
  * @brief Extend the specified span with a span of a single state.
  *
  * Given the specified span and direction `D`, build a new leaf span consisting
- * of a single state.  If `D` is `Forward`, the leaf extends the specified span
- * forward in time; if `Backward, it extends the span backward in time.
+ * of a single state. If `D` is `Forward`, the leaf extends the specified span
+ * forward in time; if `Backward`, it extends the span backward in time.
  *
  * The step-size adaptation handler is called with the acceptance of each
  * macro step attempt.
  *
  * The step size is reduced so that the Hamiltonian is conserved
- * within the specified error.  The mass matrix and macro step size
+ * within the specified error. The mass matrix and macro step size
  * are passed on to the leapfrog algorithm.
  *
  * The result is `std::optional` and will be `std::nullopt` only if the

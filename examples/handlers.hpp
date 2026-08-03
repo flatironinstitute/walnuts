@@ -130,7 +130,7 @@ class ChainStore {
    * @brief Handle a warmup draw with meta-information.
    *
    * If `save_warmup()` is `true`, this operation appends the values
-   * to vectors for later use.  Otherwise, it does nothing if
+   * to vectors for later use. Otherwise, it does nothing if
    * `save_warmup()` is `false`.
    *
    * @param[in] position The position observed.
@@ -321,9 +321,9 @@ static void write_mass_matrix(std::ostream& os,
  * @brief Write the draws and log densities to the stream, specifying if
  * they are sampling or warmup draws.
  *
- * First, the number of chains is written (`std::uint64_t`).  Then the
- * draws are written in order.  For each draw, its log density is
- * written first (`double`).  Then the values are written in order
+ * First, the number of chains is written (`std::uint64_t`). Then the
+ * draws are written in order. For each draw, its log density is
+ * written first (`double`). Then the values are written in order
  * (`double`), one per dimension.
  *
  * This is not a recoverable format without knowing the dimensionality and
@@ -353,7 +353,7 @@ static void write_draws(std::ostream& os, bool is_sampling,
  * The output format first writes the number of chains
  * (`std::uint64_t`), then the number of dimensions (`std::uint64_t`).
  * If `include_warmup` is true, it then writes the warmup draws for
- * each chain in order (see `write_draws()`).  Then it writes the
+ * each chain in order (see `write_draws()`). Then it writes the
  * draws for each chain (see `write_draws()`).
  *
  * @param[out] os The output stream.

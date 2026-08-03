@@ -38,7 +38,7 @@ WALNUTPIE_STRONG_INLINE void initiated_qos() {}
  * @brief A conservative constant destructive interference size.
  *
  * The std::hardware_destructive_interference_size is not universally supported
- * and can underreport when it is supported.  128 is safe for ARM and Intel
+ * and can underreport when it is supported. 128 is safe for ARM and Intel
  * hardware.
  */
 inline constexpr std::size_t FALSE_SHARING_GUARD_SIZE = 128;
@@ -84,7 +84,7 @@ class Random {
    *
    * The base generator is held as a reference and used for all of the
    * generation. Thus it must be kept in scope as the instance constructed with
-   * it is used.  The base generator may be shared with other applications.
+   * it is used. The base generator may be shared with other applications.
    *
    * @param[in,out] rng The base random number generator.
    */
@@ -165,7 +165,7 @@ class Random {
  * @brief Return the log of the sum of the exponentiated arguments.
  *
  * The mathematical definition is `log_sum_exp(x1, x2) = log(exp(x1) +
- * exp(x2))`.  The implementation is high precision and numerically stable.
+ * exp(x2))`. The implementation is high precision and numerically stable.
  *
  * @param[in] x1 The first argument.
  * @param[in] x2 The second argument.
@@ -262,9 +262,9 @@ double leapfrog_error(const F& logp_grad, const Eigen::VectorXd& theta,
  * @brief Return the adapted step size for the specified initial
  * step size, given an initial position and inverse mass matrix.
  *
- * The algorithm randomly generates a momentum.  Then until
+ * The algorithm randomly generates a momentum. Then until
  * the Metropolis acceptance rate is below 0.9, it continues
- * to double the step size.   Then until the Metropolis accept
+ * to double the step size. Then until the Metropolis accept
  * rate is above 0.6, it continues to divide it by sqrt(2).
  * This is a slightly more fine-grained version of the heuristic
  * step size initialization used by Nuts.

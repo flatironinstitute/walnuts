@@ -163,7 +163,7 @@ class InitConfig {
    * @brief Construct an initialization configuration.
    *
    * This constructor does not validate arguments because it is only
-   * called internally.  It only implements rvalue moves because that
+   * called internally. It only implements rvalue moves because that
    * is the only way it is called.
    *
    * @param[in] step_sizes The step sizes.
@@ -344,9 +344,9 @@ class InitConfigBuilder {
    * matrixes.
    *
    * See: Seyboldt, Adrian and Carlson, Eliot and Carpenter,
-   * Bob. 2026.  [Preconditioning Hamiltonian Monte Carlo by
+   * Bob. 2026. [Preconditioning Hamiltonian Monte Carlo by
    * minimizing Fisher
-   * divergence](https://arxiv.org/abs/2603.18845v1).  arXiv
+   * divergence](https://arxiv.org/abs/2603.18845v1). arXiv
    * 2603.18845.
    *
    * @tparam LPG The type of the log density and gradient function.
@@ -507,7 +507,7 @@ inline std::ostream& operator<<(std::ostream& out, const InitConfig& cfg) {
 }
 
 /**
- * @brief The warmup configuration object.  The object supplies methods
+ * @brief The warmup configuration object. The object supplies methods
  * for all of the tuning parameters for warmup.
  */
 class WarmupConfig {

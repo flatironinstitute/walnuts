@@ -34,7 +34,7 @@ namespace walnutpie::detail {
  * @endcode
  *
  * `read_latest()` is not generically thread safe and must only be
- * called by the single consumer.  It also only returns a value
+ * called by the single consumer. It also only returns a value
  * that is valid until the next call to `read_latest()`.
  *
  * Writing: The write code will only be used by a single producer.

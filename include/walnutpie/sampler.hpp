@@ -69,8 +69,8 @@ class ChainWorker {
    * @brief Called by `std::jthread` to do the sampling.
    *
    * The operator returns if a stop is requested, if the maximum
-   * number of draws have been sampled.  It yields according to
-   * the period of the chain worker.  It calls the running
+   * number of draws have been sampled. It yields according to
+   * the period of the chain worker. It calls the running
    * statistics acucmulator used for monitoring.
    *
    * @param[in] st The `jthread` stop token to track if a stop has been

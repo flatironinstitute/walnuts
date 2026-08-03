@@ -13,6 +13,7 @@ class Summarizer:
     A class to hold multivariate Markov chain Monte Carlo draws and provide
     summary statistics for their variables.
     """
+
     def __init__(self, draws: Union[List[np.ndarray], List["StanOutputBase"]]):
         """
         Construct an instance from a list of multivariate Markov chains.
@@ -71,11 +72,11 @@ class Summarizer:
     def ess(self) -> np.ndarray:
         """
         Return the estimated effective sample size of the sampled variables.
-        
+
         The implementation uses initial monotonic sequence estimators for
-        integrated autocorrelation.  It also discounts ESS for non-convergence
+        integrated autocorrelation. It also discounts ESS for non-convergence
         across chains.
-          
+
         Returns
         -------
         np.ndarray
@@ -147,9 +148,9 @@ class Summarizer:
 def ess(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarray:
     """
     Return the estimated effective sample size of the sampled variables.
-    
+
     The implementation uses initial monotonic sequence estimators for
-    integrated autocorrelation.  It also discounts ESS for non-convergence
+    integrated autocorrelation. It also discounts ESS for non-convergence
     across chains.
 
     Parameters
@@ -243,7 +244,7 @@ def variance(draws: Union[List[np.ndarray], List["StanOutputBase"]]) -> np.ndarr
 
     Returns
     -------
-    np.ndarray 
+    np.ndarray
        The posterior sample variances.
     """
     return Summarizer(draws).variance()

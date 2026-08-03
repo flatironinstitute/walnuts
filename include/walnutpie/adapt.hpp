@@ -101,7 +101,7 @@ class AdaptWorker {
    * A call to this function first waits for the latch, then iterates
    * for a number of iterations between the specified min and max.
    * Adaptation terminates when the maximum number of iterations is
-   * hit or a stop is requested through the stop token.  The thread
+   * hit or a stop is requested through the stop token. The thread
    * will yield based on the yield period specified in the warmup
    * configuration.
    *

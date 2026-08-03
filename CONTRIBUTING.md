@@ -2,8 +2,8 @@
 
 Thank you for your interest in contributing to `walnutpie`.
 Contributions are managed through Github
-[issues](https://github.com/flatironinstitute/walnuts/issues) and [pull
-requests](https://github.com/flatironinstitute/walnuts/pulls).
+[issues](https://github.com/flatironinstitute/walnutpie/issues) and [pull
+requests](https://github.com/flatironinstitute/walnutpie/pulls).
 
 We recommend opening a new issue or commenting on an existing issue before
 beginning to discuss your planned contribution.
@@ -174,13 +174,13 @@ manager (`brew`, `apt`, etc) as needed.
 ## Building the Python library
 
 The Python build uses a combination of CMake and
-[scikit-build-core](https://scikit-build-core.readthedocs.io/en/latest/). 
+[scikit-build-core](https://scikit-build-core.readthedocs.io/en/latest/).
 
-The only required runtime dependency is 
+The only required runtime dependency is
 
 * [NumPy](https://numpy.org/)
 
-The two optional dependencies are 
+The two optional dependencies are
 
 * [BridgeStan](https://roualdes.us/bridgestan/latest/languages/python.html),
 which can be used to connect to Stan models directly in C++.
@@ -204,7 +204,7 @@ Python is restarted.
 The extra packages used only for testing can be installed with `pip
 install -e '.[test]'`. To launch the Python tests, use
 [pytest](https://docs.pytest.org/en/stable/),
-which is downloaded as part of installing `.[test]`.  
+which is downloaded as part of installing `.[test]`.
 
 ```bash
 pytest python/ -v

@@ -41,7 +41,7 @@ namespace walnutpie::internal {
 struct dlclose_deleter {
   void operator()(void*) const {
     // TODO: Crashes on some systems, see
-    // https://github.com/flatironinstitute/walnuts/pull/25#discussion_r2298576937
+    // https://github.com/flatironinstitute/walnutpie/pull/25#discussion_r2298576937
     // if (handle) {
     //   dlclose(handle);
     // }

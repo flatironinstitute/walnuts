@@ -23,4 +23,4 @@ C++20-compatible compiler installed and run
 
 .. code-block:: shell
 
-   pip install git+https://github.com/flatironinstitute/walnuts.git#egg=walnutpie
+   pip install git+https://github.com/flatironinstitute/walnutpie.git#egg=walnutpie

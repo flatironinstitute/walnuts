@@ -19,8 +19,8 @@ dependencies = ["numpy"]
 dynamic = ["version"]
 
 [project.urls]
-"Homepage" = "https://github.com/flatironinstitute/walnuts"
-"Bug Tracker" = "https://github.com/flatironinstitute/walnuts/issues"
+"Homepage" = "https://github.com/flatironinstitute/walnutpie"
+"Bug Tracker" = "https://github.com/flatironinstitute/walnutpie/issues"
 
 [project.optional-dependencies]
 stan = ["bridgestan>=2.9.0", "stanio"]

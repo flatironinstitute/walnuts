@@ -2,7 +2,7 @@
 
 ## Documentation
 
-Documentation for `walnutpie` can be found on [Github Pages](https://flatironinstitute.github.io/walnuts/latest/).
+Documentation for `walnutpie` can be found on [Github Pages](https://flatironinstitute.github.io/walnutpie/latest/).
 
 ## Basic usage
 

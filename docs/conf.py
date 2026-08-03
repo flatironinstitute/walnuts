@@ -42,7 +42,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/flatironinstitute/walnuts",
+            "url": "https://github.com/flatironinstitute/walnutpie",
             "icon": "fab fa-github",
         },
     ],
@@ -52,7 +52,7 @@ html_theme_options = {
 
 html_context = {
     "github_user": "flatironinstitute",
-    "github_repo": "walnuts",
+    "github_repo": "walnutpie",
     "github_version": "main",
     "doc_path": "docs",
 }

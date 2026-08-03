@@ -8,7 +8,7 @@ Carlo](https://en.wikipedia.org/wiki/Hamiltonian_Monte_Carlo) (HMC) samplers.
 
 ## Documentation
 
-Documentation for `walnutpie` can be found on [Github Pages](https://flatironinstitute.github.io/walnuts/latest/).
+Documentation for `walnutpie` can be found on [Github Pages](https://flatironinstitute.github.io/walnutpie/latest/).
 
 ## Using walnutpie from Python
 
@@ -18,7 +18,7 @@ Documentation for `walnutpie` can be found on [Github Pages](https://flatironins
 pip install walnutpie
 ```
 
-For more information, consult [the documentation](https://flatironinstitute.github.io/walnuts/latest/install.html).
+For more information, consult [the documentation](https://flatironinstitute.github.io/walnutpie/latest/install.html).
 
 ## Using walnutpie in a C++ project
 

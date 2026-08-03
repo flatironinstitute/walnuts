@@ -68,7 +68,7 @@ Bug reports and feature requests
 
 Bug reports and feature requests are handled through GitHub.
 
-- `Walnutpie issue tracker <https://github.com/flatironinstitute/walnuts/issues>`__
+- `Walnutpie issue tracker <https://github.com/flatironinstitute/walnutpie/issues>`__
 
 
 Developers and other contributors
@@ -78,4 +78,4 @@ We welcome new developers to the project and try to maintain a
 friendly and constructive environment. To get started, see the
 developers guide on GitHub:
 
-- `Contributing to walnutpie <https://github.com/flatironinstitute/walnuts/blob/main/CONTRIBUTING.md>`__
+- `Contributing to walnutpie <https://github.com/flatironinstitute/walnutpie/blob/main/CONTRIBUTING.md>`__

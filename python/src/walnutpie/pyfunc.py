@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 
 from ._ffi import _ffi_sample_cfunc, logp_cfunc_type, print_callback
-from .util import WarmupInfo, rand_u32
+from .util import WarmupInfo, prepare_seed, prepare_output_buffer, prepare_inv_metric
 
 
 class WalnutsOutputArray(np.ndarray):
@@ -181,20 +181,15 @@ def walnuts_pyfunc(
         else:
             num_params = init_shape[0]
 
-    # these are checked here because they're sizes for "out"
-    if num_chains < 1:
-        raise ValueError("num_chains must be at least 1")
-    if max_warmup_iter < 0:
-        raise ValueError("max_warmup_iter must be non-negative")
-    if max_sampling_iter < 1:
-        raise ValueError("max_sampling_iter must be at least 1")
-    if num_params < 1:
-        raise ValueError("num_params must be at least 1")
+    seed = prepare_seed(seed)
 
-    seed = seed or rand_u32()
-
-    num_draws = max_sampling_iter + max_warmup_iter * save_warmup
-    out = np.full((num_chains, num_draws, num_params), np.nan, dtype=np.float64)
+    out = prepare_output_buffer(
+        num_chains=num_chains,
+        num_params=num_params,
+        max_sampling_iter=max_sampling_iter,
+        max_warmup_iter=max_warmup_iter,
+        save_warmup=save_warmup,
+    )
 
     if inits is not None:
         if inits.shape == (num_params,):
@@ -207,23 +202,15 @@ def walnuts_pyfunc(
                 f"or {(num_chains, num_params)} matrix."
             )
 
-    if init_inv_metric is not None:
-        if init_inv_metric.shape == (num_params,):
-            init_inv_metric = np.repeat(init_inv_metric[np.newaxis], num_chains, axis=0)
-        elif init_inv_metric.shape == (num_chains, num_params):
-            pass
-        else:
-            raise ValueError(
-                f"Invalid initial metric size. Expected a {(num_params,)} "
-                f"or {(num_chains, num_params)} matrix."
-            )
-
-    inv_metric_out = None
-    stepsize_out = np.zeros(num_chains, dtype=np.float64)
-    if save_inv_metric:
-        inv_metric_out = np.zeros((num_chains, num_params), dtype=np.float64)
+    metric_size = (num_params,)
+    init_inv_metric = prepare_inv_metric(init_inv_metric, metric_size, num_chains)
 
     lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
+    stepsize_out = np.zeros(num_chains, dtype=np.float64)
+
+    inv_metric_out = None
+    if save_inv_metric:
+        inv_metric_out = np.zeros((num_chains, num_params), dtype=np.float64)
 
     if hasattr(logp, "ctypes"):
         # numba's @cfunc decorator, which should generate very fast code
@@ -234,7 +221,8 @@ def walnuts_pyfunc(
         logp_c_data = ctypes.byref(logp[1]) if logp[1] is not None else None
     else:
         # if we just have a generic python function, best we can do is wrap it
-        # TODO: does a faster path exist for JAX?
+        # TODO: a faster path exist for JAX?
+        #  - PJRT loading would rely on https://github.com/jax-ml/jax/issues/37033
         logp_c = logp_c_trampoline
         logp_c_data = ctypes.byref(ctypes.py_object(logp))
 

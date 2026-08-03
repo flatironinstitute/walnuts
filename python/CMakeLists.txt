@@ -4,8 +4,9 @@ add_library(walnutpy SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/walnutpie/walnutpy.
 target_link_libraries(walnutpy PRIVATE walnutpie BridgeStan::BridgeStan Eigen3::Eigen)
 
 include(GenerateExportHeader)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+set(CMAKE_VISIBILITY_INLINES_HIDDEN TRUE)
+
 generate_export_header(walnutpy
   EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/src/walnutpie/export.h"
 )

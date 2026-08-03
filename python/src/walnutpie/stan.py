@@ -11,7 +11,7 @@ from ._ffi import (
     WALNUTPY_SEP,
     print_callback,
 )
-from .util import WarmupInfo, rand_u32
+from .util import WarmupInfo, prepare_seed, prepare_output_buffer, prepare_inv_metric
 
 StanData = Union[str, os.PathLike, Mapping[str, Any]]
 
@@ -294,15 +294,6 @@ def walnuts_stan(
     ValueError
         If any argument is out of its valid range (documented above) or has inconsistent dimensionality.
     """
-    # these are checked here because they're sizes for "out"
-    if num_chains < 1:
-        raise ValueError("num_chains must be at least 1")
-    if max_warmup_iter < 0:
-        raise ValueError("max_warmup_iter must be non-negative")
-    if max_sampling_iter < 1:
-        raise ValueError("max_sampling_iter must be at least 1")
-
-    seed = seed or rand_u32()
 
     if model.model_version() < (2, 9, 0):
         raise ValueError(
@@ -313,31 +304,30 @@ def walnuts_stan(
             "BridgeStan model must be compiled with STAN_THREADS for use with walnuts"
         )
 
+    seed = prepare_seed(seed)
+
     model_params = model.param_unc_num()
     param_names = model.param_names(include_tp=True, include_gq=True)
 
     num_params = len(param_names)
-    num_draws = max_sampling_iter + max_warmup_iter * save_warmup
-    out = np.zeros((num_chains, num_draws, num_params), dtype=np.float64)
+
+    out = prepare_output_buffer(
+        num_chains=num_chains,
+        num_params=num_params,
+        max_sampling_iter=max_sampling_iter,
+        max_warmup_iter=max_warmup_iter,
+        save_warmup=save_warmup,
+    )
 
     metric_size = (model_params,)
-    if init_inv_metric is not None:
-        if init_inv_metric.shape == metric_size:
-            init_inv_metric = np.repeat(init_inv_metric[np.newaxis], num_chains, axis=0)
-        elif init_inv_metric.shape == (num_chains, *metric_size):
-            pass
-        else:
-            raise ValueError(
-                f"Invalid initial metric size. Expected a {metric_size} "
-                f"or {(num_chains, *metric_size)} matrix."
-            )
-
-    inv_metric_out = None
-    stepsize_out = np.zeros(num_chains, dtype=np.float64)
-    if save_inv_metric:
-        inv_metric_out = np.zeros((num_chains, *metric_size), dtype=np.float64)
+    init_inv_metric = prepare_inv_metric(init_inv_metric, metric_size, num_chains)
 
     lengths_out = np.zeros((num_chains * 2,), dtype=np.int32)
+    stepsize_out = np.zeros(num_chains, dtype=np.float64)
+
+    inv_metric_out = None
+    if save_inv_metric:
+        inv_metric_out = np.zeros((num_chains, *metric_size), dtype=np.float64)
 
     _ffi_sample_bridgestan(
         model.lib_path.encode(),

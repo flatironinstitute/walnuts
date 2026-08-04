@@ -21,6 +21,7 @@ dynamic = ["version"]
 [project.urls]
 "Homepage" = "https://github.com/flatironinstitute/walnutpie"
 "Bug Tracker" = "https://github.com/flatironinstitute/walnutpie/issues"
+"Documentation" = "https://flatironinstitute.github.io/walnutpie/latest/"
 
 [project.optional-dependencies]
 stan = ["bridgestan>=2.9.0", "stanio"]

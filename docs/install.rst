@@ -10,7 +10,7 @@ with pre-compiled wheels provided for major platforms.
    pip install walnutpie
 
 If you would like to use ``walnutpie`` with Stan models, you should additionally
-install `BridgeStan <https://roualdes.us/bridgestan/latest/>`; see
+install `BridgeStan <https://roualdes.us/bridgestan/latest/>`__; see
 :external+bridgestan:doc:`BridgeStan Python Installation <languages/python>`
 for instructions.
 

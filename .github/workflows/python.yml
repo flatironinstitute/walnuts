@@ -130,9 +130,9 @@ jobs:
         with:
           path: wheels
           merge-multiple: true
-
+      - run: ls wheels/
       - name: Upload PyPI wheels
         uses: pypa/gh-action-pypi-publish@v1.14.2
         with:
-          packages-dir: wheels/dist/
+          packages-dir: wheels/
           skip-existing: true

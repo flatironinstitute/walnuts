@@ -46,6 +46,8 @@ jobs:
 
       - name: "Windows: Set up MSVC"
         uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
         if: matrix.cfg.compiler == 'msvc' && matrix.cfg.os == 'windows'
       - name: "Windows: Set up GCC"
         uses: bwoodsend/setup-winlibs-action@v1

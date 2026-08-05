@@ -45,7 +45,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.cfg.compiler }}-deps-${{ hashFiles('**/CMakeLists.txt') }}-v${{ env.CACHE_VERSION }}
 
       - name: "Windows: Set up MSVC"
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         if: matrix.cfg.compiler == 'msvc' && matrix.cfg.os == 'windows'
       - name: "Windows: Set up GCC"
         uses: bwoodsend/setup-winlibs-action@v1

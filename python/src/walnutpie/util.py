@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass
 from typing import Generic, Optional, TypeVar
 
@@ -9,8 +10,18 @@ def rand_u32():
     return np.random.randint(0, 2**32 - 1, dtype=np.uint32)
 
 
-def prepare_seed(seed: Optional[int]) -> int:
-    return seed if seed is not None else rand_u32()
+def prepare_seed(seed: Optional[int], is_adaptive: bool) -> int:
+    if seed is not None:
+        if is_adaptive:
+            warnings.warn(
+                "Setting 'seed' without also disabling adaptive stopping "
+                "(by setting min and max number of iterations for warmup and sampling) "
+                "will not lead to reproducible sampling due to thread scheduling!",
+                UserWarning,
+                stacklevel=3,
+            )
+        return seed
+    return rand_u32()
 
 
 def prepare_output_buffer(

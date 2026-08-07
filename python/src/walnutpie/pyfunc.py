@@ -181,7 +181,11 @@ def walnuts_pyfunc(
         else:
             num_params = init_shape[0]
 
-    seed = prepare_seed(seed)
+    is_adaptive = num_chains > 1 and (
+        min_warmup_iter != max_warmup_iter or min_sampling_iter != max_sampling_iter
+    )
+
+    seed = prepare_seed(seed, is_adaptive)
 
     out = prepare_output_buffer(
         num_chains=num_chains,

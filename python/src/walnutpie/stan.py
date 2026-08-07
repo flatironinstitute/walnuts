@@ -1,4 +1,6 @@
 import os
+import sys
+import ctypes
 from typing import Any, Dict, List, Mapping, Optional, Union
 
 import bridgestan
@@ -304,7 +306,11 @@ def walnuts_stan(
             "BridgeStan model must be compiled with STAN_THREADS for use with walnuts"
         )
 
-    seed = prepare_seed(seed)
+    is_adaptive = num_chains > 1 and (
+        min_warmup_iter != max_warmup_iter or min_sampling_iter != max_sampling_iter
+    )
+
+    seed = prepare_seed(seed, is_adaptive)
 
     model_params = model.param_unc_num()
     param_names = model.param_names(include_tp=True, include_gq=True)

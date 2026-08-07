@@ -107,7 +107,7 @@ def walnuts_pyfunc(
         Numeric id for the first chain, by default 1. The remaining chains are given consecutive ids following this one.
         This controls the random number generation, along with the ``seed``.
     init_radius : float, optional
-        The bounds of uniform random initialization (``-init_radius``, ``init_radius``), positive, by default ``2.0``.
+        The standard deviation of a zero-centered normal random initialization, by default 2.0.
     init_inv_metric : Optional[np.ndarray], optional
         The diagonal of the initial diagonal inverse metric, positive entries and size equal to transformed
         (unconstrained) dimension, or ``None``, in which case the mass matrix is initialized with a smoothed.
